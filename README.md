@@ -12,12 +12,16 @@ SSA Tutorials: sample R-code on various topics (introductory examples, forecasti
 
 
 There’s also an R-project file called SSA_package
-·	Open the R-project SSA_package (in Rstudio)
-o	Doing so sets the paths to the folders
-·	Once the project is opened (in Rstudio): load any of the tutorials from the folder `SSA Tutorials’
-o	Depending on the tutorial one has to add additional packages (so called libraries) such as xts, mFilter or packages for loading/updating the data: 
-o	When all packages/libraries are loaded one can work through the tutorials
-o	Start with lowest numbers (of tutorials)
-Experience
+
+Open the R-project SSA_package (in Rstudio)
+
+Once the project is opened (in Rstudio): load any of the tutorials from the folder `SSA Tutorials’
+
+Depending on the tutorial one has to add additional packages (so called libraries) such as xts, mFilter or packages for loading/updating the data: 
+
+When all packages/libraries are loaded one can work through the tutorials
+
+Start with lowest numbers (of tutorials)
+
 
 
