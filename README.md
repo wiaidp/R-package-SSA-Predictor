@@ -1,6 +1,6 @@
 # R-package_Simple_Sign_Accuracy_SSA_Predictor
  
-SSA-predictor (Simple Signa Accuracy): this is a generalization of the classic mean-square error (MSE) forecast paradigm 
+SSA-predictor (Simple Sign Accuracy): this is a generalization of the classic mean-square error (MSE) forecast paradigm 
 
 There should be three folders in this package: 
 ·	Data 
