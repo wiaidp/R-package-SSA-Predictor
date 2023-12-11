@@ -4,22 +4,24 @@ SSA-predictor (Simple Sign Accuracy): this is a generalization of the classic me
 
 There should be three folders in this package:
  
-Data 
+1. Data 
 
-R: functions for computing the SSA criterion 
+2. R: functions for computing the SSA criterion 
 
-SSA Tutorials: sample R-code on various topics (introductory examples, forecasting, signal extraction with HP, BK and HF filters)
+3. SSA Tutorials: sample R-code on various topics (introductory examples, forecasting, signal extraction with HP, BK and HF filters)
 
 
-There’s also an R-project file called SSA_package
+There’s also an R-project file named SSA_package.Rproj
 
-Open the R-project SSA_package (in Rstudio)
+Proceeding:
 
-Once the project is opened (in Rstudio): load any of the tutorials from the folder `SSA Tutorials’
+1. Open the R-project SSA_package (in Rstudio)
 
-Depending on the tutorial one has to add additional packages (so called libraries) such as xts, mFilter or packages for loading/updating the data: 
+2. Once the project is opened (in Rstudio): load any of the tutorials from the folder `SSA Tutorials’
 
-When all packages/libraries are loaded one can work through the tutorials
+3. Depending on the tutorial one has to load additional R-packages (so called libraries) from CRAN such as xts, mFilter or packages for loading/updating the data. 
+
+4. When all packages/libraries are loaded one can work through the tutorials
 
 
 
