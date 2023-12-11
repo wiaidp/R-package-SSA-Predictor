@@ -21,7 +21,6 @@ Depending on the tutorial one has to add additional packages (so called librarie
 
 When all packages/libraries are loaded one can work through the tutorials
 
-Start with lowest numbers (of tutorials)
 
 
 
