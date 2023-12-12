@@ -271,8 +271,8 @@ SA_true_logit
 # As expected, MSE outperforms logit
 
 #-------------------------------------------
-# The above results were based on a single sample of xt
-#   We now perform a simulation over multiple samples and look at the sample distribution of SA: mean, sd
+# The above results were based on a single long sample of xt
+#   We now perform a simulation over multiple `normal-size' samples and look at the sample distribution of SA: mean, sd
 
 set.seed(43)
 # Number of simulation runs
@@ -332,7 +332,7 @@ length(which(mat_perf[,1]<mat_perf[,2]))/anzsim
 # -MSE has a higher sign accuracy, in the mean over all samples
 # -The sample variance of SA is substantially smaller (this result reflects the higher sample variance of coefficient estimates)
 #   -Using the signs only in the logit-model discards information in the data
-# -MSE outperforms logit in a (overwhelming) majority of cases
+# -MSE outperforms logit in a majority of cases (~90%)
 
 
 
