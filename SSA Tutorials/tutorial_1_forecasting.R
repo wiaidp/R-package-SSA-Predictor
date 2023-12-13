@@ -1,8 +1,9 @@
-# Introductory examples illustrating simple applications of SSA, mainly to forecasting. All examples emphasize 
-# the holding-time (ht) concept as a method for controlling the smoothness of a (forecast or signal extraction) filter 
-# in a systematic and predictable way. We relate the theoretical or expected ht to the effective (empirical or measured) 
-# ht. We propose and analyze simple cases (misspecifications) where expected and empirical hts differ and we 
-# resolve the mismatch by suitable adjustments.  
+# Introductory examples illustrating simple applications of SSA, mainly to forecasting. 
+# -All examples emphasize the holding-time (ht) concept as a method and concept for controlling the smoothness 
+#   of a (forecast or signal extraction) filter in a systematic and predictable way. 
+# -We relate the theoretical or expected ht to the effective (empirical or measured) ht. 
+# -We also propose and analyze simple cases of misspecification, where expected and empirical hts differ and we 
+#   show how to resolve the mismatch or misspecification by simple adjustments.  
 
 
 
@@ -22,7 +23,6 @@ source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 #---------------------------------------------------------
-# In this tutorial we propose some simple illustrative introductory examples  
 # Example 1
 # Illustrate the holding-time and proposition 2 in BCJY paper
 
@@ -48,6 +48,9 @@ tsdiag(ar_obj)
 # Holding time
 # Lets have a look at the holding time of the AR(1) process
 # We first compute the empirical holding-time i.e. the mean-duration between consecutive zero-crossings of the data
+empirical_ht<-len/length(which(sign(x[2:len])!=sign(x[1:(len-1)])))
+empirical_ht
+# We have implemented the formula in a function
 empirical_ht<-compute_empirical_ht_func(x)
 empirical_ht
 
@@ -94,15 +97,16 @@ ahat<-ar_obj$coef["ar1"]
 rho<-ahat
 # Compare with true/expected holding-time above
 compute_holding_time_from_rho_func(rho)
-# See also tables 3 and 4 in the paper (simulation experiments) and the comments referring to the sampling error
-#   -Mostly irrelevant in applications
+# See also tables 3 and 4 in the JBCY paper (simulation experiments) and the comments referring to the sampling error
+#   -The sampling error is mostly irrelevant in applications because it cancels in relative terms
+#   -SSA is mainly about relative performances, against a benchmark
 
 
 #----------------------------------------------------------------------------------------------------
 # Example 2
-# Inconsistent settings: proposition 3 in JBCY-paper suggests that the filter-length L cannot be set irrespective of ht
+# Inconsistent settings: proposition 3 in JBCY-paper suggests that the filter-length L cannot be set arbitrarily
 #   A MA-filter of length L cannot exceed an upper limit for the holding-time
-#   We here briefly illustrate that case
+#   We here briefly illustrate such a case
 
 # We assume that the data is the above AR(1)-process or filter
 len<-120
@@ -111,7 +115,7 @@ xi<-c(1,ARMAtoMA(ar=a1,lag.max=len-1))
 # We here purposely select a (too) small L
 L<-5
 # Target: identity (we shall explain this setting below)
-gammak_generic<-rep(1,1)
+gammak_generic<-1
 # Forecast horizon: one-step ahead
 forecast_horizon<-1
 # Here is the problem: ht is too large for a filter of length 5
@@ -119,14 +123,12 @@ ht<-7
 # Note that we need to supply rho1 (instead of ht) to SSA_func below
 rho1<-compute_rho_from_ht(ht)
 rho1
-# This function computes the maximal lag-one acf, see proposition 3: the maximum is smaller than rho1 above 
+# This function computes the maximal lag-one acf for a filter of length L, see proposition 3: the maximum is smaller than rho1 above 
 #  In this case there does not exist a SSA-solution (L is too small)
 rhomax_func(L)
 # Estimation function: the estimation is based on corollary 1 and theorem 1 in JBCY paper
 # There are two optimization routines: brute-force grid-search (for 'exotic' cases) and fast triangulation (for most practically relevant applications)
 #   Fast triangulation can handle all cases such that the imposed holding-time does not exceed some limit which depends on L (see examples further down)
-# Default is fast optimization (departure from default in exceptional cases only)
-# Estimation function: one can supply other parameters (conditioning the optimization) which are hidden 
 # The function generates an error message: ht is too large (rho1>rhomax)
 SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
 
@@ -138,7 +140,7 @@ SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
 # Let's first increase L
 L<-15
 # Target: identity (we shall explain this setting below)
-gammak_generic<-rep(1,1)
+gammak_generic<-1
 # Forecast horizon: one-step ahead
 forecast_horizon<-1
 # Same ht as above
@@ -151,7 +153,7 @@ rhomax_func(L)
 
 SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
 
-# We will explain below the most important elements returned by the function 
+# See tutorial 0.3 for reference of the return: what is ssa_x? 
 # This is the optimal SSA-filter: of length L
 SSA_obj$ssa_x
 
@@ -200,7 +202,7 @@ rho1<-compute_rho_from_ht(ht)
 # Larger L do not lead to overfitting of the SSA-filter unless xi (the MA-inversion) is overfitted
 L<-20
 # Target: in our case this is the identity since we want to forecast the original data xt
-# In the signal extraction example further down the target is typically a filter applied to xt (not the identity)
+# In the signal extraction example further down the target is typically a non-trivial filter applied to xt (not the identity)
 # Summary: for forecasting set gammak_generic=1
 gammak_generic<-1
 # Forecast horizon: one-step ahead
@@ -230,7 +232,7 @@ ht
 # 2. Compare lag-one acf of optimized design with ht: 
 #   If both numbers are identical (up to rounding errors) then the optimization converged to the global maximum
 #   If there is a substantial difference: increase split_grid (number of iterations: default is 20 which should be fine for nearly all applications)
-# In our example both numbers match almost perfectly
+# In our example both numbers match almost perfectly (they invariably due in `non-exotic' applications)
 SSA_obj$crit_rhoyy
 rho1
 
@@ -250,7 +252,7 @@ cor(yhat,c(x[2:len],x[len]),use='pairwise.complete.obs')
 # Both targets are equivalent, see proposition 4 in JBCY paper: both lead to the same SSA-filter 
 # -The correlation with the effective target (second criterion) is smaller because the latter assumes knowledge of future observations (in this case: the one-step ahead observation) 
 # -The correlation with the MSE target is larger because the latter is one-sided (it does not assume knowledge of future data)
-# -If the holding-time imposed to SSA coincides with the holding-time of MSE, then SSA just replicates MSE, see tutorial 0 and the next example 4 below
+# -If the holding-time imposed to SSA coincides with the holding-time of MSE, then SSA just replicates MSE, see tutorial 0.3 and the next example 4 below
 
 #---------------------------------------------------------------------
 # Example 4
@@ -277,7 +279,7 @@ SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
 
 ssa_x<-SSA_obj$ssa_x
 # Plot optimized filter: it is almost the MSE predictor
-#   The MSE predictor, applied to xt, is a1*identity
+#   Negligible departures are due to the fact that   
 ts.plot(ssa_x)
 
 # This is the filter applied to epsilont (before deconvolution): it follows the exponential decay specified by a1

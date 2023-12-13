@@ -332,6 +332,14 @@ SSA_func<-function(L,forecast_horizon_vec,gammak_generic,rho1,xi=NULL,Sigma=NULL
 # rho_mat (mostly irrelevant: has to do with spectral decomposition, see section 3 of JBCY paper)
 # w_mat (mostly irrelevant: has to do with spectral decomposition)
   
+  if (abs(lambda_opt)<0.001)
+  {
+    print(paste("Lambda_opt=",lambda_opt,sep=""))
+    print("SSA-filters are identified with MSE filters")
+    ssa_eps<-mse_eps
+    ssa_x<-mse_x
+  }
+  
   return(list(crit_rhoyy=crit_rhoyy,ssa_eps=ssa_eps,lambda_opt=lambda_opt,crit_rhoy_target=crit_rhoy_target,
               ssa_x=ssa_x,crit_rhoyz=crit_rhoyz,nu_opt=nu_opt,mse_eps=mse_eps,rho_mat=rho_mat,
               w_mat=w_mat,mse_x=mse_x,ssa_eps=ssa_eps))

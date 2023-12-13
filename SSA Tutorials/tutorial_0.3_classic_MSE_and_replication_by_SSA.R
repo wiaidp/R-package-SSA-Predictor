@@ -328,42 +328,51 @@ axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
 axis(2)
 box()
 
-# Context for understanding SSA, based on above example
+#####################################################################################################
+# We provide context for understanding SSA, assuming example 2 as formal background 
 # Let zt designate a target: zt=sum_{k=-\infty}^{\infty} gamma_k x_{t-k}
 #   In the above example examples: zt=y_sym the output of the acausal two-sided filter 
-# Let xt=sum_{j=0}^{\infty} xi_j epsilon_{t-k} be a stationary (or nomn-stationary integrated process)
-# We want to estimate or predict z_{t+delta}, for delta in Z
+# Let xt=sum_{j=0}^{\infty} xi_j epsilon_{t-k} be a stationary (or non-stationary integrated process)
+# We want to estimate or predict z_{t+delta}, for integer delta
+
 # The general proceeding in example 2 applies for SSA, too. Let's summarize the main steps
 # 1. Find the Wold-decomposition: xi 
 #   -Typically one fits a SARIMA-model to the data and inverts the model into an MA(\infty) using the above ARMAtoMA function
-# 2. Convolve gamma_k with xi and replace future epsilon_t by zero: MSE filter applied to epsilont
-# 3. Deconvolute gamma from MSE applied to epsilont: MSE applied to xt 
+# 2. Convolve gamma_k with xi and replace future epsilon_t by zero: this leads to the MSE filter applied to epsilont
+# 3. Deconvolute gamma from the MSE (applied to epsilont): this leads to the MSE filter applied to xt 
 
-# These steps are applied for SSA, too
+# These steps apply to SSA, too
 # One specifies the target z_{t+delta} by providing:
-#   1. gammak: forecasting or signal extraction (no restrictions imposed upon gammak)
+#   1. gammak: forecasting or signal extraction (no restrictions imposed upon gammak other than being of finite length)
 #   2. delta: forecast, nowcast or backcast
 #   3. xi: if one does not supply xi, then SSA assumes by default the data to be white noise (xt=epsilont)
 # Additionally to the MSE estimate we also specify 
 #   3. ht or, more exactly, the lag-one ACF rho1 of the holding-time constraint
-#   4. L: the filter length
-# For given L, the SSA criterion computes the best finite-length filter subject to the holding-time constraint
-#   Best means
+#   4. L: the filter length. Restriction: 3<=L<=len-1. A larger L automatically leads to a better predictor if xi (Wold decomposition) is correctly specified. For most applications the filter coefficients decay pretty fast twoards zero: therefore truncation at smaller L generally does not affect performances.
+# For given L, the SSA criterion computes the `best' or optimal finite-length filter subject to the holding-time constraint
+#   Best or optimal means
 #     1. The filter which best matches signs of the target z_{t+delta}
 #     2. The filter which correlates most strongly with the target z_{t+delta}
 #   Both criteria are equivalent under Gaussianity (see JBCY paper) and the link is fairly robust against departures of Gaussianity (t-distribution up to nu=2 still works fine, equity data is OK, Macro data is fine too,...)
 
 # The SSA function returns
 # 1. The best SSA-filter as applied to epsilont: ssa_eps (compliant with holding-time constraint)
-# 2. The best SSA-filter as applied to xt: ssa_x 
+# 2. The best SSA-filter as applied to xt: ssa_x (compliant)
+#     Typically, ssa_x is the requested filter: it can be applied to the original data (xt) and it is smooth (holding-time constraint) 
 # SSA also computes:
 # 3. The best MSE as applied to epsilont: mse_eps (generally not compliant with holding-time constraint)
-# 4. The best MSE as applied to xt: mse_x 
-# Finally SSA computes criterion values and holding-times
+# 4. The best MSE as applied to xt: mse_x (not compliant)
+# Finally SSA computes theoretical criterion values and holding-times
 # 5. crit_rhoyz: correlation with MSE predictor of target
 # 6. crit_rhoy_target: correlation with two-sided-target
 # 7. crit_rhoyy: lag one ACF of optimized solution: this number should match ht (if not, the optimization did not converge)
-# Examples 3 and 4 illustrate the function call: input and return
+
+# If the model for xt (i.e. Wold decomposition xi) is correctly specified, then classic sample estimates will converge 
+#   to crit_rhoyz, crit_rhoy_target and crit_rhoyy for sufficiently long samples of the data
+
+# Examples 3 and 4 illustrate 
+#   1. The function call: input and return
+#   2. Convergence of sample estimates to returned criteria
 
 
 #############################################################################################
@@ -416,7 +425,6 @@ box()
 
 # Same for the convolved designs
 ssa_eps=SSA_obj$ssa_eps
-# We don't need to re-scale SSA
 mplot<-cbind(ssa_eps,gamma_conv_mse)
 # Both filters overlap: SSA just replicated MSE up to arbitrary scaling
 plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to epsilont: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
@@ -446,25 +454,27 @@ box()
 # In applications one typically relies on ssa_x 
 
 #------------------------------
-# Some checks of performances
+# Some checks of performances: convergence of sample estimates to theoretical criterion values and ht
 # A. Criterion values: 
 # 1. Maximize the correlation with the MSE solution (here gamma_conv_mse) or
 # 2. Maximize the correlation with the effective target (here the two sided filter)
 # Both criteria are equivalent, see proposition 4 in JBCY paper
 # Let's compute the first one:
 #   We can rely on the convolved filters (applied to epsilont) to compute correlations
-# Since SSA replicates MSE the correlation is one
-cor(ssa_eps,gamma_conv_mse)
+#   Assuming white noise, the exact formula for the cross-correlation is
+t(ssa_eps)%*%gamma_conv_mse/sqrt(t(ssa_eps)%*%ssa_eps*t(gamma_conv_mse)%*%gamma_conv_mse)
+# Since SSA replicates MSE the cross-correlation is one
 # SSA returns this criterion value
 SSA_obj$crit_rhoyz
-# The second criterion: 
+# The second criterion: maximize correlation with two-sided target
 #   We just have to correct for the different squared lengths (or variances) of MSE and two-sided target, see proposition 5 in JBCY paper
 #   Since this ratio is independent of ssa_eps both criteria are equivalent (up to scaling)
 length_ratio<-sqrt(sum(gamma_conv_mse^2)/sum(gamma_conv^2))
-cor(ssa_eps,gamma_conv_mse)*length_ratio
+t(ssa_eps)%*%gamma_conv_mse/sqrt(t(ssa_eps)%*%ssa_eps*t(gamma_conv_mse)%*%gamma_conv_mse)*length_ratio
 # SSA also returns the corresponding criterion value
 SSA_obj$crit_rhoy_target
-
+# The correlation with the effective target is smaller than one because the two-sided filter relies on future (unobserved) data
+# In applications it is invariably the case that crit_rhoy_target<=crit_rhoyz 
 
 # We can verify pertinence of the above criterion values by computing empirical correlations
 y_ssa<-filter(x,ssa_x,side=1)
@@ -483,9 +493,9 @@ rho1
 SSA_obj$crit_rhoyy
 # If both values match, then this is proof that the optimization reached the global maximum (technical details are explained in another article in preparation)
 #   We could improve tightness of the approximation by increasing the number of iterations (of the numerical optimization)
-#   The default value is 20: this is sufficient for typical (non-exotic) applications
+#   The default value is 20: this is sufficient for typical (non-exotic) applications (in short: don't be concerned about this technical feature)
 
-# Let's check holding-times
+# Let's now check holding-times
 # We can rely on the function compute_holding_time_func:
 compute_holding_time_func(ssa_eps)$ht
 # Note that we have to supply the convolved filter ssa_eps since computations of ht assume the data to be white noise
@@ -496,14 +506,17 @@ compute_holding_time_func(ssa_x)$ht
 compute_holding_time_func(xi)$ht
 # In fact, ssa_x lengthens the native ht of the ARMA-filter (which is a lowpass in our example) to match the 
 #   imposed constraint. Note that ht of convolved filters do not combine additively (non-linear function of lag-one ACF, see proposition 2 in JBCY paper) 
-# Let's have a look at the empirical lag-one ACF: it matches the imposed rho1
+# Let's have a look at the empirical lag-one ACF: it matches the imposed rho1, as desired
 acf(na.exclude(y_ssa))$acf[2]
 rho1
 # Let's have a look at the empirical ht
 compute_empirical_ht_func(y_ssa)
 # It matches our constraint
 ht
-# Empirical measures converge to expected numbers for longer time series
+# Empirical measures converge to expected numbers for longer time series because xi is the true model
+# If empirical estimates differ substantially from returned theoretical or expected values, then the model (xi) is misspecified
+# SSA generally performs well even if the model is misspecified: we provide ample empirical evidence in the following tutorials
+# Note: one could re-interpret (divert) the above statistics as model-diagnostics for xi  (instead of Ljung-Box)
 
 #########################################################################################
 #########################################################################################
@@ -512,16 +525,17 @@ ht
 #   -Proposition 5 in JBCY paper shows that both targets are equivalent
 # We can supply either gamma_mse (as applied to xt) or gamma_conv_mse (as applied to epsilont)
 #   But we must be careful when doing so...
-# A. First case: gamma_mse
+# A. First case: gamma_mse the MSE filter applied to xt
 gammak_generic<-gamma_mse
-# This target does not have to be shifted (in contrast to gamma in exercise 3). We set:
+# This target is causal and does not have to be shifted (in contrast to gamma in exercise 3). We set:
 forecast_horizon<-delta
 # Since gamma_mse is applied to xt, we have to supply information about the link between xt and epsilont in terms of xi
+xi<-xi
+# Don't forget xi in the function call: otherwise SSA assumes xt=epsilont white noise, by default
 SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
 
 ssa_x=SSA_obj$ssa_x
 mse_x<-SSA_obj$mse_x
-# We do not have to re-scale the new filter
 mplot<-cbind(ssa_x,gamma_mse)
 plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to xt: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
 lines(mplot[,2])
@@ -536,16 +550,15 @@ axis(1,at=1:L,labels=-1+1:L)
 axis(2)
 box()
 
-# B. Second case: target is gamma_conv_mse
+# B. Second case: target is gamma_conv_mse which is applied to epsilont
 gammak_generic<-gamma_conv_mse
-# There is a subtle change in the function-call since we omit xi
+# There is a subtle change in the function-call since we now omit xi
 # By default (omission of xi), SSA assumes the data to be white noise
 # This is correct since gamma_conv_mse is the convolved target and is applied to epsilont 
 SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1)
 
 ssa_x=SSA_obj$ssa_x
 ssa_eps=SSA_obj$ssa_eps
-# We do not have to re-scale the new filter
 mplot<-cbind(ssa_eps,gamma_conv_mse)
 plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to xt: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
 lines(mplot[,2])
@@ -567,7 +580,6 @@ SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi_null)
 
 ssa_x=SSA_obj$ssa_x
 ssa_eps=SSA_obj$ssa_eps
-# We do not have to re-scale the new filter
 mplot<-cbind(ssa_eps,gamma_conv_mse)
 plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to xt: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
 lines(mplot[,2])
@@ -591,8 +603,8 @@ box()
 
 #----------------------------------------------------------------
 # Summary
-# -Splitting the estimation problem into Gamma and Xi is a convenience
-# -By all means, our main filter of interest is always the convolved design, as applied to epsilont
+# -Splitting the estimation problem into Gamma (target filter applied to xt) and Xi (Wold decomposition of xt) is a convenience
+# -By all means, our main filter of interest, from a theoretical point view, is always the convolved design, as applied to epsilont
 #   -the convolved design is necessary for deriving optimal filters and performance numbers
 # -Once computed, the optimal xt-filter can be obtained from simple deconvolution 
 #   The xt-filter is convenient in the sense that the analyst can apply the filter to the original data xt (instead of epsilont)
@@ -600,4 +612,8 @@ box()
 #   -The MSE solution can be substituted for the effective target without affecting the SSA-solution 
 #   -One can provide either the MSE as applied to xt or the convolved MSE, as applied to epsilont, by accommodating 
 #     the function call accordingly  
+# -Theoretical criteria and ht match empirical estimates if the model (xi) is not misspecified
 
+# Final note: one can modify rho1 in the above example: then SSA won't replicate MSE anymore
+# -If rho1>rho(MSE) then SSA is smoother (typical application case)
+# See the following tutorials for (more meaningful/interesting) applications
