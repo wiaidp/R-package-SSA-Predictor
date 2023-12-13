@@ -18,7 +18,7 @@
 # Main outcomes: 
 #   1.The classic HP-gap (as applied to non-stationary data in levels) is not suited for BCA, see example 7 below: "never use HP-gap". 
 #       -Therefore, we here emphasize the trend filter(s) only: as applied to stationary data (first differences of economic time series) 
-#   2.The classic concurrent (one-sided) HP-trend assumes a particular implicit (ARIMA(0,2,2)) model of the data. 
+#   2.The classic concurrent (one-sided) HP-trend can be derived from a particular (implicit) ARIMA(0,2,2) model for the data. 
 #       -The implicit model assumes the data to be excessively smooth; economic time series are typically noisier than that (in levels and a fortiori in first differences).
 #     Consequences: 
 #       -In typical applications, HP-concurrent is not an optimal (MSE) nowcast of the symmetric two-sided HP, see example 6
@@ -36,7 +36,7 @@
 #   in view of addressing 
 # 1. smoothness (noise suppression) and 
 # 2. timeliness (advancement)
-# In this perspective, HP is considered as a neutral and basic platform for showcasing SSA
+# In this perspective, HP is considered as a basic platform and a vitrine for showcasing SSA
 #   -We offer a number of compelling performance measures, confirming pertinence of a simple novel optimization principle  
 
 

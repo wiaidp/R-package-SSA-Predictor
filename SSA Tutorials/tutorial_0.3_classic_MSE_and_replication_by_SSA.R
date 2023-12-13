@@ -5,7 +5,7 @@
 # -Introduce SSA
 #   -replicate MSE by SSA: example 3
 #   -`play' with the input to SSA: example 4`
-# -In the following tutorials we can view the MSE predictor both as a benchmark, for comparing performances, as well 
+# -In the subsequent tutorials we can view the MSE predictor both as a benchmark, for comparing performances, as well 
 #   as a base-predictor, on which SSA can be plugged to alter performances: smoothness and/or timeliness 
 
 

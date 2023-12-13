@@ -3,15 +3,16 @@
 # We analyze long sample periods (starting at WWII) as well as shorter spans (starting at the great moderation)
 
 # Main outcomes: 
-#   1.HF is a lowpass when applied to returns: it does not generate spurious cycles
-#       (in contrast to BK, CF or HP-gap for example, see tutorials 2, 4 and 5)
+#   1.HF is a lowpass (transformed filter as applied to returns): it does not generate spurious cycles
+#       In contrast to BK, CF or HP-gap bandpass designs, see tutorials 2 (example 7), 4 and 5
 #   2.HF removes the (remaining) weak drift of the returns: it can address arbitrary integration orders by modifying the AR-order p of the regression
 #   3.By its very definition, the HF filter depends on the data-sample (regression model)
 #     Pros and cons when compared to fixed designs such as HP or BK 
-#   4.HF has a rather small holding-time: it is subject to noise leakage (`noisy' zero crossings).
-#       Therefore, an application of SSA is not inopportune 
+#   4.HF has a rather small holding-time and a rather large phase-lag 
+#       It is subject to noise leakage (`noisy' zero crossings) and retardation
+#       Therefore, an application of SSA is not inopportune
 #   5.We want the SSA-nowcast to be smoother than HF (~30% less crossings in the long run)
-#   6.The SSA (6 months and 1-year) forecasts are smooth, too, (same holding-time constraint) and leading HF (left-shifted)
+#   6.The SSA forecasts (6 months and 1-year) are smooth, too, and leading 
 
 
 # Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
@@ -19,7 +20,7 @@
 #   in view of addressing 
 # 1. smoothness (noise suppression) and 
 # 2. timeliness (advancement)
-# In this perspective, HF is considered as a neutral and basic platform for showcasing SSA
+# In this perspective, HF is considered as a basic platform and a vitrine for showcasing SSA
 #   -We offer a number of compelling performance measures, confirming pertinence of a simple novel optimization principle  
 
 #-----------------------------------------------------------------------

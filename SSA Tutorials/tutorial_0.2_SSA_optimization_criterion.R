@@ -1,8 +1,8 @@
 # In this tutorial we explain the SSA criterion in example 1, based on a simple case study
-#   -This background is needed for understanding some of the counter-intuitive idiosyncrasies of our approach
+#   -This background is needed for understanding some of the counter-intuitive `idiosyncrasies' of our approach
 #   -For example: the predictor is claimed to predict signs and to control zero-crossings
 #   -But the criterion relies on cross-correlations and lag-one autocorrelations only: nothing about signs!  
-#   -The example illustrates that SSA effectively `does its job`
+#   -The example illustrates that SSA effectively `does the job`
 # There exist alternative approaches for predicting signs of a target
 #   -We argue that SSA is more efficient than these!
 #   -In particular, we benchmark SSA to a classic logit model in example 2 of this tutorial
