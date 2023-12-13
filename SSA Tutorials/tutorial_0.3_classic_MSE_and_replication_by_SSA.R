@@ -341,9 +341,9 @@ box()
 
 # These steps are applied for SSA, too
 # One specifies the target z_{t+delta} by providing:
-#   1. gammak
-#   2. delta
-#   3. xi
+#   1. gammak: forecasting or signal extraction (no restrictions imposed upon gammak)
+#   2. delta: forecast, nowcast or backcast
+#   3. xi: if one does not supply xi, then SSA assumes by default the data to be white noise (xt=epsilont)
 # Additionally to the MSE estimate we also specify 
 #   3. ht or, more exactly, the lag-one ACF rho1 of the holding-time constraint
 #   4. L: the filter length
@@ -363,6 +363,9 @@ box()
 # 5. crit_rhoyz: correlation with MSE predictor of target
 # 6. crit_rhoy_target: correlation with two-sided-target
 # 7. crit_rhoyy: lag one ACF of optimized solution: this number should match ht (if not, the optimization did not converge)
+# Examples 3 and 4 illustrate the function call: input and return
+
+
 #############################################################################################
 #############################################################################################
 # Example 3 Replicate MSE by SSA
