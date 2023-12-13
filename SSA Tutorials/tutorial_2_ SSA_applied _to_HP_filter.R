@@ -32,10 +32,10 @@
 #       -SSA real-time (concurrent) designs can be smoother as well as leading, when compared to the concurrent benchmarks 
 
 # Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
-#   BCA-tool (any one as long as it's linear) can be replicated and modified by SSA in view of addressing 
+#   predictor (any one as long as it's linear in the data) can be replicated and modified by SSA in view of addressing 
 # 1. smoothness (noise suppression) and 
 # 2. timeliness (advancement)
-# In this perspective, HP is a nice platform for showcasing SSA
+# In this perspective, HP is considered as a neutral and basic platform for showcasing SSA
 #   -We offer a number of compelling performance measures, confirming pertinence of a simple novel optimization principle  
 
 

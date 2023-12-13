@@ -4,18 +4,17 @@
 #       (in contrast to BK, CF or HP-gap for example, see tutorials 2, 4 and 5)
 #   2.HF removes the (remaining) weak drift of the returns: it can address arbitrary integration orders by modifying the AR-order p of the regression
 #   3.HF has a rather small holding-time: it is subject to noise leakage (`noisy' zero crossings).
-#       Therefore, an application of SSA makes sense
-#   4.The SSA-nowcast is smoother than HF (~30% less crossings in the long run)
-#       -Remarkably, the SSA-nowcast is nearly as fast (no systematic lag)
-#   5.The SSA (6 months and 1-year) forecasts are as smooth as the SSA-nowcast (same holding-time) and leading HF (left-shifted)
-#     Both forecasts generate less noisy crossings than HF and are leading (left-shifted)
-# We apply The filters to quarterly GDP (example 1) and to monthly non-farm payroll (examples 2 and 3)  
+#       Therefore, an application of SSA is not inopportune (in contrast to BK, see tutorial 4)
+#   4.We want the SSA-nowcast to be smoother than HF (~30% less crossings in the long run)
+#       -Remarkably, despite stronger smoothing, the SSA-nowcast is not lagging behind
+#   5.The SSA (6 months and 1-year) forecasts are smooth, too (same holding-time constraint) and leading HF (left-shifted)
+# We apply all filters to quarterly GDP (example 1) and to monthly non-farm payroll (examples 2 and 3)  
 
 # Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
-#   BCA-tool (any one as long as it's linear) can be replicated and modified by SSA in view of addressing 
+#   predictor (any one as long as it's linear in the data) can be replicated and modified by SSA in view of addressing 
 # 1. smoothness (noise suppression) and 
 # 2. timeliness (advancement)
-# In this perspective, HF is a nice platform for showcasing SSA
+# In this perspective, HF is considered as a neutral and basic platform for showcasing SSA
 #   -We offer a number of compelling performance measures, confirming pertinence of a simple novel optimization principle  
 
 #-----------------------------------------------------------------------
