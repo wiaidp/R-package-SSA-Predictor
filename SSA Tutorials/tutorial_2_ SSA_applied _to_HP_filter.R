@@ -16,20 +16,28 @@
 
 
 # Main outcomes: 
-#   1.HP-trend applied to returns (stationary data) is similar to the Hamilton filter (HF) applied to data in levels, see tutorials 3 and 5 
-#       Neither generates spurious cycles; HP is a bit faster; HF is a bit smoother (Hamilton's critique addressed HP-gap as applied to macro-data in levels; we consider HP-trend as applied to stationary data (differenced macro data))
-#   2.The classic concurrent (one-sided) HP assumes a particular implicit (ARIMA(0,2,2)) model of the data. 
-#       -The implicit model assumes the data to be smooth; real macro indicators are typically noisier than that.
+#   1.The classic HP-gap (as applied to non-stationary data in levels) is not suited for BCA, see example 7 below: "never use HP-gap". 
+#       -Therefore, we here emphasize the trend filter(s) only: as applied to stationary data (first differences of economic time series) 
+#   2.The classic concurrent (one-sided) HP-trend assumes a particular implicit (ARIMA(0,2,2)) model of the data. 
+#       -The implicit model assumes the data to be excessively smooth; real macro indicators are typically noisier than that (in levels and a fortiori in first differences).
 #     Consequences: 
 #       -In typical applications, HP-concurrent is not an optimal (MSE) nowcast of the symmetric two-sided HP, see example 6
 #       -The holding-time of HP-concurrent is rather small i.e. the filter is subject to noise-leakage 
 #         (noisy zero crossings).
-#   3.SSA can be applied to control and to tame the number of noisy crossings of HP
+#   3.In this scenario, SSA can be applied to control and to tame the number of noisy crossings of HP
 #       -We typically impose 50% larger ht or, equivalently, 33% less (noisy) crossings
 #   4.Besides nowcasts (delta=0) we also consider 12-steps ahead forecasts (one year for monthly data)
 #       -SSA-forecasts adopt the same stringent holding-time constraint: 33% less noisy crossings than (one-sided) HP targets (in the long run)
 #       -SSA-forecasts are left-shifted (relative advancement): they generally have a lead when referenced against the concurrent benchmarks
 #       -SSA real-time (concurrent) designs can be smoother as well as leading, when compared to the concurrent benchmarks 
+
+# Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
+#   BCA-tool (any one as long as it's linear) can be replicated and modified by SSA in view of addressing 
+# 1. smoothness (noise suppression) and 
+# 2. timeliness (advancement)
+# In this perspective, HP is a nice platform for showcasing SSA
+#   -We offer a number of compelling performance measures, confirming pertinence of a simple novel optimization principle  
+
 
 #-----------------------------------------------------------------------
 # Make a clean-sheet, load packages and functions

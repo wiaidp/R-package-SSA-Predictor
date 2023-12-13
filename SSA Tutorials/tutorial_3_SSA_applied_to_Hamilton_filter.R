@@ -1,12 +1,4 @@
 # Application of SSA to Hamilton  filter (HF)
-# Complete case-study illustrating all features of the current SSA 
-# SSA: Simple Sign Accuracy
-# `Simple' means: univariate design without formal timeliness approach (timeliness is addressed indirectly, by means of the forecast horizon)
-# Simplifications
-#   -We discard the singular pandemic data 
-#   -We assume the differenced data to be `nearly' white noise 
-#   -since the returns are slowly drifting (non-stationary) we also propose some simple adjustments of our designs
-# These assumptions do not affect our findings when engrafting SSA onto HF  
 # Main outcomes: 
 #   1.HF is a lowpass when applied to returns: it does not generate spurious cycles
 #       (in contrast to BK, CF or HP-gap for example, see tutorials 2, 4 and 5)
@@ -18,6 +10,13 @@
 #   5.The SSA (6 months and 1-year) forecasts are as smooth as the SSA-nowcast (same holding-time) and leading HF (left-shifted)
 #     Both forecasts generate less noisy crossings than HF and are leading (left-shifted)
 # We apply The filters to quarterly GDP (example 1) and to monthly non-farm payroll (examples 2 and 3)  
+
+# Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
+#   BCA-tool (any one as long as it's linear) can be replicated and modified by SSA in view of addressing 
+# 1. smoothness (noise suppression) and 
+# 2. timeliness (advancement)
+# In this perspective, HF is a nice platform for showcasing SSA
+#   -We offer a number of compelling performance measures, confirming pertinence of a simple novel optimization principle  
 
 #-----------------------------------------------------------------------
 # Make a clean-sheet, load packages and functions
