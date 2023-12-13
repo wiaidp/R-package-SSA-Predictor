@@ -1,25 +1,12 @@
 # Application of SSA to HP filter 
-# Complete case-study illustrating all features of the current SSA 
-# SSA: Simple Sign Accuracy
-# `Simple' means: univariate design without formal timeliness approach (timeliness is addressed indirectly, by means of the forecast horizon)
-# Simplifications
-#   -We discard the singular pandemic data 
-#   -some of our results assume log-returns of the data to be (nearly) stationary 
-# These assumptions do not affect our findings when engrafting SSA onto HP  
 
-# We emphasize a business-cycle perspective
-#   -We discard the classic HP-gap filter (1-trend) because the resulting bandpass generates spurious cycles 
-#       See example 7 further down, section 4 in JBCY paper and tutorial 5 (the latter two apply the filter to monthly INDPRO)
-#   -Instead we here consider the HP-trend or lowpass filter as applied to differenced (stationary) data
-#   -All examples in this tutorial rely on simulated stationary series 
-#     -An application to the monthly industrial production index (INDPRO) is provided in tutorial_5 (replicates 
-#       section 4, JBCY paper)
+# We consider the HP-trend or lowpass filter, applied to stationary data
+#   -This design is used in JBCY paper: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
+#     -In contrast, the classic HP-gap applied to INDPRO (data in levels) tends to generate spurious cycles, see tutorial 5
+#   -All examples in this tutorial rely on artificial (simulated) stationary series: knowing the true model allows for verification of the theory 
+#     -Tutorial 5 applies SSA to US-INDPRO
 
 # We apply SSA to different targets 
-# Note: we do not discuss pertinence of the targets; instead we want to illustrate how SSA can address and 
-#       improve some of the important characteristics of a particular approach. The way this is done is `generic',i.e.,
-#       independent of HP (see tutorials 3 and 4 for alternative specifications)
-# Targets in this tutorial:
 #   a.The one-sided MSE HP, assuming the data to be white noise, see example 1
 #   b.The classic one-sided HP, assuming the data to be white noise, see example 2
 #     (the classic HP-concurrent has some interesting properties and therefore it makes sense to consider the filter as applied to noise)
@@ -29,22 +16,20 @@
 
 
 # Main outcomes: 
-#   1.HP-trend (applied to first differences of a non-stationary series) does not generate spurious cycles. 
-#     In contrast, classic bandpass designs, such as  BK (see tutorial 4), CF or HP-gap (see tutorial 5) generate spurious cycles
-#   2.HP-trend applied to returns is similar to the Hamilton filter, see tutorial 3
-#       Both designs are lowpass; neither generate spurious cycles
-#   3.The classic concurrent (one-sided) HP assumes a particular implicit (ARIMA(0,2,2)) model. 
+#   1.HP-trend applied to returns (stationary data) is similar to the Hamilton filter (HF) applied to data in levels, see tutorials 3 and 5 
+#       Neither generates spurious cycles; HP is a bit faster; HF is a bit smoother (Hamilton's critique addressed HP-gap as applied to macro-data in levels; we consider HP-trend as applied to stationary data (differenced macro data))
+#   2.The classic concurrent (one-sided) HP assumes a particular implicit (ARIMA(0,2,2)) model of the data. 
+#       -The implicit model assumes the data to be smooth; real macro indicators are typically noisier than that.
 #     Consequences: 
-#       -In applications, typically, HP-concurrent is not an optimal (MSE) nowcast of the symmetric HP, see example 6
+#       -In typical applications, HP-concurrent is not an optimal (MSE) nowcast of the symmetric two-sided HP, see example 6
 #       -The holding-time of HP-concurrent is rather small i.e. the filter is subject to noise-leakage 
 #         (noisy zero crossings).
-#   4.SSA can be applied to control and to tame the number of noisy crossings of the proposed targets
+#   3.SSA can be applied to control and to tame the number of noisy crossings of HP
 #       -We typically impose 50% larger ht or, equivalently, 33% less (noisy) crossings
-#       -Our empirical results confirm pertinence of the approach
-#   5.Besides nowcasts (delta=0) we also consider 12-steps ahead forecasts (one year for monthly data)
+#   4.Besides nowcasts (delta=0) we also consider 12-steps ahead forecasts (one year for monthly data)
 #       -SSA-forecasts adopt the same stringent holding-time constraint: 33% less noisy crossings than (one-sided) HP targets (in the long run)
-#       -SSA-forecasts are left-shifted: they generally have a lead when referenced against (one-sided) HP targets
-#       -SSA real-time (concurrent) designs can be smoother (stronger noise suppression) and leading 
+#       -SSA-forecasts are left-shifted (relative advancement): they generally have a lead when referenced against the concurrent benchmarks
+#       -SSA real-time (concurrent) designs can be smoother as well as leading, when compared to the concurrent benchmarks 
 
 #-----------------------------------------------------------------------
 # Make a clean-sheet, load packages and functions
@@ -66,22 +51,23 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 
 #-------------------------------------------------------------------------------
-# Example 1
-# Signal extraction with HP and BK: replicate example in section 2.2 of JBCY paper
+# Example 1: 
+# Target HP-MSE
+
 
 # 1.1 Compute HP and compare concurrent MSE and SSA designs
-# Filter length: should be an odd number since otherwise the (truncated bi-infinite) HP filter cannot be symmetric
+# Filter length: should be an odd number since otherwise the two-sided HP filter could not be adequately centered (center point shifted by 0.5 time units)
 L<-201
-# Should be an odd number: otherwise HP is not symmetric
+# Should be an odd number
 if (L/2==as.integer(L/2))
 {
   print("Filter length should be an odd number")
-  print("If L is even then HP cannot be symmetric")
+  print("If L is even then HP cannot be adequately centered")
   L<-L+1
 }  
 # HP monthly design
 lambda_monthly<-14400
-
+par(mfrow=c(1,1))
 HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
 # Bi-infinite HP
 hp_target<-HP_obj$target
@@ -89,7 +75,7 @@ ts.plot(hp_target)
 # Concurrent gap: as applied to series in levels: this is a high pass filter
 hp_gap=HP_obj$hp_gap
 ts.plot(hp_gap)
-# Concurrent gap: as applied to series in differences (this is a band pass filter)
+# Concurrent gap: as applied to series in differences (this is a band pass filter, see tutorial 5)
 modified_hp_gap=HP_obj$modified_hp_gap
 ts.plot(modified_hp_gap)
 # Concurrent HP assuming I(2)-process 
@@ -99,7 +85,7 @@ ts.plot(hp_trend)
 # Concurrent MSE estimate of bi-infinite HP assuming white noise
 # This is just the truncate right tail of the symmetric filter
 # This one is optimal is the data is white noise
-# The previous one (classic concurrent HP above) is optimal if the data is an ARIMA(0,2,2)
+# The previous (classic concurrent) HP is optimal if the data is an ARIMA(0,2,2)
 hp_mse=hp_mse_example7=HP_obj$hp_mse
 ts.plot(hp_mse)
 
@@ -110,21 +96,22 @@ ht_hp<-htrho_obj$ht
 # This is the holding-time of the classic concurrent HP, see tutorial 5 and JBCY paper
 # This number matches the empirical holding-time if the data is white noise
 # Log-returns of INDPRO in section 4 of JBCY paper are not white noise: therefore ht is biased and the empirical 
-#  holding-time is much larger, see tutorial 5
+#  holding-time is larger, see tutorial 1 (example 7) and tutorial 5
 ht_hp
 
 # Same but for hp_mse
 htrho_obj<-compute_holding_time_func(hp_mse)
 rho_hp<-htrho_obj$rho_ff1
 ht_mse<-htrho_obj$ht
-# MSE filter is smoother than classic HP concurrent (larger ht)
+# MSE filter is smoother than classic HP concurrent (larger ht) because white noise is, well, `noisier' than ARIMA(0,2,2)
+#   Therefore hp_mse must damp high-frequency components more strongly than hp_trend
 ht_mse
 
 
 
 #-----------------------------------------------------------------------------------
-# 1.2. SSA and hyperparameters
-# Holding time: we want SSA to lessen the number of zero-crossings when compared to HP 
+# 1.2. Setting-up SSA
+# Holding time: we want SSA to lessen the number of zero-crossings when compared to hp_mse 
 ht_mse
 # Therefore we select a ht which is larger than the above number
 ht<-16
@@ -147,7 +134,7 @@ SSA_obj_HP<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
 SSA_obj_HP<-SSA_func(L,forecast_horizon,gammak_generic,rho1)
 
 
-# Since xt is white noise (xi=NULL) the two SSA filters ssa_eps and ssa_x are identical (deconvolution in section 2.3 of JBCY paper is an identity)
+# Since xt is white noise (xi=NULL) the two SSA filters ssa_eps and ssa_x are identical, see tutorial 1
 ssa_x<-SSA_obj_HP$ssa_x
 SSA_filt_HP<-SSA_example1<-ssa_eps<-SSA_obj_HP$ssa_eps
 
@@ -199,13 +186,12 @@ empirical_ht
 ht
 
 # 1.4.2. Compare lag-one acf of optimized design with imposed constraint: successful optimization means that both numbers should be close
-#  If there is a substantial difference: increase split_grid (number of iterations): default 20 should match most applications
 # In our example both numbers match perfectly
 SSA_obj_HP$crit_rhoyy
 rho1
 
 # 1.4.3. Criterion values: we here check the correlation with the MSE nowcast which is our effective target
-# Correlations with the symmetric target are obtained in examples 10 and 12 below 
+#   -Correlations with the two-sided target are obtained in examples 10 and 12 below 
 #   -crit_rhoyz is computed in the SSA-function: it is the true (expected) correlation of SSA with target 
 #     if all assumptions are met (correct model for xt)
 crit_example1<-SSA_obj_HP$crit_rhoyz
@@ -215,7 +201,7 @@ crit_example1
 MSE_nowcast<-filter(x,hp_mse,side=1)
 # Compute empirical correlation and compare with true or expected number crit_example1
 cor(yhat,MSE_nowcast,use='pairwise.complete.obs')
-
+# Both numbers match: the empirical correlation will converge to the criterion value with increasing sample length
 
 ##############################################################################################################
 ###############################################################################################################
@@ -292,7 +278,7 @@ anf<-1000
 enf<-1500
 
 # SSA generates ~33% less crossings
-# The additional crossings of HP are typically clustered at time points where the filter output seems to hover at the zero line
+# The additional crossings of HP are typically clustered at time points where the filter output hovers over the zero line
 # There, the SSA filter maintains a better control of noisy crossings (see amplitude function below for a formal explanation of these properties)
 # At up- and downswings, away from the zero line, SSA tracks the target well, due to optimality (SSA optimization principle)
 ts.plot(mplot[anf:enf,],col=colo)
@@ -305,7 +291,7 @@ abline(h=0)
 # The above plot also suggests that the concurrent HP is slightly left-shifted (small lead): see also phase-lag plot below for formal background
 
 # Here we compute the shift at zero-crossings
-# The slight asymmetry suggests that SSA is slightly lagging HP
+# The slight asymmetry suggests that SSA is marginally lagging HP
 shift_tau_obj<-compute_min_tau_func(mplot)
 
 #-------------------------------------------
@@ -319,7 +305,7 @@ mplot<-scale(cbind(amp_obj_SSA$amp,amp_obj_HP$amp),scale=T,center=F)
 colnames(mplot)<-c(paste("SSA(",ht,",",forecast_horizon,")",sep=""),"HP-concurrent")
 
 # The HP filter is a lowpass applied to differences (returns)
-# The amplitude function of SSA is much closer to 0 in stop band: stronger smoothing and less noisy zero-crossings
+# The amplitude function of SSA is closer to 0 in stop band: stronger smoothing and less noisy zero-crossings
 # This typical property of SSA-smoothing designs has coined the term 'noisy crossings' 
 plot(mplot[,1],type="l",axes=F,xlab="Frequency",ylab="",main=paste("Amplitude HP",sep=""),ylim=c(min(mplot),max(mplot)),col=colo[1])
 lines(mplot[,2],col=colo[2])
@@ -357,7 +343,7 @@ axis(2)
 box()
 
 
-# Findings: SSA lags slightly behind HP-concurrent (by approximately half a time-unit) and it generates ~33% less noisy crossings 
+# Findings: SSA lags slightly behind HP-concurrent (by less than half a time-unit) and it generates ~33% less noisy crossings 
 
 ###########################################################################################################
 ############################################################################################################
@@ -368,8 +354,8 @@ box()
 # Note, however, that we keep the holding-time fixed: 
 #   -The resulting SSA-filter will retain smoothness (noise suppression) 
 #   -But it will be slightly faster (leading instead of lagging as in example 2)
-#   -Classic MSE approaches generally trade lead for smoothness: this is not the case here
-# SSA here keeps smoothness fixed and trades lead against MSE-performances: see tutorial 0.1 on trilemma
+#   -Classic MSE approaches generally trade lead for smoothness: this is not the case here 
+# SSA keeps smoothness fixed and trades lead against MSE-performances, see tutorial 0.1 (trilemma)
 
 # 3.1. SSA and hyperparameters
 # Forecast horizon: one-year forecast
@@ -380,7 +366,7 @@ ht<-12
 rho1<-compute_rho_from_ht(ht)
 # Our selection here means that SSA will have approximately 33% less crossings:
 ht/ht_hp
-# Target: like example 2 (and in contrast to example 1) we here supply the classic HP-concurrent
+# Target: like example 2 we here supply the classic HP-concurrent
 gammak_generic<-hp_trend
 # We assume the data to be white noise 
 # SSA of HP-target
@@ -397,8 +383,8 @@ colo<-c("blue","green")
 
 # Note the different scales of SSA and MSE
 #   -As noted above, asking for a lead as well as for improved smoothness will affect MSE-performances
-#   -The smaller scale of SSA results from this effect: SSA is shrunken towards zero
-#   -One could re-scale and inflate the SSA-filter but MSE performances would be even worse (we here see the optimal scaling)
+#   -As an effect, the scale of SSA is smaller: zero-shrinkage
+#   -One could re-scale and inflate the SSA-filter but MSE performances would be worse (we here see the optimal scaling) 
 # Note also that zero-crossings or correlations (SSA-criterion, lag-one ACF in ht-constraint) are indifferent to scalings
 par(mfrow=c(1,1))
 # The typical noise-shape or tip of SSA is due to an implicit boundary constraint which states that the coefficient at lag -1 vanishes, see theorem 1 in JBCY paper
@@ -515,7 +501,7 @@ box()
 #   by adjusting the forecast horizon suitably
 
 # 4.1 Compute HP and compare concurrent MSE and SSA designs
-# Filter length: must be twice (L=401) of example 7 (L=201) since otherwise the left tail of the symmetric filter will not match one-sided MSE in example 7
+# Filter length: must be twice (L=401) of example 7 below (L=201) since otherwise the left tail of the symmetric filter will not match the one-sided MSE in example 7
 L_sym<-401
 # Should be an odd number: otherwise HP is not symmetric
 if (L_sym/2==as.integer(L_sym/2))
@@ -553,9 +539,10 @@ SSA_obj_HP<-SSA_func(L,forecast_horizon,gammak_generic,rho1)
 SSA_filt_HP<-SSA_example4<-SSA_obj_HP$ssa_x
 
 #----------------------
-# 4.3 Plot: the filters in examples 1 and 4 are identical: 
+# 4.3 Plot: 
+#   -The filters in examples 1 and 4 (here) are identical! 
 #   -This is because hp_mse in example 1 is the MSE predictor of hp_target here, at least if xt=epsilont (white noise)
-#   -Proposition 4 in the JBCY paper then implies that the SSA-solution must be the same
+#   -Proposition 5 in the JBCY paper then implies that the SSA-solution must be the same: we can replace the two-sided target by its MSE predictor without affecting optimization
 colo<-c("black","brown","blue")
 par(mfrow=c(1,1))
 mplot<-cbind(SSA_example1,SSA_example4)
@@ -597,10 +584,6 @@ colnames(mplot)<-c(paste("SSA(",round(ht,1),",",forecast_horizon,")",sep=""),"HP
 cor(mplot)
 # The empirical correlations (see first row in above correlation matrix) match crit_rhoyz and 
 #   crit_rhoy_target
-# SSA maximizes the theoretical criterion values which correspond to empirical correlations 
-# This result justifies the optimality concept of SSA 
-# Note that maximizing the correlation (between estimate and target) is equivalent to MSE, up to an arbitrary scaling
-# SSA computes the optimal scaling constant: any alternative scaling would worsen MSE-performances of SSA
 
 ######################################################################################################################
 ######################################################################################################################
@@ -666,7 +649,7 @@ rho1<-compute_rho_from_ht(ht)
 ht/ht_hp_conv_obj$ht
 # Forecast horizon: nowcast i.e. delta=0
 forecast_horizon<-0
-# Target: in contrast to example 1 above we here supply the classic HP-concurrent
+# Target: classic HP-concurrent
 gammak_generic<-hp_trend
 # Autocorrelated data: we provide the Wold decomposition to the SSA function
 xi<-xi_data
@@ -736,18 +719,17 @@ abline(h=0)
 #------------------------------------------------------------------
 # Example 6
 # Same as example 5 but we now target specifically the output of the symmetric HP-filter
-# As a result, we will obtain a one-sided filter which tracks the output of the symmetric filter better than HP-concurrent or HP-MSE above (the latter is assuming white noise)
+# As a result, we will obtain a one-sided filter which tracks the output of the symmetric filter better than the classic HP-concurrent or HP-MSE (the latter is assuming white noise)
 # Recall that the classic HP-concurrent is optimal if the series is an ARIMA(0,2,2), where the two MA-parameters are determined by lambda
 # This example is a bit tricky because everything is merged and entangled: most complex design
-#   Besides 'true' optimal designs, We also present some 'bad good ideas', illustrating that intuition can conflict with logic
 
 # Let us emphasize that:
 # -This exercise does not refer to the majority of applications with HP: 
 #   -Most practitioners rely on the classic concurrent HP to approximate the two-sided filter
 #   -We addressed that problem in the previous exercise 5 by targeting the one-sided HP
-# -This exercise addresses specifically an optimal one-sided filter for the two-sided HP, assuming the true 
+# -This exercise here addresses specifically an optimal one-sided filter for the two-sided HP, assuming the true 
 #   (or the empirical) model of the data (which is not an ARIMA(0,2,2))
-# -This exercise is meant for analysts mainly interested in tracking the symmetric filter by an optimal concurrent design
+# -This exercise is meant for analysts mainly interested in tracking the two-sided filter by an optimal concurrent design
 # -Besides the optimal MSE we also present SSA extensions which are smoother or/and faster 
 
 # 6.1 Specify symmetric filter as target
@@ -803,7 +785,7 @@ hp_conv_mse<-hp_conv_mse_d[(forecast_horizon+1):L_sym]
 # We can now compute the holding-time of the optimal MSE filter: this is a natural benchmark for SSA 
 # -Idea: SSA should improve smoothness of best (MSE) nowcast
 # -Of course, the holding-time could be set differently (based on a priori knowledge or on particular priorities). 
-# -But having a natural (optimal) benchmark at disposal allows more stringent comparisons
+# -But having a natural (optimal) benchmark at disposal allows for more stringent/interesting comparisons
 ht_hp_conv_mse_obj<-compute_holding_time_func(hp_conv_mse)
 ht_hp_conv_mse<-ht_hp_conv_mse_obj$ht
 # ht of MSE: it is larger than ht of hp_mse above
@@ -832,6 +814,9 @@ ts.plot(cbind(hp_conv_mse[1:L],mse_eps),main="MSE estimate: SSA_func vs. own cal
 
 # retrieve the SSA-filter applied to xt (we here ignore ssa_eps as applied to epsilont since we shall filter xt)
 SSA_filt_HP<-SSA_obj_HP$ssa_x
+# Retrieve benchmark MSE filter: this is automatically calculated by SSA 
+HP_MSE_x<-SSA_obj_HP$mse_x
+
 
 # Plot and compare with SSA designs of previous examples 4 and 5
 colo<-c("black","brown","blue")
@@ -848,7 +833,7 @@ colnames(mplot)<-c("Example 4","Example 5","Example 6")
 # The scale of example 5 is quite different
 #   -This is because the estimation problem of example 5 is much simpler since we target the one-sided filter hp_trend
 #   -In contrast, examples 4 and 6 nowcast the acausal two-sided HP
-#   -The smaller scaling (zero-shrinkage) in the latter examples reflects the increased uncertainty
+#   -The smaller scaling (zero-shrinkage) in the latter examples reflects the increased uncertainty in this case
 plot(mplot[,1],main=paste("HP(",lambda_monthly,")",sep=""),axes=F,type="l",xlab="Lag-structure",ylab="filter-weights",ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))),col=colo[1],lwd=2,lty=1)
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 lines(mplot[,2],col=colo[2],lwd=2,lty=1)
@@ -859,48 +844,10 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
-#-----------------------------------
-# 6.3 Compute benchmark MSE filter as applied to xt: this is once again a bit tricky 
-#   -mse_eps (or hp_conv_mse: both are identical) is the correct (optimal MSE) filters when applied to epsilont
-#     -This is not hp_mse (the latter assumes xt=epsilont)
-#   -we now compute the correct or optimal MSE filter when applied to xt 
-# Two possibilities
-# A. First possibility (direct computation): obtain the MSE-filter by deconvolution of mse_eps by xi
-#   -Once again, this is not hp_mse, see plot below 
-deconv_obj<-deconvolute_func(as.vector(mse_eps),xi)
-hp_deconv_mse<-deconv_obj$dec_filt 
-
-# The correct MSE assigns more weight to the first observation (lag 0) because the series xt is smoother than epsilont 
-#   The SSA filter applied to xt is looking 'unsmoother' than hp_mse (the latter ebing optimal for white noise xt=epsilont)
-ts.plot(scale(cbind(hp_mse[1:L],hp_deconv_mse)),col=c("darkgreen","green"),main="MSE vs. hp_mse")
-mtext("Hp_mse: assumes that xt=epsilont is white noise",col="darkgreen",line=-1)
-mtext("Effective MSE: obtained by deconvolution",col="green",line=-2)
-
-# B. Second possibility
-# Two steps:  1. replicate MSE in SSA by setting a corresponding holding-time constraint and 
-#             2. retrieve the MSE filter (as applied to xt) from SSA_func
-# Step 1: set holding time to replicate MSE (MSE as applied to epsilont)
-ht_mse<-ht_hp_conv_mse
-# Recall that we provide the lag-one acf: therefore we have to compute rho1 corresponding to ht
-rho1_mse<-compute_rho_from_ht(ht_mse)
-# SSA replicating MSE
-SSA_obj_HP_mse<-SSA_func(L,forecast_horizon,gammak_generic,rho1_mse,xi)
-
-# Verify replication:
-ts.plot(scale(cbind(SSA_obj_HP_mse$ssa_eps,mse_eps)),main="Replicate MSE as applied to epsilont: both filters overlap")
-
-# Step 2. ssa_x is the optimal MSE (applied to xt)
-HP_MSE_x<-SSA_obj_HP_mse$ssa_x
-
-# Verify that HP_MSE_x and hp_deconv_mse are identical: we can use either one in our simulations below
-ts.plot(scale(cbind(HP_MSE_x,hp_deconv_mse)),col=c("darkgreen","green"),main="MSE filters applied to xt: direct vs. SSA computation (both filters overlap)")
-mtext("MSE based on SSA-function",col="blue",line=-1)
-mtext("MSE obtained by direct deconvolution",col="green",line=-2)
-
 # Now that the relevant filters have been sorted out and computed, we can  filter the series, compare 
 #   performances and proceed to our checks of empirical and expected numbers (holding times, correlations)
 #-------------------------------------------
-# 6.4 Filter series 
+# 6.3 Filter series 
 # Generate very long series in order to obtain accurate empirical estimates
 len<-1000000
 set.seed(14)
@@ -911,7 +858,7 @@ yhat<-filter(x,SSA_filt_HP,side=1)
 ht
 compute_empirical_ht_func(yhat)
 
-# Compute filter output of correct MSE computed above 
+# Compute filter output of  MSE 
 HP_mse<-filter(x,HP_MSE_x,side=1)
 # Compare expected and empirical holding-times: both match
 ht_hp_conv_mse
@@ -925,7 +872,7 @@ HP_symmetric<-filter(x,hp_target,side=2)
 HP_concurrent<-filter(x,hp_trend,side=1)
 # The classic HP concurrent generates more crossings than SSA
 compute_empirical_ht_func(HP_concurrent)
-# Interestingly, as we shall see below, the classic HP concurrent looses also in terms of correlation with the target
+# Interestingly, as we shall see below, the classic HP concurrent looses not only in terms of smoothness but also in terms of correlation with the target
 #   -The underlying implicit ARIMA(0,2,2) assumption is a misspecification!
 
 # Plot all filter outputs
@@ -962,10 +909,10 @@ sum(SSA_filt_HP)
 # hp_mse: sum is markedly smaller than one
 sum(hp_mse)
 # We infer that hp_trend matches hp_target, at least in terms of amplitude at frequency zero: 
-#   -this is because the implicit model (ARMA(0,2,2)), justifying hp_trend, assumes the data to be strongly trending
-#   -in order to track the two-sided filter (MSE-optimality), the one-sided hp_trend must let the dominating 
-#     (low-frequency) trend pass without changing scales: the filter coefficients sum to one.
-# However, if the data is not strongly trending, i.e. if the ARMA(0,2,2) is severely misspecified, then there is 
+#   -this is because the implicit model (ARIMA(0,2,2)) assumes the data to be strongly trending
+#   -in order to track the two-sided filter, the one-sided hp_trend must pass the dominating 
+#     (low-frequency) trend, without changing scales: the filter coefficients sum to one.
+# However, if the data is not strongly trending, i.e. if the ARIMA(0,2,2) is severely misspecified, then there is 
 #     no necessity to track the (missing) trend: the filter coefficients do not have to add to one anymore
 #   -In particular, in the presence of noise (strong high-frequency components), MSE-performances generally improve
 #     by shrinking the predictor (zero-shrinkage): 
@@ -973,31 +920,16 @@ sum(hp_mse)
 #       -hp_mse assumes the data to be white noise and its coefficients sum to ~0.5
 # The `odd' scaling of hp_trend in the above plot is due to severe misspecification. 
 #   -Part of this misspecification could be addressed by simply re-scaling the filter output (say by 0.5)
-# Our (to some extent original) view on this problem, in the context of SSA, is: we do not look at scales
-#   -We do not emphasize `correct' scalings because sign accuracy and holding-times focus on zero-crossings
-#   -Therefore, the SSA-criterion emphasizes correlations and our SSA-function returns correlation measures
-#     -Correlation of the predictor with the target
-#     -Correlation of the predictor with the MSE-benchmark
-#     -Lag-one ACF of the predictor: holding-time
-#   -Obviously, we can also provide the optimal MSE-scaling, which is very easy to obtain, see JBCY paper
-#     -However, in typical applications we generally scale all competing filter outputs to unit-variance in order
-#       to facilitate visual inspection of the relevant aspects, namely: 
-#       -shifts at crossings and at local peaks/troughs (lag/lead)
-#       -smoothness. 
-# In this context, it would be more consistent to look at performances of the classic concurrent HP in terms of 
-#     correlations, too, and thus ignore the `odd' scaling (equivalently: re-scale all filter-outputs to unit-variance)
-#   -We already looked at its lag-one ACF above (in terms of empirical holding-time)
-#   -Let's then have a look at its correlation with the two-sided target hp_target
 
 #------------------------------------------
-# 6.5 Compute empirical and true (expected) performance numbers and compare all one-sided designs
+# 6.4 Compute empirical and true (expected) performance numbers and compare all one-sided designs
 # Compute empirical cross correlations of all designs: 
 cor_mat<-cor(mplot)
 cor_mat
 # Let's first look at correlations of the various one-sided designs with the target: 
 #  Numbers in the third row of the correlation matrix
 cor_mat[3,]
-# -MSE outperforms SSA (because MSE is best possible; but SSA is smoother: 50% larger empirical holding-times in above simulation):
+# -MSE marginally outperforms SSA (MSE is best possible; but SSA is smoother: 50% larger empirical holding-times in above simulation):
 cor_mat[3,2]
 cor_mat[3,1]
 # -Of course, MSE also outperforms the classic one-sided HP
@@ -1005,7 +937,8 @@ cor_mat[3,2]
 cor_mat[3,4]
 # -Interestingly, SSA outperforms HP-concurrent both in terms of smoothness (fewer crossings) as well 
 #   as in terms of correlation with target 
-# As stated: the classic HP-concurrent filter is generally not optimal for applications to typical economic data
+# As stated: the classic HP-concurrent filter is generally not optimal for applications: typical economic data
+#   (in levels or in differences) is less smooth than assumed by hp_trend
 cor_mat[3,1]
 cor_mat[3,4]
 
@@ -1026,7 +959,7 @@ SSA_obj_HP$crit_rhoyz
 # Example 7
 # This is more of a counter-example and it has nothing to do with SSA
 # We here analyze the classic HP-gap filter
-# Based on its characteristics we strongly advise against its use in BCA, in agreement with Hamilton: "never use the HP (gap)", see tutorial 3
+# Based on its characteristics we strongly advise against its use in BCA, in agreement with Hamilton: "never use the HP (gap)...", see tutorial 3
 
 # HP gap
 # 7.1 Compute HP-gap: we use the same length as in example 6 above
@@ -1052,7 +985,7 @@ ts.plot(hp_gap)
 hp_trend<-HP_obj$hp_trend
 ts.plot(hp_trend)
 # Gap is 1-hp_trend
-# Difference vanishes
+# Check: the difference of the following filters should vanish
 (c(1,rep(0,L_sym-1))-hp_trend)-hp_gap
 
 #---------------------------------------------
@@ -1087,7 +1020,7 @@ lines(yhat_gap,col="red")
 # First differences of typical economic data are generally close to white noise (Typical spectral shape by Granger)
 # Therefore the squared amplitude of gap_diff is close to the spectral density of the filter output (convolution theorem)
 #   This is the main reason for considering gap_diff: an interpretation of filter characteristics is much easier
-# Select the number of equidistant frequency ordinates (grid-size) in [0,pi] 
+# We now select the number of equidistant frequency ordinates (grid-size) in [0,pi] 
 K<-600
 # Compute amplitude of gap_diff
 amp_gap_diff<-amp_shift_func(K,as.vector(gap_diff),F)$amp
@@ -1098,7 +1031,7 @@ axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
 axis(2)
 box()
 
-# Plot squared amplitude function: this is the true spectral density of the HP-gap `cycle', when applied to a random-walk
+# Plot squared amplitude function: this is the true spectral density of the original HP-gap `cycle', when applied to a random-walk
 # This is a good proxy of the true spectral density of the HP-gap `cycle' when applied to typical (non-stationary) economic data in levels
 par(mfrow=c(1,1))
 plot(amp_gap_diff^2,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Squared amplitude HP-gap as applied to differences",sep=""))
@@ -1107,14 +1040,14 @@ axis(2)
 box()
 
 # Outcomes:
-#   1. HP-gap is a bandpass when applied to levels; but it is also a bandpass when applied to first differences (the above amplitude vanishes at zero)
+#   1. The original HP-gap is a bandpass when applied to levels; but it is also a bandpass when applied to first differences (the above amplitude vanishes at zero)
 #     The reason is that (the one-sided) HP assumes a second order unit-root: after first differences, gap_diff must still remove an additional unit-root
 #   2. HP-gap generates a spurious cycle whose frequency corresponds to the peak of the above amplitude functions
 
 # Let's briefly check our second claim
 # This is the frequency of the peak-amplitude
 omega_gap<-pi*(which(amp_gap_diff==max(amp_gap_diff))-1)/K
-# This is its periodicity: approximately 6 years
+# This is its periodicity in months: approximately 6 years
 # A periodicity of 6 years for a completed cycle is too short for longer expansions and therefore HP-gap will generate spurious alarms in midst of some expansions, see tutorial 5
 2*pi/omega_gap
 # The periodogram of the filter output confirms our findings: low and high frequencies are damped, 
@@ -1129,4 +1062,4 @@ abline(h=0)
 # There are lots of noisy zero-crossings, too, which would hamper a real-time assessment of the cycle, see tutorial 5
 # As we shall see BK is subject to a similar shortcoming, see tutorial 4
 # These findings confirm and reinforce Hamilton's statement: never use the HP (-gap) filter for BCA
-# But we could add: use the HP-concurrent lowpass instead, as applied to differences, see tutorial 5
+# But we add: use the HP-concurrent lowpass instead, as applied to differences, see tutorial 5
