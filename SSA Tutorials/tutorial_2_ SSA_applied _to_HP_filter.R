@@ -3,7 +3,7 @@
 # We consider the HP-trend or lowpass filter, applied to stationary data
 #   -This design is used in JBCY paper: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
 #     -In contrast, the classic HP-gap applied to INDPRO (data in levels) tends to generate spurious cycles, see tutorial 5
-#   -All examples in this tutorial rely on artificial (simulated) stationary series: knowing the true model allows for verification of the theory 
+#   -All examples in this tutorial rely on artificial (simulated) stationary series: knowing the true model allows for verification of theoretical results 
 #     -Tutorial 5 applies SSA to US-INDPRO
 
 # We apply SSA to different targets 
@@ -19,7 +19,7 @@
 #   1.The classic HP-gap (as applied to non-stationary data in levels) is not suited for BCA, see example 7 below: "never use HP-gap". 
 #       -Therefore, we here emphasize the trend filter(s) only: as applied to stationary data (first differences of economic time series) 
 #   2.The classic concurrent (one-sided) HP-trend assumes a particular implicit (ARIMA(0,2,2)) model of the data. 
-#       -The implicit model assumes the data to be excessively smooth; real macro indicators are typically noisier than that (in levels and a fortiori in first differences).
+#       -The implicit model assumes the data to be excessively smooth; economic time series are typically noisier than that (in levels and a fortiori in first differences).
 #     Consequences: 
 #       -In typical applications, HP-concurrent is not an optimal (MSE) nowcast of the symmetric two-sided HP, see example 6
 #       -The holding-time of HP-concurrent is rather small i.e. the filter is subject to noise-leakage 
@@ -32,7 +32,8 @@
 #       -SSA real-time (concurrent) designs can be smoother as well as leading, when compared to the concurrent benchmarks 
 
 # Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
-#   predictor (any one as long as it's linear in the data) can be replicated and modified by SSA in view of addressing 
+#   predictor or BCA-filter (any one as long as it's linear in the data) can be replicated and modified by SSA 
+#   in view of addressing 
 # 1. smoothness (noise suppression) and 
 # 2. timeliness (advancement)
 # In this perspective, HP is considered as a neutral and basic platform for showcasing SSA

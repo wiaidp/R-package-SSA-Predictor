@@ -1,17 +1,22 @@
 # Application of SSA to Hamilton  filter (HF)
+# For illustration, we consider quarterly GDP (example 1) and monthly non-farm payroll (examples 2 and 3) data  
+# We analyze long sample periods (starting at WWII) as well as shorter spans (starting at the great moderation)
+
 # Main outcomes: 
 #   1.HF is a lowpass when applied to returns: it does not generate spurious cycles
 #       (in contrast to BK, CF or HP-gap for example, see tutorials 2, 4 and 5)
 #   2.HF removes the (remaining) weak drift of the returns: it can address arbitrary integration orders by modifying the AR-order p of the regression
-#   3.HF has a rather small holding-time: it is subject to noise leakage (`noisy' zero crossings).
-#       Therefore, an application of SSA is not inopportune (in contrast to BK, see tutorial 4)
-#   4.We want the SSA-nowcast to be smoother than HF (~30% less crossings in the long run)
-#       -Remarkably, despite stronger smoothing, the SSA-nowcast is not lagging behind
-#   5.The SSA (6 months and 1-year) forecasts are smooth, too (same holding-time constraint) and leading HF (left-shifted)
-# We apply all filters to quarterly GDP (example 1) and to monthly non-farm payroll (examples 2 and 3)  
+#   3.By its very definition, the HF filter depends on the data-sample (regression model)
+#     Pros and cons when compared to fixed designs such as HP or BK 
+#   4.HF has a rather small holding-time: it is subject to noise leakage (`noisy' zero crossings).
+#       Therefore, an application of SSA is not inopportune 
+#   5.We want the SSA-nowcast to be smoother than HF (~30% less crossings in the long run)
+#   6.The SSA (6 months and 1-year) forecasts are smooth, too, (same holding-time constraint) and leading HF (left-shifted)
+
 
 # Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
-#   predictor (any one as long as it's linear in the data) can be replicated and modified by SSA in view of addressing 
+#   predictor or BCA-filter (any one as long as it's linear in the data) can be replicated and modified by SSA 
+#   in view of addressing 
 # 1. smoothness (noise suppression) and 
 # 2. timeliness (advancement)
 # In this perspective, HF is considered as a neutral and basic platform for showcasing SSA
