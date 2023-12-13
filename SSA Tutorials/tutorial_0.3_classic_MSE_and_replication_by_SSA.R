@@ -1,7 +1,10 @@
 # We here 
-# -briefly derive the classic mean-square error (MSE) predictor in the context of a simple `toy' signal extraction problem
-# -typify its main characteristics
-# -replicate MSE by SSA
+# -briefly derive the classic mean-square error (MSE) predictor for a simple `toy' signal extraction problem
+#   -Based on white: example 1
+#   -Based on an autocorrelated process: example 2
+# -Introduce SSA
+#   -replicate MSE by SSA: example 3
+#   -`play' with the input to SSA: example 4`
 # -In the following tutorials we can view the MSE predictor both as a benchmark, for comparing performances, as well 
 #   as a base-predictor, on which SSA can be plugged to alter performances: smoothness and/or timeliness 
 
@@ -325,9 +328,43 @@ axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
 axis(2)
 box()
 
+# Context for understanding SSA, based on above example
+# Let zt designate a target: zt=sum_{k=-\infty}^{\infty} gamma_k x_{t-k}
+#   In the above example examples: zt=y_sym the output of the acausal two-sided filter 
+# Let xt=sum_{j=0}^{\infty} xi_j epsilon_{t-k} be a stationary (or nomn-stationary integrated process)
+# We want to estimate or predict z_{t+delta}, for delta in Z
+# The general proceeding in example 2 applies for SSA, too. Let's summarize the main steps
+# 1. Find the Wold-decomposition: xi 
+#   -Typically one fits a SARIMA-model to the data and inverts the model into an MA(\infty) using the above ARMAtoMA function
+# 2. Convolve gamma_k with xi and replace future epsilon_t by zero: MSE filter applied to epsilont
+# 3. Deconvolute gamma from MSE applied to epsilont: MSE applied to xt 
 
+# These steps are applied for SSA, too
+# One specifies the target z_{t+delta} by providing:
+#   1. gammak
+#   2. delta
+#   3. xi
+# Additionally to the MSE estimate we also specify 
+#   3. ht or, more exactly, the lag-one ACF rho1 of the holding-time constraint
+#   4. L: the filter length
+# For given L, the SSA criterion computes the best finite-length filter subject to the holding-time constraint
+#   Best means
+#     1. The filter which best matches signs of the target z_{t+delta}
+#     2. The filter which correlates most strongly with the target z_{t+delta}
+#   Both criteria are equivalent under Gaussianity (see JBCY paper) and the link is fairly robust against departures of Gaussianity (t-distribution up to nu=2 still works fine, equity data is OK, Macro data is fine too,...)
 
-#----------------------------------------------------------------------
+# The SSA function returns
+# 1. The best SSA-filter as applied to epsilont: ssa_eps (compliant with holding-time constraint)
+# 2. The best SSA-filter as applied to xt: ssa_x 
+# SSA also computes:
+# 3. The best MSE as applied to epsilont: mse_eps (generally not compliant with holding-time constraint)
+# 4. The best MSE as applied to xt: mse_x 
+# Finally SSA computes criterion values and holding-times
+# 5. crit_rhoyz: correlation with MSE predictor of target
+# 6. crit_rhoy_target: correlation with two-sided-target
+# 7. crit_rhoyy: lag one ACF of optimized solution: this number should match ht (if not, the optimization did not converge)
+#############################################################################################
+#############################################################################################
 # Example 3 Replicate MSE by SSA
 # We here rely on the framework of example 2 above
 # As stated in the introduction to these tutorials, SSA replicates MSE if ht in the holding-time constraint matches 
@@ -465,7 +502,8 @@ compute_empirical_ht_func(y_ssa)
 ht
 # Empirical measures converge to expected numbers for longer time series
 
-#------------------------------------------------------------------------------------
+#########################################################################################
+#########################################################################################
 # Example 4: alternative target specifications
 # We copy example 3 but we exchange the symmetric filter for the MSE-filter in the target specification
 #   -Proposition 5 in JBCY paper shows that both targets are equivalent
