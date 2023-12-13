@@ -245,10 +245,10 @@ SSA_obj$crit_rhoyz
 MSE_forecast<-a1*x
 cor(yhat,MSE_forecast,use='pairwise.complete.obs')
 
-# 3.2 Correlation with effective target i.e. series shifted by one time unit
+# 3.2 Correlation with effective target i.e. series shifted forward by forecast_horizon
 SSA_obj$crit_rhoy_target
-# Compare with empirical correlation
-cor(yhat,c(x[2:len],x[len]),use='pairwise.complete.obs')
+# Compare with empirical correlation: target=original series shifted forward by forecast_horizon
+cor(yhat,c(x[(1+forecast_horizon):len],rep(NA,forecast_horizon)),use='pairwise.complete.obs')
 # Both targets are equivalent, see proposition 4 in JBCY paper: both lead to the same SSA-filter 
 # -The correlation with the effective target (second criterion) is smaller because the latter assumes knowledge of future observations (in this case: the one-step ahead observation) 
 # -The correlation with the MSE target is larger because the latter is one-sided (it does not assume knowledge of future data)
@@ -275,39 +275,21 @@ gammak_generic<-1
 # Forecast horizon: one-step ahead
 forecast_horizon<-1
 # We retain the previous settings for the numerical optimization
+# The two warnings prevent that the target filter gammak_generic is shorter than L: this is OK (target is identity shifted forward)
+# The second warning informs that the SSA-solution is very close to MSE after optimization
 SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
 
 ssa_x<-SSA_obj$ssa_x
-# Plot optimized filter: it is almost the MSE predictor
-#   Negligible departures are due to the fact that   
+# Plot optimized filter: it is the MSE predictor
 ts.plot(ssa_x)
 
 # This is the filter applied to epsilont (before deconvolution): it follows the exponential decay specified by a1
 ssa_eps<-SSA_obj$ssa_eps
 ts.plot(ssa_eps)
-# The decay pattern replicates a1 (up to rounding)
+# The decay pattern replicates a1 
 ssa_eps[2:L]/ssa_eps[1:(L-1)]
-# Note: the SSA criterion computes ssa_eps i.e. the convolution of SSA and xi as applied to epsilont, see section 2 of JBCY paper
-# The filter ssa_x, applied  to xt, is then obtained by (finite-sample) deconvolution
-# Our deconvolution algorithm truncates expressions (at length L): this truncation could lead to small (negligible) errors, 
-#   as seen in the above example
 
 
-# Let's just increase the filter length slightly in order to mitigate the previous truncation issue
-L<-50
-
-SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
-
-ssa_x<-SSA_obj$ssa_x
-# This is now almost equal to the identity or, equivalently, to the MSE   
-ts.plot(ssa_x)
-
-# Once again the filter applied to epsilont (before deconvolution) follows the exponential decay specified by a1
-ssa_eps<-SSA_obj$ssa_eps
-ts.plot(ssa_eps)
-
-# The decay pattern replicates a1, up to rounding errors
-ssa_eps[2:L]/ssa_eps[1:(L-1)]
 
 
 #--------------------------------------------------------------------
@@ -316,7 +298,6 @@ ssa_eps[2:L]/ssa_eps[1:(L-1)]
 # Background: 
 # In the above examples we assumed that xt = AR(1) and that zt=xt identity (z_{t+delta} is the target, see section 2 in JBCY paper
 # However, we could look at the forecast problem alternatively, by setting xt=epsilont and zt=AR(1)-filter applied to xt
-#   See also the introduction to the tutorials
 # We now show how to implement the latter design
 
 
@@ -341,7 +322,7 @@ ssa_x<-SSA_obj$ssa_x
 # Plot optimized filter: in contrast to ssa_x in previous exercise (which was a1*identity), we now have the 
 #   finite-sample MA-forecast filter 
 ts.plot(ssa_x)
-# Exponential decay (up to negligible error due to optimization)
+# Exponential decay 
 ssa_x[2:L]/ssa_x[1:(L-1)]
 
 # This is the filter applied to epsilont 
@@ -399,8 +380,7 @@ empirical_ht
 # compare with imposed constraint: they match
 ht
 
-# 2. Compare lag-one acf of optimized design with imposed constraint: successful optimization means that both numbers should be close
-#  If there is a substantial difference: increase split_grid (number of iterations: default is 20 which should be sufficient for most applications)
+# 2. Compare lag-one ACF of optimized design with imposed constraint: successful optimization means that both numbers should be close
 # In our example both numbers match nearly perfectly
 SSA_obj$crit_rhoyy
 rho1
@@ -420,7 +400,6 @@ cor(yhat,MSE_forecast,use='pairwise.complete.obs')
 SSA_obj$crit_rhoy_target
 # Compare with empirical correlation
 cor(yhat,c(x[(2):len],x[len]),use='pairwise.complete.obs')
-# Both targets are equivalent, see proposition 4 in JBCY paper: both lead to the same SSA-filter 
 
 
 #-----------------------------------------------------------------------------
@@ -503,13 +482,12 @@ compute_empirical_ht_func(yhat)
 ts.plot(x[1:100])
 abline(h=0)
 abline(h=mu)
-# By shifting the series upward by mu, the number of zero crossings decreased because some of the observations 
-# which cross the line at mu do not cross the zero-line anymore: bias
+# By shifting the series upward by mu, the number of zero crossings decreased (for mu>4 we would not observe zero-crossings anymore)
 
 # In order to reconcile expected and empirical hts we have to specify the correct model or, more precisely, the correct filter
 # Correct here means: 
-#   the filter whose input is epsilont (instead of xt) and 
-#   whose output is the same as b when applied to xt-mu (we need to center the data in order to reconcile hts) 
+#   -The filter whose input is epsilont (instead of xt) and whose output is the same as b when applied to 
+#     xt-mu (we need to center the data in order to reconcile holding times) 
 # The correct filter is thus the convolution of b with MA-inversion (Wold decomposition) of xt, shifted upwards by mu
 
 # Step 1 MA-inversion
@@ -529,7 +507,7 @@ for (i in 2:len)
   y[i]<-a1*y[i-1]+eps[i]+b1*eps[i-1]
 x<-y+mu
 # Step 2: center data
-# Filter x-mean(x) (centered data) with b and eps with ssa_eps and compare filter outputs
+# Filter x-mean(x) (centered data) with b; filter eps with ssa_eps and compare filter outputs
 yhat_x<-filter(x-mean(x),b,side=1)
 yhat_eps<-filter(eps,ssa_eps[1:30],side=1)
 mplot<-na.exclude(cbind(yhat_x,yhat_eps))
@@ -557,15 +535,10 @@ compute_holding_time_func(ssa_eps)$ht
 #-----------------------------------------------------------------
 # Example 8
 # We here replicate the SSA-filters in the business-cycle analysis of section 4 in the JBCY paper
-# To be clear: we just replicate HP and SSA filters, see tutorial 5 for a full description
-# SSA-filters assume white noise i.e. xi=NULL: we do not `mine' the data
-# The proposed SSA designs outperform the classic HP-concurrent designs, see tutorial 5 and section 4 in JBCY paper
-#   -Some generate substantially less noisy alarms (zero crossings)
-#   -Some are faster (left-shifted or leading) 
-#   -Some are both smoother and faster
+# SSA-filters in the JBCY paper assume white noise i.e. xi=NULL: we do not `mine' the data by fitting a model
 
 # HP and hyperparameter
-L<-200
+L<-201
 lambda_monthly<-14400
 
 HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
@@ -577,10 +550,10 @@ hp_gap=HP_obj$hp_gap
 # One sided gap filter when applied to first differences of the data
 #  modified_hp_gap applied to first differences replicates the output of the original gap applied to the original data  
 modified_hp_gap=HP_obj$modified_hp_gap
-# Classic one-sided (concurrent) HP-trend: this is an optimal (MSE) estimate of the two-sided filter if the data follows an ARMA(0,2,2) specification 
+# Classic one-sided (concurrent) HP-trend: this is an optimal (MSE) estimate of the two-sided filter if the data follows an ARIMA(0,2,2) specification 
 hp_trend=HP_obj$hp_trend
 # Alternative one-sided HP-trend based on truncating the two-sided filter
-#   It is an optimal (MSE) estimate of the two-sided filter if the data is white noise
+#   It is an optimal (MSE) estimate of the two-sided filter if the data is white noise (which is consistent with xi=NULL)
 hp_mse=HP_obj$hp_mse
 # We can use any of the above HP-designs as targets for SSA, see tutorials 2 and 5
 #---------------------------
@@ -596,12 +569,15 @@ ht<-12
 ht/compute_holding_time_func(hp_trend)$ht
 rho1<-compute_rho_from_ht(ht)
 # We compute a nowcast of the classic concurrent HP as well as a 18-months ahead forecast, both subject to ht
+# We can supply a vector with the desired forecast horizons: SSA will compute optimal filters for each forecast horizon
 forecast_horizon_vec<-c(0,18)
 # We here want SSA to approximate the one-sided MSE HP-trend
 gammak_generic<-hp_mse
 
+# By omitting xi in the call we assume the data to be white noise
 SSA_obj<-SSA_func(L,forecast_horizon_vec,gammak_generic,rho1)
 
+# In this case ssa_x and ssa_eps are the same filters
 ssa_eps<-SSA_obj$ssa_eps
 colnames(ssa_eps)<-paste("SSA(",round(ht,2),",",forecast_horizon_vec,")",sep="")
 
@@ -621,7 +597,7 @@ colnames(ssa_eps1)<-paste("SSA(",round(ht_short,2),",",forecast_horizon_vec[2],"
 ssa_eps<-cbind(ssa_eps,ssa_eps1)
 
 #--------------------------------------
-# Plot filters
+# Plot filters: this plot replicates fig.4 in JBCY paper
 colo_hp_all<-c("brown","red")
 colo_SSA<-c("orange","blue","violet")
 colo_all<-c(colo_hp_all,colo_SSA)

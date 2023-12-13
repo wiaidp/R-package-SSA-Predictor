@@ -407,7 +407,7 @@ gammak_generic<-gamma
 
 # Apply SSA
 # Since gamma is applied to xt, we have to supply information about the link between xt and epsilont in terms of xi
-# Warning messages inform that zeroes are appended to shorter filters 
+# Warning messages inform that zeroes are appended to shorter filters and that SSA solution is very close to MSE after optimization
 SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
 
 # Filter as applied to xt

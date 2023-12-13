@@ -100,7 +100,7 @@ filter_mat
 # Compute (true) correlation assuming white noise
 rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
 rho_yz
-# Proposition 1 then shows that the following non-linear expression in rho_yz corresponds to the true/expected SA
+# Proposition 1 in JBCY paper shows that the following non-linear expression in rho_yz corresponds to the true/expected SA
 SA_true<-asin(rho_yz)/pi+0.5
 SA_true
 # We can also compute a second empirical estimate
@@ -185,7 +185,7 @@ x<-rnorm(len)
 # Target signal 
 z<-filter(x,gamma,side=2)
 
-ts.plot(cbind(x,z),col=c("black","red"),main="Data (black) and target (blue)")
+ts.plot(cbind(x,z),col=c("black","red"),main="Data (black) and target (red)")
 
 # Forecast horizon: nowcast
 delta<-0
@@ -209,15 +209,16 @@ dim(explanatory)
 # Stacked and shifted explanatory data for regression
 tail(explanatory)
 
-# data set
-sample<-data.frame(cbind(target,explanatory))
+# data set: we invert column ordering such that first column corresponds to most recent data (important when filtering series below)
+sample<-data.frame(cbind(target,explanatory[,ncol(explanatory):1]))
 
 # 3. Fit logit-model
 logit_model <- glm(target ~.,family=binomial(link='logit'),data=sample)
 summary(logit_model)
 #-----------------------------
 # Fit classic regression: MSE predictor
-mse_model<-lm(z~explanatory-1)
+# We invert column ordering such that first column corresponds to most recent data (important when filtering series below)
+mse_model<-lm(z~explanatory[,ncol(explanatory):1]-1)
 summary(mse_model)
 
 # Advantage classic MSE predictor over logit-model: 
@@ -252,15 +253,16 @@ sum((sign(y_mse*z)+1)/2,na.rm=T)/length(na.exclude(z))
 sum((sign(y_logit*z)+1)/2,na.rm=T)/length(na.exclude(z))
 # MSE outperforms logit
 
-# We can also compute the true or expected SA of both predictors
+# We can also compute the true or expected SA of both predictors, 
+#   The empirical out-of-sample estimates converge to the true SA, for increasing out-of-sample span
 # 1. MSE
-filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_mse)),b_mse[length(b_mse):1]))
+filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_mse)),b_mse))
 filter_mat
 rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
 rho_yz
 SA_true_mse<-asin(rho_yz)/pi+0.5
 # 2. Logit
-filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_logit)),b_logit[length(b_logit):1]))
+filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_logit)),b_logit))
 filter_mat
 rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
 rho_yz
@@ -286,8 +288,7 @@ for (i in 1:anzsim)
 # Target: 
   z<-filter(x,gamma,side=2)
   target<-(1+sign(z)[(1+2*delta-1):len])/2
-  length(target)
-  
+
   # Compute matrix of explanatory series
   explanatory<-c(x[((L+1)/2+delta):len],rep(NA,((L+1)/2+delta)-1))
   if (((L+1)/2+delta)<L)
@@ -297,22 +298,21 @@ for (i in 1:anzsim)
       explanatory<-cbind(explanatory,c(x[((L+1)/2+delta-i):len],rep(NA,((L+1)/2+delta-i)-1)))
     }
   }
-  sample<-data.frame(cbind(target,explanatory))
-
+# data set: we invert column ordering such that first column is most recent data
+  sample<-data.frame(cbind(target,explanatory[,ncol(explanatory):1]))
 # Fit models
   logit_model <- glm(target ~.,family=binomial(link='logit'),data=sample)
-  mse_model<-lm(z~explanatory-1)
+#  We invert column ordering such that first column is most recent data  
+  mse_model<-lm(z~explanatory[,ncol(explanatory):1]-1)
   b_mse<-mse_model$coef
   b_logit<-logit_model$coef[-1]
-  
-# Compute true SA of both predictors  
-  filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_mse)),b_mse[length(b_mse):1]))
+# Compute true SA of both predictors: expected or true out-of-sample performances
+  filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_mse)),b_mse))
   filter_mat
   rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
   rho_yz
   SA_true_mse<-asin(rho_yz)/pi+0.5
-  
-  filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_logit)),b_logit[length(b_logit):1]))
+  filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_logit)),b_logit))
   filter_mat
   rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
   rho_yz
@@ -324,8 +324,10 @@ for (i in 1:anzsim)
 colnames(mat_perf)<-c("SA MSE","SA Logit")
 # Mean of sample SA for MSE (first column) and logit (second column)
 apply(mat_perf,2,mean)
-# Standard errors
+# Standard errors: differences of means are significant 
 apply(mat_perf,2,sd)
+# Mean differences are significant
+t.test(mat_perf[,1], mat_perf[,2], paired = F, alternative = "greater",var.equal=F)
 # Proportion of cases where MSE is outperformed by logit
 length(which(mat_perf[,1]<mat_perf[,2]))/anzsim
 # Findings:

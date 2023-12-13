@@ -211,9 +211,10 @@ SSA_func<-function(L,forecast_horizon_vec,gammak_generic,rho1,xi=NULL,Sigma=NULL
       xi<-matrix(xi,nrow=1)
     } 
     if (!is.null(xi))
-    if (nrow(xi)<L)
+    if (ncol(xi)<max(L,L+max(forecast_horizon_vec)))
     {
-      xi<-cbind(xi,matrix(rep(0,(L-nrow(xi))),ncol=L-nrow(xi)))
+      print("Warning: xi is shorter than L+forecast-horizon: it will be extended with zeroes")      
+      xi<-cbind(xi,matrix(rep(0,(max(L,L+max(forecast_horizon_vec))-nrow(xi))),ncol=max(L,L+max(forecast_horizon_vec))-nrow(xi)))
     }  
     
     
@@ -334,7 +335,7 @@ SSA_func<-function(L,forecast_horizon_vec,gammak_generic,rho1,xi=NULL,Sigma=NULL
   
   if (abs(lambda_opt)<0.001)
   {
-    print(paste("Lambda_opt=",lambda_opt,sep=""))
+    print(paste("Lambda_opt=",lambda_opt," is close to zero (MSE filter)",sep=""))
     print("SSA-filters are identified with MSE filters")
     ssa_eps<-mse_eps
     ssa_x<-mse_x
@@ -1113,7 +1114,7 @@ target_func_one_sided<-function(xi,gammak_generic,forecast_horizon,Sigma)
         }
 # Extract matrix xi_{m+forecast_horizon-k} from xi[1:n,m-(k-1)+(0:(n-1))*L] 
 #   Set all terms to zero if lag is larger than L or smaller than 1   
-        if (m+forecast_horizon-(k-1)<=L&m+forecast_horizon-(k-1)>=1)
+        if (m+forecast_horizon-(k-1)<=ncol(xi)&m+forecast_horizon-(k-1)>=1)
         {  
           xi_m_k<-xi[,m+forecast_horizon-(k-1)+(0:(n-1))*L]
         } else
