@@ -1,10 +1,16 @@
-# Introductory examples illustrating simple applications of SSA, mainly to forecasting. 
+# In this tutorial we propose applications of SSA mainly to forecasting. 
 # -All examples emphasize the holding-time (ht) concept as a method and concept for controlling the smoothness 
 #   of a (forecast or signal extraction) filter in a systematic and predictable way. 
-# -We relate the theoretical or expected ht to the effective (empirical or measured) ht. 
-# -We also propose and analyze simple cases of misspecification, where expected and empirical hts differ and we 
-#   show how to resolve the mismatch or misspecification by simple adjustments.  
-
+# -We relate the theoretical or expected ht to the effective (empirical or measured) ht, see example 1.
+# -We discuss feasibility, see example 2. 
+# -We improve smoothness of a simple one-steo ahead predictor, see example 3.
+# -We replicate the MSE predictor by SSA, see example 4.
+# -We `play' with the flexible interface and interchange role of data-generating process and target filter, see example 5.
+# -We propose an `unsmoothing' exercise whereby SSA is asked to generate more zero-crossings 
+#   than the benchmark predictor, see example 6
+# -We analyze simple cases of model misspecification, for which expected and empirical hts differ, and we 
+#   show how to resolve the mismatch or misspecification by simple adjustments, see example 7.  
+# -Finally, in the last example we replicate the HP filter designs in section 4 of the JBCY paper
 
 
 rm(list=ls())

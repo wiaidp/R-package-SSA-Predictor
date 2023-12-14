@@ -1,4 +1,4 @@
-# Application of SSA to HP filter 
+# In this tutorial we consider an application of SSA to the Hodrick-Prescott (HP) filter 
 
 # We consider the HP-trend or lowpass filter, applied to stationary data
 #   -This design is used in JBCY paper: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
@@ -966,8 +966,8 @@ SSA_obj_HP$crit_rhoyz
 
 #--------------------------------------------------------------
 # Example 7
-# This is more of a counter-example and it has nothing to do with SSA
-# We here analyze the classic HP-gap filter
+# This is more of a counter-example and it is not related to SSA.
+# We here analyze the classic HP-gap filter.
 # Based on its characteristics we strongly advise against its use in BCA, in agreement with Hamilton: "never use the HP (gap)...", see tutorial 3
 
 # HP gap
@@ -1001,7 +1001,7 @@ ts.plot(hp_trend)
 # 7.2 Transformation: from levels to first differences
 # The gap filter is applied to data in levels: this renders a direct analysis cumbersome and difficult
 # Instead, we here derive a filter whose output is the same as HP-gap when applied to first differences: this
-#  will ease our analysis
+#  will ease our analysis. See proposition 4 in JBCY paper for background.
 gap_diff<-conv_with_unitroot_func(hp_gap)$conv
 par(mfrow=c(2,1))
 # Note that the coefficients of the new filter ham_diff vanish for lags larger than length of Hamilton_filter_adjusted and therefore we could set L=length(hamilton_filter_adjusted)

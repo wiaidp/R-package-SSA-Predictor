@@ -1,22 +1,16 @@
-# Application of SSA to Baxter and King (BK) filter.
-# Complete case-study illustrating all features of the current SSA 
-# SSA: Simple Sign Accuracy
-# `Simple' means: univariate design without formal timeliness approach (timeliness is addressed indirectly, by means of the forecast horizon)
-# We here 
-#   -discard the singular pandemic data 
-#   -assume log-returns of the data to be (nearly) stationary
-# These assumptions do not affect our findings when engrafting SSA onto BK  
+# In this tutorial we discuss an application of SSA to the Baxter and King (BK) ideal bandpass filter.
+
 # Main outcomes: 
 #   1.The analysis suggests that BK is not well suited for BCA (business cycle analysis) 
 #         because the filter generates a `spurious' cycle (see our analysis of the amplitude functions below). 
-#       -The periodicity of the nearly sinusoidal cycle is determined by the lower bandpass specification (artifact)
+#       -The periodicity of the nearly sinusoidal cycle is determined entirely by the lower bandpass specification (artifact)
 #   2.The BK filter output is very smooth (sinusoidal like) and therefore an application of SSA is not necessary 
 #       or useful in this case. 
 #       -Increasing smoothness even more, by imposing a larger holding-time in SSA, leads to atypical filter-characteristics in this particular setting  
 # Recommendations: 
 #   -Be cautious when applying bandpass designs for the purpose of BCA (HP-gap is subject to similar shortfalls)
-#   -Compute amplitude functions to assess filter characteristics (avoid spurious cycles). 
-#   -Verify that SSA does the right job, namely: lessen the number of noisy-crossings attributable to undesirable leakage of high-frequency components by the target filter  
+#   -Compute amplitude functions to assess filter characteristics (detect spurious cycles). 
+#   -Verify that SSA does the right job, namely: lessen the number of noisy-crossings attributable to undesirable leakage of high-frequency components by the benchmark  
 # In short: this tutorial is an illustrative counter example with some unexpected (but statistically sound) outcomes 
 #-----------------------------------------------------------------------
 # Make a clean-sheet, load packages and functions
@@ -49,7 +43,8 @@ y<-as.double(log(PAYEMS["/2019"]))
 len<-length(y)
 #--------------------------------------
 # 1. BK filter: rely on package mFilter
-# Need to provide a fake series in order to obtain filter coefficients: length odd integer to obtain the symmetric filter
+# Need to provide a series in order to obtain filter coefficients: length must be an odd integer to obtain a correctly centered two-sided filter   
+
 len_f<-1201
 x<-1:len_f
 x<-ts(x,frequency=96)
@@ -66,12 +61,10 @@ dim(filt)
 # Filter length: select an odd number such that the symmetric filter is indeed symmetric
 L<-201
 
-# Symmetric filter
-filt[((len_f+1)/2-(L+1)/2):((len_f+1)/2+(L+1)/2-1),(len_f+1)/2]
 # Symmetric filter: see plot further down
 bk_target<-filt[((len_f+1)/2-(L+1)/2+1):((len_f+1)/2+(L+1)/2-1),(len_f+1)/2]
 # bandpass: the bi-infinte filter adds to zero; the finite-length filter does not
-# If the coefficients do not add to zero, then the filter acnnot remove unit-roots in integrated data 
+# If the coefficients do not add to zero, then the filter cannot remove unit-roots 
 sum(bk_target)
 # Concurrent filter assuming white noise (truncate symmetric filter)
 fil_c<-filt[((len_f+1)/2):((len_f+1)/2+L),(len_f+1)/2]
@@ -96,8 +89,7 @@ bk_rw[2:L]<-bk_rw_finite[2:L]-sum(bk_rw_finite)/(L-1)
 # As a result, the cycle or filter output will be stationary (at least if the integration order of the data generating process is one)
 sum(bk_rw)
 
-
-# Plot all filters
+# Finally, we can plot all filters
 par(mfrow=c(2,2))
 ts.plot(bk_target,main="Two-sided BK")
 ts.plot(bk_wn,main="One-sided BK assuming the data to be white noise")
@@ -105,12 +97,11 @@ ts.plot(bk_rw_finite,main="One-sided BK assuming the data to be a RW")
 ts.plot(bk_rw,main="Adjusted one-sided BK assuming the data to be a RW")
 
 
-# Let's check the amplitude function of the two-sided filter and compare with theoretical limits of the 
-#   bandpass
+# Let's check the amplitude functions and compare the passband with our specifications, pl and pu (vertical black lines in plot)
 K<-600
 par(mfrow=c(1,1))
 plot(amp_shift_func(K,bk_target,F)$amp,type="l",axes=F,xlab="Frequency",ylab="",col="blue",main="Amplitude of 
-     two- and one-sided BK with theoretical bandlimits")
+     two- and one-sided BK with theoretical bandpass specifications")
 lines(amp_shift_func(K,bk_rw,F)$amp,col="red")
 mtext("Two sided BK",col="blue",line=-1)
 mtext("One sided adjusted BK",col="red",line=-2)
@@ -123,17 +114,17 @@ box()
 #   Ripples are a manifestation of the Gibbs phenomenon (finite-length truncation)
 # Since the amplitude of the (finite-length) two-sided filter does not vanish at frequency zero we infer that this 
 #   filter would not cancel unit-roots (trend)
-# However, the adjusted one-sided filter cancels a (single) unit-root: its amplitude vanishes at frequency zero
+# However, the adjusted one-sided filter cancels a (single) unit-root: its amplitude vanishes at frequency zero, as desired
 
 
 
 
 #---------------------------------------------------
 # 2. Transformation: from levels to differences (see section 2.3 in JBCY paper)
-# SSA must be applied to stationary data: we then transform the BK filter such that it can be applied to log-returns
+# SSA must be applied to stationary data: we then transform the BK filter such that it can be applied to differences
 # This proceeding is necessary for all bandpass designs, when applied to non-stationary data
-# A similar proceeding was applied to the Hamilton filter in tutorial 3 as well as to HP-gap in section 4 of JBCY paper
-
+# A similar proceeding was applied to the Hamilton filter in tutorial 3 as well as to the HP-gap in section 4 of JBCY paper
+# See section 2.3 and proposition 4 in JBCY paper for background.
 
 # Convolution with summation filter (unit-root assumption)
 bk_diff<-conv_with_unitroot_func(bk_rw)$conv
@@ -173,7 +164,7 @@ acf(x,main="ACF")
 
 #------------------------------------------------------------------------
 # 4. Autocorrelation
-# Fit a simple model to the data: in most cases ARMA(1,1) is well suited to fit weak but slowly decaying ACF
+# Fit a simple model to the data: in most cases ARMA(1,1) is well suited to fit a weak but slowly decaying ACF pattern
 ar_order<-1
 ma_order<-1
 estim_obj<-arima(x,order=c(ar_order,0,ma_order))
@@ -185,8 +176,8 @@ tsdiag(estim_obj)
 xi<-c(1,ARMAtoMA(ar=estim_obj$coef[1:ar_order],ma=estim_obj$coef[ar_order+1:ma_order],lag.max=L-1))
 par(mfrow=c(1,1))
 ts.plot(xi)
-# Convolve xi and bk_diff
 
+# Convolve xi and bk_diff: this filter would be applied to epsilont: it us used for determining the holding-time
 bk_conv<-conv_two_filt_func(xi,bk_diff)$conv
 ht_bk_conv_obj<-compute_holding_time_func(bk_conv)
 # Now the expected holding time matches the empirical one (up to finite sample error)
@@ -236,7 +227,7 @@ box()
 # Since epsilont is (nearly) white noise, its spectral density is flat. Therefore the squared amplitude of the last filter 
 #   (red line in above plot) corresponds to the spectral density of the filter-output (common to all three filters) 
 # We infer that the output of the classic BK, as applied to levels, is a spurious cycle whose peak frequency 
-#     corresponds to the frequency of the lower bandpass cutoff
+#     corresponds to the frequency of the lower bandpass cutoff (specified by pu)
 #   -This phenomenon explains the remarkable smoothness of the BK-cycle. In particular BK does not require any additional 
 #     enhancement (in terms of larger ht) by SSA
 # To be clear: this 'cycle' is not a feature of the data. Rather, it is an artifact which is determined by the 
@@ -244,7 +235,7 @@ box()
 # Another interesting characteristic can be derived from the amplitude functions at frequency zero
 # -BK-level vanishes by our modification above: the zero at frequency zero removes a unit-root of the series in levels
 # -The amplitudes of the other BK-filers (applied to returns) do not vanish at frequency zero (the zero in  the original filter is cancelled by the unit-root and the limiting amplitude value is shown in the above plots)
-# -As a consequence, content at frequency zero (of the returns) will 'pass' the filter
+# -As a consequence, content at frequency zero (of the returns) will seep through the filter
 # -We know that the level of the returns is non-stationary (the drift of the log-transformed data is changing over time)
 # -This changing level (non-stationarity) will thus 'leak' through (all) the filters
 # -We may claim, alternatively, that the above stationary ARMA(1,1)-model is a misspecification for the (drifting) returns
@@ -331,8 +322,9 @@ bk_out<-filter(x,bk_diff,side=1)
 compute_empirical_ht_func(bk_out)
 # Quite larger than expected ht
 ht_bk_conv_obj$ht 
-# Holding times of BK and SSA match 
+# Surprisingly, empirical holding times of BK and SSA match exactly 
 #   The large holding-times would require a much longer sample in order to obtain reliable empirical estimates
+#   Also, we required a 20% increase of ht only (in contrast to previous tutorials where we imposed 50%)
 
 
 # We can see why the empirical holding time is larger: the series has a non-vanishing (positive) mean
@@ -349,13 +341,11 @@ mtext("SSA", col="blue",line=-2)
 
 # In order to verify our conjecture, let's apply the filter to the mean-centered series instead
 SSA_out_center<-filter(x-mean(x),SSA_filt_bk_diff_x,side=1)
-# Now the empirical holding time accords better with the expected ht 
+# Now the empirical holding time accords better with the expected ht (but the series is still non-stationary: the model is misspecified) 
 compute_empirical_ht_func(SSA_out_center)
 ht 
 
 
-# We checked that departures from expected numbers could be assigned to misspecification and/or sample lengths
-#   -The sample-length problem is exacerbated by asking for (very) large ht
 #-----------------------------------------------
 # Let us now address timeliness or lead/lags: the last plot suggested that SSA is slightly right shifted (lagging)
 # We augment the forecast horizon (delta in the JBCY paper) to obtain a faster SSA filter without giving-up smoothness
@@ -384,7 +374,7 @@ abline(h=0)
 
 # The forecast does not seem right...
 
-# So let's shift the forecast forward by one year 
+# Let's shift the forecast forward by one year: seems better now
 par(mfrow=c(1,1))
 # That's better now
 mplot_shift<-na.exclude(cbind(SSA_out[(1+forecast_horizon):length(SSA_out_forecast)],SSA_out_forecast[1:(length(SSA_out)-forecast_horizon)],bk_out[(1+forecast_horizon):length(SSA_out_forecast)]))
@@ -400,19 +390,19 @@ abline(h=0)
 
 
 
-# Let us also compare the SSA-criterion value (expected correlation with shifted target) and the empirical correlation of 
-#   SSA-forecast and target, i.e. shifted BK
+# Let us also compare the SSA-criterion value (expected correlation with shifted target) and the empirical correlation  
+#   of SSA-forecast and target (shifted BK)
 # 1. Theoretical correlation: this is computed in closed-form in SSA-function, see section 2 in JBCY-paper for details
 SSA_obj_bk_diff$crit_rhoyz
 # 2. Empirical correlation of forecast and shifted BK
 cor(mplot[(1+forecast_horizon):nrow(mplot),3],mplot[1:(nrow(mplot)-forecast_horizon),2])
-# Not too bad: numbers are close.
+# Not too bad: numbers are pretty close.
 # Part of the difference is due to sample error and to the fact that the cycle is non-stationary
 #   (changing drift of the data, model misspecification)
 
 #-----------------------------------------------
-# Let's now try a much longer forecast horizon corresponding to half the cycle-length at the left (low-frequency-) boundary 
-#  of the passband: we will understand further down the purpose of this particular forecast horizon (delta in JBCY paper)
+# Let's now try a much longer forecast horizon corresponding to half the cycle-length at the left passband
+#  limit specified by pu: we will understand further down the purpose of this particular forecast horizon 
 # We compute a very long 4-year ahead forecast!
 forecast_horizon<-pu/2
 # SSA of BK-diff
@@ -423,7 +413,7 @@ SSA_filt_bk_diff_x_forecast_long<-SSA_obj_bk_diff_long$ssa_x
 # Filter series
 SSA_out_forecast_long<-filter(x,SSA_filt_bk_diff_x_forecast_long,side=1)
 
-# Plot series
+# Plot series: the scale of the forecast is smaller (zero-shrinkage: the estimation problem is more difficult)
 par(mfrow=c(1,1))
 mplot<-na.exclude(cbind(SSA_out,SSA_out_forecast_long,bk_out))
 colo=c("blue","darkgreen","red")
@@ -437,10 +427,10 @@ abline(h=0)
 
 # The SSA-forecast seems to mirror the target (BK): it is out of phase.
 # This conjectuire is confirmed by the filter coefficients
-ts.plot(SSA_filt_bk_diff_x_forecast_long,col="darkgreen",ylim=c(min(SSA_filt_bk_diff_x_forecast_long),max(SSA_filt_bk_diff_x)))
+ts.plot(SSA_filt_bk_diff_x_forecast_long,col="darkgreen",ylim=c(min(SSA_filt_bk_diff_x_forecast_long),max(SSA_filt_bk_diff_x)),main="SSA nowcast (blue) vs forecast (green)")
 lines(SSA_filt_bk_diff_x,col="blue")
 
-# How can we explain this forecast?
+# How can we explain and interpret this forecast filter?
 
 # We first compare the SSA-criterion value (expected correlation with shifted target) and the empirical correlation
 # 1. Theoretical correlation: the number is a bit optimistic (see below for an explanation)
@@ -542,9 +532,9 @@ box()
 #   -The original BK is already very smooth 
 #     -BK does not require additional noise suppression, unlike HP (tutorials 2 and 5) or Hamilton-filter (tutorial 3)
 #     -The amplitude function of BK is very close to zero towards higher frequencies: strong smoothing
-#     -Therefore, SSA cannot reduce the number of crossings by damping high-frequencies even more: BK does already a fine job!
+#     -Therefore, SSA cannot reduce the number of crossings by damping high-frequencies even more: BK does already a nearly perfect `job'!
 #     -Quite the contrary: the amplitude of SSA is (marginally) farther away from zero at higher frequencies. 
-#       -This is very atypical and unexpected...
+#       -This outcome is very atypical and unexpected...
 #   -So how does SSA manage to generate less crossings?
 # 2. In order to reduce the number of crossings, SSA damps lower frequencies in the passband of (the original) BK  
 #     -The amplitude functions of SSA drop below BK to the left and to the right of the upper bandpass boundary 2*pi/18
@@ -560,10 +550,10 @@ box()
 #       -The long forecast_horizon=pu/2 corresponds to half the spurious cycle-length: therefore the corresponding 
 #         4-year ahead forecast is out-of-phase
 #   2. Unfortunately, the series to be filtered is non-stationary (slowly drifting): 
-#       -It is not an ARMA(1,1) as assumed by our model of the data (from which xi is derived)
+#       -It is not an ARMA(1,1) as assumed by our model (from which xi is derived)
 #       -Moreover, the amplitude functions of the filters do not vanish at frequency zero. 
 #         -Therefore the drift will seep through and affect filter outputs
-#       -The empirical forecast error (correlation with target) is larger than projected by the criterion value: 
+#       -The empirical forecast error is larger than projected by the criterion value (if the model were true): 
 #         the expected correlation (in the absence of misspecification) is larger than the empirical correlation 
 #       -Moreover, the discrepancy between theoretical and empirical numbers increases with the forecast horizon
 #         -Because the seeping-through slow changing level affects long-term forecasts more heavily
@@ -572,14 +562,13 @@ box()
 
 ##################################################################################################
 ###################################################################################################
-# Ideas: instead of applying BK to the original data (generating a smooth spurious cycle) one could apply it to the returns
-#   -Obviously, the spectral content of such a design would be much more regular: no isolated single peak
-#   -Another advantage: the filter would remove the remaining non-stationarity (slowly changing drift) 
+# Suggestion: do not apply BK to the original data but to differences or returns, instead.
+#   -Obviously, the spectral content of such a design would be more evenly distributed 
+#     -no isolated single peak
+#     -no spurious cycle
+#   -Another advantage: the filter would remove the remaining non-stationarity (slowly changing drift of the data) 
 #     so that the resulting cycle would be centered at the zero-line.
-# -As a potential alternative, one could also consider HP-gap as applied to returns 
-#   -But the latter design would result in a high-pass i.e. noise-leakage would be too strong
-#   -In such a case, SSA could be used to emphasize smoothness, increasing strongly ht over the high-pass benchmark
-# -Looking at returns means that we emphasize growth: the cycle in the original data is shifted in phase by pi/2 
-#   in returns
-
+# -As a potential alternative, one could also consider HP-gap, when applied to returns 
+#   -But the resulting high-pass (no suppression of high-frequency content) would lead to full (100%) noise-leakage 
+#   -In such a case, SSA could be used to emphasize smoothness, increasing ht strongly over the high-pass benchmark
 
