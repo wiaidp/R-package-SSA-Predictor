@@ -1166,21 +1166,17 @@ tail(target_mat)
 #---------------------------------------
 # 8.2 Heat map
 # We can now represent the trilemma in a heat map
-#   Red (lowest spectral frequency) means large correlation of SSA and target or, equivalently, small MSE values
-# 1. Heat-map of correlations with causal MSE benchmark
-
-
-
-
-
-
+# 0. Specify color scheme
+#   Red (lowest spectral frequency): strongest correlation of SSA and target or, equivalently, small MSE values
+#   Violet: weakest correlation
 lcol<-100
 coloh<-rainbow(lcol)[1:(10*lcol/11)]
 colo<-coloh[length(coloh):1]
-heatmap.2(MSE_mat, scale = "none", col = colo,trace = "none", density.info = "none",Rowv = F, Colv = F,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with Causal MSE-Target")
+# 1. Heat-map of correlations with causal MSE benchmark
+heatmap.2(MSE_mat[nrow(MSE_mat):1,], dendrogram="none",scale = "none", col = colo,trace = "none", density.info = "none",Rowv = F, Colv = F,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with Causal MSE-Target")
 # 2. Heat-map of correlations with acausal effective target
-#   We see that the forecast horizon has a strong effect for positive forecast horizons
-heatmap.2(target_mat, scale = "none", col = colo,trace = "none", density.info = "none",Rowv = F, Colv = F,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with Effective Target")
+#   We see that the forecast horizon has a strong effect:in contrast to MSE-predictor above, target is acausal for strictly positive horizons
+heatmap.2(target_mat[nrow(target_mat):1,], dendrogram="none",scale = "none", col = colo,trace = "none", density.info = "none",Rowv = F, Colv = F,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with Effective Target")
 # Interpretations of heat-maps
 # -For fixed ht, the correlations decrease with increasing forecast horizon
 #   -Enhancing timeliness (larger forecast horizon) for fixed smoothness (ht) means an increase of MSE (decrease of correlation)
@@ -1192,27 +1188,28 @@ heatmap.2(target_mat, scale = "none", col = colo,trace = "none", density.info = 
 #   -See SSA-forecasts vs. SSA-nowcasts in the above examples 
 # -Improving correlations (smaller MSE) and timeliness (larger forecast horizon) affects smoothness (ht) disproportionately
 
-# Next, we want to emphasize more specifically the effect of ht on correlations (MSE) for a fixed forecast horizon
+# Next, we can emphasize more specifically the effect of ht on correlations (MSE) for a fixed forecast horizon
 # For this purpose, we can scale the data in the column direction of the heat map 
 #   -Scaling along the column means that the absolute effect of the forecast horizon is diminished
 #   -As above, the MSE-benchmark predictor corresponds to the peak criterion value for each forecast criterion (darkest ridge in plot)
-heatmap(MSE_mat, scale = "column", col = colo,trace = "none", density.info = "none",Rowv = NA, Colv = NA,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with Causal MSE-Target")
+heatmap(MSE_mat, scale = "column", col = colo,Rowv = NA, Colv = NA,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with Causal MSE-Target")
 # Same as above but for correlations with (generally acausal) target
 #   It is the same plot because for given forecast horizon the two criteria differ only by a scaling, see proposition 5 in JBCY paper
-#   Therefore, scaling along columns will cancel the difference
+#   Therefore, scaling along columns will cancel the difference between both criteria
 heatmap(target_mat,col=colo,scale="column",Rowv = NA, Colv = NA,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with  Effective Target (scaled along ht)")
 
 # We can also plot slices (selected columns) of the above heat-map 
 select_vec<-c(1,10,18)
 mplot<-MSE_mat[,select_vec]
-colo<-rainbow(length(select_vec))
+coli<-rainbow(length(select_vec))
+par(mfrow=c(1,1))
 plot(mplot[,1],col=colo,axes=F,type="l",xlab="Holding time",ylab="Correlation",main="Trilemma for HP: Correlations as a Function of ht and a Selection of Forecast Horizons")
-mtext(paste("Forecast horizon ",colnames(MSE_mat)[select_vec[1]],sep=""),col=colo[1],line=-1)
+mtext(paste("Forecast horizon ",colnames(MSE_mat)[select_vec[1]],sep=""),col=coli[1],line=-1)
 if (length(select_vec)>1)
 for (i in 2:length(select_vec))
 {
-  lines(mplot[,i],col=colo[i])
-  mtext(paste("Forecast horizon ",colnames(MSE_mat)[select_vec[i]],sep=""),col=colo[i],line=-i)
+  lines(mplot[,i],col=coli[i])
+  mtext(paste("Forecast horizon ",colnames(MSE_mat)[select_vec[i]],sep=""),col=coli[i],line=-i)
 }
 axis(1,at=1:nrow(MSE_mat),labels=rownames(MSE_mat))
 axis(2)
@@ -1221,15 +1218,16 @@ box()
 # To the left and to the right of the peak-value, SSA maximizes the correlation subject to ht
 # SSA is smoother if ht is to the right of the peak; otherwise it is `unsmoother'
 
-
+if (F)
+{  
 # We can also rely on ggplot for drawing a heat-map: the code is set-up in a function heat_map_func
 # We can apply the same scaling as above: to bring forward the ht-effect better
-scale_column<-T
+  scale_column<-T
 # We can select MSE-predictor or effective target
-select_acausal_target<-T
+  select_acausal_target<-T
 
-heat_map_func(scale_column,select_acausal_target,MSE_mat,target_mat)
-
+  heat_map_func(scale_column,select_acausal_target,MSE_mat,target_mat)
+}
 
 
 
