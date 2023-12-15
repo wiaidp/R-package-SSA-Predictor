@@ -127,7 +127,7 @@ K<-600
 shift<-amp_shift_func(K,b_mse,F)$shift
 
 # Plot shift function
-plot(shift,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Phae-Shift MSE predictor",sep=""))
+plot(shift,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Phase-Shift MSE predictor",sep=""))
 axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
 axis(2)
 box()
@@ -217,7 +217,7 @@ table
 # -For given shift: ht can be traded against MSE
 # -Improving shift and ht simultaneously affects MSE disproportionately
 
-# See tutorials 1-5 for applications
+# See tutorials 1-5 for applications and example 8 in tutorial 2 for a comprehensive example based on the HP filter 
 
 # Final notes
 # 1. SSA currently addresses timeliness by changing delta (the forecast horizon)

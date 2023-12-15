@@ -48,6 +48,9 @@ library(xts)
 # Load the library mFilter
 # HP and BK filters
 library(mFilter)
+# Plot for heat map of Trilemma
+library(ggplot2)
+
 
 # Load all relevant SSA-functions
 source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
@@ -59,7 +62,8 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 
 
-#-------------------------------------------------------------------------------
+##########################################################################################################
+##########################################################################################################
 # Example 1: 
 # Target HP-MSE
 
@@ -725,7 +729,8 @@ abline(h=0)
 # We could address timeliness (lead/lags) as in example 4 above but we leave this as an exercise 
 
 
-#------------------------------------------------------------------
+##########################################################################################################
+##########################################################################################################
 # Example 6
 # Same as example 5 but we now target specifically the output of the symmetric HP-filter
 # As a result, we will obtain a one-sided filter which tracks the output of the symmetric filter better than the classic HP-concurrent or HP-MSE (the latter is assuming white noise)
@@ -964,7 +969,8 @@ cor_mat[1,2]
 SSA_obj_HP$crit_rhoyz
 
 
-#--------------------------------------------------------------
+##########################################################################################################
+##########################################################################################################
 # Example 7
 # This is more of a counter-example and it is not related to SSA.
 # We here analyze the classic HP-gap filter.
@@ -1072,3 +1078,143 @@ abline(h=0)
 # As we shall see BK is subject to a similar shortcoming, see tutorial 4
 # These findings confirm and reinforce Hamilton's statement: never use the HP (-gap) filter for BCA
 # But we add: use the HP-concurrent lowpass instead, as applied to differences, see tutorial 5
+
+##########################################################################################################
+##########################################################################################################
+# Example 8
+# Visualization of Prediction  Trilemma for HP
+# Background:
+# -MSE, timeliness and smoothness define a forecast trilemma, see tutorial 0.1
+# -We measure all three terms as follows:
+# a. Instead of MSE performances we compute the SSA-criteria crit_rhoyz and crit_rhoy_target 
+#   -The criteria measure the correlation of the SSA-predictor with either the causal MSE-predictor of the target
+#     or with the (generally acausal) target
+#   -Both criteria are equivalent, see proposition 5 in JBCY paper
+#   -Large correlations mean: small MSE 
+# b. Timeliness: forecast horizon
+# c. Smoothness: ht in holding-time constraint
+
+# For this study we consider hp_mse as a target for SSA. 
+# We then compute crit_rhoy_target and crit_rhoyz for a range of ht and forecast horizons.
+# The forecast trilemma is visualized by a heat map of the criterion value(s) as a function of ht and 
+#   forecast horizon.
+
+#----------------------------------------
+# 8.1 Setting-up SSA
+
+# The following computations are a bit lengthy (~5 Min. on 3GHz single core)
+#   One can skip the loop and load a file with the results
+
+compute_length_loop<-F
+
+if (compute_length_loop)
+{  
+# Target: we supply the MSE concurrent filter which is in accordance with the white noise assumption
+  gammak_generic<-hp_mse
+# Holding time of hp_mse 
+  ht_mse
+# Compute SSA and MSE for a selection of ht
+  ht_vec<-seq(max(2,ht_mse/4), 2*ht_mse, by = 0.1)
+# Compute SSA and MSE for a selection of forecast intervals
+  delta_vec<-(-5):12
+  
+  pb = txtProgressBar(min = 0, max = length(ht_vec), initial = 0,style=3) 
+  
+  MSE_mat<-target_mat<-matrix(ncol=length(delta_vec),nrow=length(ht_vec))
+# Loop through all combinations of ht and forecast horizon: compute the SSA filter and collect 
+#   crit_rhoy_target (correlation of SSA with effective target) as well as crit_rhoyz (correlation with causal MSE benchmark)  
+  for (i in 1:length(ht_vec))
+  {
+    setTxtProgressBar(pb,i)
+    for (j in 1:length(delta_vec))
+    {  
+      rho1<-rho1<-compute_rho_from_ht(ht_vec[i])
+      forecast_horizon<-delta_vec[j]
+  # Skip xi_ we assume white noise    
+      SSA_obj_HP<-SSA_func(L,forecast_horizon,gammak_generic,rho1)
+# Correlation with (caual) MSE predictor: this is the preferred measure here because we can benchmark SSA
+#   directly against MSE 
+      MSE_mat[i,j]<-SSA_obj_HP$crit_rhoyz
+# Or correlation with (acausal) target: the effect here is dominated by forecast horizon and therefore we prefer 
+      
+      target_mat[i,j]<-SSA_obj_HP$crit_rhoy_target
+    }
+  }
+  close(pb)
+  rownames(MSE_mat)<-rownames(target_mat)<-round(ht_vec,2)
+  colnames(MSE_mat)<-colnames(target_mat)<-delta_vec
+  save(MSE_mat,file=paste(getwd(),"/Data/Trilemma_mse_heat_map",sep=""))
+  save(target_mat,file=paste(getwd(),"/Data/Trilemma_target_heat_map",sep=""))
+} else
+{  
+  load(file=paste(getwd(),"/Data/Trilemma_mse_heat_map",sep=""))
+  load(file=paste(getwd(),"/Data/Trilemma_target_heat_map",sep=""))
+}
+
+# 1. MSE_mat collects the correlations crit_rhoyz of SSA with the causal MSE benchmark predictor of the target
+#   Column names correspond to ht (holding-time constraint)
+#   Row names correspond to forecast horizon
+tail(MSE_mat)
+# 2. target_mat collects the correlations crit_rhoy_target of SSA with the effective (generally acausal) target 
+#     -In our case: hp_mse shifted by the forecast horizon
+#   These correlations are smaller than in MSE_mat if the forecast horizon is larger than zero (because then the target is acausal)
+#     -For negative forecast horizons (backcast) both correlations are identical (the target is causal, too)
+#     -In these cases, the correlations are still smaller than one because we impose ht (smoothing/unsmoothing)
+tail(target_mat)
+#---------------------------------------
+# 8.2 Heat map
+# We can now represent the trilemma in a heat map
+#   Dark red means large correlation of SSA and target or, equivalently, small MSE values
+# 1. Heat-map of correlations with causal MSE benchmark
+heatmap(MSE_mat,scale="none",Rowv = NA, Colv = NA,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with Causal MSE-Target")
+# 2. Heat-map of correlations with acausal effective target
+#   We see that the forecast horizon has a strong effect for positive forecast horizons
+heatmap(target_mat,scale="none",Rowv = NA, Colv = NA,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with Acausal Effective Target")
+# Interpretations of heat-maps
+# -For fixed ht, the correlations decrease with increasing forecast horizon
+#   -Enhancing timeliness (larger forecast horizon) for fixed smoothness (ht) means an increase of MSE (decrease of correlation)
+# -For fixed forecast horizon, the correlations peak somewhere: 
+#   -The peak value corresponds to the classic MSE-predictor of the target for that forecast horizon and the corresponding ht is the holding-time of the classic MSE predictor
+#   -Above and below the peak-value, the holding-time constraint in SSA is `activated': SSA maximizes the correlation subject to ht
+#   -Enhancing smoothness for fixed forecast horizon means a decrease of correlation or increase of MSE
+# -Increasing simultaneously ht and the forecast horizon (along a diagonal in the plot) affects correlations (MSE) disproportionately
+#   -See SSA-forecasts vs. SSA-nowcasts in the above examples 
+# -Improving correlations (smaller MSE) and timeliness (larger forecast horizon) affects smoothness (ht) disproportionately
+
+# Next, we want to emphasize more specifically the effect of ht on correlations (MSE) for a fixed forecast horizon
+# For this purpose, we can scale the data in the column direction of the heat map 
+#   -Scaling along the column means that the absolute effect of the forecast horizon is diminished
+#   -As above, the MSE-benchmark predictor corresponds to the peak criterion value for each forecast criterion (darkest ridge in plot)
+heatmap(MSE_mat,scale="column",Rowv = NA, Colv = NA,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with Causal MSE-Target (scaled along ht)")
+# Same as above but for correlations with (generally acausal) target
+#   It is the same plot because for given forecast horizon the two criteria differ only by a scaling, see proposition 5 in JBCY paper
+#   Therefore, scaling along columns will cancel the difference
+heatmap(target_mat,scale="column",Rowv = NA, Colv = NA,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Trilemma: Correlation with  Effective Target (scaled along ht)")
+
+# We can also plot slices (selected columns) of the above heat-map 
+select_vec<-c(1,10,18)
+mplot<-MSE_mat[,select_vec]
+colo<-rainbow(length(select_vec))
+plot(mplot[,1],col=colo,axes=F,type="l",xlab="Holding time",ylab="Correlation",main="Trilemma for HP: Correlations as a Function of ht and a Selection of Forecast Horizons")
+mtext(paste("Forecast horizon ",colnames(MSE_mat)[select_vec[1]],sep=""),col=colo[1],line=-1)
+if (length(select_vec)>1)
+for (i in 2:length(select_vec))
+{
+  lines(mplot[,i],col=colo[i])
+  mtext(paste("Forecast horizon ",colnames(MSE_mat)[select_vec[i]],sep=""),col=colo[i],line=-i)
+}
+axis(1,at=1:nrow(MSE_mat),labels=rownames(MSE_mat))
+axis(2)
+box()
+# The peak of the correlation value corresponds to the MSE-predictor for a given forecast horizon
+# To the left and to the right of the peak-value, SSA maximizes the correlation subject to ht
+# SSA is smoother if ht is to the right of the peak; otherwise it is `unsmoother'
+
+
+# We can also rely on ggplot for drawing a heat-map: the code is set-up in a function heat_map_func
+# We can apply the same scaling as above: to bring forward the ht-effect better
+scale_column<-F
+# We can select MSE-predictor or effective target
+select_acausal_target<-F
+
+heat_map_func(scale_column,select_acausal_target,MSE_mat,target_mat)

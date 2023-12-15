@@ -177,3 +177,83 @@ per<-function(x,plot_T)
 }
 
 
+
+
+heat_map_func<-function(scale_column,select_acausal_target,MSE_mat,target_mat)
+{ 
+  # We can also rely on ggplot for drawing a heat map
+  # For this purpose we have to specify a matrix with three columns corresponding to holding-time, forecast horizon and criterion values
+  
+  heat_mat_mse<-matrix(ncol=3,nrow=nrow(MSE_mat)*ncol(MSE_mat))
+  heat_mat_target<-matrix(ncol=3,nrow=nrow(target_mat)*ncol(target_mat))
+  
+  range_mse<-range_aucausal_target<-NULL
+  for (i in 1:ncol(MSE_mat))
+  {
+    if (scale_column)
+    {  
+      # Scaling along columns: emphasize ht effect better    
+      heat_mat_mse[(i-1)*nrow(MSE_mat)+1:nrow(MSE_mat),]<-cbind(as.double(rownames(MSE_mat)),as.double(colnames(MSE_mat)[i]),scale(MSE_mat[,i]))
+      heat_mat_target[(i-1)*nrow(MSE_mat)+1:nrow(MSE_mat),]<-cbind(as.double(rownames(target_mat)),as.double(colnames(target_mat)[i]),scale(target_mat[,i]))
+      colnames(heat_mat_mse)<-colnames(heat_mat_target)<-c("Smoothness_holding_time","Timeliness_forecast_horizon","Scaled_criterion")
+      
+    } else
+    {
+      heat_mat_mse[(i-1)*nrow(MSE_mat)+1:nrow(MSE_mat),]<-cbind(as.double(rownames(MSE_mat)),as.double(colnames(MSE_mat)[i]),(MSE_mat[,i]))
+      heat_mat_target[(i-1)*nrow(MSE_mat)+1:nrow(MSE_mat),]<-cbind(as.double(rownames(target_mat)),as.double(colnames(target_mat)[i]),(target_mat[,i]))
+      colnames(heat_mat_mse)<-colnames(heat_mat_target)<-c("Smoothness_holding_time","Timeliness_forecast_horizon","Criterion")
+      
+    }
+    range_mse<-c(range_mse,MSE_mat[,i])
+    range_aucausal_target<-c(range_aucausal_target,target_mat[,i])
+  }
+  
+  # Correlations of SSA with causal MSE are larger than with acausal (effective) target
+  tail(heat_mat_mse)
+  tail(heat_mat_target)
+  
+  # One can draw heat-map for Trilemma based on correlation with MSE or on correlation with target
+  #   Select either one
+  if (select_acausal_target)
+  {
+    heat_mat<-as.data.frame((heat_mat_target))
+    range<-range_aucausal_target
+  } else
+  {
+    heat_mat<-as.data.frame(heat_mat_mse)
+    range<-range_mse
+  }
+  
+  
+  if (scale_column)
+  {  
+    if (select_acausal_target)
+    {
+      main<-"Correlations against acausal target: scaled values"
+    } else
+    {
+      main<-"Correlations against causal MSE: scaled values"
+    }
+    ggplot(heat_mat , aes(x = Timeliness_forecast_horizon, y = Smoothness_holding_time),main=main) +
+      geom_raster(aes(fill = Scaled_criterion), interpolate=TRUE) +
+      scale_fill_gradient2(low="navy", mid="white", high="red", 
+                           midpoint=mean(heat_mat$Scaled_criterion), limits=range(heat_mat$Scaled_criterion)) +
+      theme_classic()
+  } else
+  {
+    if (select_acausal_target)
+    {
+      main<-"Correlations against acausal target"
+    } else
+    {
+      main<-"Correlations against causal MSE"
+    }
+    
+    ggplot(heat_mat , aes(x = Timeliness_forecast_horizon, y = Smoothness_holding_time),main=main) +
+      geom_raster(aes(fill = Criterion), interpolate=TRUE) +
+      scale_fill_gradient2(low="navy", mid="white", high="red", 
+                           midpoint=mean(heat_mat$Criterion), limits=range(heat_mat$Criterion)) +
+      theme_classic()
+    
+  }
+}
