@@ -236,7 +236,7 @@ heat_map_func<-function(scale_column,select_acausal_target,MSE_mat,target_mat)
     }
     ggplot(heat_mat , aes(x = Timeliness_forecast_horizon, y = Smoothness_holding_time),main=main) +
       geom_raster(aes(fill = Scaled_criterion), interpolate=TRUE) +
-      scale_fill_gradient2(low="navy", mid="white", high="red", 
+      scale_fill_gradient2(low="red",mid="yellow", high="black", 
                            midpoint=mean(heat_mat$Scaled_criterion), limits=range(heat_mat$Scaled_criterion)) +
       theme_classic()
   } else
@@ -251,9 +251,12 @@ heat_map_func<-function(scale_column,select_acausal_target,MSE_mat,target_mat)
     
     ggplot(heat_mat , aes(x = Timeliness_forecast_horizon, y = Smoothness_holding_time),main=main) +
       geom_raster(aes(fill = Criterion), interpolate=TRUE) +
-      scale_fill_gradient2(low="navy", mid="white", high="red", 
+      scale_fill_gradient2(low="red", mid="yellow", high="black", 
                            midpoint=mean(heat_mat$Criterion), limits=range(heat_mat$Criterion)) +
       theme_classic()
     
+
   }
 }
+
+
