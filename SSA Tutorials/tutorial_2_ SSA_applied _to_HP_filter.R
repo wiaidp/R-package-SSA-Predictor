@@ -1116,7 +1116,7 @@ if (compute_length_loop)
 # Compute SSA and MSE for a selection of ht
   ht_vec<-seq(max(2,ht_mse/4), 2*ht_mse, by = 0.1)
 # Compute SSA and MSE for a selection of forecast intervals
-  delta_vec<-(-5):12
+  delta_vec<-0:24
   
   pb = txtProgressBar(min = 0, max = length(ht_vec), initial = 0,style=3) 
   
@@ -1158,8 +1158,8 @@ tail(MSE_mat)
 # 2. target_mat collects the correlations crit_rhoy_target of SSA with the effective (generally acausal) target 
 #     -In our case: hp_mse shifted by the forecast horizon
 #   These correlations are smaller than in MSE_mat if the forecast horizon is larger than zero (because then the target is acausal)
-#     -For negative forecast horizons (backcast) both correlations are identical (the target is causal, too)
-#     -In these cases, the correlations are still smaller than one because we impose ht (smoothing/unsmoothing)
+#     -For the nowcast both correlations are identical (in this case the target is causal, too)
+#     -Correlations are always smaller than one, even if the target is causal, because we impose ht (smoothing/unsmoothing)
 tail(target_mat)
 #---------------------------------------
 # 8.2 Heat map
