@@ -30,6 +30,7 @@
 #       -SSA-forecasts adopt the same stringent holding-time constraint: 33% less noisy crossings than (one-sided) HP targets (in the long run)
 #       -SSA-forecasts are left-shifted (relative advancement): they generally have a lead when referenced against the concurrent benchmarks
 #       -SSA real-time (concurrent) designs can be smoother as well as leading, when compared to the concurrent benchmarks 
+#   5. The forecast trilemma is visualized in example 8 for a SSA-design targeting HP-MSE
 
 # Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
 #   predictor or BCA-filter (any one as long as it's linear in the data) can be replicated and modified by SSA 
