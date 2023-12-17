@@ -157,7 +157,7 @@ box()
 
 # The peak of the amplitude function corresponds roughly to a periodicity of 7 years, which is in accordance with the concept of a `business-cycle'
 # The time-shift is small, in particular towards frequency zero
-#   -Recall that the filter output must track the level of an I(2) series: a non-vanishing shift would generate a non-stationary (integrated) error
+#   -Recall that the filter output must track the level of an I(2) series: a non-vanishing shift would generate a non-stationary (integrated) error with respect to the two-sided target output
 
 #-----------------------
 # c. Summary
@@ -166,10 +166,10 @@ box()
 # -The classic one-sided HP, on the other hand, is less smooth: therefore it can better track short but severe recession dips
 #   -The peak amplitude matches business-cycle frequencies
 #   -The vanishing time-shift means that the filter is a tough benchmark
-#     -The filter is typically faster than Hamilton's regression filter
+#     -The filter is typically faster than Hamilton's regression filter in real-time applications
 # -We therefore propose to target two-sided  (examples 4 and 6)  as well as one-sided designs by SSA (examples 1,2,3,5 and 8) 
 # -Example 1 addresses specifically the one-sided hp_mse, assuming the data to be white noise
-#   -Example 4 illustrates that this particular target is equivalent to the two-sided HP when data is white noise, thus confirming proposition 5 in the JBCY paper
+#   -Example 4 illustrates that this particular target is equivalent to the two-sided HP when the data is white noise, thus confirming proposition 5 in the JBCY paper
 
 
 ######################################################################################################################
