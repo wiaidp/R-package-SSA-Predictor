@@ -42,7 +42,8 @@ getSymbols('PAYEMS',src='FRED')
 y<-as.double(log(PAYEMS["/2019"]))
 len<-length(y)
 #--------------------------------------
-# 1. BK filter: rely on package mFilter
+# Example 1: apply BK to levels (classic usage: example 2 below applies BK to returns)
+# 1.1. BK filter: rely on package mFilter
 # Need to provide a series in order to obtain filter coefficients: length must be an odd integer to obtain a correctly centered two-sided filter   
 
 len_f<-1201
@@ -120,7 +121,7 @@ box()
 
 
 #---------------------------------------------------
-# 2. Transformation: from levels to differences (see section 2.3 in JBCY paper)
+# 1.2. Transformation: from levels to differences (see section 2.3 in JBCY paper)
 # SSA must be applied to stationary data: we then transform the BK filter such that it can be applied to differences
 # This proceeding is necessary for all bandpass designs, when applied to non-stationary data
 # A similar proceeding was applied to the Hamilton filter in tutorial 3 as well as to the HP-gap in section 4 of JBCY paper
@@ -135,26 +136,26 @@ ts.plot(bk_rw,main="BK filter as applied to level")
 # Check that both filters generate the same output/cycle
 x<-diff(y)
 len_diff<-length(x)
-residual<-na.exclude(filter(y,bk_rw,side=1))
-residual_diff<-na.exclude(filter(x,bk_diff,side=1))
+cycle<-na.exclude(filter(y,bk_rw,side=1))
+cycle_diff<-na.exclude(filter(x,bk_diff,side=1))
 
 # Check: bk_diff, as applied to first differences, generates the same cycle as original bk_rw filter applied to levels
 # With this transformation in place we can now work with SSA
 par(mfrow=c(1,1))
-ts.plot(residual_diff,col="blue",main="bk_diff applied to differences replicates BK applied to levels")
-lines(residual[2:length(residual)],col="red")
+ts.plot(cycle_diff,col="blue",main="bk_diff applied to differences replicates BK applied to levels")
+lines(cycle[2:length(cycle)],col="red")
 
 #-------------------------------------------------------------------------------
-# 3. Holding-times and 'understanding the data'
+# 1.3. Holding-times and 'understanding the data'
 # We first compute the holding-time of the BK-filter (as applied to noise i.e. differenced data)
 
 ht_bk_diff_obj<-compute_holding_time_func(bk_diff)
 # Large holding-time: the filter is much smoother than Hamilton-Filter (tutorial 3) or concurrent HP (tutorial 2) 
 ht_bk_diff_obj$ht 
 # But the empirical holding time is even longer
-compute_empirical_ht_func(residual_diff)
+compute_empirical_ht_func(cycle_diff)
 # Even after centering the empirical ht is still substantially larger
-compute_empirical_ht_func(residual_diff-mean(residual_diff))
+compute_empirical_ht_func(cycle_diff-mean(cycle_diff))
 
 # Explanation: xt (log-returns PAYEMS) is not white noise
 par(mfrow=c(2,1))
@@ -163,7 +164,7 @@ abline(h=0)
 acf(x,main="ACF")
 
 #------------------------------------------------------------------------
-# 4. Autocorrelation
+# 1.4. Autocorrelation
 # Fit a simple model to the data: in most cases ARMA(1,1) is well suited to fit a weak but slowly decaying ACF pattern
 ar_order<-1
 ma_order<-1
@@ -183,14 +184,14 @@ ht_bk_conv_obj<-compute_holding_time_func(bk_conv)
 # Now the expected holding time matches the empirical one (up to finite sample error)
 ht_bk_conv_obj$ht 
 # Empirical holding time (need to center data in order to comply with white noise assumption underlying ht)
-compute_empirical_ht_func(residual_diff-mean(residual_diff))
+compute_empirical_ht_func(cycle_diff-mean(cycle_diff))
 
 # We are now in a position to plug SSA on BK
 #   -We can work with stationary series thanks to our transformation from bk_rw to bk_diff
 #   -We can work with the Wold decomposition given by xi
 
 #------------------------------------------------------------
-# 5. Diagnostics
+# 1.5. Diagnostics
 # Before proceeding to SSA, let's first have a closer look at the BK filter:
 # We now compute squared amplitude functions of the filters bk_rw (original concurrent BK as applied to data in levels), 
 #   bk_diff (same output as bk_rew but when applied to first differences) and bk_conv (same output as bk_diff or bk_rw 
@@ -256,7 +257,7 @@ box()
 #   smoothness by SSA. 
 # What happens in such a case?
 #--------------------------------------
-# 6. Apply SSA: 
+# 1.6. Apply SSA: 
 # The above holding-time was approximately 2.5 years
 ht_bk_conv_obj$ht 
 # We can lengthen by 20% (on an already very large ht of BK)
@@ -279,15 +280,15 @@ SSA_filt_bk_diff_eps<-SSA_obj_bk_diff$ssa_eps
 SSA_filt_bk_diff_x<-SSA_obj_bk_diff$ssa_x
 
 # Compare compare bk_diff with ssa_x: both filters are applied to xt 
-mplot<-scale(cbind(bk_diff,SSA_filt_bk_diff_x),scale=T,center=F)
-# Compare target and SSA: looks better than previous plot
+mplot<-cbind(bk_diff,SSA_filt_bk_diff_x)
+# Compare target and SSA: 
 par(mfrow=c(1,1))
 ts.plot(mplot,ylim=c(min(mplot),max(mplot)),col=c("black","blue"))
 mtext("BK (as applied to differences)",col="black",line=-1)
 mtext("SSA", col="blue",line=-2)
 
 # We can also compare bk_conv with ssa_eps: both filters are applied to epsilont 
-mplot<-scale(cbind(bk_conv,SSA_filt_bk_diff_eps),scale=T,center=F)
+mplot<-cbind(bk_conv,SSA_filt_bk_diff_eps)
 # Compare target and SSA: looks better than previous plot
 par(mfrow=c(1,1))
 ts.plot(mplot,ylim=c(min(mplot),max(mplot)),col=c("black","blue"))
@@ -307,11 +308,11 @@ ht_obj<-compute_holding_time_func(SSA_filt_bk_diff_eps)
 ht_obj$ht 
 ht
 
-# We can verify that the convolution of ssa_x and xi replicates ssa_eps
-ts.plot(scale(cbind(conv_two_filt_func(SSA_filt_bk_diff_x,xi)$conv[1:L],SSA_filt_bk_diff_eps),scale=T,center=F),col=c("blue","red"),main="Convolution of ssa_x and xi replicates ssa_eps")
+# We can verify that the convolution of ssa_x and xi replicates ssa_eps 
+ts.plot(scale(cbind(conv_two_filt_func(SSA_filt_bk_diff_x,xi)$conv[1:L],SSA_filt_bk_diff_eps),center=F,scale=T),col=c("blue","red"),main="Convolution of ssa_x and xi replicates ssa_eps")
 
 #--------------------------------------------------
-# Filter series
+# 1.7. Filter series
 # Apply SSA
 SSA_out<-filter(x,SSA_filt_bk_diff_x,side=1)
 # Quite larger than targeted ht...
@@ -330,7 +331,7 @@ ht_bk_conv_obj$ht
 # We can see why the empirical holding time is larger: the series has a non-vanishing (positive) mean
 #   The computation of the expected holding-time assumes white noise, i.e., a zero mean 
 # The plot also confirms that the BK-cycle is already extremely smooth and does not require additional treatment by SSA
-mplot<-scale(na.exclude(cbind(SSA_out,bk_out)),scale=T, center=F)
+mplot<-na.exclude(cbind(SSA_out,bk_out))
 colo=c("blue","red")
 ts.plot(mplot[,1],col=colo[1])
 lines(mplot[,2],col=colo[2])
@@ -347,6 +348,7 @@ ht
 
 
 #-----------------------------------------------
+# 1.8. Timeliness
 # Let us now address timeliness or lead/lags: the last plot suggested that SSA is slightly right shifted (lagging)
 # We augment the forecast horizon (delta in the JBCY paper) to obtain a faster SSA filter without giving-up smoothness
 forecast_horizon<-12
@@ -401,6 +403,7 @@ cor(mplot[(1+forecast_horizon):nrow(mplot),3],mplot[1:(nrow(mplot)-forecast_hori
 #   (changing drift of the data, model misspecification)
 
 #-----------------------------------------------
+# 1.9. Long forecast horizon
 # Let's now try a much longer forecast horizon corresponding to half the cycle-length at the left passband
 #  limit specified by pu: we will understand further down the purpose of this particular forecast horizon 
 # We compute a very long 4-year ahead forecast!
@@ -476,7 +479,7 @@ cor(mplot[(1+forecast_horizon):nrow(mplot),3],mplot[1:(nrow(mplot)-forecast_hori
 # In order to obtain a better understanding of the `strange' long-term out-of-phase forecast we have to look at the 
 #   amplitude functions
 #----------------------------------------
-# Compute amplitude and phase-shift functions
+# 1.10. Compute amplitude and phase-shift functions
 
 K<-600
 amp_obj_SSA_now<-amp_shift_func(K,as.vector(SSA_filt_bk_diff_x),F)
@@ -562,13 +565,173 @@ box()
 
 ##################################################################################################
 ###################################################################################################
-# Suggestion: do not apply BK to the original data but to differences or returns, instead.
-#   -Obviously, the spectral content of such a design would be more evenly distributed 
-#     -no isolated single peak
-#     -no spurious cycle
+# What would happen if we applied BK to differences or returns? See example 2 below!
+#   -The spectral content of such a design should be more evenly distributed 
+#     -no isolated single peak as in example 1 above
+#     -does that mean no spurious cycle?
+#     -Would the filter be suitable for BCA?
 #   -Another advantage: the filter would remove the remaining non-stationarity (slowly changing drift of the data) 
 #     so that the resulting cycle would be centered at the zero-line.
-# -As a potential alternative, one could also consider HP-gap, when applied to returns 
+# -Note: as a potential alternative, one could also consider HP-gap, as applied to returns (instead of levels) 
 #   -But the resulting high-pass (no suppression of high-frequency content) would lead to full (100%) noise-leakage 
 #   -In such a case, SSA could be used to emphasize smoothness, increasing ht strongly over the high-pass benchmark
+
+####################################################################################################
+######################################################################################################
+# Example 2: Apply BK to returns
+# Run the code lines 1.1-1.4 in the above example 1 if not done yet
+
+# We can mostly rely on example 1 with three modifications.
+# Modifications:  
+# 1. We apply bk_rw to x (instead of bk_diff to x)
+# 2. We consider a convolution of xi with bk_rw (instead of xi with bk_diff)
+# 3. The new target for SSA is bk_rw (instead of bk_diff)
+
+# Modification 1
+cycle_new<-na.exclude(filter(x,bk_rw,side=1))
+# Compare previous cycle with new cycle
+par(mfrow=c(1,1))
+ts.plot(cycle_diff,col="blue",main="Classic and new BK cycles")
+lines(cycle_new,col="red")
+mtext("Classic BK-cycle",col="blue",line=-1)
+mtext("New BK-cycle",col="red",line=-2)
+# We can scale the data for better visual comparisons
+par(mfrow=c(1,1))
+ts.plot(scale(cycle_diff,center=F,scale=T),col="blue",main="Classic and new BK cycles")
+lines(scale(cycle_new,center=F,scale=T),col="red")
+mtext("Classic BK-cycle",col="blue",line=-1)
+mtext("New BK-cycle",col="red",line=-2)
+abline(h=0)
+# The new cycle, obtained when applying bk_rw to returns, is
+#   a. centered at the zero-line
+#   b. left-shifted 
+#   c. and zero-crossings are more numerous
+# By removing low-frequency content, the bandpass generates a shorter (spurious?) cycle
+# Does not seem right! 
+# If we were interested in a business-cycle tool then we could stop here: bandpass designs don't work.
+# But out of curiosity we can apply SSA: we then need to apply the remaining two modifications.
+
+# Modification 2: convolve xi and bk_rw (this filter would be applied to epsilont: it us used for determining the holding-time)
+bk_conv<-conv_two_filt_func(xi,bk_rw)$conv
+ht_bk_conv_obj<-compute_holding_time_func(bk_conv)
+# The expected holding time is close to the empirical one (up to finite sample error)
+ht_bk_conv_obj$ht 
+# Empirical holding time 
+compute_empirical_ht_func(cycle_new)
+
+# Modification 3: our new target is bk_rw
+gammak_generic<-bk_rw
+ts.plot(gammak_generic)
+
+# We are now in a position to plug SSA on BK
+#   -We can work with stationary series thanks to our transformation from bk_rw to bk_diff
+#   -We can work with the Wold decomposition given by xi
+#--------------------------------------
+# 6. Apply SSA: 
+# The above holding-time was approximately 1 year
+ht_bk_conv_obj$ht 
+# We can lengthen by 50% 
+ht<-1.5*ht_bk_conv_obj$ht
+# This is the corresponding rho1 for the holding time constraint
+rho1<-compute_rho_from_ht(ht)
+# Forecast horizon: nowcast
+forecast_horizon<-0
+# We want to apply the filter to xt (not to epsilont): therefore we supply xi (Wold decomposition)
+
+SSA_obj_bk_diff<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
+
+# ssa_eps is the filter which is applied to epsilont
+SSA_filt_bk_diff_eps<-SSA_obj_bk_diff$ssa_eps
+# ssa_x is the filter which is applied to xt
+SSA_filt_bk_diff_x<-SSA_obj_bk_diff$ssa_x
+
+# Compare compare bk_rw with ssa_x: both filters are applied to xt 
+mplot<-cbind(bk_rw,SSA_filt_bk_diff_x)
+# Compare target and SSA
+par(mfrow=c(1,1))
+ts.plot(mplot,ylim=c(min(mplot),max(mplot)),col=c("black","blue"))
+mtext("BK",col="black",line=-1)
+mtext("SSA", col="blue",line=-2)
+
+# We can also compare the new bk_conv with ssa_eps: both filters are applied to epsilont 
+mplot<-cbind(bk_conv,SSA_filt_bk_diff_eps)
+# Compare target and SSA: looks better than previous plot
+par(mfrow=c(1,1))
+ts.plot(mplot,ylim=c(min(mplot),max(mplot)),col=c("black","blue"))
+mtext("BK",col="black",line=-1)
+mtext("SSA", col="blue",line=-2)
+
+
+
+# In order to check ht we must supply the 'other' filter, ssa_eps, which is (or could be) applied to epsilont
+ht_obj<-compute_holding_time_func(SSA_filt_bk_diff_eps)
+# Since ht of the optimized SSA matches the imposed ht we conclude that the optimization converged to the global maximum, as desired
+ht_obj$ht 
+ht
+
+
+#--------------------------------------------------
+# Filter series
+# Apply SSA
+SSA_out<-filter(x,SSA_filt_bk_diff_x,side=1)
+# Quite larger than targeted ht...
+compute_empirical_ht_func(SSA_out)
+# Apply BK: bk_rw (instead of bk_diff)
+bk_out<-filter(x,bk_rw,side=1)
+compute_empirical_ht_func(cycle_new)
+# In contrast to example 1 above, SSA is now smoother than BK
+
+
+# SSA is smoother, as desired
+mplot<-na.exclude(cbind(SSA_out,bk_out))
+colo=c("blue","red")
+ts.plot(mplot[,1],col=colo[1])
+lines(mplot[,2],col=colo[2])
+abline(h=0)
+mtext("BK ",col="red",line=-1)
+mtext("SSA", col="blue",line=-2)
+
+
+
+
+#-----------------------------------------------
+# We can also address timeliness or lead/lags: the last plot suggested that SSA is slightly right shifted (lagging)
+# We augment the forecast horizon (delta in the JBCY paper) to obtain a faster SSA filter without giving-up smoothness
+forecast_horizon<-12
+# SSA of BK-diff
+SSA_obj_bk_diff<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
+
+SSA_filt_bk_diff_x_forecast<-SSA_obj_bk_diff$ssa_x
+
+# Filter series: apply bk_rw to data (not bk_diff)
+SSA_out_forecast<-filter(x,SSA_filt_bk_diff_x_forecast,side=1)
+bk_out<-filter(x,bk_rw,side=1)
+
+# Plot series: 
+par(mfrow=c(1,1))
+# The SSA-forecast seems odd...
+mplot<-na.exclude(cbind(SSA_out,SSA_out_forecast,bk_out))
+colo=c("blue","darkgreen","red")
+ts.plot(mplot[,1],col=colo[1],ylim=c(min(mplot),max(mplot)))
+lines(mplot[,2],col=colo[2])
+lines(mplot[,3],col=colo[3])
+mtext("SSA nowcast",col=colo[1],line=-1)
+mtext(paste("SSA forecast: delta=",forecast_horizon,sep=""),col=colo[2],line=-2)
+mtext("BK",col=colo[3],line=-3)
+abline(h=0)
+
+
+# Let's shift the forecast forward by one year to verify pertinence of the optimization
+par(mfrow=c(1,1))
+# Looks fine
+mplot_shift<-na.exclude(cbind(SSA_out[(1+forecast_horizon):length(SSA_out_forecast)],SSA_out_forecast[1:(length(SSA_out)-forecast_horizon)],bk_out[(1+forecast_horizon):length(SSA_out_forecast)]))
+colo=c("blue","darkgreen","red")
+ts.plot(mplot_shift[,1],col=colo[1],ylim=c(min(mplot_shift),max(mplot_shift)),main="All series with forecast shifted forward by one year")
+lines(mplot_shift[,2],col=colo[2])
+lines(mplot_shift[,3],col=colo[3])
+mtext("SSA nowcast",col=colo[1],line=-1)
+mtext(paste("SSA forecast: delta=",forecast_horizon,sep=""),col=colo[2],line=-2)
+mtext("BK",col=colo[3],line=-3)
+abline(h=0)
+
 
