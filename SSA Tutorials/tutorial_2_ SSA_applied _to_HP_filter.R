@@ -53,8 +53,6 @@ library(mFilter)
 library(ggplot2)
 library("gplots")
 
-
-
 # Load all relevant SSA-functions
 source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
 # Load tau-statistic: quantifies time-shift performances (lead/lag)
@@ -64,15 +62,16 @@ source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 
-
 ##########################################################################################################
 ##########################################################################################################
-# Example 1: 
-# Target HP-MSE
-
-
-# 1.1 Compute HP and compare concurrent MSE and SSA designs
-# Filter length: should be an odd number since otherwise the two-sided HP filter could not be adequately centered (center point shifted by 0.5 time units)
+# Introduction
+# a.Derivation of HP 
+# b.Brief analysis of the classic one-sided HP concurrent trend filter
+# c. Summary
+#--------------------------
+# a. Derivation
+# We use the R-package mFilter for computing HP 
+# Specify filter length: should be an odd number since otherwise the two-sided HP filter could not be adequately centered 
 L<-201
 # Should be an odd number
 if (L/2==as.integer(L/2))
@@ -81,49 +80,126 @@ if (L/2==as.integer(L/2))
   print("If L is even then HP cannot be adequately centered")
   L<-L+1
 }  
-# HP monthly design
+# Specify lambda: monthly design
 lambda_monthly<-14400
 par(mfrow=c(1,1))
 HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
-# Bi-infinite HP
+# Bi-infinite two-sided (symmetric) HP
 hp_target<-HP_obj$target
 ts.plot(hp_target)
 # Concurrent gap: as applied to series in levels: this is a high pass filter
 hp_gap=HP_obj$hp_gap
 ts.plot(hp_gap)
-# Concurrent gap: as applied to series in differences (this is a band pass filter, see tutorial 5)
-modified_hp_gap=HP_obj$modified_hp_gap
-ts.plot(modified_hp_gap)
 # Concurrent HP assuming I(2)-process 
 # This is the Classic concurrent or one-sided low pass HP, see e.g. McElroy (2006)
 hp_trend=HP_obj$hp_trend
 ts.plot(hp_trend)
-# Concurrent MSE estimate of bi-infinite HP assuming white noise
-# This is just the truncate right tail of the symmetric filter
-# This one is optimal is the data is white noise
-# The previous (classic concurrent) HP is optimal if the data is an ARIMA(0,2,2)
-hp_mse=hp_mse_example7=HP_obj$hp_mse
-ts.plot(hp_mse)
 
 # Compute lag one acf and holding time of HP concurrent
 htrho_obj<-compute_holding_time_func(hp_trend)
 rho_hp<-htrho_obj$rho_ff1
 ht_hp<-htrho_obj$ht
-# This is the holding-time of the classic concurrent HP, see tutorial 5 and JBCY paper
-# This number matches the empirical holding-time if the data is white noise
-# Log-returns of INDPRO in section 4 of JBCY paper are not white noise: therefore ht is biased and the empirical 
-#  holding-time is larger, see tutorial 1 (example 7) and tutorial 5
 ht_hp
 
-# Same but for hp_mse
+# Compare hts of one- and two-sided filters
+compute_holding_time_func(hp_target)$ht
+ht_hp
+# The large (atypical) discrepancy between holding-times of two- and one-sided filters is discussed in the JBCY paper
+
+#------------------------------
+# b. Classic concurrent HP trend
+# Let us briefly have a look at the above discrepancy and some of its effects: for this purpose we compute and compare filter outputs
+len<-L+1000
+set.seed(67)
+# Data: white noise (in the JBCY paper we apply the filter to log-returns of INDPRO which are close to noise)
+a1<-0
+x<-arima.sim(n = len, list(ar = a1))
+# Compute filter output of SSA-HP filter
+y_hp_concurrent<-filter(x,hp_trend,side=1)
+y_hp_symmetric<-filter(x,hp_target,side=2)
+
+ts.plot(y_hp_concurrent,main="HP: two-sided vs one-sided filter",col="red")
+lines(y_hp_symmetric)
+abline(h=0)
+mtext("Two-sided HP",col="black",line=-1)
+mtext("One-sided HP",col="red",line=-2)
+
+# Let us compute empirical holding times of both filters:
+compute_empirical_ht_func(y_hp_concurrent)
+compute_empirical_ht_func(y_hp_symmetric)
+# The difference of empirical hts is large, as expected (these numbers would converge to the above `true' hts for very long samples)
+
+
+# -The plot of the time series suggests that the two-sided filter can stay away from the zero-line over long time episodes.
+# -This characteristic of the two-sided HP can lead to over-smoothing, whereby critical recession dips are 
+#   washed-out by the filter: the resulting overdamped cycle underestimates the felt impact of crises, see Phillips and Jin (2021) for background.
+# -Interestingly, the one-sided HP can track recession dips better, due to its weaker noise-suppression (smaller ht) 
+#   -We can gather more information by looking at frequency domain characteristics
+
+# Let us compute and plot amplitude and time-shifts of the classic concurrent HP
+K<-600
+amp_obj<-amp_shift_func(K,as.vector(hp_trend),F)
+par(mfrow=c(1,2))
+# Amplitude
+plot(amp_obj$amp,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Amplitude HP",sep=""))
+mtext("Amplitude classic concurrent HP",line=-1)
+axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+#axis(1,at=1+0:6*K/6,labels=(c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi")))
+axis(2)
+box()
+# Shift
+plot(amp_obj$shift,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Time-shift HP",sep=""))
+mtext("Shift  classic concurrent HP",line=-1)
+axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+#axis(1,at=1+0:6*K/6,labels=(c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi")))
+axis(2)
+box()
+
+# The peak of the amplitude function corresponds roughly to a periodicity of 7 years, which is in accordance with the concept of a `business-cycle'
+# The time-shift is small, in particular towards frequency zero
+#   -Recall that the filter output must track the level of an I(2) series: a non-vanishing shift would generate a non-stationary (integrated) error
+
+#-----------------------
+# c. Summary
+# -The two-sided HP is not necessarily a worthwhile target for BCA: it is possibly `too smooth' 
+#   -The classic values of lambda, proposed in the literature, are eventually too large, see Phillips and Jin (2021) for background 
+# -The classic one-sided HP, on the other hand, is less smooth: therefore it can better track short but severe recession dips
+#   -The peak amplitude matches business-cycle frequencies
+#   -The vanishing time-shift means that the filter is a tough benchmark
+#     -The filter is typically faster than Hamilton's regression filter
+# -We therefore propose to target two-sided  (examples 4 and 6)  as well as one-sided designs by SSA (examples 1,2,3,5 and 8) 
+# -Example 1 addresses specifically the one-sided hp_mse, assuming the data to be white noise
+#   -Example 4 illustrates that this particular target is equivalent to the two-sided HP when data is white noise, thus confirming proposition 5 in the JBCY paper
+
+
+######################################################################################################################
+######################################################################################################################
+# Example 1: 
+# Target HP-MSE
+
+# 1.1 Compute HP and compare concurrent MSE and SSA designs
+# Filter length: should be an odd number since otherwise the two-sided HP filter could not be adequately centered (center point shifted by 0.5 time units)
+# Bi-infinite HP
+hp_target<-HP_obj$target
+# Concurrent gap: as applied to series in levels: this is a high pass filter
+hp_gap=HP_obj$hp_gap
+ts.plot(hp_gap)
+# Concurrent HP assuming I(2)-process 
+#   This is the Classic concurrent or one-sided low pass HP, see e.g. McElroy (2006)
+hp_trend=HP_obj$hp_trend
+ts.plot(hp_trend)
+# Concurrent MSE estimate of bi-infinite HP assuming white noise
+# This is just the truncate right tail of the symmetric filter
+# This one is optimal if the data is white noise
+hp_mse=hp_mse_example7=HP_obj$hp_mse
+ts.plot(hp_mse)
+# Compute lag-one acf and ht for hp_mse
 htrho_obj<-compute_holding_time_func(hp_mse)
 rho_hp<-htrho_obj$rho_ff1
 ht_mse<-htrho_obj$ht
 # MSE filter is smoother than classic HP concurrent (larger ht) because white noise is, well, `noisier' than ARIMA(0,2,2)
 #   Therefore hp_mse must damp high-frequency components more strongly than hp_trend
 ht_mse
-
-
 
 #-----------------------------------------------------------------------------------
 # 1.2. Setting-up SSA
@@ -1229,6 +1305,5 @@ if (F)
 
   heat_map_func(scale_column,select_acausal_target,MSE_mat,target_mat)
 }
-
 
 
