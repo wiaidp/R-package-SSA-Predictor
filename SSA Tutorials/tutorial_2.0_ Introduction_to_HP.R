@@ -1,68 +1,18 @@
-# In this tutorial we consider an application of SSA to the Hodrick-Prescott (HP) filter 
-
-# We consider the HP-trend or lowpass filter, applied to stationary data
-#   -This design is used in JBCY paper: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
-#     -In contrast, the classic HP-gap applied to INDPRO (data in levels) tends to generate spurious cycles, see tutorial 5
-#   -All examples in this tutorial rely on artificial (simulated) stationary series: knowing the true model allows for verification of theoretical results 
-#     -Tutorial 5 applies SSA to US-INDPRO
-
-# We apply SSA to different targets 
-#   a.The one-sided MSE HP, assuming the data to be white noise, see example 1
-#   b.The classic one-sided HP, assuming the data to be white noise, see example 2
-#     (the classic HP-concurrent has some interesting properties and therefore it makes sense to consider the filter as applied to noise)
-#   c.The classic one-sided HP assuming the true or estimated (stationary ARMA) model, see example 5
-#   d.The one-sided MSE HP assuming the true or estimated (stationary ARMA) model, see example 5 (just change the target specification) 
-#   e.The symmetric HP assuming the true or estimated (stationary ARMA) model, see example 6
+# This tutorial is not related to SSA. It addresses the question of the business-cycle analysis (BCA-)design on which 
+#     SSA is plugged in the JBCY-paper
+# This tutorial is about a particular target, as proposed by Hodrick and Prescott (HP)
 
 
-# Main outcomes: 
-#   1.The classic HP-gap (as applied to non-stationary data in levels) is not suited for BCA, see example 7 below: "never use HP-gap". 
-#       -Therefore, we here emphasize the trend filter(s) only: as applied to stationary data (first differences of economic time series) 
-#   2.The classic concurrent (one-sided) HP-trend can be derived from a particular (implicit) ARIMA(0,2,2) model for the data. 
-#       -The implicit model assumes the data to be excessively smooth; economic time series are typically noisier than that (in levels and a fortiori in first differences).
-#     Consequences: 
-#       -In typical applications, HP-concurrent is not an optimal (MSE) nowcast of the symmetric two-sided HP, see example 6
-#       -The holding-time of HP-concurrent is rather small i.e. the filter is subject to noise-leakage 
-#         (noisy zero crossings).
-#   3.In this scenario, SSA can be applied to control and to tame the number of noisy crossings of HP
-#       -We typically impose 50% larger ht or, equivalently, 33% less (noisy) crossings
-#   4.Besides nowcasts (delta=0) we also consider 12-steps ahead forecasts (one year for monthly data)
-#       -SSA-forecasts adopt the same stringent holding-time constraint: 33% less noisy crossings than (one-sided) HP targets (in the long run)
-#       -SSA-forecasts are left-shifted (relative advancement): they generally have a lead when referenced against the concurrent benchmarks
-#       -SSA real-time (concurrent) designs can be smoother as well as leading, when compared to the concurrent benchmarks 
-#   5. The forecast trilemma is visualized in example 8 for a SSA-design targeting HP-MSE
-
-# Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
-#   predictor or BCA-filter (any one as long as it's linear in the data) can be replicated and modified by SSA 
-#   in view of addressing 
-# 1. smoothness (noise suppression) and 
-# 2. timeliness (advancement)
-# In this perspective, HP is considered as a basic platform and a vitrine for showcasing SSA
-#   -We offer a number of compelling performance measures, confirming pertinence of a simple novel optimization principle  
 
 
-#-----------------------------------------------------------------------
-# Make a clean-sheet, load packages and functions
-rm(list=ls())
-
-library(xts)
-# Load the library mFilter
-# HP and BK filters
-library(mFilter)
-# Plot for heat map of Trilemma
-library(ggplot2)
-library("gplots")
-
-# Load all relevant SSA-functions
-source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
-# Load tau-statistic: quantifies time-shift performances (lead/lag)
-source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
-
-# Load signal extraction functions used for JBCY paper (relies on mFilter)
-source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 
-# 1. Whittaker henderson
+# 1.Background
+# 1. Where it starts: Whittaker-Henderson smoothing
+# Consider the smoothing problem
+# \sum_{t=1}^T(x_t-y_t)^2+lambda \sum_{t=d}^T ((1-B)^d y_t)^2
+# For d=2 the HP filter is obtained
+
 # ARIMA-model: Tucker's package for MA
 # Simulations of ARIMA with MA corresponding to lambda
 # HP-gap vs. HP-trend
@@ -84,16 +34,33 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 #   -Peak amplitude OK with business-cycle spec.
 #   -Shift vanishing
 
-##########################################################################################################
-##########################################################################################################
-# Introduction
-# a.Derivation of HP 
-# b.Brief analysis of the classic one-sided HP concurrent trend filter
-# c. Summary
-#--------------------------
-# a. Derivation
+
+#-----------------------------------------------------------------------
+# Make a clean-sheet, load packages and functions
+rm(list=ls())
+
+library(xts)
+# Load the library mFilter
+# Standard R-package for HP and other filters 
+library(mFilter)
+# Load data from FRED with library quantmod
+library(quantmod)
+# McElroy's package for HP
+source(paste(getwd(),"/R/hpFilt.r",sep=""))
+# Load all relevant SSA-functions
+source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
+
+
+# Load signal extraction functions used for JBCY paper (relies on mFilter)
+source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+
+# This tutorial is not related to SSA. It addresses the question of the design on which SSA is plugged in JBCY-paper
+# Typical BCA-topic
+
+# 1. Background
+# 1.1 Derivation of HP based on Whittaker-Henderson smoothing
 # We use the R-package mFilter for computing HP 
-# Specify filter length: should be an odd number since otherwise the two-sided HP filter could not be adequately centered 
+#   Specify filter length: should be an odd number since otherwise the two-sided HP filter could not be adequately centered 
 L<-201
 # Should be an odd number
 if (L/2==as.integer(L/2))
@@ -105,10 +72,276 @@ if (L/2==as.integer(L/2))
 # Specify lambda: monthly design
 lambda_monthly<-14400
 par(mfrow=c(1,1))
+# This function relies on mFilter and it derives additional HP-designs to be discussed further down
 HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
 # Bi-infinite two-sided (symmetric) HP
 hp_target<-HP_obj$target
+# This is a finite version the symmetric HP-trend filter
+#   It is a causal (one-sided) filter
+#   In applications, the filter is centered at t: it is acausal (expands equally in the past as in the future) 
 ts.plot(hp_target)
+# Filter coefficients add to 1: it is a lowpass (see amplitude functions further down)
+sum(hp_target)
+
+# HP can be interpreted as an optimal MSE-signal extraction filter for the trend in the smooth trend model, see Harvey (1989).
+# Let us reproduce the implicit or latent model here: 
+#   -It is an ARIMA(0,2,0)-trend plus a scaled white noise: y_t=T_t+sqrt(lambda_monthly)*I_t where T_t=ARIMA(0,2,0) and I_t=noise
+set.seed(23)
+len<-12000
+x<-cumsum(cumsum(rnorm(len)))+rnorm(len)*sqrt(lambda_monthly)
+ts.plot(x)
+# First differences: slowly drifting away
+ts.plot(diff(x))
+# Look at acfs: acf of first differences indicates a weak but permanent positive pattern (the integration order is two)
+acf(diff(x))
+# After second order differences the acf looks fine
+acf(diff(diff(x)))
+# Let's fit a MA(2) model as suggested by the acf
+arima(x,order=c(0,2,2))
+# The implicit data-generating process follows an ARIMA(0,2,2)-specification whose MA-coefficients are determined by 
+# lambda, see  McElroy (2006).
+# We can use McElroy's package to compute the MA-parameters
+q<-1/lambda_monthly
+hp_filt_obj<-hpFilt(q,L)
+# HP-filter (left tail only)
+hp_filt_obj$filter_coef
+# MA-parameters of ARIMA(0,2,2)-model
+# The first parameter is a normalizing constant, the last two are the MA-parameters
+hp_filt_obj$ma_model
+ma<-hp_filt_obj$ma_model[2:3]
+ma
+# Compare with the estimated MA parameters: estimates are within the 95% interval
+arima(x,order=c(0,2,2))
+
+#-------------------------------
+# We can now simulate time series corresponding to this implicit model
+# If economic series look similar then we can conclude that HP is an optimal filter for extracting the trend of them
+set.seed(1)
+# Monthly US industrial production index (INDPRO) (https://fred.stlouisfed.org/series/INDPRO) starts in 1920
+# Roughly 100*12=1200 observations
+# Assume a similar length for our simulation, initializing the series 100 years back (without initialization the series drift away rapidly with asymptotically unbounded slope)
+len<-1200
+x<-cumsum(cumsum(rnorm(len)))+rnorm(len)*sqrt(lambda_monthly)
+
+# Check model: parameters are fine
+arima(x,order=c(0,2,2))
+# Diagnostics are fine, too
+tsdiag(arima(x,order=c(0,2,2)))
+# Have a look at the data
+ts.plot(x)
+# Does not look like a typical economic time series...
+# Let's generate a couple of them for comparison
+anzsim<-5
+mat_sim<-NULL
+set.seed(96)
+for (i in 1:anzsim)
+{
+  x<-cumsum(cumsum(rnorm(len)))+rnorm(len)*sqrt(lambda_monthly)
+  
+  # Compute ARIMA(0,2,2)
+  mat_sim<-cbind(mat_sim,x)
+}
+ts.plot(mat_sim,col=rainbow(anzsim))
+
+# The series are `flexing' and they are a bit `noisy': the `cycle' is just noise...
+# Have a look at first differences
+ts.plot(apply(mat_sim,2,diff),col=rainbow(anzsim))
+abline(h=0)
+# The series are slowly drifting away (non-stationary), as expected
+# First differences are noisy: the differenced cycle dominates the dynamics 
+
+# Let's compare with monthly indicators: Non-farm payroll and INDPRO
+getSymbols('PAYEMS',src='FRED')
+getSymbols('INDPRO',src='FRED')
+# Original data
+par(mfrow=c(2,2))
+ts.plot(mat_sim,xlab="",main="Artificial/simulated",col=rainbow(anzsim))
+plot(PAYEMS,main="Non-farm payroll")
+plot(INDPRO,main="Indpro")
+# The artificial data has less `structure' (the cycle is white noise...) 
+# We recommend a log-transform in order to stabilize the variances which are changing with the level
+par(mfrow=c(2,2))
+ts.plot(mat_sim,xlab="",col=rainbow(anzsim),main="Artificial/simulated")
+plot(log(PAYEMS),main="Log Non-farm payroll")
+plot(log(INDPRO),main="Log Indpro")
+
+# Compare series in first differences
+par(mfrow=c(2,2))
+ts.plot(apply(mat_sim,2,diff),xlab="",col=rainbow(anzsim),main="Artificial/simulated")
+abline(h=0)
+plot(diff(log(PAYEMS)),main="Returns Non-farm payroll")
+plot(diff(log(INDPRO)),main="Returns Indpro")
+
+# Remove pandemic, start in 1990 and use ts.plot (same graphic), shorten simulated sample accordingly
+par(mfrow=c(2,2))
+ts.plot(apply(mat_sim,2,diff)[(len-29*12):(len-1),],xlab="",col=rainbow(anzsim),main="Artificial/simulated")
+abline(h=0)
+ts.plot(diff(log(PAYEMS["1990/2019"])),main="Non-farm payroll",xlab="",ylab="")
+abline(h=0)
+ts.plot(diff(log(INDPRO)["1990/2019"]),main="Indpro",xlab="",ylab="")
+abline(h=0)
+
+# The simulated data has no structure and it looks much noisier 
+# Consider zero crossings of first differences
+compute_empirical_ht_func(diff(mat_sim[(len-29*12):(len-1),1]))
+compute_empirical_ht_func(as.double(diff(PAYEMS["1990/2019"])))
+compute_empirical_ht_func(as.double(diff(INDPRO["1990/2019"])))
+# As expected, the artificial data is subject to more crossings (the differenced `cycle' is differenced white noise)
+
+####################################################################################################################
+####################################################################################################################
+# 2. HP-trend: two-sided and one-sided designs 
+# Recall, from the above, that HP aims at estimating the trend from the trend+noise model.
+# The above results suggest that 
+#   a. The artificial data has less (no) `structure', when compared with macro-data (recessions, expansions)
+#   b. The artificial data is noisier
+# Therefore, if we assume the artificial data to be the truth, then it would make sense to apply a filter, i.e. HP-trend, which damps effectively (strongly) the noise
+#   a. The filter does not have to `care' about additional structure 
+#   b. Its only purpose is to erase the noise
+# When applied to Macro-series, strong smoothing can attenuate or under-estimate the relevant structure, by washing-out 
+#   critical (more or less sharp) recession dips
+
+# We briefly compute the holding-time of the two-sided HP-trend
+compute_holding_time_func(hp_target)$ht
+# Big number! The filter has a very strong smoothing effect.  
+# The above (finite-length) two-sided filter cannot be applied towards the sample end
+# For this purpose one can use the optimal one-sided HP-trend
+hp_trend<-HP_obj$hp_trend
+par(mfrow=c(1,1))
+ts.plot(hp_trend,main="Optimal one-side HP-trend assuming an ARIMA(0,2,2) DGP")
+# Filter coefficients add to 1: it is a lowpass (see amplitude functions further down)
+sum(hp_trend)
+# Holding-time
+compute_holding_time_func(hp_trend)$ht
+# The holding-time is much shorter than for the two-sided filter
+
+# Let's now apply the filter to simulated data
+set.seed(18)
+len<-1200
+x<-cumsum(cumsum(rnorm(len)))+rnorm(len)*sqrt(lambda_monthly)
+
+# Compute filter output of SSA-HP filter
+y_hp_concurrent<-filter(x,hp_trend,side=1)
+y_hp_symmetric<-filter(x,hp_target,side=2)
+
+ts.plot(y_hp_concurrent,main="HP: two-sided vs one-sided filter",col="red")
+lines(y_hp_symmetric)
+abline(h=0)
+mtext("Two-sided HP",col="black",line=-1)
+mtext("One-sided HP",col="red",line=-2)
+
+# Look at the filter approximation error
+ts.plot(y_hp_symmetric-y_hp_concurrent,main="Filter error")
+# The error looks stationary: it is, indeed, by optimality of the one-sided filter (both trend series are cointegrated)
+# MSE 
+mean((y_hp_concurrent-y_hp_symmetric)^2,na.rm=T)
+# Any other one-sided filter has a larger MSE when the DGP is the above ARIMA(0,2,2), specified by lambda_monthly
+
+
+####################################################################################################################
+####################################################################################################################
+# 3. In BCA applications, typically, the filter for extracting the cycle is HP-gap: the identity minus HP-trend
+#   -In principle, this should be (close to) white noise since y_t=T_t+sqrt(lambda_monthly)*I_t  
+
+hp_gap_sym<-c(rep(0,(L-1)/2),1,rep(0,(L-1)/2))-hp_target
+ts.plot(hp_gap_sym,main="HP-gap two-sided")
+
+# We can apply this filter to the data
+y_hp_gap_symmetric<-filter(x,hp_gap_sym,side=2)
+# Looks noisy:
+ts.plot(y_hp_gap_symmetric)
+# Acf suggest noise
+acf(na.exclude(y_hp_gap_symmetric))
+
+# HP-gap has cancelled the unit-roots of the ARIMA(0,2,2): the filter output is stationary (nearly white noise)
+# The one-sided filter does similarly
+hp_gap<-c(1,rep(0,L-1))-hp_trend
+ts.plot(hp_gap,main="HP-gap one-sided")
+
+# We can apply this filter to the data
+y_hp_gap_concurrent<-filter(x,hp_gap,side=1)
+# Looks noisy:
+ts.plot(y_hp_gap_concurrent)
+# Acf suggest noise
+acf(na.exclude(y_hp_gap_concurrent))
+
+# MSE: this is of course the same as MSE of trend approximation above (the identity cancels) 
+mean((y_hp_gap_concurrent-y_hp_gap_symmetric)^2,na.rm=T)
+# Any other one-sided filter has a larger MSE when the DGP is the above ARIMA(0,2,2), specified by lambda_monthly
+
+#####################################################################################################
+######################################################################################################
+# 3. Frequency-domain analysis
+# We now compute amplitude and time-shift function of the above filters
+
+K<-600
+amp_obj_SSA<-amp_shift_func(K,as.vector(SSA_filt_HP),F)
+amp_obj_HP<-amp_shift_func(K,hp_trend,F)
+
+par(mfrow=c(2,1))
+mplot<-scale(cbind(amp_obj_SSA$amp,amp_obj_HP$amp),scale=T,center=F)
+colnames(mplot)<-c(paste("SSA(",ht,",",forecast_horizon,")",sep=""),"HP-concurrent")
+
+# The HP filter is a lowpass applied to differences (returns)
+# The amplitude function of SSA is closer to 0 in stop band: stronger smoothing and less noisy zero-crossings
+# This typical property of SSA-smoothing designs has coined the term 'noisy crossings' 
+plot(mplot[,1],type="l",axes=F,xlab="Frequency",ylab="",main=paste("Amplitude HP",sep=""),ylim=c(min(mplot),max(mplot)),col=colo[1])
+lines(mplot[,2],col=colo[2])
+mtext(colnames(mplot)[1],line=-1,col=colo[1])
+if (ncol(mplot)>1)
+{
+  for (i in 2:ncol(mplot))
+  {
+    lines(mplot[,i],col=colo[i])
+    mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  }
+}
+axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+#axis(1,at=1+0:6*K/6,labels=(c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi")))
+axis(2)
+box()
+
+mplot<-cbind(amp_obj_SSA$shift,amp_obj_HP$shift)
+colnames(mplot)<-c(paste("SSA(",ht,",",forecast_horizon,")",sep=""),"HP-concurrent")
+# The larger phase-lag of SSA implies a slight lag relative to HP-concurrent: phase-shift is a bit larger 
+plot(mplot[,1],type="l",axes=F,xlab="Frequency",ylab="",main=paste("Phase-shift ",sep=""),ylim=c(min(mplot),max(mplot)),col=colo[1])
+lines(mplot[,2],col=colo[2])
+mtext(colnames(mplot)[1],line=-1,col=colo[1])
+if (ncol(mplot)>1)
+{
+  for (i in 2:ncol(mplot))
+  {
+    lines(mplot[,i],col=colo[i])
+    mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  }
+}
+axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+#axis(1,at=1+0:6*K/6,labels=(c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi")))
+axis(2)
+box()
+
+
+
+
+
+
+# Discard Pandemic: extreme outliers affect regression of Hamilton filter
+# Make double: xts objects are subject to lots of automatic/hidden assumptions which make an application of SSA 
+# more cumbersome, unpredictable and hazardous
+y<-as.double(log(PAYEMS["/2019"]))
+len<-length(y)
+
+
+# Make double: xts objects are subject to lots of automatic/hidden assumptions which make an application of SSA 
+#     more cumbersome, counter-intuitive, unpredictable and hazardous (try applying a filter to a xts-object...).
+# We here skip the pandemic: outliers affect HF-regression.
+# Effects of the pandemic are analyzed in our last example. 
+y<-as.double(log(GDPC1["/2019"]))
+len<-length(y)
+
+
+
+
 # Concurrent gap: as applied to series in levels: this is a high pass filter
 hp_gap=HP_obj$hp_gap
 ts.plot(hp_gap)
