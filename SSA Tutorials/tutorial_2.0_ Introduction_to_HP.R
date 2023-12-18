@@ -271,22 +271,23 @@ mean((y_hp_gap_concurrent-y_hp_gap_symmetric)^2,na.rm=T)
 
 #####################################################################################################
 ######################################################################################################
-# 3. Frequency-domain analysis
+# 4. Frequency-domain analysis
 # We now compute amplitude and time-shift function of the above filters
 
 K<-600
-amp_obj_SSA<-amp_shift_func(K,as.vector(SSA_filt_HP),F)
-amp_obj_HP<-amp_shift_func(K,hp_trend,F)
+amp_obj_hp_trend_concurrent<-amp_shift_func(K,hp_trend,F)
+amp_obj_hp_trend_sym<-amp_shift_func(K,hp_target,F)
+amp_obj_hp_gap_sym<-amp_shift_func(K,hp_gap_sym,F)
+amp_obj_hp_gap_concurrent<-amp_shift_func(K,hp_gap,F)
 
-par(mfrow=c(2,1))
-mplot<-scale(cbind(amp_obj_SSA$amp,amp_obj_HP$amp),scale=T,center=F)
-colnames(mplot)<-c(paste("SSA(",ht,",",forecast_horizon,")",sep=""),"HP-concurrent")
-
-# The HP filter is a lowpass applied to differences (returns)
-# The amplitude function of SSA is closer to 0 in stop band: stronger smoothing and less noisy zero-crossings
-# This typical property of SSA-smoothing designs has coined the term 'noisy crossings' 
+# Amplitude functions
+par(mfrow=c(1,1))
+mplot<-cbind(amp_obj_hp_trend_concurrent$amp,amp_obj_hp_trend_sym$amp,amp_obj_hp_gap_sym$amp,amp_obj_hp_gap_concurrent$amp)
+colnames(mplot)<-c("HP-trend one-sided","hp-trend two-sided","Hp-gap two-sided","HP-gap one-sided")
+colo<-rainbow(ncol(mplot))
 plot(mplot[,1],type="l",axes=F,xlab="Frequency",ylab="",main=paste("Amplitude HP",sep=""),ylim=c(min(mplot),max(mplot)),col=colo[1])
 lines(mplot[,2],col=colo[2])
+abline(v=which(mplot[,1]==max(mplot[,1])),col=colo[1])
 mtext(colnames(mplot)[1],line=-1,col=colo[1])
 if (ncol(mplot)>1)
 {
@@ -301,9 +302,21 @@ axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
 axis(2)
 box()
 
-mplot<-cbind(amp_obj_SSA$shift,amp_obj_HP$shift)
-colnames(mplot)<-c(paste("SSA(",ht,",",forecast_horizon,")",sep=""),"HP-concurrent")
-# The larger phase-lag of SSA implies a slight lag relative to HP-concurrent: phase-shift is a bit larger 
+# Outcome
+# -Both HP-trend filters are lowpass, HP-gaps are highpass 
+# -The two-sided HP-trend has a very steep and fast decaying amplitude: 
+#   -it eliminates high-frequency components very strongly
+#   -strong smoothness
+#   -large holding-time
+# -The one-sided HP-trend has more noise leakage 
+#   -but it still damps high-frequency components effectively
+#   -It's peak amplitude (marked by a vertical line) is obtained at a periodicity of 85 months or nearly 7 years:
+2*(K-1)/(which(mplot[,1]==max(mplot[,1]))-1)
+
+
+# Time shift functions
+mplot<-cbind(amp_obj_hp_trend_concurrent$shift,amp_obj_hp_trend_sym$shift,amp_obj_hp_gap_sym$shift,amp_obj_hp_gap_concurrent$shift)
+colnames(mplot)<-c("HP-trend one-sided","hp-trend two-sided","Hp-gap two-sided","HP-gap one-sided")
 plot(mplot[,1],type="l",axes=F,xlab="Frequency",ylab="",main=paste("Phase-shift ",sep=""),ylim=c(min(mplot),max(mplot)),col=colo[1])
 lines(mplot[,2],col=colo[2])
 mtext(colnames(mplot)[1],line=-1,col=colo[1])
@@ -319,27 +332,139 @@ axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
 #axis(1,at=1+0:6*K/6,labels=(c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi")))
 axis(2)
 box()
+# Note that all filters are causal: therefore the lag of the two-sided designs correspond to half their length
+#   The two-sided acausal filters are not shifted: their phase vanishes
+# Also, the one-sided Gap has a negative shift: it is anticipative (but the filter let's seep through all high-frequency noise components)
+# Let's then focus on the one-sided HP-trend only
+plot(mplot[,1],type="l",axes=F,xlab="Frequency",ylab="",main=paste("Phase-shift ",sep=""),ylim=c(min(mplot[,1]),max(mplot[,1])),col=colo[1])
+mtext(colnames(mplot)[1],line=-1,col=colo[1])
+axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+#axis(1,at=1+0:6*K/6,labels=(c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi")))
+axis(2)
+box()
+
+# We note that the time-shift (phase divided by frequency) of the one-sided HP-trend vanishes at frequency zero
+#   -Quite unusual for a lowpass design: a small shift means a timely detection of peaks and troughs of a time series
+#   -The shift must vanish because otherwise the filter error (between two-sided and one-sided trends) would not be stationary anymore in the case of an I(2)-process
+
+###################################################################################################################
+#################################################################################################################
+# 5. Transformation: from levels to differences
+# Let us assume, that typical (eventually log-transformed) economic time series are compatible with an I(1)-DGP
+
+par(mfrow=c(2,2))
+plot(diff(log(INDPRO)["1960/2019"]),xlab="",ylab="",main="Returns Indpro")
+plot(diff(log(PAYEMS)["1960/2019"]),xlab="",ylab="",main="Returns non-farm payroll")
+acf(na.exclude(diff(log(INDPRO)["1960/2019"])),main="ACF Indpro")                
+acf(na.exclude(diff(log(PAYEMS)["1960/2019"])),main="ACF non-farm payroll")                
+# Returns do not seem to be subject to changing levels 
+
+# Also, simple stationary ARMA-models seem to fit the data well
+model_indpro<-arima(diff(log(INDPRO)["1960/2019"]),order=c(2,0,1))
+model_payems<-arima(diff(log(PAYEMS)["1960/2019"]),order=c(2,0,1))
+tsdiag(model_indpro)
+tsdiag(model_payems)
+
+# Finally, economic theory suggests that a broad range of economic series, such as  stock prices, futures prices, 
+#   long-term interest rates, oil prices, consumption spending, inflation, tax rates, or money supply growth rates  
+#   should follow (near) martingales, see Fama (1965), Samuelson (1965), Sargent (1976), Hamilton (2009), Hall (1978) 
+#   and Mankiw (1987)
+
+# Let us therefore assume that the data is I(1), in contradiction to the ARIMA(0,2,2)-hypothesis of the implicit DGP justifying optimality of HP
+# In this case, we could apply HP-trend to returns: the above amplitude functions suggest that 
+#   a. the one-sided filter would be compatible with an extraction of the (differenced) business-cycle from the data 
+#   b. the two-sided filter would damp cycle-frequencies too heavily (over-smoothing)
+
+# Let us now compute the spectral density of the components (`cycles`) extracted by both filters.
+# For this purpose we need to compute the convolution of HP and xi, the Wold-decomposition of the differenced data
+# We can compute the weights of the Wold-decomposition of the above models: let's do so for Indpro (PAYEMS is similar)
+ar<-model_indpro$coef[1:2]
+ma<-model_indpro$coef[3]
+xi_indpro<-c(1,ARMAtoMA(lag.max=L-1,ar=ar,ma=ma))
+par(mfrow=c(1,1))
+ts.plot(xi_indpro,main="MA-inversion (Wold decomposition) for Indpro")
+
+hp_one_sided_conv<-conv_two_filt_func(xi_indpro,hp_trend)$conv
+hp_two_sided_conv<-conv_two_filt_func(xi_indpro,hp_target)$conv
+
+# Interpretation: hp_one_sided_conv applied to model-residuals generates the same output as hp_trend applied to returns
+# We briefly check this assertion
+y_hp_conv<-filter(model_indpro$residuals,hp_one_sided_conv,side=1)+model_indpro$coef["intercept"]
+y_hp<-filter(diff(log(INDPRO)["1960/2019"]),hp_trend,side=1)
+# Both series are overlapping
+ts.plot(cbind(y_hp_conv,y_hp),main="Convolution applied to residuals vs. hp applied to returns: both series overlap")
+
+# The spectral density of the `cycle` extracted by hp_trend is then the squared amplitude of hp_one_sided_conv
+amp_obj_one_sided_hp_conv<-amp_shift_func(K,hp_one_sided_conv,F)
+par(mfrow=c(1,1))
+plot(amp_obj_one_sided_hp_conv$amp^2,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Spectral density of cycle extracted by one-sided HP trend",sep=""),col="blue")
+abline(v=K/12)
+abline(v=K/60)
+axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+axis(2)
+box()
+# The vertical lines in the plot correspond to typical business-cycles periodicities: between two years and 10 years
+#   -Pretty good match!
+
+amp_obj_two_sided_hp_conv<-amp_shift_func(K,hp_two_sided_conv,F)
+par(mfrow=c(1,1))
+plot(amp_obj_two_sided_hp_conv$amp^2,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Spectral density of cycle extracted by two-sided HP trend",sep=""))
+abline(v=K/12)
+abline(v=K/60)
+axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+axis(2)
+box()
+# The spectral density is right-shifted and does not match business-cycle frequencies
+#   The two-sided is too-smooth, confirming our previous analysis
+
+# Next we want to derive the spectral density of the cycle extracted by the gap-filter
+# Note that the gap is typically applied to levels (not differences)
+# We then transform the filter such that it can be applied to differences: our function computes this filter 
+hp_gap_diff<-HP_obj$modified_hp_gap
+# We check that the output of hp_gap_diff as applied to differences replicates the original gap when applied to levels 
+y_hp_gap<-filter((log(INDPRO)["1960/2019"]),hp_gap,side=1)
+y_hp_gap_diff<-filter(diff(log(INDPRO)["1960/2019"]),hp_gap_diff,side=1)
+# Both series are overlapping
+ts.plot(cbind(y_hp_gap,y_hp_gap_diff),main="Original HP-gap applied to levels vs. modified gap applied to returns: both series overlap")
+
+# We can then convolve hp_gap_diff with the Wold-decomposition
+hp_gap_diff_one_sided_conv<-conv_two_filt_func(xi_indpro,hp_gap_diff)$conv
+# Why did we all of this?
+# -The input of the original gap (hp_gap) is a non-stationary series: therefore the spectral density does not exist
+# -The input of hp_gap_diff_one_sided_conv are the model residuals from the ARMA-model of the differencd series
+#   -Both filter outputs are identical
+#   -But now we can compute the spectral density of the 'cycle' (all series are stationary)
+# The following plot compares spectral densities of the original HP-gap cycle (applied to levels) and HP-trend (applied to returns)
+amp_obj_hp_gap_diff_conv<-amp_shift_func(K,hp_gap_diff_one_sided_conv,F)
+par(mfrow=c(1,1))
+plot(scale(amp_obj_hp_gap_diff_conv$amp^2,center=F,scale=T),type="l",axes=F,xlab="Frequency",col="red",ylab="",main=paste("Spectral density of cycle extracted by one-sided HP filters",sep=""))
+lines(scale(amp_obj_one_sided_hp_conv$amp^2,center=F,scale=T),col="blue")
+mtext("Spectral density original HP-gap applied to levels",line=-1,col="red")
+mtext("Spectral density HP-trend applied to returns",line=-2,col="blue")
+abline(v=K/12)
+abline(v=K/60)
+axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+axis(2)
+box()
+
+# The peaks of both spectral densities emphasize are left-shifted: the one-sided filters are damping the higher cycle-frequencies  
+# HP-trend is slightly more left-shifted (stronger smoothing) and it also let's low-frequency trend components seep through
+#   -Both properties are potentially interesting when trying to track recessions
 
 
 
+# Compare one-sided HP-trend and HP-gap
+ts.plot(scale(cbind(y_hp_gap,y_hp),center=F,scale=T),main="One-sided HP-trend vs. HP-gap applied to Indpro",col=c("blue","red"))
+mtext("HP-gap applied to levels",line=-1,col="red")
+mtext("HP-trend applied to returns",line=-2,col="blue")
+abline(h=0)
+
+compute_empirical_ht_func(y_hp)
+compute_empirical_ht_func(y_hp_gap)
 
 
-
-# Discard Pandemic: extreme outliers affect regression of Hamilton filter
-# Make double: xts objects are subject to lots of automatic/hidden assumptions which make an application of SSA 
-# more cumbersome, unpredictable and hazardous
-y<-as.double(log(PAYEMS["/2019"]))
-len<-length(y)
-
-
-# Make double: xts objects are subject to lots of automatic/hidden assumptions which make an application of SSA 
-#     more cumbersome, counter-intuitive, unpredictable and hazardous (try applying a filter to a xts-object...).
-# We here skip the pandemic: outliers affect HF-regression.
-# Effects of the pandemic are analyzed in our last example. 
-y<-as.double(log(GDPC1["/2019"]))
-len<-length(y)
-
-
+compute_holding_time_func(hp_one_sided_conv)$ht
+compute_holding_time_func(hp_gap_diff_one_sided_conv)$ht
 
 
 # Concurrent gap: as applied to series in levels: this is a high pass filter
