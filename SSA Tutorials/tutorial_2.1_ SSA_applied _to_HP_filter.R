@@ -1,27 +1,29 @@
 # In this tutorial we consider an application of SSA to the Hodrick-Prescott (HP) filter 
+# Tutorial 2.0 provided background:
+#   -For understanding HP; 
+#   -For justifying and motivating some of our decisions when working with HP (which differ from classic applications of HP)
+# In particular we prefer HP-trend applied to differenced (stationary) data to the original HP-gap (applied to levels)
 
-# We consider the HP-trend or lowpass filter, applied to stationary data
-#   -This design is used in JBCY paper: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
-#     -In contrast, the classic HP-gap applied to INDPRO (data in levels) tends to generate spurious cycles, see tutorial 5
+# Accordingly, we here consider the HP-trend or lowpass filter, applied to stationary data
+#   -This design is used in the JBCY paper: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
 #   -All examples in this tutorial rely on artificial (simulated) stationary series: knowing the true model allows for verification of theoretical results 
-#     -Tutorial 5 applies SSA to US-INDPRO
+#     -Tutorial 5 applies HP and SSA to US-INDPRO
 
 # We apply SSA to different targets 
-#   a.The one-sided MSE HP, assuming the data to be white noise, see example 1
-#   b.The classic one-sided HP, assuming the data to be white noise, see example 2
-#     (the classic HP-concurrent has some interesting properties and therefore it makes sense to consider the filter as applied to noise)
-#   c.The classic one-sided HP assuming the true or estimated (stationary ARMA) model, see example 5
-#   d.The one-sided MSE HP assuming the true or estimated (stationary ARMA) model, see example 5 (just change the target specification) 
-#   e.The symmetric HP assuming the true or estimated (stationary ARMA) model, see example 6
+#   a.The one-sided MSE HP, applied to white noise, see example 1
+#   b.The classic one-sided HP, applied to white noise, too, see example 2
+#   c.The classic one-sided HP, applied to autocorrelated data, see example 5
+#   d.The one-sided MSE HP, applied to autocorrelated data, too, see example 5 (just change the target specification) 
+#   e.The two-sided HP assuming, applied to autocorrelated data, see example 6
 
 
 # Main outcomes: 
 #   1.The classic HP-gap (as applied to non-stationary data in levels) is not suited for BCA, see example 7 below: "never use HP-gap". 
 #       -Therefore, we here emphasize the trend filter(s) only: as applied to stationary data (first differences of economic time series) 
-#   2.The classic concurrent (one-sided) HP-trend can be derived from a particular (implicit) ARIMA(0,2,2) model for the data. 
-#       -The implicit model assumes the data to be excessively smooth; economic time series are typically noisier than that (in levels and a fortiori in first differences).
+#   2.The classic concurrent (one-sided) HP-trend can be derived from a particular (implicit) ARIMA(0,2,2) model for the data, see tutorial 2.0.
+#     Typically, economic data does not conform to such a model
 #     Consequences: 
-#       -In typical applications, HP-concurrent is not an optimal (MSE) nowcast of the symmetric two-sided HP, see example 6
+#       -In applications, HP-concurrent is not an optimal (MSE) nowcast of the symmetric two-sided HP, see example 6
 #       -The holding-time of HP-concurrent is rather small i.e. the filter is subject to noise-leakage 
 #         (noisy zero crossings).
 #   3.In this scenario, SSA can be applied to control and to tame the number of noisy crossings of HP
@@ -30,7 +32,7 @@
 #       -SSA-forecasts adopt the same stringent holding-time constraint: 33% less noisy crossings than (one-sided) HP targets (in the long run)
 #       -SSA-forecasts are left-shifted (relative advancement): they generally have a lead when referenced against the concurrent benchmarks
 #       -SSA real-time (concurrent) designs can be smoother as well as leading, when compared to the concurrent benchmarks 
-#   5. The forecast trilemma is visualized in example 8 for a SSA-design targeting HP-MSE
+#   5. The forecast trilemma (see tutorial 0.1) is visualized in example 8 for a SSA-design targeting HP-MSE
 
 # Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
 #   predictor or BCA-filter (any one as long as it's linear in the data) can be replicated and modified by SSA 
