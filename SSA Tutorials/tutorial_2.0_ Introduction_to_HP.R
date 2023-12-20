@@ -28,10 +28,6 @@
 
 # 8. Summary
 
-to do
--amplitude trend_transform vs. original gap
--derivation of hp-concurrent
-
 
 #-----------------------------------------------------------------------
 # Make a clean-sheet, load packages and functions
@@ -680,6 +676,26 @@ abline(h=0)
 # Note that the coefficients of the transformed HP-trend now add to zero: the filter must cancel a single unit-root of the data in levels
 sum(hp_trend_sum)
 
+# We can also compare amplitude functions of original HP-gap and transformed HP-trend (as applied to levels)
+amp_obj_gap<-amp_shift_func(K,hp_gap,F)
+amp_obj_trend_sum<-amp_shift_func(K,hp_trend_sum,F)
+par(mfrow=c(1,1))
+# Let's scale the spectral densities for easier comparison
+#   -We also add two vertical bars corresponding to business-cycle frequencies: 2-10 years periodicities
+plot(scale(amp_obj_gap$amp,center=F,scale=T),type="l",col="red",axes=F,xlab="Frequency",ylab="",main=paste("Scaled amplitude of original gap and transformed trend",sep=""))
+lines(scale(amp_obj_trend_sum$amp,center=F,scale=T),col="darkblue")
+abline(v=K/12)
+abline(v=K/60)
+mtext("Amplitude HP-gap original (applied to levels)",col="red",line=-1)
+mtext("Amplitude transformed trend (applied to levels)",col="darkblue",line=-2)
+axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+axis(2)
+box()
+# Once again, the familiarity is patent
+#   -Both filters are highpass
+#   -Original HP-gap approaches zero more smoothly (second order zero to cancel a double unit-root)
+#   -Transformed HP-trend approaches zero more linearly (first order zero: cancels a single unit-root only)
+#   -Transformed HP-trend is a hair smoother (the amplitude is a bit larger at business-cycle frequencies, where it peaks)
 
 ###################################################################################################
 ###################################################################################################
@@ -695,6 +711,7 @@ sum(hp_trend_sum)
 #   -Applying the same HP-filter to Indpro and to Payems generates qualitatively different cycles (the latter is smoother than the former)
 #   -This unresolved problem is not addressed in applications
 # -HP-trend applied to differences shares many of the characteristics of the original HP-gap (applied to levels)
+#   -Strong familiarity when comparing filters for differences or levels: similar shapes, similar amplitude functions
 #   -Advantages HP-trend: the cycle is smoother, it tracks long expansion-episodes better and it does not generate `spurious` cycle alarms in midst of an expansion
 #   -Disadvantage: the cycle is systematically lagging at start and end of recessions
 # -HP-gap is very `fast': the shift indicates an anticipative filter. Sometimes the anticipation is `too much' and the cycle systematically drops below the zero-line in midst of longer expansions 
