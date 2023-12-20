@@ -2,6 +2,11 @@
 #     SSA is plugged in the JBCY-paper
 
 # This tutorial is about a particular target, as proposed by Hodrick and Prescott (HP)
+
+# In our applications of SSA we are mainly interested in `prediction'
+# Therefore we emphasize one-sided filters (also called, `causal' or `concurrent' or `real-time' filters)
+# Two-sided designs will be considered, too, because the one-sided/causal filters are derived from the former
+
 # We address the following points:
 
 # 1.Background: where it starts 
@@ -22,6 +27,10 @@
 #   -We then plug SSA on HP-trend in tutorial 2.1
 
 # 8. Summary
+
+to do
+-amplitude trend_transform vs. original gap
+-derivation of hp-concurrent
 
 
 #-----------------------------------------------------------------------
