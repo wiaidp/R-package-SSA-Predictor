@@ -1,39 +1,25 @@
 # This tutorial is not related to SSA. It addresses the question of the business-cycle analysis (BCA-)design on which 
 #     SSA is plugged in the JBCY-paper
+
 # This tutorial is about a particular target, as proposed by Hodrick and Prescott (HP)
-
-
-
 # We address the following points:
 
-# 1. Background or where it starts: 
-# 1.1 Whittaker-Henderson smoothing
-# Consider the smoothing problem
-# \sum_{t=1}^T(x_t-y_t)^2+lambda \sum_{t=d}^T ((1-B)^d y_t)^2 where xt is the data to be smoothed and y_t is the smoother
-# For d=2 the HP filter is obtained
+# 1.Background: where it starts 
+#     Whittaker-Henderson smoothing and signal extraction 
 
-# 1.2 An alternative derivation of the HP-filter is based on signal extraction: estimating the trend T_t from data xt
-# with x_t=T_t+sqrt(lambda)*I_t where T_t=ARIMA(0,2,0), I_t=noise and lambda is the HP-parameter (signal to noise ratio)
+# 2.One- and two-sided HP-trend filters
 
-# 1.3 ARIMA(0,2,2) vs. Macro-data:
-# Does the implicit ARIMA(0,2,2)-model comply with the dynamics of macro-indicators? 
-# We consider US-Indpro and non-farm payroll 
-# HP-gap vs. HP-trend
+# 3.One- and two-sided HP-gap filters (typically used in BCA applications)
 
-# 2. One- and two-sided HP-trend filters
+# 4.Frequency-domain analysis: amplitude and time-shifts 
 
-# 3. One- and two-sided HP-gap filters (typically used in BCA applications)
+# 5.Spectral density of the extracted cycle: HP-trend applied to differences
 
-# 4. Frequency-domain analysis: amplitude and time-shifts of all filters
+# 6.Spectral density of the extracted cycle: original HP-gap applied to levels
 
-# 5. Spectral density of the extracted cycle based on HP-trend
-#   -We here account for the data-generating process: for a fixed HP-filter the cycles depend on the time series characteristics
-#   -Cycles of Indpro and non-farm payroll differ qualitatively (the latter is smoother with more low-frequency content)
-
-# 6. Same as 5. but classic cycle based on HP-gap
-
-# 7. Comparison of original HP-gap (typical BCA-application) and HP-trend applied to differences
-#   -The latter design has some important advantages (and some lesser drawbacks) when compared to original HP-gap
+# 7.Comparison of original HP-gap (typical BCA-application) and HP-trend applied to differences
+#   -The latter design has some important advantages (and some minor drawbacks) when compared to the original HP-gap
+#   -We then plug SSA on HP-trend in tutorial 2.1
 
 # 8. Summary
 
@@ -66,6 +52,13 @@ getSymbols('INDPRO',src='FRED')
 #########################################################################################################
 # 1. Background
 # 1.1 Derivation of HP based on Whittaker-Henderson smoothing
+# For given lambda, find yt such that
+
+# sum_{t=1}^T (xt-yt)^2+lambda \sum_{t=d+1}^T((1-B)^d yt)^2 \to minimum
+
+# In words: find yt such that yt is close to (the data) xt while being smooth
+# For d=2 the HP-trend filter solves the above problem
+
 # We use the R-package mFilter for computing HP 
 #   Specify filter length: should be an odd number since otherwise the two-sided HP filter could not be adequately centered 
 L<-201
@@ -85,7 +78,7 @@ HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
 hp_target<-HP_obj$target
 # This is a finite version the symmetric HP-trend filter
 #   It is a causal (one-sided) filter
-#   In applications, the filter is centered at t: it is acausal (expands equally in the past as in the future) 
+#   In applications, the filter is centered at t: it is acausal (expands equally in the past and in the future) 
 ts.plot(hp_target,main=paste("Two-sided HP trend, lambda=",lambda_monthly,sep=""))
 # Filter coefficients add to 1: it is a lowpass (see amplitude functions further down)
 sum(hp_target)
@@ -102,9 +95,10 @@ x<-cumsum(cumsum(rnorm(len)))+rnorm(len)*sqrt(lambda_monthly)
 ts.plot(x)
 # First differences: slowly drifting away
 ts.plot(diff(x))
-# Look at acfs: acf of first differences indicates a weak but permanent positive pattern (the integration order is two)
+# Look at acfs: after lag-one, the acf indicates a weak but permanent positive pattern (differences are non-stationary)
+# The negative lag-one acf is due to the differenced noise component
 acf(diff(x))
-# After second order differences the acf looks fine
+# After second order differences the acf at higher lags vanishes: the first two lags correspond to double differences of the noise component
 acf(diff(diff(x)))
 # Let's fit a MA(2) model as suggested by the acf
 arima(x,order=c(0,2,2))
@@ -125,12 +119,12 @@ arima(x,order=c(0,2,2))
 
 #-------------------------------
 # 1.3 We can now simulate time series corresponding to this implicit model
-# If economic series look similar then we can conclude that HP is an optimal filter for extracting the trend of them
+# If economic series look similar then we can conclude that HP is an optimal filter for extracting the trend out of them
 #   -But this would imply that the cycle is just noise
 set.seed(1)
 # Monthly US industrial production index (INDPRO) (https://fred.stlouisfed.org/series/INDPRO) starts in 1920
 # Roughly 100*12=1200 observations
-# Assume a similar length for our simulation, initializing the series 100 years back (without initialization the series drift away rapidly with asymptotically unbounded slope)
+# Assume a similar length for our simulation, initializing the series 100 years back with zero (initialization is necessary because an integrated process has infinite memory: initialization has a permanent effect)
 len<-1200
 x<-cumsum(cumsum(rnorm(len)))+rnorm(len)*sqrt(lambda_monthly)
 
@@ -161,21 +155,36 @@ abline(h=0)
 # The series are slowly drifting away (non-stationary), as expected
 # First differences are noisy: the differenced cycle (differenced white noise) dominates the dynamics 
 
-# We now compare the simulated data with two important monthly macro-indicators
-# Original (untransformed) data
+# Integrated processes have an infinite memory: therefore they never forget initialization
+#   -The double difference means that x_1=2*x_{0}-x_{-1}
+#   -We initialized the difference equation with x_0=x_{-1}=0 for the above realization
+# What happens if we select x_{0}=1000 and x_{-1}=0?
+set.seed(1)
+x<-cumsum(1000+cumsum(rnorm(len)))+rnorm(len)*sqrt(lambda_monthly)
+# Plot
+ts.plot(x,main="Single realization with different initialization")
+# Looks like a straight line
+# And first differences?
+ts.plot(diff(x),main="First differences")
+# They are just shifted upwards by the amount of our initialization (but they are slowly drifting away from that level)
+
+
+# We now compare the simulated data (with 0-initialization) with two important monthly macro-indicators
+# Original (un-transformed) data
 par(mfrow=c(2,2))
 ts.plot(mat_sim,xlab="",main="Artificial/simulated",col=rainbow(anzsim))
 plot(PAYEMS,main="Non-farm payroll")
 plot(INDPRO,main="Indpro")
 # The artificial data has less `structure' (no recession dips), the series appear noisier, growth-sign is random and 
-#     the drift can become arbitrarily large in absolute value 
-# We recommend a log-transform in order to stabilize the variances which are changing with the level
+#     the drift can become arbitrarily large in absolute value over time 
+# We recommend a log-transform in order to stabilize the variances of the macro-indicators 
+#   (the variance is changing as levels increase whereas the noise variance in the simulated data is level-independent)
 par(mfrow=c(2,2))
 ts.plot(mat_sim,xlab="",col=rainbow(anzsim),main="Artificial/simulated")
 plot(log(PAYEMS),main="Log Non-farm payroll")
 plot(log(INDPRO),main="Log Indpro")
 # Comparison: see comments above. The growth of the log-transformed series is much more regular than the simulated data
-
+#   We could account for this discrepancy by changing initial values but this would affect smoothness: whatever we do, simulated data won't match real data 
 # We now compare series in first differences
 par(mfrow=c(2,2))
 ts.plot(apply(mat_sim,2,diff),xlab="",col=rainbow(anzsim),main="Artificial/simulated")
@@ -198,8 +207,10 @@ abline(h=0)
 compute_empirical_ht_func(diff(mat_sim[(len-29*12):(len-1),1]))
 compute_empirical_ht_func(as.double(diff(PAYEMS["1990/2019"])))
 compute_empirical_ht_func(as.double(diff(INDPRO["1990/2019"])))
-# As expected, the artificial data is subject to more crossings (the differenced `cycle' is differenced white noise)
-# Also, non-farm payroll seems much smoother: we will need to fit models to the data in order to capture these differences 
+# As expected, the artificial data is subject to more crossings 
+#   White noise has a holding-time of 2: both macro-indicators are above 2 (they are positively autocorrelated) and the simulated data is below 2 (negatively autocorrelated) 
+# Also, non-farm payroll seems to be much smoother: we will need to fit models to the data in order to capture these differences (see tutorials 2.1, 3 and 4)
+
 
 
 ####################################################################################################################
@@ -227,7 +238,7 @@ ts.plot(hp_trend,main=paste("Optimal one-side HP-trend assuming an ARIMA(0,2,2) 
 sum(hp_trend)
 # Holding-time
 compute_holding_time_func(hp_trend)$ht
-# The holding-time is considerably shorter than for the two-sided filter
+# The holding-time is considerably shorter 
 
 # Let's now apply the filter to simulated data
 set.seed(18)
@@ -245,19 +256,29 @@ mtext("Two-sided HP",col="black",line=-1)
 mtext("One-sided HP",col="blue",line=-2)
 # Both lines overlap: the one-sided HP extends to the sample end
 
-# Look at the filter approximation error
-ts.plot(y_hp_symmetric-y_hp_concurrent,main="Filter error")
+# Look at the filter approximation error 
+error<-y_hp_symmetric-y_hp_concurrent
+ts.plot(error,main="Filter approximation error")
 # The error looks stationary or `cyclical': by optimality of the one-sided filter the error is smallest possible and both trend series are cointegrated
 # MSE 
-mean((y_hp_concurrent-y_hp_symmetric)^2,na.rm=T)
+MSE_error<-mean((error)^2,na.rm=T)
+MSE_error
 # Any other one-sided filter has a larger MSE when the DGP is the above ARIMA(0,2,2), specified by lambda_monthly
 
+# We could also look at the gap: the difference between data and trend (Identity-HP_trend)
+gap<-x-y_hp_symmetric
+ts.plot(gap,main="Gap")
+# MSE: pretty close to our choice for lambda_monthly...
+mean((gap)^2,na.rm=T)
+# Ideally, this error should be white noise
+acf(na.exclude(gap),main="ACF of gap")
 
 ####################################################################################################################
 ####################################################################################################################
 # 3. HP-gap 
-# In BCA applications, typically, the filter for extracting the cycle is HP-gap: the identity minus HP-trend
+# In BCA applications, typically, the filter for extracting the cycle is HP-gap: the identity minus HP-trend 
 #   -In principle, this should be (close to) white noise since x_t=T_t+sqrt(lambda_monthly)*I_t, i.e., x_t-T_t is noise  
+#   -Positive/negative gap: the current data point lies above/below trend. Additional stabilization (anti-cyclical policy) would be unnecessary if the gap happened to be white noise
 
 hp_gap_sym<-c(rep(0,(L-1)/2),1,rep(0,(L-1)/2))-hp_target
 ts.plot(hp_gap_sym,main="HP-gap two-sided")
@@ -281,22 +302,24 @@ ts.plot(y_hp_gap_concurrent,main="Output of one-sided HP-gap (should be close to
 # Acf suggest noise
 acf(na.exclude(y_hp_gap_concurrent),main="Acf one-sided HP-gap output")
 
-# MSE: this is of course the same as MSE of trend approximation above (the identity cancels) 
+# MSE: this is of course the same as MSE_error above (the identity in both gap-filters cancels) 
 mean((y_hp_gap_concurrent-y_hp_gap_symmetric)^2,na.rm=T)
 # Any other one-sided filter has a larger MSE when the DGP is the above ARIMA(0,2,2), specified by lambda_monthly
 
 #####################################################################################################
 ######################################################################################################
 # 4. Frequency-domain analysis: Amplitude functions of filters
-#   We now compute amplitude and time-shift function of the above filters
+#   We now compute amplitude and time-shift functions of the above filters
 
+# Specify the number of equidistant frequency ordinates in [0,pi]
 K<-600
+# Compute transfer, amplitude and shift functions (shift=phase divided by frequency)
 amp_obj_hp_trend_concurrent<-amp_shift_func(K,hp_trend,F)
 amp_obj_hp_trend_sym<-amp_shift_func(K,hp_target,F)
 amp_obj_hp_gap_sym<-amp_shift_func(K,hp_gap_sym,F)
 amp_obj_hp_gap_concurrent<-amp_shift_func(K,hp_gap,F)
 
-# Amplitude functions
+# Plot amplitude functions
 par(mfrow=c(1,1))
 mplot<-cbind(amp_obj_hp_trend_concurrent$amp,amp_obj_hp_trend_sym$amp,amp_obj_hp_gap_sym$amp,amp_obj_hp_gap_concurrent$amp)
 colnames(mplot)<-c("HP-trend one-sided","hp-trend two-sided","Hp-gap two-sided","HP-gap one-sided")
@@ -375,7 +398,8 @@ box()
 
 
 # 5.1 Let us assume, that typical (eventually log-transformed) economic time series are compatible with an I(1)-DGP
-
+# We try to motivate this I(1)-assumption
+# a. Let's look at returns:
 par(mfrow=c(2,2))
 plot(diff(log(INDPRO)["1960/2019"]),xlab="",ylab="",main="Returns Indpro")
 plot(diff(log(PAYEMS)["1960/2019"]),xlab="",ylab="",main="Returns non-farm payroll")
@@ -383,13 +407,13 @@ acf(na.exclude(diff(log(INDPRO)["1960/2019"])),main="ACF Indpro")
 acf(na.exclude(diff(log(PAYEMS)["1960/2019"])),main="ACF non-farm payroll")                
 # Returns do not seem to be subject to pronounced changes of their levels (but data prior 1990 looks different: great moderation)
 
-# Also, simple stationary ARMA-models seem to fit the data 
+# b. Also, simple stationary ARMA-models seem to fit the data 
 model_indpro<-arima(diff(log(INDPRO)["1960/2019"]),order=c(2,0,1))
 model_payems<-arima(diff(log(PAYEMS)["1960/2019"]),order=c(2,0,1))
 tsdiag(model_indpro)
 tsdiag(model_payems)
 
-# Finally, economic theory suggests that a broad range of economic series, such as  stock prices, futures prices, 
+# c. Finally, economic theory suggests that a broad range of economic series, such as  stock prices, futures prices, 
 #   long-term interest rates, oil prices, consumption spending, inflation, tax rates, or money supply growth rates  
 #   should follow (near) martingales, see Fama (1965), Samuelson (1965), Sargent (1976), Hamilton (2009), Hall (1978) 
 #   and Mankiw (1987)
@@ -422,6 +446,7 @@ hp_two_sided_conv_payems<-conv_two_filt_func(xi_payems,hp_target)$conv
 
 # Interpretation: hp_one_sided_conv applied to model-residuals generates the same output as hp_trend applied to returns
 # We briefly check this assertion for Indpro (check for PAYEMS is similar)
+#   Note that we must shift by the mean ("intercept") since residuals are centered at zero
 y_hp_conv<-filter(model_indpro$residuals,hp_one_sided_conv_indpro,side=1)+model_indpro$coef["intercept"]
 y_hp<-filter(diff(log(INDPRO)["1960/2019"]),hp_trend,side=1)
 # Both series overlap, as expected.
@@ -431,8 +456,8 @@ ts.plot(cbind(y_hp_conv,y_hp),main="Convolution applied to residuals vs. hp appl
 # 5.2 Spectral densities
 # The spectral density of the `cycle` extracted by hp_trend corresponds to the squared amplitude of hp_one_sided_conv
 #   -Recall that hp_one_sided_conv is applied to model residuals and that the spectral density of white noise (residuals) is flat
-#   -We ignore the scaling by sigma^2/(2*pi) corresponding to the residual spectral density
-#   -We scale the spectral densities in order to simplify visual comparisons 
+#   -We ignore the scaling by sigma^2/(2*pi) corresponding to the residuals' spectral density
+#   -We scale the spectral densities in order to simplify comparisons 
 amp_obj_one_sided_hp_conv_indpro<-amp_shift_func(K,hp_one_sided_conv_indpro,F)
 amp_obj_one_sided_hp_conv_payems<-amp_shift_func(K,hp_one_sided_conv_payems,F)
 par(mfrow=c(1,1))
@@ -448,9 +473,12 @@ axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
 axis(2)
 box()
 # Outcome:
-# We see that the spectral density, trivially, depends on the DGP (this evidence is frequently (almost always) omitted or neglected in applications)
-#   -The Indpro-cycle density is not overtly conflicting with a BCA-perspective 
+# We see that the spectral density, trivially, depends on the DGP (this evidence is frequently lacking, omitted or neglected in applications)
+#   -The Indpro-cycle spectral density is not overtly conflicting with a BCA-perspective 
 #   -The PAYEMS-cycle is likely a bit `too smooth' (the peak is left-shifted towards lower frequencies)
+# Note: we here apply filters to differenced data. Accordingly, the above filters are supposed to `extract' the differenced cycle
+#   -We don't want the spectral density of the differenced cycle to be flat in the business-cycle band: in this sense the trend-filters seem to perform well.
+#   -But maybe we'd like the density to vanish towards frequency zero? That depends... (see below)
 
 # We now look at the spectral densities of two-sided trend filters
 amp_obj_two_sided_hp_conv_indpro<-amp_shift_func(K,hp_two_sided_conv_indpro,F)
@@ -467,13 +495,13 @@ mtext("Scaled spectral density of two-sided HP-trend applied to differences of P
 axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
 axis(2)
 box()
-# The spectral density are left-shifted: the two-sided filters smooth out business-cycle frequencies
+# The spectral density are left-shifted: the two-sided filters smooth out business-cycle frequencies, see Phillips and Jin (2021)
 
 ##################################################################################################
 ################################################################################################
 # 6. Spectral densities of original HP-gap
 # -We want to compare the spectral densities of the extracted cycles
-# -For that purpose we compute cycles based on two- and sided-gaps, applied to data in levels (HP-trend was applied to differences)
+# -For that purpose we compute cycles based on two- and one-sided gaps, applied to data in levels (HP-trend was applied to differences)
 # -This topic requires 
 #   6.1. modelling of the DGP (see 5.1 above)
 #   6.2  stationarity (gaps are applied to non-stationary data in levels)
@@ -483,7 +511,7 @@ box()
 
 # 6.2 Transformation: from levels to differences
 #   -The gap is applied to levels (not differences)
-#   -We here transform the gap-filter such that one can work with differenced data: our function computes this filter 
+#   -We here transform the gap-filter such that one can work with differenced data
 #  For that purpose we can rely on conv_with_unitroot_func, see section 2.3 in JBCY paper 
 hp_gap_diff<-conv_with_unitroot_func(hp_gap)$conv
 
@@ -492,11 +520,16 @@ ts.plot(cbind(hp_gap,hp_gap_diff),col=c("red","darkred"),main=paste("HP-gap: ori
 mtext("Original HP-gap as applied to levels",col="red",line=-1)  
 mtext("Transformed HP-gap as applied to differences",col="darkred",line=-2)  
 
+# After scaling, we can note a degree of familiarity between the transformed gap and the trend-filter (both are applied to differences)
+ts.plot(scale(cbind(hp_trend,hp_gap_diff),scale=T,center=F),col=c("blue","darkred"),main=paste("Transformed HP-gap vs. HP-trend, lambda=",lambda_monthly,sep=""))
+mtext("HP-trend as applied to differences",col="blue",line=-1)  
+mtext("Transformed HP-gap as applied to differences",col="darkred",line=-2)  
 
 # We check that the output of hp_gap_diff as applied to differences replicates the original gap when applied to levels 
 y_hp_gap<-filter((log(INDPRO)["1960/2019"]),hp_gap,side=1)
 y_hp_gap_diff<-filter(diff(log(INDPRO)["1960/2019"]),hp_gap_diff,side=1)
-# Both series are overlapping
+# Both series overlap
+#   -Therefore the corresponding spectral densities must overlap, too
 ts.plot(cbind(y_hp_gap,y_hp_gap_diff),main="Original HP-gap applied to levels vs. modified gap applied to returns: both series overlap")
 
 # We are now closer to our goal: computing the spectral density of the original HP-gap cycle
@@ -505,7 +538,6 @@ hp_gap_diff_one_sided_conv_indpro<-conv_two_filt_func(xi_indpro,hp_gap_diff)$con
 hp_gap_diff_one_sided_conv_payems<-conv_two_filt_func(xi_payems,hp_gap_diff)$conv
 
 # The spectral densities are obtained by squaring the amplitude functions of the convolved transformed filters (up to an arbitrary scaling)
-
 amp_obj_hp_gap_diff_conv_indpro<-amp_shift_func(K,hp_gap_diff_one_sided_conv_indpro,F)
 amp_obj_hp_gap_diff_conv_payems<-amp_shift_func(K,hp_gap_diff_one_sided_conv_payems,F)
 par(mfrow=c(1,1))
@@ -521,7 +553,9 @@ box()
 
 # HP-gap applied to Payems generates a smoother cycle 
 #   -The corresponding Wold-decomposition un-whitens innovations in the Wold-decomposition more effectively
-#   -The ARMA-model of Payems is a more effective lowpass than the model of Indpro
+#   -The ARMA-model of Payems is a more effective lowpass than the ARMA-model of Indpro
+#   -In simpler terms: PAYEMS looks and is smoother than Indpro
+#   -Therefore, applying the same filter to both series will generate a smoother cycle for the smoother series
 
 # Let us compare both cycles:
 y_hp_gap_payems<-filter((log(PAYEMS)["1960/2019"]),hp_gap,side=1)
@@ -536,10 +570,10 @@ axis(2)
 box()
 # Differences: 
 #   -the cycle based on non-farm payroll is substantially smoother, 
-#   -it misses the `double-dip' recession in the early 80s, 
+#   -it transforms the twin-recessions in the early 80s into a single `double-dip' recession, 
 #   -it is systematically lagging behind the cycle extracted from Indpro 
 #   -it behaves differently after the financial crisis (more or less monotonous decay after the recession-rebound)
-# Applying the same HP-filter to both series is not recommended (sadly not our topic of interest)
+# Applying the same HP-filter (based on lambda=14400) to qualitatively different series is not recommended (sadly, this is not our topic of interest)
 
 #################################################################################################
 #################################################################################################
@@ -580,14 +614,17 @@ lines(mplot[,2],col="violet")
 mtext("HP-gap applied to levels",line=-1,col="darkred")
 mtext("HP-trend applied to returns",line=-2,col="violet")
 abline(h=0)
-axis(1,at=12*(1:(nrow(mplot)/12)),labels=index(diff(log(INDPRO)["1970/2019"]))[12*(1:(nrow(mplot)/12))])
+axis(1,at=12*(1:(nrow(mplot)/12)),labels=index(diff(log(INDPRO)["1960/2019"]))[12*(1:(nrow(mplot)/12))])
 axis(2)
 box()
 
-# Just confirming our conjectures based on the above frequency-domain analysis of the filters
+# The plot confirms the above conjectures based on frequency-domain analysis of the filters
 # -The gap-cycle generates numerous zero-crossings along the expansions before the dotcom-bubble and the financial crisis  
 # -In both cases early zero-crossings of the gap-cycle anticipate the recessions by several years
 # -In contrast, the trend-cycle is much more conservative: it tracks longer expansions better but it generally lags behind the gap-cycle at start and end of recessions
+# -Surprisingly, the trend filter is able to resolve/separate the twin-recessions in the early 80s.
+# -Both filters indicate a trough around 2016, at a time  when the price for crude oil declined sharply, hence affecting petrol extraction as well as collateral industrial activity in the US.
+#   -PAYEMS (or GDP) is less affected by this singular event
 
 # Consider zero-crossings: empirical holding-time
 compute_empirical_ht_func(y_hp)
@@ -596,10 +633,10 @@ compute_empirical_ht_func(y_hp_gap)
 # Compare with expected holding times, assuming the model of the data is correct: we use the convolved filters which are applied to model residuals (which is supposed to be white noise)
 compute_holding_time_func(hp_one_sided_conv_indpro)$ht
 compute_holding_time_func(hp_gap_diff_one_sided_conv_indpro)$ht
-# The large discrepancy between empirical and expected holding-times suggests 
+# The discrepancy between empirical and expected holding-times suggests 
 #   a. random-sample errors (of empirical ht) 
 #   b. model misspecification (for example non-vanishing means i.e. off-centered cycles)
-# Probably both... But the numbers confirm that the cycle extracted by HP-trend is smoother (on the long run we expect 20-30% less zero-crossings)
+# Probably both... But the numbers confirm that the cycle extracted by HP-trend is smoother (on the long run we expect ~30% less zero-crossings)
 
 #-------------------------------------
 # 7.3 Compare filter coefficients
@@ -609,7 +646,8 @@ compute_holding_time_func(hp_gap_diff_one_sided_conv_indpro)$ht
 ts.plot(scale(cbind(hp_trend,hp_gap_diff),center=F,scale=T),col=c("blue","darkred"),main="HP-trend and transformed HP-gap: both applied to differences")
 mtext("HP-trend",col="blue",line=-1)
 mtext("Transformed HP-gap",col="darkred",line=-2)
-# Not vastly different... The gap drops below zero because its coefficients must add to zero (vanishing amplitude at frequency zero)
+# We see a degree of familiarity. 
+#   -The gap-coefficients drop below zero because their sum must vanish (vanishing amplitude at frequency zero: the original concurrent gap must cancel a second-order unit-root)
 sum(hp_gap_diff)
 
 # 7.3.2 Both filters as applied to levels
@@ -620,7 +658,7 @@ hp_trend_sum<-c(hp_trend,0)-c(0,hp_trend)
 # We can check that the transformed filter replicates the original one
 y_hp<-filter(diff(log(INDPRO)["1960/2019"]),hp_trend,side=1)
 y_hp_sum<-filter((log(INDPRO)["1960/2019"]),hp_trend_sum,side=1)
-# Both series are overlapping
+# Both series overlap
 ts.plot(cbind(y_hp,y_hp_sum),main="Transformed HP-trend applied to levels replicates original HP-trend applied to returns")
 
 # We can now compare the original HP-gap (as applied to levels) with the transformed HP-trend (also applied to levels, too)
@@ -629,16 +667,18 @@ ts.plot(scale(cbind(hp_gap,hp_trend_sum[1:L]),center=F,scale=T),col=c("red","dar
 mtext("Transformed HP-trend",col="darkblue",line=-1)
 mtext("Original HP-gap",col="red",line=-2)
 abline(h=0)
-# Once again: Trend and Gap are quite close 
-# Note that the coefficients of the transformed HP-trend now add to zero: the filter must cancel a unit-root of the data in levels
+# Once again: a degree of familiarity is apparent 
+# Note that the coefficients of the transformed HP-trend now add to zero: the filter must cancel a single unit-root of the data in levels
 sum(hp_trend_sum)
+
 
 ###################################################################################################
 ###################################################################################################
 # 8. Summary
 # -The two-sided HP filters (gap and trend) are 'too smooth' 
 #   -The classic values of lambda, proposed in the literature, are eventually too large, see Phillips and Jin (2021) for background 
-# -The classic one-sided HP, on the other hand, is less smooth: therefore it can better track short but severe recession dips
+# -The classic one-sided HP, on the other hand, is less smooth: therefore it can better track short and severe recession dips 
+#   -The twin recessions in the early 80s could be resolved: we could not ask for more resolution than that.
 #   -The peak amplitude matches business-cycle frequencies
 #   -The vanishing time-shift means that the filter is a tough benchmark in real-time applications
 #     -The filter is typically faster than Hamilton's regression filter, see tutorial 3
