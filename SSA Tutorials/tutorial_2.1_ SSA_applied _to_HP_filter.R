@@ -16,6 +16,10 @@
 #   d.The one-sided MSE HP, applied to autocorrelated data, too, see example 5 (just change the target specification) 
 #   e.The two-sided HP assuming, applied to autocorrelated data, see example 6
 
+# Note: a look at tutorial 2.0 suggests that the two-sided target is less relevant in a BCA-context: 
+#   -it is too smooth: recession dips are washed-out and may eventually vanish or merge
+#   -the one-sided trend filter is relevant, though (it has desirable frequency-domain and time-domain characteristics)
+
 
 # Main outcomes: 
 #   1.The classic HP-gap (as applied to non-stationary data in levels) is not suited for BCA, see example 7 below: "never use HP-gap". 
