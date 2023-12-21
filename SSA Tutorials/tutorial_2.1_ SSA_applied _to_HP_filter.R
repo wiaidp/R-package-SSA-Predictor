@@ -848,10 +848,10 @@ abline(h=0)
 # -This exercise does not refer to the majority of use-cases of HP: 
 #   -Most (nearly all) practitioners assume that the classic concurrent HP is the optimal estimate of the two-sided filter at the sample end (real-time business BCA)
 #   -This assumption is wrong because economic data does not conform to an ARMA(0,2,2)-process, see tutorial 2.0
-#   -Therefore, by applying the classic HP-concurrent, users are not effectively tracking the two-sided target
+#   -Therefore, by applying the classic HP-concurrent, users are not effectively tracking the two-sided target (at least not optimally)
 # -We advocated in tutorial 2.0 that the classic HP-concurrent has some desirable characteristics for BCA
 #   -Therefore, we plugged SSA on the classic HP-concurrent in the previous exercises 2,3 and 5
-#   -But clearly, its tracking ability (of the two-sided target) is not optimal in typical applications 
+#   -But, clearly, its tracking ability (of the two-sided target) is not optimal in typical applications 
 #   -When applying HP-concurrent, practitioners use a pertinent BCA-tool; but the tool is not doing what it is claimed to do (and what the analyst think it does)
 # -Exercise 6, here, addresses specifically an optimal one-sided filter for tracking the two-sided HP, assuming the true 
 #   (or the empirical) model of the data (which is not an ARIMA(0,2,2))
@@ -1196,7 +1196,7 @@ abline(h=0)
 #   As we shall see, the Baxter and King filter is subject to similar issues, see tutorial 4
 # These findings confirm and reinforce Hamilton's statement: never use the HP (-gap) filter for BCA
 # But we may add: try the HP-concurrent lowpass instead, as applied to differences, see tutorials 2.0 and 5
-# Tutorial 2.0 shows that HP-trend applied to differences is a more conservative design
+# Tutorial 2.0 shows that HP-trend applied to differences is a more conservative design (than the original HP-gap)
 #   -It tracks expansions and recessions well (neither too smooth nor too noisy: a smart compromise); 
 #   -It does not generate spurious alarms years ahead of (or past) effective recessions; 
 #   -It is slightly lagging behind HP-gap at start and end of recessions;
