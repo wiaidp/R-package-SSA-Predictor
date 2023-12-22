@@ -591,6 +591,108 @@ mat1<-round(mat_re,2)
 
 mat1
 
+###################################################
+### Computations for fig.4 
+###################################################
+
+compute_length_loop<-T
+# Specify target
+gammak_generic<-rep(1/3,3)
+
+ht<-compute_holding_time_func(gammak_generic)$ht
+
+
+if (compute_length_loop)
+{  
+  # Compute SSA and MSE for a selection of ht
+  ht_vec<-seq(max(2,ht/4), 5*ht, by = 0.1)
+  # Compute SSA and MSE for a selection of forecasts horizons
+  # Note: we must shift the causal symmetric HP by (L_sym-1)/2 to the left in order to obtain the acausal two-sided target
+  delta_vec<-0:2
+  
+  pb = txtProgressBar(min = 0, max = length(ht_vec), initial = 0,style=3) 
+  
+  MSE_mat<-target_mat<-matrix(ncol=length(delta_vec),nrow=length(ht_vec))
+  # Loop through all combinations of ht and forecast horizon: compute the SSA filter and collect 
+  #   crit_rhoy_target (correlation of SSA with effective target) as well as crit_rhoyz (correlation with causal MSE benchmark)  
+  for (i in 1:length(ht_vec))
+  {
+    setTxtProgressBar(pb,i)
+    for (j in 1:length(delta_vec))
+    {  
+      rho1<-rho1<-compute_rho_from_ht(ht_vec[i])
+      forecast_horizon<-delta_vec[j]
+      # Skip xi: we assume white noise    
+      SSA_obj_HP<-SSA_func(L,forecast_horizon,gammak_generic,rho1)
+      # Correlation with (caual) MSE predictor: this is the preferred measure here because we can benchmark SSA
+      #   directly against MSE 
+      MSE_mat[i,j]<-SSA_obj_HP$crit_rhoyz
+      # Or correlation with (acausal) target 
+      target_mat[i,j]<-SSA_obj_HP$crit_rhoy_target
+    }
+  }
+  close(pb)
+  # Row-names correspond to holding-times; column-names are forecast horizons  
+  rownames(MSE_mat)<-rownames(target_mat)<-round(ht_vec,2)
+  # Forecast horizon: we remove the artificial shift (L_sym-1)/2 
+  colnames(MSE_mat)<-colnames(target_mat)<-delta_vec
+  # Save results
+  #  save(MSE_mat,file=paste(getwd(),"/Data/Trilemma_mse_heat_map",sep=""))
+  #  save(target_mat,file=paste(getwd(),"/Data/Trilemma_target_heat_map",sep=""))
+}
+# 1. MSE_mat collects the correlations crit_rhoyz of SSA with the causal MSE benchmark predictor of the target
+#   Row names correspond to ht (holding-time constraint)
+#   Column names correspond to the forecast horizon: from a nowcast up to 24-steps ahead
+head(MSE_mat)
+tail(MSE_mat)
+# 2. target_mat collects the correlations crit_rhoy_target of SSA with the effective (acausal two-sided) target 
+#     -In our case: the two-sided filter shifted by 0,1,...,24
+#   Naturally, these correlations are smaller than in MSE_mat 
+head(target_mat)
+tail(target_mat)
+#---------------------------------------
+
+
+
+lcol<-100
+coloh<-rainbow(lcol)[1:(10*lcol/11)]
+colo<-coloh[length(coloh):1]
+# Heat-map of correlations with acausal (effective) target
+heatmap.2(target_mat[nrow(target_mat):1,], dendrogram="none",scale = "none", col = colo,trace = "none", density.info = "none",Rowv = F, Colv = F,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Prediction Trilemma")
+
+###################################################
+### Replicate fig. 4
+###################################################
+
+# Figure 4
+select_vec<-1:3
+mplot<-target_mat[,select_vec]
+coli<-rainbow(length(select_vec))
+par(mfrow=c(1,1))
+plot(mplot[,1],col=colo,ylim=c(min(mplot),max(mplot)),axes=F,type="l",xlab="Holding time",ylab="Correlation",main="Prediction Trilemma")
+mtext(paste("Forecast horizon ",colnames(MSE_mat)[select_vec[1]],sep=""),col=coli[1],line=-1)
+if (length(select_vec)>1)
+  for (i in 2:length(select_vec))
+  {
+    lines(mplot[,i],col=coli[i])
+    mtext(paste("Forecast horizon ",colnames(MSE_mat)[select_vec[i]],sep=""),col=coli[i],line=-i)
+  }
+cor_val=0.5
+abline(h=cor_val)
+gt<-NULL
+for (i in 1:ncol(mplot))
+{  
+  ww<-which(mplot[1:(nrow(mplot)-1),i]>cor_val&mplot[2:nrow(mplot),i]<cor_val)
+  abline(v=ww,col=coli[i])
+  gt<-c(gt,rownames(mplot)[ww])
+}
+axis(1,at=1:nrow(MSE_mat),labels=rownames(MSE_mat))
+axis(2)
+box()
+
+
+
+
 
 
 ###########################################################################################
@@ -901,7 +1003,7 @@ ht_trend<-round(compute_holding_time_func(hp_trend)$ht,2)
 
 
 ###################################################
-### Replicate fig. 4
+### Replicate fig. 5
 ###################################################
 
 par(mfrow=c(1,2))
@@ -934,7 +1036,7 @@ box()
 
 
 ###################################################
-### Replicate fig. 5
+### Replicate fig. 6
 ###################################################
 
 
@@ -1032,7 +1134,7 @@ box()
 
 
 ###################################################
-### Replicate fig.6
+### Replicate fig.7
 ###################################################
 par(mfrow=c(1,1))
 mplot<-cbind(mat_shift_hp[,1],mat_shift_SSA)
@@ -1081,7 +1183,7 @@ mat_sh
 
 
 ###################################################
-### Replicate fig. 7
+### Replicate fig. 8
 ###################################################
 x<-nber_dates_polygon(start_date,series_level)$x
 y<-nber_dates_polygon(start_date,series_level)$y
@@ -1103,7 +1205,7 @@ tsdiag(a_obj)
 
 
 ###################################################
-### Replicate fig. 8
+### Replicate fig. 9
 ###################################################
 # Load full data-set
 par(mfrow=c(2,1))
@@ -1115,7 +1217,7 @@ polygon(x_trend, y_trend, xpd = T, col = "grey",density=10)#
 
 
 ###################################################
-### Replicate fig. 9
+### Replicate fig. 10
 ###################################################
 # Load full data-set
 par(mfrow=c(2,2))
@@ -1361,7 +1463,7 @@ time_cross_mat_final
 aggregate_time_cross_mat_final
 
 ###################################################
-### Replicate fig. 10
+### Replicate fig. 11
 ###################################################
 par(mfrow=c(1,2))
 plot(cumsum(tau_vec_long_mid),type="l",axes=F,xlab="Number of crossings",ylab="Cumulated shift",main=paste(" HP-trend vs. ",colnames(filter_mat)[4],sep=""),col=colo_SSA[2])
