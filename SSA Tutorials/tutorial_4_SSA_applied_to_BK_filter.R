@@ -150,7 +150,8 @@ lines(cycle[2:length(cycle)],col="red")
 # We first compute the holding-time of the BK-filter (as applied to noise i.e. differenced data)
 
 ht_bk_diff_obj<-compute_holding_time_func(bk_diff)
-# Large holding-time: the filter is much smoother than Hamilton-Filter (tutorial 3) or concurrent HP (tutorial 2) 
+# Large holding-time: the filter is much smoother than Hamilton-Filter (tutorial 3) or concurrent HP (tutorial 2.0)
+#   -The original HP-gap or the transformed HP-trend are high-pass filters: in contrast to BK they do not damp high-frequency components (of data in levels)
 ht_bk_diff_obj$ht 
 # But the empirical holding time is even longer
 compute_empirical_ht_func(cycle_diff)
