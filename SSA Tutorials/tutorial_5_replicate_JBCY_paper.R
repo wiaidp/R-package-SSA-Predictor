@@ -12,6 +12,11 @@ library(xts)
 # HP and BK filters
 library(mFilter)
 
+library(ggplot2)
+library("gplots")
+
+
+
 # Load all relevant SSA-functions
 source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
 # Load tau-statistic: quantifies time-shift performances (lead/lag)
@@ -440,7 +445,6 @@ if (recompute_results)
 # Optimal regularization: SSA vs HP (Whittaker Henderson smoothing assuming d=2)
 
 L<-401
-
 HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
 # Bi-infinite HP
 hp_target=HP_obj$target
@@ -453,6 +457,7 @@ delta<--(L-1)/2
 SSA_obj<-SSA_func(L,delta,gamma_target,rho1)
 
 bk_mat<-SSA_obj$ssa_x
+par(mfrow=c(1,1))
 ts.plot(SSA_obj$ssa_x)
 SSA_obj$crit_rhoy_target
 SSA_obj$crit_rhoyz
