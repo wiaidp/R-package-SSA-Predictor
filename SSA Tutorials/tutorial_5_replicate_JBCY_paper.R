@@ -54,6 +54,8 @@ hp_mse=HP_obj$hp_mse
 htrho_obj<-compute_holding_time_func(hp_trend)
 rho_hp<-htrho_obj$rho_ff1
 ht_hp<-htrho_obj$ht
+ht_hp_two<-compute_holding_time_func(hp_target)$ht
+
 
 
 #---------------------
@@ -429,8 +431,110 @@ if (recompute_results)
 }
 
 
+
+
+#####################################################
+# Replicate Fig.3 in section 2.4
+##################################################
+
+# Optimal regularization: SSA vs HP (Whittaker Henderson smoothing assuming d=2)
+
+L<-401
+
+HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
+# Bi-infinite HP
+hp_target=HP_obj$target
+
+rho1<-compute_holding_time_func(hp_target)$rho_ff1
+ht1<-compute_holding_time_func(hp_target)$ht
+gamma_target<-1
+L<-401
+delta<--(L-1)/2
+SSA_obj<-SSA_func(L,delta,gamma_target,rho1)
+
+bk_mat<-SSA_obj$ssa_x
+ts.plot(SSA_obj$ssa_x)
+SSA_obj$crit_rhoy_target
+SSA_obj$crit_rhoyz
+
+
+lenq<-100000
+set.seed(86)
+x<-rnorm(lenq)
+
+# Apply both two-sided filters to x
+y_ssa<-filter(x,SSA_obj$ssa_x,side=2)
+y_hp_two<-filter(x,hp_target,side=2)
+MSE_scale<-as.double(bk_mat[(L+1)/2]/t(bk_mat)%*%bk_mat)
+
+mse_ssa_smmoth<-mean((x-MSE_scale*y_ssa)^2,na.rm=T)
+mse_hp_smmoth<-mean((x-y_hp_two)^2,na.rm=T)
+
+filter_mat<-na.exclude(cbind(x,y_ssa,y_hp_two))
+cor(filter_mat)
+
+# Find ht such that tracking ability is the same as HP
+ht1_1<-75
+rho1_1<-compute_rho_from_ht(ht1_1)$rho
+
+SSA_obj_1<-SSA_func(L,delta,gamma_target,rho1_1,xi)
+
+bk_mat_1<-SSA_obj_1$ssa_x
+ts.plot(bk_mat_1)
+SSA_obj_1$crit_rhoy_target
+# This is nearly the same as 
+cor(filter_mat)[1,3]
+
+# Compute squared second order differences: all filters scaled to unit variance
+mplot<-scale(cbind(bk_mat,bk_mat_1,hp_target),center=F,scale=T)
+yhat_mat<-NULL
+for (i in 1:ncol(mplot))
+  yhat_mat<-cbind(yhat_mat,filter(x,mplot[,i],side=2))
+tail(yhat_mat)
+colnames(yhat_mat)<-c(paste("SSA(",round(ht1,2),",",delta,")",sep=""),paste("SSA(",round(ht1_1,2),",",delta,")",sep=""),"HP")
+# Compute mean squared second order differences: HP minimizes this smoothness measure
+apply(apply(apply(na.exclude(yhat_mat),2,diff),2,diff)^2,2,mean)
+colo<-c("blue","violet","black")
+ts.plot(na.exclude(yhat_mat)[1000:2000,],col=colo)
+abline(h=0)
+
+# Compare autocorrelation functions: SSA slowly decaying
+acf(na.exclude(yhat_mat)[,1],lag.max = 100)
+acf(na.exclude(yhat_mat)[,2],lag.max = 100)
+# HP decays faster, it is cyclical with a half-periodicity of ~57 corresponding to its holding-time
+acf(na.exclude(yhat_mat)[,3],lag.max = 100)
+
+
+# Verify empirical holding-times: SSA equals or outperforms HP, as claimed
+apply(na.exclude(yhat_mat),2,compute_empirical_ht_func)
+# Verify tracking ability: SSA equals or outperforms HP, as claimed
+cor(na.exclude(cbind(x,yhat_mat)))[1,]  
+
+# Figure 3
+# Compare filter coefficients
+par(mfrow=c(1,1))
+coloh<-c("blue","Violet","black")
+plot(mplot[,1],main=paste("Two-sided SSA and HP Smoothers",sep=""),axes=F,type="l",xlab="",ylab="",ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))),col=coloh[1],lwd=2,lty=1)
+mtext(paste("SSA(",round(ht1,2),",",delta,")                  ",sep=""),col=coloh[1],line=-1)
+mtext(paste("SSA(",round(ht1_1,2),",",delta,")                    ",sep=""),col=coloh[2],line=-2)
+lines(mplot[,2],col=coloh[2],lwd=2,lty=1)
+lines(mplot[,3],col=coloh[3],lwd=2,lty=1)
+mtext(paste("HP(",lambda_monthly,")                       ",sep=""),col=coloh[3],line=-3)
+axis(1,at=c(1,50*1:(nrow(mplot)/50)),labels=-((L+1)/2)+1+c(0,50*1:(nrow(mplot)/50)))
+axis(2)
+box()
+
+
+
+
+
+
+
+
+
+
 ######################################################################################################
-### Replicate figure 3 in section 3.1: 
+### Replicate Figs. 4&5 and Tables 5&6 in section 3.2: 
 ####################################################################################################
 
 ht1<-round((acos(2/3)/pi)^{-1},3)
@@ -493,11 +597,7 @@ mplot[,1]<-mplot[,1]*1.441641/mplot[1,1]
 mplot[,2]<-mplot[,2]*1.6178706/mplot[1,2]
 mplot[,3]<-mplot[,3]*2.264349010/mplot[1,3]
 
-
-
-###################################################
-### Figure 3
-###################################################
+# Figure 4
 
 #mplot<-scale(mplot,scale=T,center=F)
 colo<-c("blue","red","violet","black","green")
@@ -592,15 +692,16 @@ mat1<-round(mat_re,2)
 mat1
 
 ###################################################
-### Computations for fig.4 
+### Computations for fig.5 
 ###################################################
 
-compute_length_loop<-T
 # Specify target
 gammak_generic<-rep(1/3,3)
 
 ht<-compute_holding_time_func(gammak_generic)$ht
 
+# Computations are pretty fast (couple seconds): one can set compute_length_loop<-T 
+compute_length_loop<-T
 
 if (compute_length_loop)
 {  
@@ -637,8 +738,13 @@ if (compute_length_loop)
   # Forecast horizon: we remove the artificial shift (L_sym-1)/2 
   colnames(MSE_mat)<-colnames(target_mat)<-delta_vec
   # Save results
-  #  save(MSE_mat,file=paste(getwd(),"/Data/Trilemma_mse_heat_map",sep=""))
-  #  save(target_mat,file=paste(getwd(),"/Data/Trilemma_target_heat_map",sep=""))
+  save(MSE_mat,file=paste(getwd(),"/Data/Trilemma_mse_heat_map",sep=""))
+  save(target_mat,file=paste(getwd(),"/Data/Trilemma_target_heat_map",sep=""))
+} else
+{
+  load(file=paste(getwd(),"/Data/Trilemma_mse_heat_map",sep=""))
+  load(file=paste(getwd(),"/Data/Trilemma_target_heat_map",sep=""))
+  
 }
 # 1. MSE_mat collects the correlations crit_rhoyz of SSA with the causal MSE benchmark predictor of the target
 #   Row names correspond to ht (holding-time constraint)
@@ -661,10 +767,10 @@ colo<-coloh[length(coloh):1]
 heatmap.2(target_mat[nrow(target_mat):1,], dendrogram="none",scale = "none", col = colo,trace = "none", density.info = "none",Rowv = F, Colv = F,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Prediction Trilemma")
 
 ###################################################
-### Replicate fig. 4
+### Replicate fig. 5
 ###################################################
 
-# Figure 4
+# Figure 5
 select_vec<-1:3
 mplot<-target_mat[,select_vec]
 coli<-rainbow(length(select_vec))
@@ -1003,7 +1109,7 @@ ht_trend<-round(compute_holding_time_func(hp_trend)$ht,2)
 
 
 ###################################################
-### Replicate fig. 5
+### Replicate fig. 6
 ###################################################
 
 par(mfrow=c(1,2))
@@ -1036,7 +1142,7 @@ box()
 
 
 ###################################################
-### Replicate fig. 6
+### Replicate fig. 7
 ###################################################
 
 
@@ -1134,7 +1240,7 @@ box()
 
 
 ###################################################
-### Replicate fig.7
+### Replicate fig.8
 ###################################################
 par(mfrow=c(1,1))
 mplot<-cbind(mat_shift_hp[,1],mat_shift_SSA)
@@ -1183,7 +1289,7 @@ mat_sh
 
 
 ###################################################
-### Replicate fig. 8
+### Replicate fig. 9
 ###################################################
 x<-nber_dates_polygon(start_date,series_level)$x
 y<-nber_dates_polygon(start_date,series_level)$y
@@ -1205,7 +1311,7 @@ tsdiag(a_obj)
 
 
 ###################################################
-### Replicate fig. 9
+### Replicate fig. 10
 ###################################################
 # Load full data-set
 par(mfrow=c(2,1))
@@ -1217,7 +1323,7 @@ polygon(x_trend, y_trend, xpd = T, col = "grey",density=10)#
 
 
 ###################################################
-### Replicate fig. 10
+### Replicate fig. 11
 ###################################################
 # Load full data-set
 par(mfrow=c(2,2))
@@ -1463,7 +1569,7 @@ time_cross_mat_final
 aggregate_time_cross_mat_final
 
 ###################################################
-### Replicate fig. 11
+### Replicate fig. 12
 ###################################################
 par(mfrow=c(1,2))
 plot(cumsum(tau_vec_long_mid),type="l",axes=F,xlab="Number of crossings",ylab="Cumulated shift",main=paste(" HP-trend vs. ",colnames(filter_mat)[4],sep=""),col=colo_SSA[2])
