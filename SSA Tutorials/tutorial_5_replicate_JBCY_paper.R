@@ -705,52 +705,40 @@ gammak_generic<-rep(1/3,3)
 
 ht<-compute_holding_time_func(gammak_generic)$ht
 
-# Computations are pretty fast (couple seconds): one can set compute_length_loop<-T 
-compute_length_loop<-T
-
-if (compute_length_loop)
-{  
-  # Compute SSA and MSE for a selection of ht
-  ht_vec<-seq(max(2,ht/4), 5*ht, by = 0.1)
-  # Compute SSA and MSE for a selection of forecasts horizons
-  # Note: we must shift the causal symmetric HP by (L_sym-1)/2 to the left in order to obtain the acausal two-sided target
-  delta_vec<-0:2
+# Compute SSA and MSE for a selection of ht
+ht_vec<-seq(max(2,ht/4), 5*ht, by = 0.1)
+# Compute SSA and MSE for a selection of forecasts horizons
+# Note: we must shift the causal symmetric HP by (L_sym-1)/2 to the left in order to obtain the acausal two-sided target
+delta_vec<-0:2
   
-  pb = txtProgressBar(min = 0, max = length(ht_vec), initial = 0,style=3) 
+pb = txtProgressBar(min = 0, max = length(ht_vec), initial = 0,style=3) 
   
-  MSE_mat<-target_mat<-matrix(ncol=length(delta_vec),nrow=length(ht_vec))
-  # Loop through all combinations of ht and forecast horizon: compute the SSA filter and collect 
-  #   crit_rhoy_target (correlation of SSA with effective target) as well as crit_rhoyz (correlation with causal MSE benchmark)  
-  for (i in 1:length(ht_vec))
-  {
-    setTxtProgressBar(pb,i)
-    for (j in 1:length(delta_vec))
-    {  
-      rho1<-rho1<-compute_rho_from_ht(ht_vec[i])
-      forecast_horizon<-delta_vec[j]
-      # Skip xi: we assume white noise    
-      SSA_obj_HP<-SSA_func(L,forecast_horizon,gammak_generic,rho1)
-      # Correlation with (caual) MSE predictor: this is the preferred measure here because we can benchmark SSA
-      #   directly against MSE 
-      MSE_mat[i,j]<-SSA_obj_HP$crit_rhoyz
-      # Or correlation with (acausal) target 
-      target_mat[i,j]<-SSA_obj_HP$crit_rhoy_target
-    }
-  }
-  close(pb)
-  # Row-names correspond to holding-times; column-names are forecast horizons  
-  rownames(MSE_mat)<-rownames(target_mat)<-round(ht_vec,2)
-  # Forecast horizon: we remove the artificial shift (L_sym-1)/2 
-  colnames(MSE_mat)<-colnames(target_mat)<-delta_vec
-  # Save results
-  save(MSE_mat,file=paste(getwd(),"/Data/Trilemma_mse_heat_map",sep=""))
-  save(target_mat,file=paste(getwd(),"/Data/Trilemma_target_heat_map",sep=""))
-} else
+MSE_mat<-target_mat<-rho1_mat<-matrix(ncol=length(delta_vec),nrow=length(ht_vec))
+# Loop through all combinations of ht and forecast horizon: compute the SSA filter and collect 
+#   crit_rhoy_target (correlation of SSA with effective target) as well as crit_rhoyz (correlation with causal MSE benchmark)  
+for (i in 1:length(ht_vec))
 {
-  load(file=paste(getwd(),"/Data/Trilemma_mse_heat_map",sep=""))
-  load(file=paste(getwd(),"/Data/Trilemma_target_heat_map",sep=""))
-  
+  setTxtProgressBar(pb,i)
+  for (j in 1:length(delta_vec))
+  {  
+    rho1<-rho1<-compute_rho_from_ht(ht_vec[i])
+    forecast_horizon<-delta_vec[j]
+# Skip xi: we assume white noise    
+    SSA_obj_HP<-SSA_func(L,forecast_horizon,gammak_generic,rho1)
+# Correlation with (caual) MSE predictor: this is the preferred measure here because we can benchmark SSA
+#   directly against MSE 
+    MSE_mat[i,j]<-SSA_obj_HP$crit_rhoyz
+# Or correlation with (acausal) target 
+    target_mat[i,j]<-SSA_obj_HP$crit_rhoy_target
+# Lag-one acf of optimum: could have been computed directly from ht_vec 
+    rho1_mat[i,j]<-SSA_obj_HP$crit_rhoyy
+  }
 }
+close(pb)
+# Row-names correspond to holding-times; column-names are forecast horizons  
+rownames(MSE_mat)<-rownames(target_mat)<-rownames(rho1_mat)<-round(ht_vec,2)
+# Forecast horizon: we remove the artificial shift (L_sym-1)/2 
+colnames(MSE_mat)<-colnames(target_mat)<-colnames(rho1_mat)<-delta_vec
 # 1. MSE_mat collects the correlations crit_rhoyz of SSA with the causal MSE benchmark predictor of the target
 #   Row names correspond to ht (holding-time constraint)
 #   Column names correspond to the forecast horizon: from a nowcast up to 24-steps ahead
@@ -761,13 +749,11 @@ tail(MSE_mat)
 #   Naturally, these correlations are smaller than in MSE_mat 
 head(target_mat)
 tail(target_mat)
+# 3. Lag-one acf (this could have been computed directly from ht_vec)
+head(rho1_mat)
+tail(rho1_mat)
 #---------------------------------------
 
-
-
-lcol<-100
-coloh<-rainbow(lcol)[1:(10*lcol/11)]
-colo<-coloh[length(coloh):1]
 # Heat-map of correlations with acausal (effective) target
 heatmap.2(target_mat[nrow(target_mat):1,], dendrogram="none",scale = "none", col = colo,trace = "none", density.info = "none",Rowv = F, Colv = F,ylab="Smoothness: holding time",xlab="Timeliness: forecast horizon",main="Prediction Trilemma")
 
@@ -780,7 +766,7 @@ select_vec<-1:3
 mplot<-target_mat[,select_vec]
 coli<-rainbow(length(select_vec))
 par(mfrow=c(1,1))
-plot(mplot[,1],col=colo,ylim=c(min(mplot),max(mplot)),axes=F,type="l",xlab="Holding time",ylab="Correlation",main="Prediction Trilemma")
+plot(mplot[,1],col=coli[1],ylim=c(min(mplot),max(mplot)),axes=F,type="l",xlab="Holding time",ylab="Correlation",main="Prediction Trilemma")
 mtext(paste("Forecast horizon ",colnames(MSE_mat)[select_vec[1]],sep=""),col=coli[1],line=-1)
 if (length(select_vec)>1)
   for (i in 2:length(select_vec))
