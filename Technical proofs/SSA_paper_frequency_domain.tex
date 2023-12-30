@@ -1,0 +1,895 @@
+% -*- mode: noweb; noweb-default-code-mode: R-mode; -*-
+\documentclass[a4paper]{article}
+
+\title{Mean-Square Error, Zero-Crossings, Sign Accuracy and a Holding-Time Constraint: a Generalized Forecast Approach}
+%\author{Marc Wildi}
+
+
+\usepackage{a4wide}
+\usepackage{amsmath}
+\usepackage{amsfonts} 
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{float}
+\newtheorem{Proposition}{Proposition}
+\newtheorem{Corollary}{Corollary}
+\newtheorem{Theorem}{Theorem}
+\DeclareMathOperator{\sign}{sign}
+%- Makes the section title start with Appendix in the appendix environment
+\newcommand{\Appendix}
+{%\appendix
+\def\thesection{Appendix~\Alph{section}}
+%\def\thesubsection{\Alph{section}.\arabic{subsection}}
+\def\thesubsection{A.\arabic{subsection}}
+}
+
+\usepackage{Sweave}
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent 
+
+
+
+
+
+
+
+We propose a  generic forecast approach which merges various facets of the prediction problem in terms of mean-square error, sign-accuracy, zero-crossings and smoothness. The latter is formalized by a novel holding-time constraint which conditions the frequency of sign-changes by the predictor. Zero-crossings or sign-changes of a time series can be influential in the decision-making, for e.g. economic actors, by marking transitions between up- and down-turns, expansions and recessions, bull and bear markets, and our forecast approach contributes to such a design of the predictor. The solution to this problem has a simple structural form which allows for a comprehensive analysis of regular, boundary and singular cases as well as for a straightforward derivation of the predictor's distribution. Despite its actual simplicity, the predictor is feature-rich, as illustrated by a series of reproducible examples.   
+
+
+
+
+
+
+
+\end{abstract}
+
+
+
+
+
+
+
+
+%\tableofcontents
+
+\section{Introduction}
+
+Caveats
+\begin{itemize}
+\item This is a working paper version.
+\item Section 2 is outdated: it is OK  but newer versions are available with better explanations/story telling.
+\item The merits of this paper are twofold: 
+\begin{itemize}
+\item Complete(d) theoretical results, including regular and singular cases. Proofs were checked by third parties as well as by own (R-) code.  
+\item The empirical section explores various facets of the prediction problem, including regular and singular cases.
+\end{itemize}
+\end{itemize}
+
+
+
+
+Time series forecasting aims at a coherent analysis of the main systematic dynamics of a phenomenon in view of synthesizing information about future events. Typically, the forecast process is structured by a formal optimality concept, whereby a particular forecast-error measure, such as e.g. the mean-square error (MSE), is minimized. We here argue that multiple and various characteristics of a predictor might draw attention such as the smoothing capability, i.e. the extent by which undesirable 'noisy' components of a time series are suppressed, or timeliness, as measured by relative lead or lag properties of a predictor, or sign accuracy and zero-crossings, as measured by the ability to predict the correct sign of a target. For that purpose, we here propose a generic forecast approach, referred to as simple sign-accuracy (SSA), by merging sign-accuracy and MSE performances subject to a holding-time constraint which  determines the expected number of zero-crossings of the predictor in a time interval of given length. Zero-crossings (of the growth-rate) of a time series are influential in the decision-making, for e.g. economic actors, by marking transitions between up- and down-turns, expansions and recessions, bull and bear markets, and our forecast approach contributes to such a design of the predictor. % in terms of an interpretable hyper-parameter. % While a comprehensive and formal treatment of timeliness must be deferred, corresponding issues will be considered indirectly, via an additional and interpretable tuning- or hyper-parameter, and performances in terms of leads or lags will be measured accordingly. %Some of our examples illustrate that classic predictors can be outperformed both in terms of smoothness and timeliness at once.       
+%We here combine mean-square error (MSE) performances, sign accuracy, zero-crossings and smoothness characteristics in a common formal framework under suitable assumptions about the data-generating process. % and defer a lengthier theoretical treatment of timeliness which will be considered from a purely descriptive perspective, only. 
+McElroy and Wildi (2019) propose an alternative methodological framework for addressing specific facets of the forecast problem but their approach does not account for zero-crossings explicitly which may be viewed as a shortcoming in some applications. Wildi (2023) proposes an application of SSA to a (real-time) business-cycle analysis, but the chosen treatment remains  largely informal. We here fill this gap by providing a complete formal treatment, including regular, singular and boundary cases, a discussion of numerical aspects as well as a derivation of the sample distribution of the predictor together with a comprehensive illustration of technical  features and peculiarities of the approach. \\
+
+    
+The analysis of zero-crossings has been pioneered by Rice (1944). Kedem (1986) and Barnett (1996) extend the concept to exploratory and inferential statistics and a theoretical overview is provided by Kratz (2006). Application fields are various in electronics and image processing, process discrimination, pattern detection in speech, music, or radar screening. However, in contrast to the analysis of current or past events, we here emphasize foremost a prospective prediction perspective. \\
+
+
+
+The optimization criterion is derived in section \ref{zc} with a discussion of robustness and extensions of the basic methodological framework (BMF); solutions of the criterion are proposed in section \ref{theorem_SSA} with a discussion of boundary and singular cases, numerical aspects as well as the sample distribution of the estimate; section \ref{examples} illustrates applications such as ordinary forecasting, elements of signal extraction and filtering, resilience against departures from the BMF, smoothing and 'un-smoothing', a smoothness-timeliness dilemma, multiplicity and uniqueness features as well as a fully fleshed-out singular case. All empirical examples are reproducible in an open source R-package (include link to Github). Finally, section \ref{conclusion} concludes by summarizing our main findings. 
+
+
+
+
+
+
+
+
+
+\section{Simple Sign-Accuracy (SSA-) Criterion} \label{zc}
+
+
+
+
+
+\subsection{Introduction}
+
+
+We propose a simple BMF for presentation of our main results. Specifically, let 
+$\epsilon_t, t \in \mathbb{Z}$, be Gaussian standard white noise\footnote{Since zero-crossings of zero-mean stationary processes are insensitive to the scaling, our approach is insensitive to $\sigma^2$: for simplicity, we will assume $\sigma^2=1$ if not stated otherwise.} and let $\gamma_k\in \mathbb{R}$ for $k \in \mathbb{Z}$ be a square summable sequence $\sum_{k=-\infty}^{\infty}\gamma_k^2<\infty$. Then $z_t=\sum_{k=-\infty}^{\infty}\gamma_k \epsilon_{t-k}$ is a stationary Gaussian zero-mean process with variance $\sum_{k=-\infty}^{\infty}\gamma_k^2$. We  consider estimation of $z_{t+\delta}$, $\delta \in \mathbb{Z}$, referred to as the \emph{target}, based on the predictor $y_t:=\sum_{k=0}^{L-1}b_{k}\epsilon_{t-k}$, where $\mathbf{b}:=(b_k)_{0\leq k\leq L-1}$ are the coefficients of a finite-length one-sided causal filter: in applications we can set $L=T$, where $T$ is the sample-size, see below for further discussion about the selection of $L$. This problem is commonly referred to as fore-, now- or backcast, depending on $\delta>0$, $\delta=0$ or $\delta<0$. For illustration, let $z_t=\epsilon_t+\epsilon_{t-1}+\epsilon_{t-2}$ be an MA(2)-process and consider a one-step ahead forecast $\hat{z}_{t+1}=y_t=\sum_{k=0}^{L-1}b_{k}\epsilon_{t-k}$ of $z_{t+1}$, see section \ref{one_step_fore} for background. In this case, $\gamma_k=\left\{\begin{array}{cc}1&0\leq k\leq 2\\0&\textrm{otherwise}\end{array}\right.$, $\delta=1$, $y_t=\epsilon_{t}+\epsilon_{t-1}$, $b_0=b_1=1$ and $L=2$. While classic MSE-predictors can be obtained straightforwardly, at least in this particular case, we here consider a generalization of the MSE-paradigm emphasizing alternative forecast priorities, see section \ref{mse_sa_zc} for exposition. % i.e. $\mathbf{b}$ is determined by a novel criterion generalizing a strict MSE-perspective. 
+Departures from the Gaussian assumption will be discussed in sections \ref{mse_sa_zc} and \ref{resil} and an extension to autocorrelated stationary $x_t$ such that 
+\begin{eqnarray}\label{form_prob}
+z_t=\sum_{k=-\infty}^{\infty}\gamma_k x_{t-k}~, ~x_t=\sum_{k=0}^{\infty}\xi_k\epsilon_{t-k}
+\end{eqnarray}
+is proposed in section \ref{ext_stat} with applications in section \ref{examples}: the coefficients $\xi_k$ in \ref{form_prob} are related to the (purely non-deterministic) Wold-decomposition of $x_t$. In this more general framework, the above MA(2)-forecast problem can be expressed alternatively by stipulating $\gamma_k=\left\{\begin{array}{cc}1~,&k=0\\0~,&\textrm{otherwise}\end{array}\right.~\textrm{and}~\xi_k=\left\{\begin{array}{cc}1~,&k=0,1,2\\0~,&\textrm{otherwise}\end{array}\right.$. The BFM corresponds to $\xi_k=\left\{\begin{array}{cc}1~,&k=0\\0~,&\textrm{otherwise}\end{array}\right.$ and its extension by \ref{form_prob} addresses more specifically signal extraction, whereby a particular acausal filter $\boldsymbol{\gamma}=(\gamma_k)_{|k|<\infty}$ is applied to an  autocorrelated time series $x_t$ in order to extract pertinent 'components'\footnote{In principle, \ref{form_prob} could be extended to non-stationary integrated $x_t$ but we shall mainly consider 'stationary' data, for reasons to be explained below. In any case, our procedure could be applied to suitably differenced data and then transformed back via integration to original levels.}. For illustration, Wildi (2023)  considers application of a bi-infinite symmetric HP-filter $\gamma_k^{HP}$, see Hodrick and Prescott (1997), to log-returns $x_t=\log(u_t)-\log(u_{t-1})$ of a monthly macro-indicator $u_t$ and the 'predictor' $y_t=\sum_{k=0}^{L-1}b_{k}x_{t-k}$ of $z_{t+\delta}$ is designed for a nowcast ($\delta=0$) of the cycle $z_t=\sum_{|k|<\infty}\gamma_k^{HP}x_{t-k}$ at the current sample end, $t=T$, see also section \ref{examples} for worked-out examples. %In thi context, we can merge conceptually prediction and signal extraction  and we will often refer to predictors $y_t$ in terms of filters $\mathbf{b}$. 
+To conclude, let us clarify that $x_t$ is the observed data, $z_t$ is a generally unobserved component or filtered version of $x_t$; moreover, we assume $\gamma_k$ and $\xi_j$ in \ref{form_prob} to be known, either 'a priori', for example by selecting a known HP-filter, or because they have been computed in advance, by classic time series analysis techniques. Given \ref{form_prob}, we then here propose a generalized prediction criterion for deriving $\mathbf{b}$ of $y_t$ which merges alternative forecast priorities, including sign-accuracy, mean-square performances and 'smoothness', to be defined below.  
+%In particular, a predictor can be interpreted in terms of a filter which typically, but not always, removes or damps undesirable 'noisy' high-frequency components (lowpass design), see section \ref{examples} for illustration. 
+In any case, the BFM chiefly intends to clarify exposition and to simplify notation in view of highlighting relevant facets of the gereralized prediction problem in a decluttered formal context: extensions will be addressed in sections \ref{mse_sa_zc}, \ref{ext_stat} and \ref{examples}.  
+
+
+
+
+
+
+\subsection{Sign-Accuracy, MSE and Holding-Time}\label{mse_sa_zc}
+
+To begin, we assume pertinence of the basic methodological framework (BMF) and look for an estimate $y_t$ of $z_{t+\delta}$, given data $\epsilon_t,\epsilon_{t-1},...$ and filter-coefficients $\gamma_k, |k|<\infty$, such that the probability P$\Big(\sign(z_{t+\delta})=\sign(y_t)\Big)$ is maximized as a function of $\mathbf{b}$: we refer to this criterion in terms of \emph{sign accuracy} (SA).
+
+\begin{Proposition}
+Under the BMF the sign accuracy  criterion can be stated as
+\begin{eqnarray}\label{opt_crit}
+\max_{\mathbf{b}}\rho(y,z,\delta)
+\end{eqnarray}
+where 
+\[
+\rho(y,z,\delta)=\frac{\sum_{k=0}^{L-1}\gamma_{k+\delta}b_{k}}{\sqrt{\sum_{k=-\infty}^\infty \gamma_k^2}\sqrt{\sum_{k=0}^{L-1}b_k^2}}
+\] 
+is the correlation between $y_t$ and $z_{t+\delta}$. 
+\end{Proposition}
+In the stipulated case of Gaussian random variables a proof follows readily from the identity $P\Big(\sign(z_{t+\delta})=\sign(y_t)\Big)=0.5+\frac{\arcsin(\rho(y,z,\delta))}{\pi}$, relying on strict monotonicity of the non-linear transformation. %Discarding the affine transformation, expression \ref{opt_crit} by monotonicity of $\arcsin()$. %Note that signs, zero-crossings or correlations are insensitive to the scalings of $y_t$ or $z_t$. 
+%The MSE-estimate  $\mathbf{b}=\boldsymbol{\gamma}_{\delta}:=(\gamma_{\delta},...,\gamma_{\delta+L-1})'$ is a solution of \ref{opt_crit} 
+We then infer that SA and MSE are equivalent criteria, at least down to an arbitrary scaling of $y_t$ and conditional on the Gaussian assumption.\\
+
+\textbf{Remarks}\\
+We here discard the scaling parameter from further consideration since our approach emphasizes signs, smoothness and timeliness aspects as alternative priorities. In this perspective, predictors that differ by an arbitrary (positive) normalization constant are felt equivalent. Also, computation of the optimal MSE-scaling would be a simple exercise, if needed. Note that classification methods such as e.g. logit models are less suitable for the purpose at hand because fitting the signs $\textrm{sign}(z_{t+\delta})=\pm 1$, instead of the actual observations $z_{t+\delta}$, would result in a loss of efficiency under the premises of the  BMF.\\
+
+% (zero-crossings or correlations are insensitive to arbitrary scalings.\\ %However, we maintain the above formulation which will prove insightful when generalizing the optimization concept.  \\
+Consider now the expected duration between consecutive zero-crossings or sign-changes of the predictor $y_t$, which will be referred to as \emph{holding-time}.
+
+\begin{Proposition}\label{ht_formula}
+Under the BMF the holding-time $ht(y|\mathbf{b})$ of $y_t$ is 
+\begin{eqnarray}\label{ht}
+ht(y|\mathbf{b})=\frac{\pi}{\arccos(\rho(y,y,1))}
+\end{eqnarray}
+where $\rho(y,y,1)=\frac{\sum_{i=1}^{L-1}b_ib_{i-1}}{\sum_{i=0}^{L-1}b_i^2}$ is the lag-one autocorrelation of $y_t$. 
+\end{Proposition}
+
+A proof is provided by Kedem (1986). We can now formalize the concept of 'smoothness' of a predictor $y_t$ by constraining $\mathbf{b}$ such that
+\begin{equation}\label{ht_const}
+ht(y|\mathbf{b})= ht_1
+\end{equation}
+or, equivalently,
+\begin{equation}\label{ht_const_z}
+\rho(y,y,1)= \rho_1
+\end{equation}
+where $ht_1$ or $\rho_1$, linked through \ref{ht}, are proper hyper-parameters of our design. In the following, we  refer to the 'holding-time' either in terms of $ht(y|\mathbf{b})$ or $\rho(y,y,1)$, clarifying our intent in case of ambiguity. We here argue that the hyper-parameter $ht_1$ is interpretable and can be set a priori, at the onset of an analysis, according to structural elements of a prediction problem. As an example, Wildi (2023) illustrates the proceeding in a business-cycle application, where $ht_1$ matches the length of historical recession episodes. Also, the holding-time could be selected in view of taming the number of unsystematic or noisy crossings (false alarms). Furthermore, if costly strategy-adjustments or behavioral changes take place at zero-crossings, for example in an algorithmic trading framework or for macro-economic policy setting, then cumulated costs of all adjustments, being inversely proportional to $ht_1$, could be  accounted for by a suitable determination of the hyperparameter. Finally, $ht_1$ could be set according to short-, mid- or long-term i.e tactic, strategic or fundamental outlook perspectives. Concerning the proper selection of the holding-time, the following proposition sets limits for admissible constraints in the basic framework.
+
+\begin{Proposition}\label{maxrho}
+Under the BMF, maximal and minimal lag-one autocorrelations $\rho_{max}(L),\rho_{min}(L)$ of $y_t$ are $ \rho_{max}(L)=-\rho_{min}(L)=\cos(\pi/(L+1))$. The corresponding MA-coefficients $b_{max,k}:=\sin\left(\displaystyle{\frac{(1+k)\pi}{L+1}}\right)$, $k=0,...,L-1$, and $b_{min,k}:=(-1)^kb_{max,k}$ are uniquely determined down to arbitrary scaling and sign.  
+\end{Proposition}
+
+We refer to  N. Davies, M. B. Pate and M. G. Frost (1974) for a proof, see also proposition \ref{stationary_eigenvec} further down. 
+%is a hyper-parameter that controls for the \emph{smoothing}-capability of the filter $\mathbf{b}$. %y_t$ by imposing a mean-length between consecutive zero-crossings. 
+Consider now the sign accuracy criterion  \ref{opt_crit} endowed with the holding-time constraint \ref{ht_const_z}:
+\begin{eqnarray}\label{crit1}
+\left.\begin{array}{cc}
+&\max_{\mathbf{b}}\displaystyle{\frac{\sum_{k=0}^{L-1}\gamma_{k+\delta}b_{k}}{\sqrt{\sum_{k=-\infty}^\infty \gamma_k^2}\sqrt{\sum_{k=0}^{L-1}b_k^2}}}\\
+&\displaystyle{\frac{\sum_{k=1}^{L-1}b_{k-1}b_{k}}{\sum_{k=0}^{L-1}b_k^2}=\rho_1}
+\end{array}\right\}
+\end{eqnarray}
+This optimization problem is called \emph{simple sign-accuracy} or SSA-criterion: simplicity here refers to the elementary structure of the predictor, as derived in theorem \ref{lambda}, as well as to the scope of the criterion which does not yet allow for a formal treatment of timeliness or lead/lag issues, see section \ref{time_smooth} for an informal treatment and Wildi (2023) for additional illustration. We allude  to solutions of this criterion by the acronym SSA or SSA($ht_1,\delta$) or SSA($\rho_1,\delta$) to stress the dependence of the predictor on the pair of hyper-parameters, see section \ref{time_smooth} for reference. The SSA-criterion merges MSE, sign accuracy and smoothing requirements in a flexible and consistent way. Departures from the Gaussian assumption can be accommodated in the sense that $y_t$ or $z_t$ can be 'nearly Gaussian' even if $x_t=\epsilon_t$ is not, due to the central limit theorem, see Wildi (2023) for an application to financial data (equity index) and section \ref{resil}. Finally, the  criterion remains appealing outside of a strict holding-time or zero-crossing perspective by complementing the classic predictor with a generic smoothing constraint addressing the lag-one autocorrelation function (acf).        
+%, and the criterion aims at matching 'directly' signs of forecast and of target. In contrast, the sign inference for a logit-model is obtained 'indirectly', via the determination of an additional discrete  decision rule determined typically by the logit-output being above or below a $50\%$ score.}. 
+
+
+\subsection{Extension to Stationary Processes}\label{ext_stat}
+
+Let 
+\begin{eqnarray*}
+x_t&=&\sum_{i=0}^{\infty}\xi_i\epsilon_{t-i}\\
+z_t&=&\sum_{|k|<\infty}\gamma_k x_{t-k}
+\end{eqnarray*} 
+be stationary Gaussian processes and designate by $\xi_i$ the weights of the (purely non-deterministic) Wold-decomposition of $x_t$. %In this general framework, forecasting or signal extraction are obtained by selecting suitable $\delta$ or $\gamma_k$ as shown in the empirical examples below. 
+%The  estimate $y_t=\sum_{k=0}^{L-1}b_kx_{t-k}$ of $z_{t+\delta}$ is then called a forecast, a nowcast or a backcast depending on $\delta>0,\delta=0$ or $\delta<0$. 
+Then target and predictor can be formally re-written as 
+\begin{eqnarray*}
+z_t&=&\sum_{|k|<\infty}(\gamma\cdot\xi)_k \epsilon_{t-k}\\
+y_t&=&\sum_{j\geq 0} (b\cdot\xi)_j\epsilon_{t-j}
+\end{eqnarray*} 
+where $(\gamma\cdot\xi)_k=\sum_{m\leq k} \xi_{k-m}\gamma_m$ and $(b\cdot\xi)_j=\sum_{n=0}^{\min(L-1,j)} \xi_{j-n}b_n $ are convolutions of the sequences $\gamma_k$ and $b_j$ with the Wold-decomposition $\xi_i$ of $x_t$. The SSA-criterion then becomes 
+\begin{eqnarray}\label{gen_stat_x}
+\max_{(\mathbf{b}\cdot\boldsymbol{\xi})}\frac{\sum_{k\geq 0} (\gamma\cdot\xi)_{k+\delta} (b\cdot\xi)_k}{\sqrt{\sum_{|k|<\infty} (\gamma\cdot\xi)_k^2}\sqrt{\sum_{j\geq 0} (b\cdot\xi)_j^2}}\\
+\frac{\sum_{j\geq 1}(b\cdot\xi)_{j-1}(b\cdot\xi)_j}{\sum_{j\geq 0}(b\cdot\xi)_j^2}=\rho_1\nonumber
+\end{eqnarray}
+which can be solved for $(b\cdot\xi)_j, j=0,1,...$, see theorem \ref{lambda}.  The  sought-after filter coefficients $b_k$ can then be obtained from $(b\cdot\xi)_j$ by inversion or deconvolution
+\begin{eqnarray}\label{con_inv}
+b_k=\left\{\begin{array}{cc}(b\cdot\xi)_0/\xi_{0}&,k=0\\
+\frac{(b\cdot\xi)_{k}-\sum_{j=0}^{k-1}\xi_{k-j}b_j}{\xi_0}&k>0\end{array}\right.
+\end{eqnarray}
+assuming $\xi_0\neq 0$. Otherwise, if $\xi_k=0, k=0,...,k_0-1$ and $\xi_{k_0}\neq 0$, then the inversion is initialized with $b_{0}=(b\cdot\xi)_{k_0}/\xi_{k_0}$. Note that non-stationary integrated processes could be addressed in a similar vein, assuming some initialization settings, see e.g. McElroy and Wildi (2020). However, since the concept of a holding-time, i.e. the expected duration between consecutive zero-crossings, would generally not be properly defined anymore, we henceforth assume non-stationary trending data to be suitably transformed or differenced. Also, we refer to standard results in textbooks for a derivation of $\xi_k$ or $\epsilon_t$ based on a finite sample of observations $x_1,...,x_T$, see e.g. Brockwell and Davis (1993): worked-out examples are provided in sections \ref{example_autocor}, \ref{smooth_unsmooth} and \ref{conv_amp}.  Finally, for notational convenience we henceforth rely on the BMF, acknowledging that straightforward modifications would apply in the case of autocorrelation.     
+  %From an empirical perspective, we argue that growth-rates of a wide range of economic time series are in accordance with our simplifying assumption, see e.g. the so-called 'typical spectral shape' of an economic variable in Granger (1966). %To conclude, we note that the procedure could be extended to non-stationary integrated processes. % and its utility would be questionable in the context of suitably transformed  data, typically differences or log-returns, at least if the transformation does not impede the analysis.   % assumption in terms of  conditional heteroscedasticity (vola-clustering) or so-called 'fat tails' (large kurtosis, outliers) is analyzed in section \ref{robustness_SSA}.
+
+
+
+
+
+
+
+
+
+\section{Solution of the SSA-Criterion}\label{theorem_SSA}
+
+
+
+%The structure of the problem is analyzed in section \ref{gen_sol} together with a numerical optimization algorithm and a special case closed-form solution is elaborated in section \ref{ar1closed} . 
+
+%\subsection{General Solution and Numerical Optimization}\label{gen_sol}
+
+The following proposition re-formulates the target specification in terms of the MSE-predictor. 
+\begin{Proposition}
+Under the BMF let $\hat{z}_{t,\delta}=\sum_{k=0}^{L-1}\gamma_{k+\delta}\epsilon_{t-k}=\boldsymbol{\gamma}_{\delta}'\boldsymbol{\epsilon}_{t}$ designate the classic MSE-predictor of $z_{t+\delta}$. Then the original target $z_{t+\delta}$ can be replaced by $\hat{z}_{t,\delta}$ in the SSA-criterion.
+\end{Proposition}
+Proof\\
+
+A proof follows from 
+\begin{eqnarray*}
+&&\textrm{Arg}\left(\max_{\mathbf{b}}\rho(y,\hat{z},\delta)|\rho_1\right)=
+\textrm{Arg}\left(\left.\max_{\mathbf{b}}\frac{\sum_{k=0}^{L-1}b_k\gamma_{k+\delta}}{\sqrt{\sum_{k=0}^{L-1}b_k^2}\sqrt{\sum_{k=0}^{L-1}\gamma_{k+\delta}^2}}\right|{\rho_1}\right)\\
+&=&\textrm{Arg}\left(\left.\max_{\mathbf{b}}\frac{\sum_{k=0}^{L-1}b_k\gamma_{k+\delta}}{\sqrt{\sum_{k=0}^{L-1}b_k^2}\sqrt{\sum_{k=-\infty}^{\infty}\gamma_{k+\delta}^2}}\right|{\rho_1}\right)=\textrm{Arg}\left(\max_{\mathbf{b}}\rho(y,{z},\delta)|\rho_1\right)
+\end{eqnarray*}
+where $\cdot|\rho_1$ denotes conditioning, subject to the holding-time constraint, and $\textrm{Arg}(\cdot)$ means the solution or argument of the optimization. \\
+
+The proposition suggests that the SSA-predictor $y_t$ should 'fit' the MSE-predictor $\hat{z}_{t,\delta}$ while complying with the holding-time constraint: if $\hat{z}_{t,\delta}$ matches the constraint then SSA and MSE coincide, up to arbitrary scaling, and the constraint could be dropped (so-called 'degenerate' case, see second regularity assumption of theorem \ref{lambda} below). Therefore, we henceforth refer to $\hat{z}_{t,\delta}$ (or $\boldsymbol{\gamma}_{\delta}$) as an equivalent target specification. In the following we assume that $\boldsymbol{\gamma}_{\delta}\neq 0$, see also the first regularity assumption of theorem \ref{lambda} below. Otherwise, if $\boldsymbol{\gamma}_{\delta}=0$, then $\rho(y,z,\delta)=0$ for all $\mathbf{b}$ i.e. the objective function of the SSA-criterion would vanish irrespective of $y_t$ and therefore the SSA-solution would not be properly identified anymore: all $\mathbf{b}\in \mathbb{R}^{L}$ would be equally valid or invalid 'solutions'.  \\
+
+Consider next the so-called autocovariance-generating matrix
+\[
+M=\left(\begin{array}{ccccccccc}0&0.5&0&0&0&...&0&0&0\\
+0.5&0&0.5&0&0&...&0&0&0\\
+...&&&&&&&&\\
+0&0&0&0&0&...&0.5&0&0.5\\
+0&0&0&0&0&...&0&0.5&0
+\end{array}\right)
+\]
+of dimension $L*L$ so that $\rho(y,y,1)=\displaystyle{\frac{\mathbf{b'Mb}}{\mathbf{b'b}}}$. The following proposition relates stationary points of the lag-one autocorrelation $\rho(y,y,1)$ to eigenvectors and eigenvalues of   $\mathbf{M}$. 
+
+
+\begin{Proposition}\label{stationary_eigenvec}
+Under the BMF, the vector $\mathbf{b}:=(b_0,...,b_{L-1})'\neq 0$ is a stationary point of the lag-one autocorrelation $\rho(y,y,1)=\displaystyle{\frac{\mathbf{b'Mb}}{\mathbf{b'b}}}$ if and only if $\mathbf{b}$ is an eigenvector of the autocovariance-generating matrix 
+with corresponding eigenvalue $\rho(y,y,1)$. The extremal values $\rho_{min}(L)$ and $\rho_{max}(L)$ defined in proposition \ref{maxrho} correspond to $\min_i\lambda_i$ and $\max_i\lambda_i$ where $\lambda_i$, $i=1,...L$ are the eigenvalues of $\mathbf{M}$. 
+\end{Proposition}
+
+Proof\\
+
+Assume, for simplicity, that $\mathbf{b}\neq\mathbf{0}$ is defined on the unit-sphere so that  
+\begin{eqnarray*}
+\mathbf{b'b}&=&1\\
+\rho(y,y,1)&=&\frac{\mathbf{b'Mb}}{\mathbf{b'b}}=\mathbf{b'Mb}
+\end{eqnarray*}
+A stationary point of $\rho(y,y,1)$ is found by equating the derivative of the Lagrangian $\mathfrak{L}=\mathbf{b'Mb}-\lambda(\mathbf{b'b}-1)$ to zero i.e.
+\[
+\mathbf{Mb}=\lambda\mathbf{b}
+\]
+We deduce that $\mathbf{b}$ is a stationary point if and only if it is an eigenvector of $\mathbf{M}$. Then 
+\[
+\rho(y,y,1)=\frac{\mathbf{b}'\mathbf{Mb}}{\mathbf{b}'\mathbf{b}}=\lambda_i\frac{\mathbf{b}'\mathbf{b}}{\mathbf{b}'\mathbf{b}}=\lambda_i
+\]
+for some $i\in\{1,...,L\}$ and therefore $\rho(y,y,1)$ must be the corresponding eigenvalue, as claimed. Since the  unit-sphere is free of boundary-points we conclude that the extremal values $\rho_{min}(L)$, $\rho_{max}(L)$ must be stationary points i.e. $\rho_{min}(L)=\min_i\lambda_i$ and $\rho_{max}(L)=\max_i\lambda_i$.\\
+
+
+By abuse of terminology we  now identify filter coefficients and corresponding filter outputs (targets or predictors) so that e.g. $y_t$ and $\mathbf{b}$ will  both be referred to as predictor or estimate (and similarly for the target(s)).  
+Let then   $\lambda_{j},\mathbf{v}_{j}$ denote the pairings of eigenvalues and eigenvectors of $\mathbf{M}$, ordered according to the increasing size of $\lambda_{j}=-\cos(\omega_j)$, where $\omega_j=j\pi /(L+1)$ are the discrete Fourier frequencies see e.g. Anderson (1975), 
+and let $\mathbf{V}$ designate the orthonormal basis of $\mathbb{R}^{L}$ based on the (Fourier) column-vectors $\mathbf{v}_j$, $j=1,...,L$. We then consider  the spectral decomposition of the target $\boldsymbol{\gamma}_{\delta}\neq \mathbf{0}$   
+\begin{equation}\label{specdec}
+\boldsymbol{\gamma}_{\delta}=\sum_{i=n}^{m}w_i\mathbf{v}_i=\mathbf{V}\mathbf{w}
+\end{equation}
+with (spectral-) weights $\mathbf{w}=(w_1,...,w_L)'$,  where $1\leq n\leq m \leq L$ and  $w_{m}\neq 0,w_n\neq 0$. %If $n=m$ then $\boldsymbol{\gamma}_{\delta}=w_n\mathbf{v}_n$ is an eigenvector of $\mathbf{M}$. 
+If $n>1$ or $m<L$ then $\boldsymbol{\gamma}_{\delta}$ is called \emph{band-limited}. Also, we refer to $\boldsymbol{\gamma}_{\delta}$ as having \emph{complete} (or \emph{incomplete}) spectral support depending on $w_i\neq 0$ for $i=1,...,L$ (or not). %: a band-limited target has incomplete spectral support but the converse does not hold, in general. 
+Finally, denote by $NZ:=\{i|w_i\neq 0\}$ the set of indexes of  non-vanishing weights $w_i$ so that $NZ=\{1,2,...,L\}$ or $NZ\subset \{1,2,...,L\}$ depending on $\boldsymbol{\gamma}_{\delta}$ having complete or incomplete spectral support. The following theorem derives a parametric functional form of the SSA solution under various assumptions about the problem specification.
+
+
+\begin{Theorem}\label{lambda}
+Consider the SSA optimization problem \ref{crit1} under the BMF and consider the following set of regularity assumptions:
+\begin{enumerate}
+\item $\boldsymbol{\gamma}_{\delta}\neq 0$ (identifiability) and $L\geq 3$ (smoothing).
+%\item $\mathbf{b}$ is not an eigenvector of $\mathbf{M}$% $\rho_1\neq \lambda_{i_0N}$ for all $i_0$ such that $w_{i_0}\neq 0$ in the spectral decomposition \ref{specdec} of $\boldsymbol{\gamma}_{\delta}$ (indeterminacy)
+\item The SSA estimate $\mathbf{b}$ is not proportional to $\boldsymbol{\gamma}_{\delta}$, denoted by $\mathbf{b}\not\propto\boldsymbol{\gamma}_{\delta}$ (non-degenerate case).
+\item $|\rho_1|<\rho_{max}(L)$ (admissibility of the holding-time constraint).%\footnote{In the non-degenerate case $n\neq m$, see the proof of the theorem. Furthermore, the eigenvectors $\lambda_{i}$ of $\mathbf{M}$ are pairwise different.}
+\item The MSE-estimate $\boldsymbol{\gamma}_{\delta}$ has complete spectral support (completeness).
+\end{enumerate}
+Then
+\begin{enumerate}
+
+\item \label{ass0}If the third regularity assumption is violated (admissibility) and if $|\rho_1|>\rho_{max}(L)$, then the problem cannot be solved unless the filter-length $L$ is increased such that $|\rho_1|\leq\rho_{max}(L)$. On the other hand, if $\rho_1=\lambda_1=-\rho_{max}(L)$ or $\rho_1=\lambda_L=\rho_{max}(L)$ (limiting cases), then $\textrm{sign}(w_1)\mathbf{v}_{1}$ or $\textrm{sign}(w_L)\mathbf{v}_{L}$ are the corresponding solutions of the SSA-criterion (up to arbitrary scaling), where $w_i$ are the spectral weights in \ref{specdec} and where it is assumed that $w_1\neq 0$, if $\rho_1=\lambda_1$, or $w_L\neq 0$, if $\rho_1=\lambda_L$.   
+
+%\item \label{ass1} If the third assumption (admissibility) does not hold, then $\mathbf{b}=\mathbf{v}_n$ or $\mathbf{b}=\mathbf{v}_m$ with corresponding $\rho_1=\lambda_n$ or $\rho_1=\lambda_m$. In this case the holding-time constraint overrides the criterion and the problem could be addressed by allowing for a larger filter-length $L'>L$.
+\item \label{ass1}If all regularity assumptions hold,  then the SSA-estimate $\mathbf{b}$ has the parametric functional form
+\begin{eqnarray}\label{diff_non_home}
+\mathbf{b}=D\boldsymbol{\nu}^{-1}\boldsymbol{\gamma}_{\delta}=D\sum_{i=1}^L \frac{w_i}{2\lambda_{i}-\nu}\mathbf{v}_{i}
+\end{eqnarray}
+where $D\neq 0$, $\nu\in \mathbb{R}-\{2\lambda_i|i=1,...,L\}$, and $\boldsymbol{\nu}:=2\mathbf{M}-\nu\mathbf{I}$ is an invertible $L*L$ matrix. Although $b_{-1},b_L$ do not explicitly appear in $\mathbf{b}$ it is at least implicitly assumed that $b_{-1}=b_L=0$ (implicit boundary constraints). Furthermore, $\mathbf{b}$ is uniquely determined by the scalar $\nu$, down to the arbitrary scaling term $D$, whereby the sign of $D$ is determined by requiring a positive (SSA-) criterion-value.
+
+
+\item \label{ass3}If all regularity assumptions hold, then the lag-one autocorrelation of $\mathbf{b}$ in \ref{diff_non_home} is 
+\begin{eqnarray}\label{rho_fd}
+\rho(\nu):=\rho(y(\nu),y(\nu),1)=\frac{\mathbf{b}'\mathbf{Mb}}{\mathbf{b}'\mathbf{b}}=\frac{\sum_{i=1}^L\lambda_{i}w_i^2\frac{1}{(2\lambda_{i}-\nu)^2}}{\sum_{i=1}^Lw_i^2\frac{1}{(2\lambda_{i}-\nu)^2}}
+\end{eqnarray}
+and $\nu=\nu(\rho_1)$ can always be selected such that the SSA-solution $\mathbf{b}=\mathbf{b}(\nu(\rho_1))$ in \ref{diff_non_home} complies with the holding-time constraint.
+
+\item \label{ass4} For $\nu\in\{x||x|>2\rho_{max}(L)\}$ %and if the vector $\boldsymbol{\gamma}_{\delta}$ with components $\gamma_{k+\delta}, k=0,...,L-1$ is not an eigenvector of $\mathbf{M}$ 
+the lag-one ACF $\rho(\nu)$ defined in \ref{rho_fd} is a bijective function of $\nu$ and the parameter  $\nu$  in \ref{diff_non_home} is determined uniquely by the holding-time constraint $\rho(\nu)=\rho_1$. The function $\rho(\nu)$ is differentiable in $\nu$ and $\partial \rho(\nu)/\partial\nu<0$ so that $\rho(\nu)$is strictly monotonic for $\nu\in\{x|x>2\rho_{max}(L)\}$ or for $\nu\in\{x|x<-2\rho_{max}(L)\}$. 
+\item \label{ass5} For $\nu\in\{x|x>2\rho_{max}(L)\}$ or for $\nu\in\{x|x<-2\rho_{max}(L)\}$ %and if the vector $\boldsymbol{\gamma}_{\delta}$ with components $\gamma_{k+\delta}, k=0,...,L-1$ is not an eigenvector of $\mathbf{M}$ 
+the target correlation $\rho(y(\nu),z,\delta)$, where $y_t(\nu)$ designates the output of the filter $\mathbf{b}=\mathbf{b}(\nu)$ based on \ref{diff_non_home},  is a strictly monotonic function in $\nu$. Moreover, $\rho(y(\nu),z,\delta)$ and $\rho(\nu)$ are linked by 
+\begin{eqnarray}\label{ficcc}
+-\textrm{sign}(\nu)\frac{\partial\rho(y(\nu),z,\delta)}{\partial\nu}=\frac{1}{\left(\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-1}~'\boldsymbol{\nu}^{-1}\boldsymbol{\gamma}_{\delta}\right)^{3/2}\sqrt{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}}\frac{\partial\rho(\nu)}{\partial\nu}<0
+\end{eqnarray} 
+\end{enumerate}
+\end{Theorem}
+
+
+
+Proof\\
+
+The SSA-problem  \ref{crit1} can be rewritten as
+\begin{eqnarray}
+\textrm{max}_{\mathbf{b}}~\boldsymbol{\gamma}_{\delta}'\mathbf{b}&&\nonumber\\
+\mathbf{b}'\mathbf{b}&=&1\nonumber\\
+\mathbf{b}'\mathbf{M}\mathbf{b}&=&\rho_1\label{nonconvex}
+\end{eqnarray}
+where $\mathbf{b}'\mathbf{b}=1$ is an arbitrary scaling rule. 
+Consider the spectral decomposition  
+\begin{eqnarray}\label{specdecdecb}
+\mathbf{b}:=\sum_{i=1}^L\alpha_i\mathbf{v}_i
+\end{eqnarray}
+of $\mathbf{b}$. Since $\mathbf{v}_i$ is an orthonormal basis, the length-constraint $\mathbf{b}'\mathbf{b}=1$ implies $\sum_{i=1}^L\alpha_i^2=1$ (unit-sphere constraint); moreover, from the holding-time constraint and from  orthogonality of $\mathbf{v}_i$  we infer
+\begin{eqnarray*}
+\rho_1=\mathbf{b}'\mathbf{Mb}=\sum_{i=1}^L \alpha_i^2\lambda_i
+\end{eqnarray*}
+so that 
+\begin{eqnarray*}
+\alpha_{j_0}=\pm \sqrt{\frac{\rho_1}{\lambda_{j_0}}-\sum_{k\neq j_0}\alpha_k^2\frac{\lambda_k}{\lambda_{j_0}}}
+\end{eqnarray*}
+where $j_0$ is such that $\lambda_{j_0}\neq 0$\footnote{If $L$ is an even integer, then $\lambda_i\neq 0$ for all $i$, $1\leq i\leq L$. Otherwise, $\lambda_{i_0}=0$ for $i_0=1+(L-1)/2$.}. The SSA-problem can be solved if the hyperbola, defined by the holding-time constraint, intersects the unit-sphere. For this purpose we  plug the former equation into the latter:
+\[
+\alpha_{i_0}^2=1-\sum_{i\neq i_0}\alpha_i^2=1-\left(\frac{\rho_1}{\lambda_{j_0}}-\sum_{k\neq j_0}\alpha_k^2\frac{\lambda_k}{\lambda_{j_0}}\right)-\sum_{i\neq i_0,j_0}\alpha_i^2
+\]
+where $i_0\neq j_0$. 
+Solving for $\alpha_{i_0}$ then leads to
+\begin{eqnarray}\label{ai0}
+\alpha_{i_0}=\pm\sqrt{\frac{\lambda_{j_0}-\rho_1}{\lambda_{j_0}-\lambda_{i_0}}-\sum_{k\neq i_0,k\neq j_0}\alpha_k^2\frac{\lambda_{j_0}-\lambda_k}{\lambda_{j_0}-\lambda_{i_0}}}
+\end{eqnarray}
+Under the limiting cases posited in assertion \ref{ass0} $\rho_1=\lambda_{i_0}$ with either $i_0=1$, i.e. $\rho_1=-\rho_{max}(L)$, or $i_0=L$, i.e. $\rho_1=\rho_{max}(L)$. Let then $i_0=1$ so that \ref{ai0} becomes
+\begin{eqnarray}\label{ai0n}
+\alpha_{1}=\pm\sqrt{1-\sum_{k\neq 1,k\neq j_0}\alpha_k^2\frac{\lambda_{j_0}-\lambda_k}{\lambda_{j_0}-\lambda_{1}}}
+\end{eqnarray}
+Assume also $j_0=2$ (a similar proof can be derived for arbitrary $j_0\geq 2$, see footnote \ref{footnval})
+so that $\lambda_{2}-\lambda_k<0$ in the nominator  and $\lambda_{2}-\lambda_{1}>0$ in the denominator of \ref{ai0n}. Therefore, the term under the square-root is larger than one if $\alpha_k\neq 0$ for some $k>2$ which would imply $|\alpha_{1}|>1$ thus contradicting the unit-sphere constraint\footnote{\label{footnval}Similar contradictions could be derived for any $j_0>1$ since $\left|\frac{\lambda_{j_0}-\lambda_k}{\lambda_{j_0}-\lambda_{i_0}}\right|<1$ if $i_0=1$ so that if any $\alpha_k\neq 0$, for $k\neq 1,j_0$, then equation \ref{ai0} would conflict with the unit-sphere constraint.}. We then deduce $\alpha_k=0$ for $k>2$ so that $\alpha_{1}=\pm 1$ and  $\alpha_{2}=0$ and therefore $\pm \mathbf{v}_1$ are the only admissible potential solutions of the SSA-problem: the contacts of unit-sphere and hyperbola are tangential at the vertices $\pm\mathbf{v}_1$. Since $w_1\neq 0$ by assumption, the solution must be $\mathbf{b}:=\textrm{sign}(w_1)\mathbf{v}_1$ because it maximizes the criterion value $\boldsymbol{\gamma}_{\delta}'\mathbf{b}=\textrm{sign}(w_1)w_1>0$. 
+If $w_1=0$ then the problem is ill-conditioned in the sense that the only possible solutions $\pm \mathbf{v}_1$ do not correlate with the target $z_{t+\delta}$ anymore.  
+Note that  similar reasoning applies if $i_0=L$, setting $j_0=L-1$ in \ref{ai0} and assuming $w_L\neq 0$.\\
+To show the second assertion we now assume that all regularity assumptions hold and we define the Lagrangian function 
+\begin{eqnarray}\label{lag_SSA}
+L:=\boldsymbol{\gamma}_{\delta}'\mathbf{b}-\lambda_1(\mathbf{b}'\mathbf{b}-1)-\lambda_2(\mathbf{b}'\mathbf{M}\mathbf{b}-\rho_1)
+\end{eqnarray}
+By assumption $L\geq 3$ (smoothing) so that $\mathbf{b}$ is defined on a  $L-2\geq 1$ dimensional intersection of unit-sphere and holding-time constraints, as specified by \ref{ai0}. Since this intersection is free of boundary points, the solution $\mathbf{b}$ of the SSA-problem must conform to the stationary Lagrangian or vanishing gradient equations
+\begin{eqnarray}\label{diff_lag}
+\boldsymbol{\gamma}_{\delta}=\lambda_1 2\mathbf{b}+\lambda_2 (\mathbf{M}+\mathbf{M}')\mathbf{b}=\lambda_1 2\mathbf{b}+\lambda_2 2\mathbf{M}\mathbf{b}
+\end{eqnarray}
+Note that the second regularity assumption (non-degenerate case) implies that the holding-time constraint \ref{nonconvex} is 'active' i.e. $\lambda_2\neq 0$.  Dividing by $\lambda_2$ then leads to 
+\begin{eqnarray}\label{diff_non_hom_matrix}
+D\boldsymbol{\gamma}_{\delta}&=& \boldsymbol{\nu}\mathbf{b}\\
+\boldsymbol{\nu}&:=&(2\mathbf{M}-\nu\mathbf{I})\label{labelNu}
+\end{eqnarray}
+where $D=1/\lambda_2$  and $\nu=-2\frac{\lambda_1}{\lambda_2}$. By orthonormality of $\mathbf{v}_i$ the  objective function is
+\[\boldsymbol{\gamma}_{\delta}'\mathbf{b}=\sum_{i=1}^L\alpha_iw_i\]
+where we rely on the spectral decomposition \ref{specdecdecb} of $\mathbf{b}$. 
+By assumption $L\geq 3$ (smoothing) so that $\boldsymbol{\alpha}=(\alpha_1,...,\alpha_L)' $ is defined on a  $L-2\geq 1$ dimensional intersection of unit-sphere and holding-time constraints. We then infer that the objective function is not overruled by the constraint i.e. $|\lambda_2|<\infty$ so that $D\neq 0$ in \ref{diff_non_hom_matrix}, as claimed. Furthermore, equation \ref{diff_non_hom_matrix} can be written as 
+\begin{eqnarray}\label{ar2}
+b_{k+1}-\nu b_k+b_{k-1}&=&D\gamma_{k+\delta}~,~1\leq k\leq L-2\\
+b_{1}-\nu b_0&=&D\gamma_{\delta}~,~k=0\nonumber\\
+-\nu b_{L-1}+b_{L-2}&=&D\gamma_{L-1+\delta}~,~k=L-1\nonumber
+\end{eqnarray}
+for $k=0,...,L-1$ so that $b_{-1}=b_L=0$ are implicitly assumed for the natural extension $(b_{-1},\mathbf{b},b_L)'$ of the time-invariant linear filter. The eigenvalues of $\boldsymbol{\nu}$ are $2\lambda_{i}-\nu$ with corresponding eigenvectors $\mathbf{v}_{i}$.  We note that if $\mathbf{b}$ is the solution of the SSA-problem, then $\nu/2$ cannot be an eigenvalue of $\mathbf{M}$ since otherwise $\boldsymbol{\nu}$ in \ref{diff_non_hom_matrix} would map one of the eigenvectors in the spectral decomposition of $\mathbf{b}$ to zero which would contradict the last regularity assumption (completeness: see corollary \ref{incomplete_spec_sup} for a corresponding extension) since $D\neq 0$. Therefore we can assume that $\boldsymbol{\nu}^{-1}$ exists and
+\[
+\boldsymbol{\nu}^{-1}=\mathbf{V}\mathbf{D}_{\nu}^{-1}\mathbf{V}'
+\] 
+where the diagonal matrix $\mathbf{D}_{\nu}^{-1}$ has entries $\frac{1}{2\lambda_{i}-\nu}$. We can then solve  \ref{diff_non_hom_matrix} for $\mathbf{b}$ and obtain
+\begin{eqnarray}\label{diff_non_hom_matrixe}
+\mathbf{b}&=&D\boldsymbol{\nu}^{-1}\boldsymbol{\gamma}_{\delta}\\
+&=&D\mathbf{V}\mathbf{D}_{\nu}^{-1}\mathbf{V}' \mathbf{V}\mathbf{w}\nonumber\\
+&=&D\sum_{i=1}^L \frac{w_i}{2\lambda_{i}-\nu}\mathbf{v}_{i}\label{specdecb}
+\end{eqnarray}
+where we inserted \ref{specdec}. Since $\boldsymbol{\nu}$ has full rank, the solution of the SSA-problem is uniquely determined by $\nu$, at least down to arbitrary scaling, hereby completing the proof of assertion \ref{ass1}. Note that $\mathbf{b}$ as given by \ref{specdecb} is a linear combination of (Fourier-) eigenvectors $\mathbf{v}_{k}$ of $\mathbf{M}$: the $j-$th component of $\mathbf{v}_k$ is $\sin(kj\pi/(L+1))/\sqrt(\sum_{l=1}^L(\sin(kl\pi/(L+1))^2))$, $j=1,...L$. Therefore, the artificially extended boundary-values of the vectors at $j=0$ and $j=L+1$ vanish thereby confirming the implicit boundary constraints $b_{-1}=b_L=0$ for $\mathbf{b}$ derived above. \\ % is a solution of the homogeneous equation
+%\[
+%\mathbf{b}_1/D_1-\mathbf{b}_2/D_2= \boldsymbol{\nu}^{-1}\mathbf{0}=\mathbf{0}
+%\]
+%so that the (unit vector) solution of the SSA-problem is uniquely identified by $\nu$, hereby completing the proof of assertion \ref{ass1}.\\
+We next proceed to assertion \ref{ass3} and consider
+\begin{eqnarray}
+\rho(\nu)&=&\rho(y(\nu),y(\nu),1)=\frac{\mathbf{b}'\mathbf{M}\mathbf{b}}{\mathbf{b}'\mathbf{b}}\nonumber\\
+&=&\frac{\left(D\sum_{i=1}^L \frac{w_i}{2\lambda_{i }-\nu}\mathbf{v}_i\right)'\mathbf{M}\left(D\sum_{i=1}^L \frac{w_i}{2\lambda_{i }-\nu}\mathbf{v}_i\right)}{\left(D\sum_{i=1}^L \frac{w_i}{2\lambda_{i }-\nu}\mathbf{v}_i\right)'\left(D\sum_{i=1}^L \frac{w_i}{2\lambda_{i }-\nu}\mathbf{v}_i\right)}\nonumber\\
+&=&\frac{\sum_{i=1}^L \displaystyle{\frac{\lambda_{i }w_i^2}{(2\lambda_{i }-\nu)^2}}}{\sum_{i=1}^L \displaystyle{\frac{w_i^2}{(2\lambda_{i }-\nu)^2}}}\label{specdecrho}
+\end{eqnarray}
+where we inserted \ref{specdecb} and made use of orthonormality $\mathbf{v}_i'\mathbf{v}_j=\delta_{ij}$. The last expression implies $\lim_{\nu\to2\lambda_{i }}\rho(\nu)=\lambda_{i }$ for all $i=1,...,L$ such that $\lambda_i\neq 0$. Since  $\lambda_1=-\rho_{max}(L)$ and $\lambda_L=\rho_{max}(L)$, by proposition \ref{stationary_eigenvec}, we infer that lower and upper boundaries $\pm\rho_{max}(L)$ can be reached by $\rho(\nu)$, asymptotically. Continuity of $\rho(\nu)$ and the intermediate-value theorem then imply that any $\rho_1\in ]-\rho_{max}(L),\rho_{max}(L)[$ is admissible for the holding-time constraint under the posited assumptions.\\
+We now proceed to assertion \ref{ass4} by showing that the parameter $\nu$ is determined uniquely by $\rho_1$ in the holding-time constraint if $|\nu|>2\rho_{max}(L)$. Note that all eigenvalues $2\lambda_{i}-\nu$ of ${\boldsymbol{\nu}}$ must be (strictly) negative, if $\nu>2\rho_{max}(L)$, or strictly positive, if $\nu<-2\rho_{max}(L)$, so that all eigenvalues of ${\boldsymbol{\nu}}^{-1}$, being the reciprocals of the former, must be of the same sign, either  all positive or all negative. Finally, the eigenvalues of ${\boldsymbol{\nu}}$ or ${\boldsymbol{\nu}}^{-1}$ must be pairwise different since the eigenvalues of ${\mathbf{M}}$ are so. We then obtain
+\begin{eqnarray}
+\frac{\partial\rho\Big(y(\nu),y(\nu),1\Big)}{\partial\nu}&=&\frac{\partial}{\partial\nu}\left(\frac{\mathbf{b}'\mathbf{Mb}}{\mathbf{b}'\mathbf{b}}\right)=\frac{\partial}{\partial\nu}\left(\frac{\boldsymbol{\gamma}_{\delta}'{\boldsymbol{\nu}}^{-1}~'{\mathbf{M}}{\boldsymbol{\nu}}^{-1}\boldsymbol{\gamma}_{\delta}}{\boldsymbol{\gamma}_{\delta}'{\boldsymbol{\nu}}^{-1}~'{\boldsymbol{\nu}}^{-1}\boldsymbol{\gamma}_{\delta}}\right)=\frac{\partial}{\partial\nu}\left(\frac{\boldsymbol{\gamma}_{\delta}'{\mathbf{M}}{\boldsymbol{\nu}}^{-2}\boldsymbol{\gamma}_{\delta}}{\boldsymbol{\gamma}_{\delta}'{\boldsymbol{\nu}}^{-2}\boldsymbol{\gamma}_{\delta}}\right)\nonumber\\
+&=&\frac{2\boldsymbol{\gamma}_{\delta}'{\mathbf{M}}{\boldsymbol{\nu}}^{-3}\boldsymbol{\gamma}_{\delta}\mathbf{b'}\mathbf{b}/D-(2\mathbf{b}'{\mathbf{M}}\mathbf{b}/D)\boldsymbol{\gamma}_{\delta}'{\boldsymbol{\nu}}^{-3}\boldsymbol{\gamma}_{\delta}}{( (\mathbf{b}'\mathbf{b})^2/D^2)}\nonumber\\
+&=&\frac{2\mathbf{b}'{\mathbf{M}}{\boldsymbol{\nu}}^{-1}\mathbf{b}\mathbf{b'}\mathbf{b}/D^2-2\mathbf{b}'{\mathbf{M}}\mathbf{b}\mathbf{b}'{\boldsymbol{\nu}}^{-1}\mathbf{b}/D^2}{\mathbf{b}'\mathbf{b}/D^2}\nonumber\\
+&=&2\mathbf{b}'{\mathbf{M}}{\boldsymbol{\nu}}^{-1}\mathbf{b}\mathbf{b'}\mathbf{b}-2\mathbf{b}'{\mathbf{M}}\mathbf{b}\mathbf{b}'{\boldsymbol{\nu}}^{-1}\mathbf{b}\label{vgrt2}
+\end{eqnarray}
+where $\boldsymbol{\nu}^{-k}:=(\boldsymbol{\nu}^{-1})^k$, ${\boldsymbol{\nu}}^{-1}~'={\boldsymbol{\nu}}^{-1}$ (symmetry); commutativity of the matrix multiplications (used in deriving the third and next-to-last equations)  follows from the fact that the matrices are symmetric and simultaneously diagonalizable (same eigenvectors); also we relied on generic matrix differentiation rules in the third equation\footnote{$\frac{\partial({\boldsymbol{\nu}}^{-1})}{\partial\nu}={\boldsymbol{\nu}}^{-2}$ and $\frac{\partial({\boldsymbol{\nu}}^{-2})}{\partial\nu}=2{\boldsymbol{\nu}}^{-3}$. For the first equation the general rule is $\frac{\partial(\boldsymbol\nu^{-1})}{\partial\nu}=-\boldsymbol\nu^{-1}\frac{\partial\boldsymbol\nu}{\partial\nu}\boldsymbol\nu^{-1}$, noting that $\frac{\partial\boldsymbol\nu}{\partial\nu}=-\mathbf{I}$. The second equation follows by inserting the first equation into $\frac{\partial(\boldsymbol\nu^{-2})}{\partial\nu}=\frac{\partial(\boldsymbol\nu^{-1})}{\partial\nu}{\boldsymbol{\nu}}^{-1}+{\boldsymbol{\nu}}^{-1}\frac{\partial({\boldsymbol{\nu}}^{-1})}{\partial\nu}$.};  finally we relied on $\mathbf{b}'\mathbf{b}=1$ in the last equation. We can now insert \[{\mathbf{M}}{\boldsymbol{\nu}}^{-1}=\frac{\nu}{2}{\boldsymbol{\nu}}^{-1}+0.5\mathbf{I}\]
+which is a reformulation of $(2{\mathbf{M}}-\nu\mathbf{I}){\boldsymbol{\nu}}^{-1}=\mathbf{I}$  into the first summand  in \ref{vgrt2} to obtain
+\begin{eqnarray*}
+2\mathbf{b}'{\mathbf{M}}{\boldsymbol{\nu}}^{-1}\mathbf{b}\mathbf{b'}\mathbf{b}=\left(\nu\mathbf{b}'{\boldsymbol{\nu}}^{-1}\mathbf{b}+\mathbf{b'}\mathbf{b}\right)\mathbf{b'}\mathbf{b}
+\end{eqnarray*}
+We can now insert this expression into \ref{vgrt2} and isolate $\mathbf{b}'{\boldsymbol{\nu}}^{-1}\mathbf{b}$ to obtain
+\begin{eqnarray}
+\frac{\partial\rho\Big(y(\nu),y(\nu),1\Big)}{\partial\nu}&=&-\mathbf{b}'{\boldsymbol{\nu}}^{-1}\mathbf{b}\left(2\mathbf{b}'\mathbf{{M}b}-\nu\mathbf{b}'\mathbf{b}\right)+(\mathbf{b}'\mathbf{b})^2\nonumber\\
+&=&-\mathbf{b}'{\boldsymbol{\nu}}^{-1}\mathbf{b}\mathbf{b}'\left(2{\mathbf{M}}-\nu{\mathbf{I}}\right)\mathbf{b}+(\mathbf{b}'\mathbf{b})^2\nonumber\\
+&=&-\mathbf{b}'{\boldsymbol{\nu}}^{-1}\mathbf{b}\mathbf{b}'{\boldsymbol{\nu}}\mathbf{b}+(\mathbf{b}'\mathbf{b})^2\nonumber\\
+&=&-\boldsymbol{\gamma}_{\delta}'{\boldsymbol{\nu}}^{-3}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'{\boldsymbol{\nu}}^{-1}\boldsymbol{\gamma}_{\delta}+(\boldsymbol{\gamma}_{\delta}'{\boldsymbol{\nu}}^{-2}\boldsymbol{\gamma}_{\delta})^2\label{negcorlag1}\\
+&=&-\boldsymbol{\gamma}_{\delta}'\mathbf{V}\mathbf{D}^{-3}\mathbf{V}'\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\mathbf{V}\mathbf{D}^{-1}\mathbf{V}'\boldsymbol{\gamma}_{\delta}+(\boldsymbol{\gamma}_{\delta}'\mathbf{V}\mathbf{D}^{-2}\mathbf{V}'\boldsymbol{\gamma}_{\delta})^2\nonumber\\
+&=&-\boldsymbol{\tilde{\gamma}}_{+\delta}'\mathbf{D}^{-3}\boldsymbol{\tilde{\gamma}}_{+\delta}\boldsymbol{\tilde{\gamma}}_{+\delta}'\mathbf{D}^{-1}\boldsymbol{\tilde{\gamma}}_{+\delta}+(\boldsymbol{\tilde{\gamma}}_{+\delta}'\mathbf{D}^{-2}\boldsymbol{\tilde{\gamma}}_{+\delta})^2\nonumber
+\end{eqnarray}
+where ${\boldsymbol{\nu}}^{-k}=\mathbf{V}\mathbf{D}^{-k}\mathbf{V}'$ and $\mathbf{D}^{-k}$, $k=1,2,3$, is diagonal with eigenvalues $\lambda_{i\nu}^{-k}:=(2\lambda_i-\nu)^{-k}$ being all (strictly) positive, 
+if $\nu<-2\rho_{max}(L)$, or either all (strictly) negative or all (strictly) positive depending on the exponent $k$ being odd or even, if $\nu>2\rho_{max}(L)$; also,  $\boldsymbol{\tilde{\gamma}}_{+\delta}=\mathbf{V}'\boldsymbol{{\gamma}}_{+\delta}=(w_1,...,w_L)'$. Therefore
+\begin{eqnarray}
+\frac{\partial\rho\Big(y(\nu),y(\nu),1\Big)}{\partial\nu}&=&-\sum_{j=0}^{L-1}w_j^2\lambda_{j\nu}^{-3}\sum_{j=0}^{L-1}w_j^2\lambda_{j\nu}^{-1}+\left(\sum_{j=0}^{L-1}w_j^2\lambda_{j\nu}^{-2}\right)^2\nonumber\\
+&=&-\sum_{i> k}w_i^2w_k^2 \Big(\lambda_{i\nu}^{-1}\lambda_{k\nu}^{-3}+\lambda_{i\nu}^{-3}\lambda_{k\nu}^{-1}-2\lambda_{i\nu}^{-2}\lambda_{k\nu}^{-2}\Big)\label{dfgtree}
+\end{eqnarray}
+where the terms in $w_j^4$ cancel. Consider now
+\begin{eqnarray}\lambda_{i\nu}^{-1}\lambda_{k\nu}^{-3}+\lambda_{i\nu}^{-3}\lambda_{k\nu}^{-1}-2\lambda_{i\nu}^{-2}\lambda_{k\nu}^{-2}&=&\lambda_{i\nu}^{-1}\lambda_{k\nu}^{-1}\Big(\lambda_{i\nu}^{-2}+\lambda_{k\nu}^{-2}-2\lambda_{i\nu}^{-1}\lambda_{k\nu}^{-1}\Big)=\lambda_{i\nu}^{-1}\lambda_{k\nu}^{-1}\Big(\lambda_{i\nu}^{-1}-\lambda_{k\nu}^{-1}\Big)^{2}~>~0\nonumber
+\end{eqnarray}
+where the strict inequality holds because $\lambda_{i\nu}^{-1}=(2\lambda_i-\nu)^{-1}$ are all of the same sign, pairwise different and non-vanishing if $|\nu|>2\rho_{max}(L)$. Since  $w_i\neq 0$ (last regularity assumption: completeness) we deduce $w_i^2w_k^2\neq 0$ in \ref{dfgtree}. Therefore, the latter expression is strictly negative and we conclude that $\rho\Big(y(\nu),y(\nu),1\Big)$ must be a strictly monotonic function of $\nu$ for $\nu\in\{x|x>2\rho_{max}(L)\}$ or for $\nu\in\{x|x<-2\rho_{max}(L)\}$. In order to show bijectivity for $\nu\in\{x||x|>2\rho_{max}(L)\}$ we note that $\lim_{|\nu|\to\infty}\rho(\nu)=\frac{\sum_{i=1}^L \lambda_{i }w_i^2}{\sum_{i=1}^L w_i^2}$, see \ref{specdecrho} (the limiting value corresponds to the lag-one ACF of the MSE predictor). But $\lim_{\nu\to\infty}\rho(\nu)=\lim_{\nu\to-\infty}\rho(\nu)$ together with $\frac{\partial\rho(\nu)}{\partial\nu}<0$ imply bijectivity for $\nu\in\{x||x|>2\rho_{max}(L)\}$, as claimed.\\
+Finally, we examine assertion \ref{ass5}. % where for simplicity of notation we assume $s^+=1$. Note that if $s^+=1$ then $\nu<0$ cannot change sign (this is because $\rho_{MSE}=\lim_{\nu\to-\infty} \rho(y,z,\delta)=-\lim_{\nu\to\infty} \rho(y,z,\delta)$ for fixed $s^+=1$). 
+First
+\begin{eqnarray*}
+\rho(y(\nu),z,\delta)=\frac{\mathbf{b}'\boldsymbol{\gamma}_{\delta}}{\sqrt{\mathbf{b}'\mathbf{b}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}}=D\frac{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-1}\boldsymbol{\gamma}_{\delta}}{\sqrt{D^2\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}}=
+D\frac{\sum_{i=1}^L \frac{w_i}{2\lambda_{i}-\nu}\mathbf{v}_{i}'\sum_{j=1}^L w_j\mathbf{v}_{j}}{\sqrt{D^2\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}}=\textrm{sign}(D)\frac{\sum_{i=1}^L \frac{w_i^2}{2\lambda_{i}-\nu}}{\sqrt{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}}
+\end{eqnarray*}
+For $\nu<-2\rho_{max}(L)$ the quotient is strictly positive and $\textrm{sign}(D)>0$; for $\nu>2\rho_{max}(L)$ the quotient is strictly negative and $\textrm{sign}(D)<0$. Assume now, that $\nu<-2\rho_{max}(L)$ so that
+\begin{eqnarray*}
+\frac{\partial\rho\Big(y(\nu),z,\delta\Big)}{\partial\nu}&=&\frac{\partial}{\partial\nu}\left(\frac{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-1}\boldsymbol{\gamma}_{\delta}}{\sqrt{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}}\right)\\
+&=&\frac{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}}{\sqrt{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}}-\frac{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-1}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-3}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}{\left(\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}\right)^{3/2}}\\
+&=&\frac{\left(\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\right)^2\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}
+}{\left(\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}\right)^{3/2}}-\frac{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-1}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-3}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}{\left(\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}\right)^{3/2}}\\
+&=&\frac{1}{\left(\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\right)^{3/2}\sqrt{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}} \left\{\left(\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\right)^2-\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-1}\boldsymbol{\gamma}_{\delta}\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-3}\boldsymbol{\gamma}_{\delta}\right\}\\
+&=&\frac{1}{\left(\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\right)^{3/2}\sqrt{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}}\frac{\partial\rho\Big(y(\nu),y(\nu),1\Big)}{\partial\nu}<0
+\end{eqnarray*}
+The last equality is obtained by recognizing that the expression in curly brackets is identical with \ref{negcorlag1}. The inequality follows from the proof of assertion \ref{ass4}, since the scaling term is strictly positive. If $\nu>2\rho_{max}(L)$ the same proof applies, but with changed sign, $\textrm{sign}(D)=1$, and accordingly modified strict inequality, at the end. \\
+
+
+\textbf{Remarks}\\
+Extensions to autocorrelated $x_t$ are straightforward, see section \ref{ext_stat} for background and sections \ref{example_autocor}, \ref{smooth_unsmooth} and \ref{conv_amp} for illustration. Also, Gaussianity is not required in the derivation of the above proof because the SSA-criterion \ref{crit1} relies solely on correlations. The Gaussian hypothesis is needed when  establishing formal links between correlations and sign-accuracy or holding-time concepts but  $y_t$ or $z_t$ can be nearly Gaussian even if $\epsilon_t$ isn't, see also section \ref{resil} for illustration. More generally, the proof applies to constraints of the form $\mathbf{b}'\tilde{\mathbf{M}}\mathbf{b}=c\mathbf{b}'\mathbf{b}$ for arbitrary symmetric $\tilde{\mathbf{M}}$, with pairwise different eigenvalues $\tilde{\lambda}_i$ whereby pairwise difference is required for a proof of the last assertion only. Therefore, more general constraints could be considered, involving e.g. a linear combination of acfs at various lags or the entire spectrum of the process instead of the lag-one holding-time constraint considered here\footnote{Such an extension will become relevant when enrichening the SSA-criterion with additional timeliness or lead-lag requirements, not shown here.}. Note also that the limiting cases $|\nu|\to\infty$ correspond to the degenerate case $\mathbf{b}\propto\boldsymbol{\gamma}_{\delta}$ since then $\boldsymbol{\nu}/\nu\to-\mathbf{I}$ (the 'correct' sign can be accommodated by $D$). Equivalently, the difference-equation \ref{ar2} morphs into an identity, up to arbitrary scaling. Another interesting limiting case occurs when the structure of the prediction problem is such that $\mathbf{b}$ approaches one of the eigenvectors $\mathbf{v}_i$ of $\mathbf{M}$, denoted by $\mathbf{b}\to\mathbf{v}_i$. Then $D\boldsymbol{\gamma}_{\delta}=\boldsymbol{\nu}\mathbf{b}\to(2\lambda_i-\nu)\mathbf{v}_i$. If $\boldsymbol{\gamma}_{\delta}$ is a fixed target with complete spectral support, then we conclude that $|D|\to 0$, since otherwise $D\boldsymbol{\gamma}_{\delta}\to(2\lambda_i-\nu)\mathbf{v}_i$ would imply $w_j=0$ for $j\neq i$. If $|D|\to 0$ then, equivalently,  $|\lambda_2|\to\infty$ which would imply $i=1$ or $i=L$ and $|\rho_1|\to\rho_{max}(L)$\footnote{Indeed, $|\lambda_2|\to\infty$ if and only if the objective function of the SSA-criterion is overruled by the holding-time constraint which happens if and only if $|\rho_1|\to\rho_{max}(L)$ (limiting cases of admissibility). The 'only if' part follows from the fact that if $|\rho_1|\not\to\rho_{max}(L)$, then the intersection of unit-sphere and holding-time hyperbola is a proper subspace of $\mathbb{R}^{L-2}$ so that $\lambda_2$ is bounded.}. %\footnote{The intersection of unit-sphere and holding-time hyperbola is an $L-2\geq 1$ dimensional space and therefore $\lambda_2\to\infty$ implies $|\rho_1|\to\rho_{max}(L)$.}. 
+On the other hand, if $\boldsymbol{\gamma}_{\delta}$ is not fixed and is allowed to approach $\mathbf{v}_i$ too,  denoted by  $\boldsymbol{\gamma}_{\delta}\to\mathbf{v}_i$, and if $|D|\not\to 0$ then $D\boldsymbol{\gamma}_{\delta}=\boldsymbol{\nu}\mathbf{b}\to(2\lambda_i-\nu)\mathbf{b}$ so that $\mathbf{b}\propto \boldsymbol{\gamma}_{\delta}$ (degenerate case) and $\rho_1\to\lambda_i$. %Note that in this particular \emph{singular} degenerate case, $\nu$ can remain bounded, in contrast to the case $|\nu|\to\infty$ discussed above. % (from the previous limiting case we then infer $|D|\to\infty)$. 
+We conclude that if $\mathbf{b}\to\mathbf{v}_i$ then either $i\in\{1,L\}$ and $|\rho_1|\to\rho_{max}(L)$ (boundary cases of admissibility) or $\mathbf{b}\propto\boldsymbol{\gamma}_{\delta}\to \mathbf{v}_i$ and $\rho_1\to\lambda_i$ for $i\in\{2,...,L-1\}$ (asymptotically singular degenerate case with   incomplete spectral support). For $|\nu|>2\rho_{max}(L)$, the proof of assertion \ref{ass5} implies that lag-one ACF $\rho\Big(y(\nu),y(\nu),1\Big)$ and  target correlation $\rho(y(\nu),z,\delta)$ of the SSA-solution $y(\nu)$ are linked by 
+\begin{eqnarray*}
+\frac{\partial\rho\Big(y(\nu),z,\delta\Big)/\partial \nu}{\partial\rho\Big(y(\nu),y(\nu),1\Big)/\partial \nu}&=&-\textrm{sign}(\nu)\frac{1}{\left(\boldsymbol{\gamma}_{\delta}'\boldsymbol{\nu}^{-2}\boldsymbol{\gamma}_{\delta}\right)^{3/2}\sqrt{\boldsymbol{\gamma}_{\delta}'\boldsymbol{\gamma}_{\delta}}}
+\end{eqnarray*}
+where the quotient is well defined due to strict monotonicity.  
+This equality posits a fundamental tradeoff or dilemma of target correlation and lag-one ACF for the SSA-solution: for $\nu>2\rho_{max}(L)$ an increase of  $\rho\Big(y(\nu),y(\nu),1\Big)$ (holding-time) necessarily means a decrease of $\rho\Big(y(\nu),z,\delta\Big)$ (or an increase of the MSE); and inversely for $\nu<-2\rho_{max}(L)$. \\
+
+The case of incomplete spectral support is addressed formally in the following corollary. 
+
+
+
+\begin{Corollary}\label{incomplete_spec_sup}
+Let all regularity assumptions of the previous theorem hold except completeness so that $NZ\subset \{1,...,L\}$ or, stated otherwise, there exists $i_0$ such that $w_{i_0}=0$ in \ref{specdec}. Then:
+\begin{enumerate}
+\item For $\nu\in \mathbb{R}-\{2\lambda_i|i=1,...,L\}$ the functional form of the SSA-estimate is 
+\begin{eqnarray}\label{diff_non_home_singular}
+\mathbf{b}(\nu)=D\sum_{i\in NZ} \frac{w_i}{2\lambda_{i}-\nu}\mathbf{v}_{i}
+\end{eqnarray}
+with corresponding lag-one acf 
+\begin{eqnarray}\label{sefrhobnotcomp}
+\rho(\nu)=\frac{\sum_{i\in NZ}\frac{\lambda_iw_i^2}{(2\lambda_i-\nu)^2}}{\sum_{i\in NZ}\frac{w_i^2}{(2\lambda_i-\nu)^2}}=:\frac{M_{1}}{M_{2}}
+\end{eqnarray}
+where $M_{1},M_{2}$ are identified with nominator and denominator in this expression. 
+
+\item Let $\nu=\nu_{i_0}:=2\lambda_{i_0}$ where $i_0\notin NZ$ with adjoined rank-defficient $\boldsymbol{\nu}_{i_0}=2\mathbf{M}-\nu_{i_0}\mathbf{I}$. Consider $\mathbf{b}(\nu_{i_0})$, $\rho(\nu_{i_0})$ and $M_{i_01},M_{i_02}$ as defined in the previous assertion. In this case, the functional form of $\mathbf{b}(\nu_{i_0})$ can be 'spectrally completed' as in 
+\begin{eqnarray}\label{b_new_comp}  
+\mathbf{b}_{i_0}(\tilde{N}_{i_0}):=\mathbf{b}(\nu_{i_0})+D\tilde{N}_{i_0}\mathbf{v}_{i_0}
+\end{eqnarray}
+with lag-one acf
+\begin{eqnarray}\label{sefrhobcomp}  
+\rho_{{i_0}}(\tilde{N}_{i_0})=\frac{M_{i_01}+\lambda_{i_0}\tilde{N}_{i_0}^2}{M_{i_02}+\tilde{N}_{i_0}^2}
+\end{eqnarray}
+If $i_0$ is such that $0<\rho(\nu_{i_0})=\frac{M_{i_01}}{M_{i_02}}< \rho_1<\lambda_{i_0}$ or $0>\rho(\nu_{i_0})=\frac{M_{i_01}}{M_{i_02}}> \rho_1>\lambda_{i_0}$, then 
+\begin{eqnarray}\label{N_comp}
+\tilde{N}_{i_0}&=&\pm\sqrt{\frac{\rho_1M_{i_02}-M_{i_01}}{\lambda_{i_0}-\rho_1}}
+\end{eqnarray}
+ensures compliance with the holding-time constraint i.e. $\rho_{{i_0}}(\tilde{N}_{i_0})=\rho_1$. The 'correct' sign-combination of $D$ and $\tilde{N}_{i_0}$ is determined by the corresponding maximum  of the SSA objective function.
+\item Any $\rho_1$ such that $|\rho_1|<\rho_{max}(L)$ is admissible in the holding-time constraint.
+\end{enumerate}
+\end{Corollary}
+Proof\\
+
+The first assertion follows directly from the Lagrangian equation \ref{diff_non_hom_matrix}
+\[
+D\boldsymbol{\nu}^{-1}\boldsymbol{\gamma}_{\delta}= \mathbf{b}(\nu)
+\]
+where $\boldsymbol{\nu}$ has full rank if $\nu\in \mathbb{R}-\{2\lambda_i|i=1,...,L\}$, as assumed. Under the case posited in the second assertion $\boldsymbol{\nu}_{i_0}$ does not have full rank anymore and $\mathbf{b}_{i_0}(\tilde{N}_{i_0})$ as defined by \ref{b_new_comp} is a solution of the Lagrangian equation   
+\[
+D\boldsymbol{\gamma}_{\delta}= \boldsymbol{\nu}_{i_0}\mathbf{b}_{i_0}(\tilde{N}_{i_0})
+\]
+for arbitrary $\tilde{N}_{i_0}$ since now $\mathbf{v}_{i_0}$ belongs to the kernel of $\boldsymbol{\nu}_{i_0}$. Moreover, orthogonality of $\mathbf{V}$ implies that 
+\begin{eqnarray*}
+\rho_{i_0}(\tilde{N}_{i_0}):=\frac{\mathbf{b}_{i_0}(\tilde{N}_{i_0})'\mathbf{M}\mathbf{b}_{i_0}(\tilde{N}_{i_0})}{\mathbf{b}_{i_0}'(\tilde{N}_{i_0})\mathbf{b}_{i_0}(\tilde{N}_{i_0})}&=&\frac{\sum_{i\neq i_0}\lambda_{i}w_i^2\frac{1}{(2\lambda_{i}-\nu)^2}+\tilde{N}_{i_0}^2\lambda_{i_0}}{\sum_{i\neq i_0}w_i^2\frac{1}{(2\lambda_{i}-\nu)^2}+\tilde{N}_{i_0}^2}\nonumber\\
+&=&\frac{M_{i_01}+\tilde{N}_{i_0}^2\lambda_{i_0}}{M_{i_02}+\tilde{N}_{i_0}^2}
+\end{eqnarray*}
+Solving for the holding-time constraint $\rho_{i_0}(\tilde{N}_{i_0})=\rho_1$ then leads to 
+\[ 
+N_{i_0}:=\tilde{N}_{i_0}^2=\frac{\rho_1M_{i_02}-M_{i_01}}{\lambda_{i_0}-\rho_1}
+\]
+We infer that  $N_{i_0}$ is always positive if $0<\rho(\nu_{i_0})=\frac{M_{i_01}}{M_{i_02}}< \rho_1<\lambda_{i_0}$ or $0>\rho(\nu_{i_0})=\frac{M_{i_01}}{M_{i_02}}> \rho_1>\lambda_{i_0}$, so that $\tilde{N}_{i_0}=\pm\sqrt{N_{i_0}}\in  \mathbb{R}$, as claimed. Finally, the correct sign combination of the pair $D,\tilde{N}_{i_0}$ is determined by the maximal criterion value. \\
+For a proof of the third and last assertion we first assume that $\boldsymbol{\gamma}_{\delta}$ is not band-limited so that $w_1\neq 0$ and $w_L\neq 0$. Then, $\lim_{\nu\to 2\lambda_1}\rho(\nu)=\lambda_1=-\rho_{max}(L)$ and $\lim_{\nu\to 2\lambda_L}\rho(\nu)=\lambda_L=\rho_{max}(L)$, see the proof of theorem \ref{lambda}. By continuity of $\rho(\nu)$ and by virtue of the intermediate-value theorem we then infer that any $\rho_1$ such that $|\rho_1|<\rho_{max}(L)$ is admissible for the holding-time constraint. Otherwise, if $w_1=0$ then $\mathbf{b}_{1}(\tilde{N}_{1})$, where $i_0=1$ in \ref{b_new_comp}, can 'fill the gap' and reach out the lower boundary $-\rho_{max}(L)$ as $\tilde{N}_{1}\to\infty$. A similar reasoning would apply in the case $w_L=0$ which achieves the proof of the corollary.\\ 
+
+The case of incomplete spectral support is illustrated by a fleshed-out example in section \ref{incomplete_support} and we now proceed to the derivation of a numerical optimization routine for determining $\mathbf{b}$ in \ref{crit1}.
+
+
+
+%The case of incomplete spectral support is illustrated by a fleshed-out example in section \ref{incomplete_support}. Before deriving a numerical optimization routine for determining $\mathbf{b}$ in \ref{crit1}, we note that for given $\boldsymbol{\gamma}_{\delta}$, theorem \ref{lambda} has simplified the search to the determination of a single parameter $\nu$, see \ref{diff_non_home} or equivalently \ref{ar2} (with the boundary constraints $b_{-1}=b_L=0$). We here argue that the domain of definition of $\nu$ can generally be restricted to $|\nu|>2$, at least for typical forecast applications. To see this, we consider the time-domain difference-equation \ref{ar2} whose solution can be decomposed additively into solutions of non-homogeneous and homogeneous equations\footnote{A formal treatment of the 'time-domain' SSA-solution is skipped here, due to space limitations. Instead we rely on a simple argument for justifying }. Consider the latter as in 
+%\begin{eqnarray}\label{hom_ar2}
+%b_{k+1}^{hom}-\nu b_k^{hom}+b_{k-1}^{hom}=0
+%\end{eqnarray}
+%For $|\nu|\leq 2$, the solution $b_k^{hom}$ would be subject to a unit-root so that the coefficients of the resulting SSA-predictor, being the sum of homogeneous and non-homogeneous solutions, would not decay to zero for increasing lag $k$ thereby  conflicting with common wisdom, according to which data in the remote past should be somehow discounted when compared to more recent information. In fact, 'unduly slow' decaying predictor-weights $b_k$ are generally an indication of an excessively demanding holding-time constraint, with an excessively large $ht_1$ asking for very strong smoothing of the data, and a correspondingly ill-posed prediction problem. Section \ref{unit_root_case} illustrates the so-called 'unit-root case' $|\nu|\leq 2$ and discusses alternative options for handling the problem, re-establishing an exponential decay of predictor-weights in some cases. We now return to the formulation of an algorithm for determining the solution $\mathbf{b}$ of the SSA-criterion \ref{crit1} or \ref{gen_stat_x}. 
+
+
+
+\begin{Corollary}\label{lambda_num_gen}
+Let the assumptions of theorem \ref{lambda} hold. Then the solution to the SSA-optimization problem \ref{crit1} is 
+\begin{equation}\label{prop_sol_un_unc_fast}
+\mathbf{b}(\nu_0)=\textrm{sign}_{\nu_0}\sum_{i=1}^L \frac{w_i}{2\lambda_{i}-\nu_0}\mathbf{v}_{i}
+\end{equation}
+where $\nu_0$ is a solution to the non-linear equation
+\begin{eqnarray}\label{uni_unco_min}
+\frac{\mathbf{b(\nu_0)}'\mathbf{M}\mathbf{b(\nu_0)}}{\mathbf{b(\nu_0)}'\mathbf{b(\nu_0)}}=\rho_1
+\end{eqnarray}
+If the search for an optimal $\nu$ can be restricted to $|\nu|\geq 2\rho_{max}(L)$, then the solution to \ref{uni_unco_min} is unique. Otherwise, the SSA-solution is determined by that particular solution $\nu_0$ of \ref{uni_unco_min} which maximizes the absolute value of the SSA objective function. Finally, the sign $\textrm{sign}_{\nu_0}=\pm 1$ is selected such that $\mathbf{b(\nu_0)}'\boldsymbol{\gamma}_{\delta}> 0$ leading to a positive objective function and criterion value. 
+\end{Corollary}
+
+
+A proof follows readily from assertions \ref{ass1}-\ref{ass4} of theorem \ref{lambda}. We here briefly argue that the domain of definition of $\nu$ can generally be restricted to $|\nu|>2$, at least for typical forecast applications. To see this, we consider the time-domain difference-equation \ref{ar2} whose solution can be decomposed additively into solutions of non-homogeneous and homogeneous equations\footnote{A formal treatment of the 'time-domain' SSA-solution is skipped here, due to space limitations.}. For the latter
+\begin{eqnarray}\label{hom_ar2}
+b_{k+1}^{hom}-\nu b_k^{hom}+b_{k-1}^{hom}=0
+\end{eqnarray}
+and if $|\nu|\leq 2$, then $b_k^{hom}$ is subject to a unit-root. Therefore, the coefficients of the resulting SSA-predictor, being the sum of homogeneous and non-homogeneous solutions, would not decay to zero for increasing lag $k$ thereby  conflicting with common wisdom, according to which data in the remote past should be somehow discounted when compared to more recent information. In fact, slowly decaying predictor-weights $b_k$ are generally an indication of an excessively demanding holding-time constraint, with an excessively large $ht_1$ asking for very strong smoothing of the data, and a correspondingly ill-posed prediction problem. Section \ref{unit_root_case} illustrates the so-called 'unit-root case' $|\nu|\leq 2$ and discusses alternative options for handling the problem, re-establishing an exponential decay of predictor-weights in some cases.
+
+As suggested, typically $|\nu|>2>2\rho_{max}(L)$ so that numerical computations proposed in corollary \ref{lambda_num_gen} are swift, due to uniqueness of the solution to \ref{uni_unco_min} and strict monotonicity of $\rho(\nu)$. If $|\nu|\leq 2\rho_{max}(L)$, then strict monotonicity and uniqueness are lost, see section \ref{mon_non_mono} for a worked-out example. To conclude, the distribution of the SSA-predictor is derived in the following corollary.  
+
+
+\begin{Corollary}
+Let all regularity assumptions of theorem \ref{lambda} hold and let $\hat{\boldsymbol{\gamma}}_{\delta}$ be a finite-sample estimate of the MSE-predictor ${\boldsymbol{\gamma}}_{\delta}$ with mean ${\boldsymbol{\mu}}_{\gamma_\delta}$ and variance ${\boldsymbol{\Sigma}}_{\gamma_\delta}$. Then mean and variance of the SSA-predictor $\hat{\mathbf{b}}$ are
+\begin{eqnarray*}
+{\boldsymbol{\mu}}_{\mathbf{b}}&=&sign^+D\boldsymbol{\nu}^{-1}{\boldsymbol{\mu}}_{\gamma_\delta}\\
+{\boldsymbol{\Sigma}}_{\mathbf{b}}&=&D^2\boldsymbol{\nu}^{-1}{\boldsymbol{\Sigma}}_{\gamma_\delta}\boldsymbol{\nu}^{-1}
+\end{eqnarray*}
+If $\hat{\boldsymbol{\gamma}}_{\delta}$ is Gaussian distributed then so is $\hat{\mathbf{b}}$. 
+\end{Corollary}
+The proof readily follows from \ref{diff_non_home}. We here refer to standard textbooks  for a derivation of mean, variance and (asymptotic) distribution of the MSE-estimate under various assumptions about $x_t$, see e.g. Brockwell and Davis (1993). The last corollary derives a dual interpretation of the SSA-predictor.
+
+\begin{Corollary}\label{cor3}
+Let all regularity assumptions of Theorem \eqref{lambda} hold, assume $\nu>2\rho_{max}(L)$  and let $\rho_{\nu,\delta}:=\rho(y(\nu),z,\delta)>0$ where $y_t(\nu)$ denotes the unique SSA-solution. Then, $y_t(\nu)$ is also a solution of the dual problem
+\begin{eqnarray}\label{crit2}
+\left.\begin{array}{cc}
+&\max_{\mathbf{b}}\rho(y,y,1)\\
+&\rho(y,z,\delta)=\rho_{\nu,\delta}
+\end{array}\right\}.
+\end{eqnarray}
+\end{Corollary}
+\textbf{Proof}\\
+For $\nu>2\rho_{max}(L)$ the solution of the SSA-problem is uniquely defined (strict monotonicity) and therefore the solution of the primal problem is also a solution of the dual problem. Specifically, the Lagrangian Equation \ref{diff_lag} does not distinguish constraints and objective functions: after suitable re-scaling of Lagrange multipliers the problem specified by criterion \ref{crit2} leads to the same functional form $\mathbf{b}=D\boldsymbol{\nu}^{-1}\boldsymbol{\gamma}_{\delta}$ of its solution. Note that re-scaling of Lagrange multipliers is always possible because the regularity assumptions of theorem \ref{lambda} imply `activated' constraints (non-vanishing multipliers). Also, the negative sign $-\textrm{sign}(\nu)$ in \ref{ficcc} implies that the criterion function in \ref{crit2} has to be maximized (not minimized). The only difference to the original criterion \eqref{crit1} is that $\nu$ in \ref{crit2} must be selected such that $\rho(y,z,\delta)=\rho_{\nu,\delta}$. The original SSA-predictor $y_t(\nu)$ is a corresponding solution which must be unique if $\nu>2\rho_{max}(L)$ (strict monotonicity) and therefore $y_t(\nu)$ also solves the dual problem. \\
+
+\textbf{Remark}\\
+A similar dual-reformulation of the SSA-problem could be obtained for $\nu<-2\rho_{max}(L)$, assuming the lag-one ACF criterion function in \ref{crit2} to be minimized, due to the sign-change in \ref{ficcc}.
+
+
+
+
+
+\section{An Illustration of Technical Features}\label{examples}
+
+Our examples in this section address specific methodological features of the SSA-predictor: introductory forecast exercises are proposed in section \ref{one_step_fore}; elements of signal extraction are examined in section \ref{example_autocor}; %, see section \ref{ext_stat}
+;  smoothing and 'un-smoothing' nowcasters are proposed  in section \ref{smooth_unsmooth}; a filtering perspective is offered in section \ref{conv_amp} with frequency-domain convolution, plancherel-identity and amplitude functions; a unit-root case is discussed in section \ref{unit_root_case}; resilience against departures from Gaussianity is explored in section \ref{resil}; section \ref{time_smooth} presents a  smoothness-timeliness dilemma and a discussion of SSA hyper-parameters; section \ref{mon_non_mono} highlights multiplicity and uniqueness results; finally, the singular case of a target with incomplete spectral support is illustrated in section \ref{incomplete_support}. SSA-solutions are based on corollary \ref{lambda_num_gen} %, by search of $\lambda\in G$ where $G\subset]-1,1[-\{0\}$ is a finite set of size 1000 %\footnote{Finer resolutions are rarely useful in typical 'non-pathological' applications.} of equidistant grid-points and $\nu:=\lambda+1/\lambda$ is such that $|\nu|>2$, as required\footnote{Note that $\lambda$ and $1/\lambda$ in the parametrization $\nu:=\lambda+1/\lambda$ of $\nu$ correspond to stable and unstable roots of the characteristic AR(2)-polynomial of the difference-equation \ref{ar2} when $|\nu|>2$????(correct this one): otherwise the characteristic roots would be complex conjugate unit-roots. However we here skip  a formal 'time-domain' analysis which would be of no added value in this context.}. The solution $\lambda_0$ or, equivalently $\nu_0$, is such that the absolute error in \ref{uni_unco_min} is minimized on the grid $G$ 
+and an open-source R-package is at disposal for replication, see (insert link to Github). 
+
+\subsection{Forecasting}\label{one_step_fore}
+
+
+\subsubsection{MA-Process}
+
+We consider a simple introductory forecast exercise for a MA(2)-process
+\[z_t=\epsilon_t+\epsilon_{t-1}+\epsilon_{t-2}\]
+with forecast horizon $\delta=1$ (one-step ahead). We can set-up the problem in our general framework 
+\[
+z_t=\sum_{k=-\infty}^{\infty}\gamma_k x_{t-k}~,~x_t=\sum_{k=0}^{\infty}\xi_k\epsilon_{t-k}~,~\gamma_k=\left\{\begin{array}{cc}1~,&k=0\\0~,&\textrm{otherwise}\end{array}\right.~,~\xi_k=\left\{\begin{array}{cc}1~,&k=0,1,2\\0~,&\textrm{otherwise}\end{array}\right.
+\]
+For comparison purposes, we compute three different SSA-predictors $y_{ti},i=1,2,3$ for $z_t$: the first two are of identical length $L=20$ with dissimilar holding-times  $ht=$3.74 and 10; the third predictor deviates from the second one by selecting $L=50$; the holding-time of the first predictor matches the lag-one autocorrelation of $z_t$  and is obtained by inserting $\rho(z,z,1)=2/3$ into \ref{ht}. In addition, we also consider the MSE forecast $\hat{z}_{t,1}^{MSE}=\epsilon_t+\epsilon_{t-1}$, as obtained by classic time series analysis, as well as a trivial 'lag-by-one' forecast $\hat{z}_{t,1}^{lag~1}=z_t$, see fig. \ref{filt_coef_example1} (an arbitrary scaling scheme is applied to SSA filters). Predictors based on the 'true' MA(2)-model of $z_t$ are virtually indistinguishable from predictors based on a fitted empirical model, see table \ref{perf_ex2e} below.  
+
+\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{filt_coef_example1}\caption{MSE-, SSA- and lag-by-one predictors with arbitrarily scaled SSA-designs. All lags (left panel) and first ten lags (right panel).\label{filt_coef_example1}}\end{center}\end{figure}Except for the MSE (green) all other forecast-filters rely on past $\epsilon_{t-k}$ for $k>q=2$ which are required for compliance with the holding-time constraint (stronger smoothing). For a fixed filter-length $L$, a larger holding-time $ht$ asks for a slower zero-decay of filter coefficients (blue vs. red lines) and for fixed holding-time $ht$, a larger $L$ leads to a faster zero-decay but a long tail of the filter (red vs. violet lines). The distinguishing tips  of the SSA-predictors at lag one in this example are indicative of one of the two implicit boundary constraints, namely $b_{-1}=0$, see theorem \ref{lambda}.  Note that the 'lag-by-one' forecast (black) has the same holding time as the first SSA-filter (blue) so that the latter should outperform the former in terms of sign accuracy or, equivalently, in terms of correlation with the shifted target, as confirmed in table \ref{perf_ex2}.   
+% latex table generated in R 4.2.2 by xtable 1.8-4 package
+% Sat Dec 30 09:01:02 2023
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrrrr}
+  \hline
+ & SSA(3.74,1) & SSA(10,1) & SSA(10,1) & Lag-by-one & MSE \\ 
+  \hline
+Correlation with target & 0.786 & 0.386 & 0.388 & 0.667 & 0.816 \\ 
+  Empirical holding-times & 3.735 & 10.000 & 10.000 & 3.735 & 3.000 \\ 
+  Empirical sign accuracy & 0.788 & 0.626 & 0.627 & 0.732 & 0.804 \\ 
+   \hline
+\end{tabular}
+\caption{Performances of MSE and lag-by-one  benchmarks vs. SSA: All filters are applied to a sample of length 1000000 of Gaussian noise. Empirical holding-times are obtained by dividing the sample-length by the number of zero-crossings.  } 
+\label{perf_ex2}
+\end{table}MSE outperforms all other forecasts in terms of correlation and sign accuracy  but it loses in terms of  smoothness or holding-time; SSA(3.74,1) outperforms the lag-by-one benchmark; both SSA(10,1) loose in terms of sign-accuracy but win in terms of smoothness and while the profiles of longer and shorter filters differ in figure \ref{filt_coef_example1}, their respective performances are virtually indistinguishable in table \ref{perf_ex2}, suggesting that the selection of $L$ is not critical (assuming it is at least twice the holding-time). The table also illustrates the tradeoff between MSE- or sign-accuracy performances of optimal designs, in the top and bottom rows, and smoothing-performances in the middle row (an explicit formal link can be obtained but is omitted here). 
+Finally, table \ref{perf_ex2e} displays results when all predictors rely on an empirical model fitted to $z_t$ on a data-sample of length 50: a comparison of both tables suggests that performances are virtually unaffected by the additional estimation step. 
+% latex table generated in R 4.2.2 by xtable 1.8-4 package
+% Sat Dec 30 09:01:02 2023
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrrrr}
+  \hline
+ & SSA(3.88,1) & SSA(10,1) & SSA(10,1) & Lag-by-one & MSE \\ 
+  \hline
+Correlation with target & 0.774 & 0.386 & 0.388 & 0.680 & 0.815 \\ 
+  Empirical holding-times & 3.885 & 10.000 & 10.000 & 3.885 & 2.987 \\ 
+  Empirical sign accuracy & 0.782 & 0.626 & 0.627 & 0.738 & 0.803 \\ 
+   \hline
+\end{tabular}
+\caption{Same case as above but all predictors rely on an empirical model of the MA(2)-process: the model is fitted on a sample of length 50.  } 
+\label{perf_ex2e}
+\end{table}To conclude, note that if $\delta>2$, then $z_{t+\delta}$ is independent of $\epsilon_{t},\epsilon_{t-1},...$ and thus of any predictor $y_t=\sum_{k=0}^{L-1}b_k\epsilon_{t-k}$, contradicting thereby the first regularity assumption of theorem \ref{lambda} (identifiability). Formally, the objective function or criterion value $\rho(y,z,\delta)=0$ vanishes for all $\mathbf{b}$ so that the SSA-predictor is not identified anymore: all predictors are equally valid or invalid. The best MSE-forecast $\hat{z}_{t+\delta}=0$ is well-defined, though. 
+
+
+
+
+
+
+
+\subsubsection{AR(1)-Process}\label{one_step_forear1}
+
+
+We here consider a more challenging forecast exercise for the AR(1)-process
+\[z_t=-0.9z_{t-1}+\epsilon_t\]
+with forecast horizon $\delta=1$ (one-step ahead). The regular sign-alternating pattern of its acf (or of its realizations) is a salient feature of this process whose holding-time $ht_1=1.17$ approaches the lower limit $ht_1=1$. The specific challenge of this exercise consists in deriving a 'smooth' SSA-predictor with $ht_1=5$, tracking $z_{t+1}$ as closely as possible i.e. $y_t$ must reconcile two strongly conflicting requirements. We first note that 
+\begin{eqnarray*}
+z_t&=&\sum_{k=-\infty}^{\infty}\gamma_k x_{t-k}~, ~x_t=\sum_{k=0}^{\infty}\xi_k\epsilon_{t-k}
+\end{eqnarray*}
+with either
+\begin{eqnarray*}
+\gamma_k=\left\{\begin{array}{cc}0&,~k<0\\(-0.9)^k&,~k\geq 0\end{array}\right.~,~\xi_k=\left\{\begin{array}{cc}1&,~k=0\\0&,~\textrm{otherwise}\end{array}\right.
+\end{eqnarray*}
+or 
+\begin{eqnarray*}
+\gamma_k=\left\{\begin{array}{cc}1&k=0\\0&\textrm{otherwise}\end{array}\right.,~\xi_k=(-0.9)^k,k\geq 0
+\end{eqnarray*}
+The latter formulation relies on the extension to autocorrelated $x_t$, see section \ref{ext_stat}. Figure \ref{filt_coef_example1} displays and compares MSE- and SSA-predictors (an arbitrary scaling scheme is applied to the latter). Specifically, the convolution $(\mathbf{b}\cdot\boldsymbol{\xi})$ of the generalized SSA-criterion \ref{gen_stat_x} can be obtained directly from theorem \ref{lambda}: the corresponding predictor-weights are applied to the MA-inversion of the AR(1) i.e. to $\epsilon_{t-k}$, see the bottom panels of the figure. In this case, the MSE-predictor is $\sum_{k=0}^{\infty}(-0.9)^{k+1}\epsilon_{t-k}$ with weights $b_k^{MSE}=(-0.9)^{k+1}, k\geq 0$ (green). The SSA predictor-weights as assigned to the proper AR(1)-process $z_{t-k}$ can be obtained by deconvolution \ref{con_inv}, as displayed in the top-panels of the figure: in this case the MSE-predictor is $-0.9z_{t}$ with weight $-0.9$ at lag zero and zero otherwise (green line). The bottom-left panel suggests that the alternating MSE-pattern (green) is carried over to SSA (blue) whose coefficients are additionally 'lifted away' from the zero-line: in combination with the alternating pattern the resulting hybrid profile ensures conformity with the imposed holding-time constraint while maximizing correlation with the target $z_{t+\delta}=z_{t+1}$. %Alternatively, the top panels indicate a slowly zero-decaying (in absolute value) profile of the SSA-design (blue) which ensures strong smoothing of the sign-alternating AR(1)-process $z_t$. %, in conformity with the holding-time constraint\footnote{Interestingly, $\nu$ in \ref{diff_non_home} becomes $\nu=1.99982$ in this application: since $|\nu|<2$, the solution to the homogeneous difference equation \ref{hom_ar2} has a unit-root and the latter generates the slowly decaying profile seen in fig.\ref{filt_coef_examplear1}, see section \ref{conv_amp} for additional background.}.  
+\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{filt_coef_examplear1.pdf}\caption{SSA- and MSE- (one step ahead) forecasts. All lags (left panel) and first ten lags (right panel). Predictor weights as assigned to  $z_{t-k}$ (top: deconvolution) and to $\epsilon_{t-k}$ (bottom: convolution).\label{filt_coef_examplear1}}\end{center}\end{figure}Table \ref{filt_coef_examplear1} compares predictor performances: SSA maximizes correlation or sign-accuracy with the target $z_{t+1}$ subject to $ht_1=5$. % (empirical performances based on simulated data confirm theoretical numbers up to negligible finite-sample deviations). 
+Finally, fig.\ref{series_examplear1} compares the target $z_{t+1}$ and its SSA-predictor $y_t$: maximization of the cross-correlation of both series is obtained by synchronization of the corresponding alternating high-frequency patterns; at the same time, the marked low-frequency swings of SSA (blue) about the zero line ensure conformity with the holding-time constraint. %In any case, empirical performances based on a long sample (not shown here) confirm theoretical numbers reported in table \ref{perf_ex2ar1}. 
+% latex table generated in R 4.2.2 by xtable 1.8-4 package
+% Sat Dec 30 09:01:03 2023
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrr}
+  \hline
+ & SSA(5,1) & MSE \\ 
+  \hline
+Correlation with target & 0.293 & 0.900 \\ 
+  Empirical holding-times & 5.000 & 1.168 \\ 
+  Empirical sign accuracy & 0.595 & 0.856 \\ 
+   \hline
+\end{tabular}
+\caption{Performances of SSA- and MSE-predictors.  } 
+\label{perf_ex2ar1}
+\end{table}\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{series_examplear1.pdf}\caption{SSA-predictor (blue) and target $z_{t+\delta}$ (black).\label{series_examplear1}}\end{center}\end{figure}
+
+
+
+
+
+
+
+\subsection{Elements of Signal Extraction}\label{example_autocor}
+
+
+We consider one-step ahead forecasting of the slightly more complex target 
+\begin{eqnarray}
+z_t&=&x_t+x_{t-1}+x_{t-2}\label{trend_se}\\
+x_t&=&-0.3x_{t-1}+\epsilon_t+0.7\epsilon_{t-1}+0.8\epsilon_{t-2}\label{series_se}
+\end{eqnarray}
+where $x_t$ is a stationary ARMA(1,2)-process with MA-inversion or Wold-decomposition $x_t=\sum_{k\geq 0}\xi_k\epsilon_{t-k}$ where $\xi_k=\left(\mathbf{A}_{ar}^k\mathbf{b}_{ma}\right)_1$, $\mathbf{A}_{ar}=\left(\begin{array}{ccc}-0.3&1&0\\0&0&1\\0&0&0\end{array}\right)$, $\mathbf{b}_{ma}=(1,0.7,0.8)'$ and where $(\cdot)_1$ denotes the first element of a vector\footnote{Invertibility of the ARMA is not required for deriving the SSA-predictor: theorem \ref{lambda} assumes that $\boldsymbol{\gamma}_{\delta}$ has complete spectral support which applies here.}. This example can be related to signal extraction, where a target filter $\boldsymbol{\gamma}$ (the equally-weighted MA(3) in \ref{trend_se}) is applied to autocorrelated data $x_t$ (the ARMA-process in \ref{series_se}) in order to extract interesting components: Wildi (2023) relies on a bi-infinite symmetric Hodrick-Prescott design, see Hodrick and Prescott (1997), as the target or 'signal extraction' filter $\boldsymbol{\gamma}$ for the analysis of business-cycles; the equally-weighted MA(3) filter $\gamma_0=\gamma_1=\gamma_2=1$ in \ref{trend_se} is a correspondingly much simpler lowpass filter. 
+%, displayed in figure \ref{filt_coef_example1_arma} (black lines in bottom left and right panels). 
+SSA-predictors in this framework can be set-up in terms of $y_t=\sum_{k=0}^{L-1}(b\cdot\xi)_k\epsilon_{t-k}$ or $y_t=\sum_{k=0}^{L-1}b_kx_{t-k}$: the latter corresponds to the proper signal extraction filter or predictor. The convolution $(\mathbf{b}\cdot\boldsymbol{\xi})$, proposed in section \ref{ext_stat}, can be obtained directly from theorem \ref{lambda}, see the bottom panels of fig.\ref{filt_coef_example1_arma} whereby we impose $ht_1=$3.74 and length $L=$20 (blue), $ht_1=$10, $L=$20 (red) and $ht_1=$10, $L=$50 (violet).
+\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{filt_coef_example1_arma}\caption{SSA arbitrarily scaled. All lags (left panel) and first ten lags (right panel). Predictors  as applied to $x_t$ (upper panels)  and $\epsilon_t$ (bottom panels). \label{filt_coef_example1_arma}}\end{center}\end{figure}The signal extraction filter $\mathbf{b}$, displayed in the top panels, can be obtained by inversion or deconvolution of $(b\cdot\xi)_j$, see \ref{con_inv}. To conclude, note that the selection of $L$ is generally uncritical as long as $L>2ht_1$. 
+ 
+
+
+
+
+
+
+
+
+
+\subsection{Smoothing and Un-Smoothing}\label{smooth_unsmooth}
+In this example we aim at fitting a time series $z_t$ conditional on different holding-times: in contrast to the previous two sections we here emphasize \emph{nowcasting} i.e.  $\delta=0$. For this purpose, we consider the target 
+\begin{eqnarray*}
+z_t&=&x_t+x_{t-1}+x_{t-2}\\
+x_t&=&0.8x_{t-1}+\epsilon_t+0.5\epsilon_{t-1}+0.4\epsilon_{t-2}
+\end{eqnarray*}
+with  holding-time $ht=$10.4. We then apply two SSA-designs with holding-times 3.7 and 30: the first nowcast 'un-smooths', the second smooths $z_t$, whilst minimizing MSE (up to arbitrary scaling). Fig.\ref{filt_coef_example1_arma_su} displays filter coefficients as applied to $x_t$, left panel, or to $\epsilon_t$,  right panel (arbitrarily scaled). Note the typical shape of the filters in the right panel, indicating presence of the left boundary constraint $(b\cdot\xi)_{-1}=0$ (the filters in the left panel are subject to different boundary-constraints, due to deconvolution). %Un-smoothing or shortening of the holding-time by the first SSA-design is obtained by the alternating signs of its coefficients (blue line, left panel): the corresponding amplitude function corresponds to a high-pass design, see fig.\ref{amp_shift_SSA} in the following section \ref{conv_amp}. 
+\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{filt_coef_example1_arma_su.pdf}\caption{SSA arbitrarily scaled: smoothing nowcaster (red) and un-smoothing nowcaster (blue), as applied to $x_t$ (left) and $\epsilon_t$ (right).\label{filt_coef_example1_arma_su}}\end{center}\end{figure}SSA-nowcasters and target are compared in fig.\ref{output_example1_arma_su}: all series are arbitrarily scaled to unit-variance. Zero-crossings of the smoothing nowcast (red) are fewest, followed by the target (black) and the un-smoothing nowcast (blue): frequencies or occurrences of crossings are inversely proportional to holding-times, as desired. The maximized theoretical criterion values $\rho(y_{SSA_i},z,0)$, $i=1,2$, are 0.928 (blue un-smoother) and 0.648 (red smoother): these match empirical estimates 0.932 and 0.653 based on a sample of length 20000 of (Gaussian) $x_t$ from which an excerpt is shown in fig.\ref{output_example1_arma_su}. 
+%In both cases, the control at zero-crossings is exerted such that SSA-nowcasts match the target accurately, in terms of maximizing cross-correlations.      
+\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{output_example1_arma_su.pdf}\caption{Target (black) and SSA-nowcasts (blue and red): all series scaled to unit-variance.\label{output_example1_arma_su}}\end{center}\end{figure}
+
+
+
+\subsection{Filtering}\label{conv_amp}
+
+
+
+According to the extension in section \ref{ext_stat} and to theorem \ref{lambda}, the SSA-solution $(\mathbf{b}\cdot\boldsymbol{\xi})$ can be obtained from \ref{ar2} as
+\begin{eqnarray}\label{ar2_conv_il}
+(b\cdot\xi)_{k+1}-\nu(b\cdot\xi)_{k}+(b\cdot\xi)_{k-1}=D\gamma_{k+\delta}
+\end{eqnarray}
+In principle, this equation suggests that $(\mathbf{b}\cdot\boldsymbol{\xi})$ can be interpreted as the time-domain convolution of a 'generic SSA' AR(2)-filter, with AR-coefficients $a_1=-\nu$, $a_2=1$, and the (scaled) MSE-filter $D\boldsymbol{\gamma}_{\delta}$. While an exact formal treatment of the time-domain solution, as entailed by \ref{ar2_conv_il}, must be deferred, due to lengthier technical features related among others to the instability of the AR(2)\footnote{The additional boundary constraints $b_{-1}=b_L=0$ are main determinants of the solution, ensuring 'stability' in the presence of the potentially unstable AR-equation.} we can nevertheless refer to the equivalent frequency-domain expression \ref{diff_non_home}
+\begin{eqnarray*}
+(\mathbf{b}\cdot\boldsymbol{\xi})=D\sum_{k=1}^L \frac{w_k}{2\lambda_{k}-\nu}\mathbf{v}_{k}=D\sum_{k=1}^L \frac{w_k}{2(-\cos(\omega_k))-\nu}\mathbf{v}_{k}=D\sum_{k=1}^L \frac{w_k}{(-\exp(i\omega_k))-\nu+(-\exp(-i\omega_k))}\mathbf{v}_{k}
+\end{eqnarray*}
+where we inserted $-\cos(\omega_k)=\lambda_k$ computed at the Fourier-frequencies $\omega_k=k\pi /(L+1)$ for the eigenvalues $\lambda_k$ of $\mathbf{M}$, see section \ref{theorem_SSA} and Anderson (1975). The rightmost term formalizes the convolution in the frequency-domain of generic SSA AR(2)- and MSE-filters, whereby the latter is represented by its spectral weights $w_k$; the amplitude function of the generic SSA AR(2) is $\frac{1}{|-\exp(i\omega_k)-\nu-\exp(-i\omega_k)|}=\frac{1}{|2\lambda_{k}-\nu|}$; moreover, \ref{rho_fd} reflects the Plancherel-identity. Remarkably, these standard 'stationary' frequency-domain results apply despite instability of the generic SSA AR(2)-filter. Fig.\ref{amp_shift_SSA} displays amplitude functions of both SSA-nowcasts of the previous section \ref{smooth_unsmooth}: % when applied to $\epsilon_t$ (left panel) and $x_t$ (right panel); the violet line in the left panel is the amplitude function of the ARMA-filter generating $x_t$. 
+SSA-amplitudes in left and right  panels correspond to SSA-nowcasts in left and right panels of fig.\ref{filt_coef_example1_arma_su}. The additional violet line in fig.\ref{amp_shift_SSA} is the amplitude of the ARMA-filter $\xi_k$, $k\geq 0$, and the amplitude functions in the left panel $A_{SSA,x_t}(\omega)$ can be obtained by  division of SSA- by ARMA-amplitudes in the right panel $A_{SSA,x_t}(\omega)=A_{SSA,\epsilon_t}(\omega)/A_{Arma}(\omega)$: this frequency-domain deconvolution corresponds to the time-domain deconvolution \ref{con_inv}.  The 'un-smoothing' nowcast applied to $x_t$ (blue line, left panel of fig.\ref{amp_shift_SSA}) is a highpass filter,  emphasizing high-frequency-components of $x_t$: as a result the number of zero-crossings increases (blue vs. black line in fig.\ref{output_example1_arma_su}). The smoothing nowcast (red line, left panel fig.\ref{amp_shift_SSA}) is a lowpass filter: as a result zero-crossings are fewer (red vs. black line in fig.\ref{output_example1_arma_su}). %The protuberance around frequency $4\pi/6$  reflect the zigzag pattern of the coefficients in fig.\ref{filt_coef_example1_arma_su} (left panel) and are mainly due to a corresponding global minimum (of the amplitude) of the ARMA-filter towards that frequency, see fig.\ref{amp_shift_SSA} (right panel). 
+\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{amp_shift_SSA.pdf}\caption{Amplitude functions of SSA-nowcaster as applied to $x_t$  (left panel) and to $\epsilon_t$(right panel) with arbitrary scaling. The amplitude of the ARMA-filter $x_t$ is displayed in the right panel (violet)\label{amp_shift_SSA}}\end{center}\end{figure}%In principle, the SSA-amplitude functions in the right panel should correspond to the convolution of AR(2)-filter and ARMA-filter linked by \ref{ar2_conv_il}. However, the solution $(\mathbf{b}\cdot\boldsymbol{\xi})$ must comply with the boundary constraints $(b\cdot\xi)_{-1}=(b\cdot\xi)_L=0$ which ensure 'stability' of $(\mathbf{b}\cdot\boldsymbol{\xi})$ even though the AR(2) is non-stationary. While technical details are omitted here, we mention that  $(\mathbf{b}\cdot\boldsymbol{\xi})$ is a linear combination of solutions of non-homogeneous and homogeneous difference-equations whereby the latter ensures compliance with the boundary-constraints. The SSA-amplitudes of the suitable mix of homogeneous and non-homogeneous AR(2)-solutions are then plotted in the right panel of fig.\ref{amp_shift_SSA}. 
+
+
+
+\subsection{Unit-Root Case}\label{unit_root_case}
+
+
+Typically, the coefficients of a SSA-predictor $\mathbf{b}$ decay towards zero at a rate determined by $\boldsymbol{\gamma}_{\delta}$ and the holding-time constraint $\rho_1$ or $ht_1$. Figure \ref{filt_coef_example4} displays two SSA-designs for the nowcast problem in section \ref{smooth_unsmooth}: both nowcasters are subject to the same holding-time $ht_1=20$ but they differ in terms of filter-lengths: $L=20$ (blue) vs. $L=100$ (red). The shorter filter is subject to a unit-root, since $\nu_0=1.992<2$, where $\nu_0$ is the (numerical) solution to the holding-time equation \ref{uni_unco_min}. As a result the forecast weights do not follow an exponential-law at higher lags: the pattern is close to the eigenvector $\mathbf{v}_{20}$ of the largest eigenvalue $\lambda_{20}=\rho_{max}(20)=0.9888$ of $\mathbf{M}$ (upper half of a sinusoid). Indeed, the imposed holding-time $ht=20$ approaches the upper limit of admissibility $ht_{max}(20)=21$ for a MA-filter of length $L=20$, see proposition \ref{maxrho}, so that 'smoothing' starts to supplant 'forecasting' and that $\mathbf{b}\to\textrm{sign}(w_L)\mathbf{v}_{L}=\mathbf{v}_{20}$, see first claim of theorem \ref{lambda}. Increasing the filter length $L$ from $20$ to $100$ reinstates stability as illustrated by the exponential decay of the 'long' SSA-nowcaster at higher lags (red line, right panel). In applications, the unit-root case typically occurs when $L$ and $ht_1$ are mismatched. In such a case, an increase of the filter-length improves MSE-performances by unleashing degrees of freedom that were previously frozen: in our example the criterion value $\rho(y,z,\delta)$ rises ceteris paribus from $0.72$, for the short nowcaster (left panel), to $0.77$, for the long nowcaster (right panel).  Once again, the choice of $L$ is generally uncritical, provided $L>2ht_1$.   
+\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{filt_coef_example4.pdf}\caption{Arbitrarily scaled SSA nowcasters for identical holding-time ht=20 but different filter lengths L=20 (blue) and L=100 (red).\label{filt_coef_example4}}\end{center}\end{figure}
+
+
+\subsection{Resilience}\label{resil}
+
+
+Wildi (2023) applies the SSA-approach to (the log-returns of) a broadly diversified equity index, the Standard and Poors 500, as well as  to industrial production indices of a selection of countries with long and consistent sample histories. Empirical and theoretical holding-times (the latter wrongly assume Gaussianity) match virtually perfectly for the financial time series, despite volatility clustering, non-vanishing mean (drift) and extreme observations during financial and pandemic crises. Discrepancies observed in the case of the macro-indicators were attributable to autocorrelation and could be alleviated by the extension to autocorrelated processes illustrated in the above sections. 
+We here complement these empirical findings, which document resilience of the approach against departures from Gaussianity, by an application of SSA to white noise $x_t=\epsilon_t$ where $\epsilon_t$ is t-distributed with degrees of freedom ranging from $df=2$ (heavy tails) to $df=10$ (nearly Gaussian). We then compare empirical holding-times, i.e. length of filter-outputs divided by number of zero-crossings, to theoretical holding-times, wrongly assuming Gaussianity, based on long samples of size 100000 of $\epsilon_t$, see table \ref{emp_ht}.
+% latex table generated in R 4.2.2 by xtable 1.8-4 package
+% Sat Dec 30 09:01:42 2023
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrr}
+  \hline
+ & SSA(3.74,1) & SSA(10,1):L=20 & SSA(10,1):L=50 \\ 
+  \hline
+t-dist.: df=2 & 3.77 & 11.14 & 11.26 \\ 
+  t-dist.: df=4 & 3.78 & 10.45 & 10.54 \\ 
+  t-dist.: df=6 & 3.78 & 10.32 & 10.42 \\ 
+  t-dist.: df=8 & 3.77 & 10.14 & 10.22 \\ 
+  t-dist.: df=10 & 3.76 & 10.18 & 10.18 \\ 
+   \hline
+\end{tabular}
+\caption{Empirical holding-times of SSA designs as applied to t-distributed white noise} 
+\label{emp_ht}
+\end{table}Our findings suggest that an increased incidence of extreme observations (first and second rows of the table) leads to a positive bias of the empirical holding-times for filters with a larger $ht$ or lag-one acf. This phenomenon can be explained by the impulse response of the filters which is triggered by extreme observations and which does not change sign because all filter coefficients are positive: a longer  tail of the filter then implies fewer crossings and a positive bias of the empirical holding-time. But the magnitude of the bias seems to be well controlled, overall, even in the presence of series with heavy-tails and the bias could be reduced further by application of outlier techniques (not shown here).
+
+
+\subsection{A Smoothness-Timeliness Dilemma}\label{time_smooth}
+
+Often, stronger noise-rejection or smoothing by an optimal (nowcast or forecast) filter is associated with increased lag or 'right-shift' of its output: the following example illustrates that the mentioned tradeoff, a so-called smoothness-timeliness dilemma, does not hold in general. For illustration, we  rely on a simple empirical framework where the target $z_t:=\frac{1}{100}\sum_{k=0}^{99}\epsilon_{t-k}$ is the output of an equally-weighted MA-filter of length $L=$100 applied to simulated Gaussian noise $\epsilon_t$. The target must be forecasted at the horizon $20$ by a classic MSE as well as by a SSA(30,20)-filter, whose holding-time $ht=30$ exceeds that of the MSE design $ht=19.8$ by a safe margin. Out of curiosity, we also supply a second SSA(30,40)-filter optimized for forecast horizon 40: the two hyperparameters $ht,\delta$ of the two SSA-designs suggest that for an identical smoothing capability or holding-time, the second filter should have improved timeliness properties in terms of a lead or left-shift. The three (arbitrarily scaled) forecast filters are displayed in fig.\ref{filters_smooth_time}\footnote{The early rise at the left edge reveals the presence of the left-side boundary constraint $b_{-1}=0$, recall theorem \ref{lambda}.} and filter outputs, arbitrarily scaled to unit-variance, are compared in fig.\ref{filters_smooth_time_out}. 
+\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{filter_smooth_time.pdf}\caption{Forecast filters: MSE (green), SSA(30,20) (red) and SSA(30,40) (blue) with arbitrary scaling\label{filters_smooth_time}}\end{center}\end{figure}\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{filter_smooth_time_out.pdf}\caption{Outputs of forecast filters: MSE (green), SSA(30,20) (red) and SSA(30,40) (blue)\label{filters_smooth_time_out}}\end{center}\end{figure}\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{filter_smooth_time_peak_corr.pdf}\caption{Correlation of shifted SSA(30,20) vs. MSE (green) and SSA(30,40) (blue). Positive numbers correspond to a relative lead of SSA(30,20) over the contenders. Peak correlations are indicated by vertical lines.\label{filters_smooth_time_peak_cor}}\end{center}\end{figure}As expected, the output of SSA(30,40) (blue line in fig.\ref{filters_smooth_time_out}) appears left-shifted. Fig.\ref{filters_smooth_time_peak_cor} displays cross-correlations at various leads and lags of the reference SSA(30,20): the relative shift can be inferred from the  peak-correlation i.e. the lead or lag at which the maximum is achieved. The figure suggests that SSA(30,20) and MSE are on par (green line) and that SSA(30,20) lags or, equivalently, that SSA(30,40) leads by 11 time-units (blue line). %, which lies more or less in the center of the extended plateau of the blue-line. 
+Finally, the empirical holding-times in table \ref{smooth_time_emp_ht}, computed on a sample of length 100000, conform to expected values, as based on \ref{ht}.
+% latex table generated in R 4.2.2 by xtable 1.8-4 package
+% Sat Dec 30 09:01:44 2023
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrr}
+  \hline
+ & MSE & SSA(30,20) & SSA(30,40) \\ 
+  \hline
+1 & 19.9 & 30.9 & 30.9 \\ 
+   \hline
+\end{tabular}
+\caption{Empirical holding-times of MSE and SSA designs} 
+\label{smooth_time_emp_ht}
+\end{table}We conclude that for identical smoothing capabilities, SSA(30,40) has improved timeliness characteristics in terms of a systematic lead; moreover, SSA(30,40) outperforms MSE in terms of timeliness and smoothness; also, timeliness and smoothness can be addressed explicitly by specifying hyper-parameters $(\rho_1,\delta)$. 
+In this abstract context, the pair $(\rho_1,\delta)$ spans a two-dimensional space of predictors SSA($\rho_1,\delta$), for a particular target $z_{t+\delta_0}$, with distinct smoothness and timeliness characteristics entailed by the hyper-parameters: we argue that $\rho_1,\delta$ can be selected in view of matching particular research priorities, see e.g. Wildi (2023). Classic MSE-performances can be replicated by selecting $\delta=\delta_0$ and $\rho_1=\rho_{MSE}$, the lag-one acf of the mean-square predictor. 
+
+
+
+\subsection{Monotonicity vs. Non-Monotonicity}\label{mon_non_mono}
+
+
+We here illustrate uniqueness or multiplicity of the solution of the non-linear holding-time equation \ref{uni_unco_min}, depending on $|\nu|>2\rho_{max}(L)$ or $|\nu|\leq 2\rho_{max}(L)$, see assertion \ref{ass4} of theorem \ref{lambda}. Fig. \ref{rho_nu_ar1}  displays the lag-one autocorrelation  $\rho(\nu)$ in \ref{rho_fd} for a SSA-nowcast ($\delta=0$) as a function of $\nu$ for two different AR(1)-targets $\boldsymbol{\gamma}_{0}(a_1)=(1,a_1,...,a_1^9)'$ of length $L=10$  with $a_1=0.99$ (bottom panels) and $a_1=0.6$ (top panels). The panels on the left correspond to $|\nu|<2\rho_{max}(10)$ and illustrate non-monotonicity of $\rho(\nu)$; the panels on the right correspond to  $\nu>2\rho_{max}(10)$ and illustrate strict monotonicity\footnote{The abscissa of the right hand panels are based on transformed $\log(\nu)$ for a better visualisation of the monotonic shape.}. 
+\begin{figure}[H]\begin{center}\includegraphics[height=3in, width=6in]{rho_nu_ar1.pdf}\caption{Lag-one autocorrelation as a function of $\nu$ when the target is a classic AR(1) with $a_1=0.6$ (top) and $a_1=0.99$ (bottom): the left/right-split of the panels corresponds to $|\nu|\leq 2 \rho_{max}(L)$ (left) and $\nu>2 \rho_{max}(L)$  (right)\label{rho_nu_ar1}}\end{center}\end{figure}Non-monotonicity generally leads to multiple solutions $\nu_1,...,\nu_n$  to the holding-time equation \ref{uni_unco_min} for given $\rho_1$, whereby the multiplicity can depend on $\rho_1$, $L$ as well as on the target $\gamma_{k+\delta}$: as can be seen in fig.\ref{rho_nu_ar1}, the green horizontal line corresponding to $\rho_1=0.15$  intersects the acf (blue) four times in the upper left panel, meaning evidence of four different solutions $\nu_1,...,\nu_4$ for given $\rho_1=0.15$; in the bottom-left panel, the green line corresponding to $\rho_1=0.15$ intersects the acf (blue) $L+1=11$ times, meaning eleven different solutions $\nu_1,...,\nu_{11}$ for this particular target. On the other hand, strict monotonicity of $\rho(\nu)$ as a function of $\nu$ in the right panels means that $\nu$ is determined uniquely by $\rho_1$. To conclude, in case of multiple solutions $\nu_1,...,\nu_n$ to the holding-time equation \ref{uni_unco_min}, the SSA-solution $\mathbf{b}(\nu_{i_0})$ given by \ref{prop_sol_un_unc_fast}  is determined by that $\nu_{i_0}\in\{\nu_1,...,\nu_n\}$ which maximizes the objective function of the SSA-criterion.  
+
+
+
+
+
+
+\subsection{Incomplete Spectral Support}\label{incomplete_support}
+
+
+
+
+In order to illustrate the case of incomplete spectral support addressed by corollary \ref{incomplete_spec_sup}  we here consider a simple nowcast example (forecast horizon $\delta=0$) based on a band-limited target $\boldsymbol{\gamma}_{0}$ of length $L=10$ 
+\[
+\boldsymbol{\gamma}_{0}=\sum_{i=1}^{10}w_i\mathbf{v}_i
+\]
+where $\mathbf{v}_i$ are the eigenvectors of the $10*10$-dimensional autocovariance generating matrix $\mathbf{M}$ and where the last three  weights in the spectral decomposition vanish, $w_{8}=w_9=w_{10}=0$ ($m=7$ in \ref{specdec}), and the first seven weights are constant $w_i=0.378$, $i=1,...,7$
+\[
+\boldsymbol{\gamma}_{0}=\sum_{i=1}^{7}0.378\mathbf{v}_i
+\]
+%The lag-one autocorrelation of the potential solution $\mathbf{b}$ given by \ref{diff_non_home} is then bounded by the largest eigenvalue $\lambda_i$ of $\mathbf{M}$ whose weight $w_i$ does not vanish i.e. $\lambda_7=0.415$, which would be obtained by assigning point-mass to $\lambda_7$ by selecting $\nu\approx 2\lambda_7=0.83$. We now impose a larger $\rho_1=0.365$ in the holding-time constraint and complete 'almost imperceptibly' $\boldsymbol{\gamma}_{\delta}$ with the missing eigenvectors of the roots $\lambda_8,\lambda_9,\lambda_{10}$ by selecting a small $\epsilon=0.001$ and setting $\tilde{w}_i=\epsilon$, for $i=8,9,10$ to obtain the full-band normalized target $\boldsymbol{\gamma}_{\delta}(\epsilon):=\displaystyle{\frac{\boldsymbol{\gamma}_{\delta}+0.001\sum_{i=8}^{10}\mathbf{v}_i}{\sqrt{1+3\cdot0.001^2}}}$: for $|\epsilon|$ sufficiently small, band-limited and augmented full-band targets cannot be distinguished by (nearly) all practical means, see 
+The left panel in fig. \ref{rho_nu_bandlimited_ex2} displays the lag-one acf \ref{sefrhobnotcomp} %\ref{sefrhobnotcomp} 
+of $\mathbf{b}(\nu)$ %$\mathbf{b}_{\nu_{i_0}}$ 
+given by \ref{diff_non_home_singular} %\ref{bnotcomp} 
+as a function of $\nu\in [-2,2]-\{2\lambda_i, i=1,...,L\}$, thus omitting all potential singularities at $\nu=2\lambda_i$, $i=1,...,L$; the right panel displays additionally the lag-one acf \ref{sefrhobcomp} of the extension $\mathbf{b}_{i_0}(\tilde{N}_{i_0})$ in  \ref{b_new_comp}, when $\nu=\nu_{i_0}=2\lambda_{i_0}$ for $i_0=8,9,10$, where the three additional (vertical black) spectral lines, corresponding to $\mathbf{v}_{8},\mathbf{v}_{9},\mathbf{v}_{10}$, show the range of acf-values as a function of $\tilde{N}_{i_0}\in\mathbb{R}$: lower and upper bounds of each spectral line correspond to $\rho_{i_0}(0)=\rho_{\nu_{i_0}}=\frac{M_{i_01}}{M_{i_02}}$, when $\tilde{N}_{i_0}=0$ in \ref{sefrhobcomp}, and $\rho_{i_0}(\pm\infty)=\lambda_{i_0}$, when $\tilde{N}_{i_0}=\pm\infty$. The green horizontal lines in both graphs correspond to two different arbitrary holding-times $\rho_1=0.6$ and $\rho_1=0.365$: the intersections of the latter with the acfs, marked by colored vertical lines in each panel, indicate potential solutions of the SSA-problem for the thusly specified  holding-time constraint. The corresponding criterion values are reported at the bottom of the colored vertical lines: the SSA-solution is determined by the intersection which leads to the highest criterion value (rightmost in this example). %Note also that the acf in the left panel can be replicated in the right panel by setting $\tilde{N}_{i_0}=0$ for any of $i_0=8,9,10$.  
+\begin{figure}[H]\begin{center}\includegraphics[height=2in, width=5in]{rho_nu_bandlimited_ex2.pdf}\caption{Lag-one autocorrelation  as a function of $\nu$. Original (incomplete) solutions (left panel) vs. completed solutions (right-panel). Intersections of the acf with the two green lines are potential solutions of the SSA-problem for the corresponding holding-times: criterion values are reported for each intersection ( bottom right).\label{rho_nu_bandlimited_ex2}}\end{center}\end{figure}The right panel in the figure illustrates that the completion with the extensions $\mathbf{b}_{i_0}(\tilde{N}_{i_0})$ at the singular points $\nu=\nu_{i_0}=2\lambda_{i_0}$ for $i_0=8,9,10$ can accommodate for a wider range of holding-time constraints, such that $|\rho_1|<\rho_{max}(L)=\lambda_{10}=0.959$; in contrast, $\mathbf{b}(\nu)$ in the left panel is limited to $-0.959=\lambda_1<\rho_1<\lambda_7=0.415$ so that there does not exist a solution for $\rho_1=0.6$ (no intersection with upper green line in left panel). Moreover, for a given holding-time constraint, the additional stationary points corresponding to intersections at the spectral lines of the (completed) acf might lead to improved performances, as shown in the right panel, where the maximal criterion value \[
+\Big(\mathbf{b}_{i_0}(\tilde{N}_{i_0})\Big)'\boldsymbol{\gamma}_{\delta}=\Big(\mathbf{b}_{10}(0.077)\Big)'\boldsymbol{\gamma}_{0}=0.737
+\] 
+is attained at the right-most spectral line, for $i_0=10$, and where $\tilde{N}_{10}=0.077$ has been obtained from \ref{N_comp}, with the correct signs of $D$ and $\tilde{N}_{10}$ in place. \\
+
+
+
+
+
+\section{Conclusion}\label{conclusion}
+
+We propose a novel  SSA-criterion which emphasizes sign accuracy and zero-crossings of the predictor subject to a holding-time constraint. Under the Gaussian assumption, the classic MSE-criterion is equivalent to  unconstrained SSA-optimization: in the absence of a holding-time constraint and down to an arbitrary scaling nuisance. We argue that the proposed concept is resilient against various departures from the Gaussian assumption. Moreover, %Resilience against departures of the Gaussian hypothesis, in terms of  stylized facts of financial times series, has been verified by comparing  expected holding times with empirical means based on the S$\&$P500-index as well as BTC (crypto-currency). While heavy tails or autocorrelation can generate biases, the latter problem could be corrected by the proposed extension of our approach to stationary processes.   
+%Notwithstanding, 
+the approach is interpretable and appealing %beyond the promoted sign-accuracy perspective, in part 
+due to its actual simplicity and because the criterion merges relevant facets of the prediction problem. % in terms of sign accuracy, MSE, and smoothing requirements. 
+While a formal treatment of timeliness, as an additional constitutional element of the prediction problem, would go beyond the scope of the proposed SSA-framework, our examples illustrate that alternative research priorities can be addressed consistently and effectively by a pair of hyper-parameters and the smoothness or holding-time constraint has a natural and interpretable meaning. Despite its structural simplicity, the predictor is feature-rich, as illustrated by reproducible examples of specific technical traits.  %The example also illustrates that timeliness (advance or retard at the zero-line) and smoothing-capability (spread between consecutive crossings) of SSA-designs can be improved both, at once, when compared to established benchmarks. %These somehow intriguing observations hint towards existence of a richer tradeoff, a trilemma, which reconciles particular empirical findings  in a common formal framework. 
+%In summary,  the SSA-criterion reconciles MSE, sign accuracy and smoothing requirements in a flexible, consistent and interpretable manner. \\
+
+
+
+%
+\begin{thebibliography}{99}
+%
+
+
+
+
+
+\bibitem{} Anderson O.D. (1975) Moving Average Processes.  {\it Journal of the Royal Statistical Society. Series D (The Statistician)}. {\bf Vol. 24, No. 4}, 283-297
+
+
+\bibitem{} Barnett J.T. (1996) Zero-crossing rates of some non-Gaussian processes with application to detection and estimation.  {\it Thesis report Ph.D.96-10, University of Maryland}.
+
+\bibitem{} Brockwell P.J. and Davis R.A. (1993) Time Series: Theories and Methods (second edition).  {\it Springer Verlag}.
+
+
+
+
+\bibitem{} Davies, N., Pate, M. B. and Frost, M. G. (1974). Maximum autocorrelations for moving average processes.  {\it Biometrika } {\bf 61}, 199-200.
+
+\bibitem{} Hodrick, R. and Prescott, E. (1997) Postwar U.S. business
+cycles: an empirical investigation.  {\it Journal of Money, Credit,
+and Banking} {\bf 29}, 1--16.
+
+
+\bibitem{} Kedem, B. (1986) Zero-crossings analysis.  {\it Research report AFOSR-TR-86-0413, Univ. of Maryland.}
+
+
+\bibitem{} Kratz, M. (2006) Level crossings and other level functionals of stationary Gaussian processes.  {\it Probability surveys} {\bf Vol. 3}, 230-288.
+
+
+
+
+\bibitem{} McElroy, T. and Wildi , M. (2019) The trilemma between accuracy, timeliness and smoothness in real-time signal extraction.  {\it International Journal of Forecasting  } {\bf 35 (3)}, 1072-1084.
+
+\bibitem{} McElroy, T. and Wildi , M. (2020) The multivariate linear prediction problem: model-based and direct filtering solutions.  {\it Econometrics and Statistics } {\bf 14}, 112-130.
+
+
+
+\bibitem{} Rice,S.O. (1944) Mathematical analysis of random noise.  {\it I. Bell. Syst. Tech. J } {\bf 23}, 282-332.
+
+
+
+
+\end{thebibliography}
+
+
+
+
+
+\end{document}
+
+

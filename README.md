@@ -2,13 +2,15 @@
  
 SSA-predictor (Simple Sign Accuracy): this is a generalization of the classic mean-square error (MSE) forecast paradigm 
 
-There should be three folders in this package:
+There should be four folders in this package:
  
 1. Data 
 
 2. R: functions for computing the SSA criterion 
 
 3. SSA Tutorials: sample R-code on various topics (introductory examples, forecasting, signal extraction with HP, BK and HF filters)
+
+4. Technical proofs: complete theoretical results for the SSA-design (univariate case, without explicit timeliness aspects)
 
 
 There’s also an R-project file named SSA_package.Rproj
