@@ -713,7 +713,7 @@ delta_vec<-0:2
   
 pb = txtProgressBar(min = 0, max = length(ht_vec), initial = 0,style=3) 
   
-MSE_mat<-target_mat<-rho1_mat<-matrix(ncol=length(delta_vec),nrow=length(ht_vec))
+MSE_mat<-target_mat<-rho1_mat<-lambda_mat<-nu_mat<-matrix(ncol=length(delta_vec),nrow=length(ht_vec))
 # Loop through all combinations of ht and forecast horizon: compute the SSA filter and collect 
 #   crit_rhoy_target (correlation of SSA with effective target) as well as crit_rhoyz (correlation with causal MSE benchmark)  
 for (i in 1:length(ht_vec))
@@ -732,6 +732,8 @@ for (i in 1:length(ht_vec))
     target_mat[i,j]<-SSA_obj_HP$crit_rhoy_target
 # Lag-one acf of optimum: could have been computed directly from ht_vec 
     rho1_mat[i,j]<-SSA_obj_HP$crit_rhoyy
+    lambda_mat[i,j]<-SSA_obj_HP$lambda_opt
+    nu_mat[i,j]<-lambda_mat[i,j]+1/lambda_mat[i,j]
   }
 }
 close(pb)
