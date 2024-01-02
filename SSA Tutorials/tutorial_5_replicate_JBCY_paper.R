@@ -436,6 +436,72 @@ if (recompute_results)
 }
 
 
+rho_fixed<-compute_rho_from_ht(12)
+
+recompute_results<-F
+if (recompute_results)
+{  
+  #----------------------------
+  # Generate data: AR(1)
+  len<-120
+  anzsim<-100
+  a1_vec<-c(-0.9,-0.5,-0.2,0.0001,0.2,0.5,0.9)
+  set.seed(2)
+  gamma_target<-hp_mse
+  
+  ht_emp_vec<-1:anzsim
+  mean_vec_SSA<-sd_vec_SSA<-ht_emp_vec_SSA<-a1_vec
+  
+  for (k in 1:length(a1_vec))#k<-1
+  { 
+    print(k)
+    
+    a1<-a1_vec[k]
+    for (j in 1:anzsim)
+    { 
+#      print(j)
+      # Simulate data  
+      x<-arima.sim(list(ar=a1),n=len)
+      # Estimate a1  
+      a1e<-arima(x,order=c(1,0,0),include.mean=F)$coef
+      xi<-a1e^(1:(L))
+      # Compute holding time of HP based on estimated a1
+      SSA_obj<-SSA_func(L,forecast_horizon_vec,gamma_target,rho_fixed,xi)
+      
+# Compute ht of empirical SSA(12,0): convolve ssa_x with true DGP based on a1
+      SSA_conv<-conv_two_filt_func(a1^(1:(L)),SSA_obj$ssa_x)$conv
+      ht_emp_vec_SSA[j]<-compute_holding_time_func(SSA_conv)$ht
+      
+    }
+    
+    mean_vec_SSA[k]<-mean(ht_emp_vec_SSA)
+    sd_vec_SSA[k]<-sd(ht_emp_vec_SSA)
+  }
+  list_ht<-list(mean_vec_SSA=mean_vec_SSA,sd_vec_SSA=sd_vec_SSA)
+  
+  save(list_ht,file=paste(path.result,"list_ht_ssa",sep=""))
+  
+} else
+{
+  load(file=paste(path.result,"list_ht_ssa",sep=""))
+  mean_vec_SSA=list_ht$mean_vec_SSA
+  sd_vec_SSA=list_ht$sd_vec_SSA
+  
+}
+mat<-rbind(round(ht_vec_true_SSA,2),round(mean_vec_SSA,2),round(sd_vec_SSA,2))
+colnames(mat)<-paste("a1=",round(a1_vec,2),sep="")
+rownames(mat)<-c("ht SSA(12,0) true a1", "mean empirical SSA(12,0)", "sd empirical SSA(12,0)")
+
+
+
+
+xtable(mat, dec = 1,digits=rep(2,dim(mat)[2]+1),
+       paste("holding times of SSA(12,0) based on true AR(1)-parameter vs. finite sample estimates: sample length 120 (10 years of monthly data)"),
+       label=paste("ht_fsamp_ssa",sep=""),
+       center = "centering", file = "", floating = FALSE)
+
+
+
 
 
 #####################################################
