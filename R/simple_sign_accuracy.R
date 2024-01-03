@@ -1230,3 +1230,247 @@ bk_func<-function(V,w,lower_limit_nu,lambda1,eigen_M_tilde,gammak_target_mse,m,M
 
 
 
+# This function computes SSA for given lambda
+#   -if lower_limit_nu=="0" then nu=2*lambda in bk_func
+#   -if !(lower_limit_nu=="0") then nu=(lambda+1/lambda) or nu=(lambda+1/lambda)*rho_max
+Compute_SSA_for_given_lambda<-function(lambda,split_grid,L,gammak_generic,rho1,forecast_horizon,xi=NULL,lower_limit_nu="rhomax",Sigma=NULL)
+{
+  # Check lower_limit_nu: if is different from the three options one assumes standard setting rhomax: a Warning is printed  
+  if (!lower_limit_nu%in%c("rhomax","2","0"))
+  {
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("Selection of lower_limit_nu should be either rhomax or 2 or 0")
+    print("Default value rhomax is used")
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+  }
+  
+  # Triangulation is meaningful if solution to holding-time equation is unique: therefore we skip the case lower_limit_nu=0  
+  # Note that the call to fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func checks already that lower_limit_nu!="0"  
+  lower_limit_nu_triangulation<-lower_limit_nu
+  # Univariate: n=1; multivariate: n=dim(Sigma)[1]  
+  n<-ifelse(is.null(Sigma),1,dim(Sigma)[1])
+  # Compute M (see section 3 of JBCY paper) and V_M i.e. basis v of spectral decomposition of M, see section 3 in JBCY paper
+  # I_tilde is an identity and M_tilde=M in the case of univariate applications  
+  M_obj<-M_func(L,Sigma)
+  M=M_obj$M;M_tilde=M_obj$M_tilde;I_tilde=M_obj$I_tilde;eigen_M_obj=M_obj$eigen_M_obj;eigen_M_tilde_obj=M_obj$eigen_M_tilde_obj;eigen_I_tilde_obj=M_obj$eigen_I_tilde_obj
+  V_M_tilde<-eigen(M_tilde)$vectors
+  V_M<-eigen(M)$vectors
+  # Simplify if process is univariate (JBCY addresses univariate cases only)  
+  if (is.null(Sigma))
+  {
+    V_Sigma<-eigen_Sigma<-NULL
+  } else
+  {
+    V_Sigma<-eigen(Sigma)$vectors
+    eigen_Sigma<-eigen(Sigma)$values
+  }  
+  eigen_M<-eigen(M)$values
+  
+  # Specify eigenvalues and eigenvectors of M_tilde: in univariate case no problem. In multivariate case the problem is that eigenvectors of M_tilde are ordered according to increasing size   
+  if (is.null(Sigma))
+  {
+    # Univariate: here we just use original orderings    
+    V<-eigen_M_tilde_obj$vectors
+    eigen_M_tilde<-eigen_M_tilde_obj$values
+  } else
+  { 
+    # Multivariate case (not discussed in JBCY paper)    
+    # Recompute orthonormal basis of eigenvectors of M_tilde according to  kronecker(V_Sigma[,j],V_M[,1])
+    #   -in ordering of lambda_k*sigma_j 
+    #   -consistent for eigenvectors and all eigenvalues such that formula of bk based on diagonal-matrix is correct
+    #   -Otherwise orderings of eigenvalues do not match: false solution 
+    V<-eigen_M_tilde<-NULL
+    for (j in 1:dim(Sigma)[1])
+      for (k in 1:dim(V_M)[1])
+      { 
+        eigen_M_tilde<-c(eigen_M_tilde,eigen_M[k])
+        v<-kronecker(V_Sigma[,j],V_M[,k])
+        V<-cbind(V,v)
+        # Check that image is multiple of vector     
+        if (F)
+        {  
+          eigenv<-as.vector(I_tilde%*%v)/v
+          # Print ratios for strictly positive components only    
+          print(eigenv[which(abs(v)>0.00000001)])
+        }
+      }
+  }
+  
+  
+  # Specify target: we rely on the MSE target (delta is used for deriving MSE; but once MSE is computed we can set delta=0 when deriving SSA)  
+  # -This is the MSE-target as applied to epsilont and used for SSA-estimation: 
+  #     -it corresponds to convolution of gammak and Wold decomposition xi: 
+  #     -if xi is NULL or identity then this is simply gammak_generic shifted by forecast_horizon
+  
+  # Target MSE: this is with shift by forecast_horizon (=delta in JBCY paper) 
+  # Corresponds to convolution of Xi and gammak_generic with shift by forecast_horizon (=delta in JBCY paper) 
+  target_obj_mse<-target_func_one_sided(xi,gammak_generic,forecast_horizon,Sigma)
+  gammak_target_mse=target_obj_mse$gammak_target_mse
+  # Truncate target if longer than L  
+  if (ncol(gammak_target_mse)>L)
+  {
+    print("Warning: length(gammak_generic)>L will be truncated")
+    gammak_target_mse<-gammak_target_mse[,1:L,drop=FALSE]
+  }
+  # The same as above but without shift: used for computing criterion value crit_rhoy_target (does not affect optimization)
+  target_obj<-target_func_one_sided(xi,gammak_generic,0,Sigma)
+  gammak_target_two=target_obj$gammak_target_mse
+  # Truncate target if longer than L  
+  if (ncol(gammak_target_two)>L)
+  {
+    print("Warning: length(gammak_generic)>L will be truncated")
+    gammak_target_two<-gammak_target_two[,(ncol(gammak_target_two)+1)/2+(-(L-1)/2):((L-1)/2),drop=FALSE]
+  }
+  # Old odd functionality: we now just skip this  
+  if (F)
+  {  
+    # The Boolean symmetric_target does not affect the optimization at all. It is just a scaling of criterion value:
+    #   -If F: criterion refers to MSE between SSA and MSE or gammak_target_mse (shifted by forecast_horizon), as computed above
+    #   -If T: criterion refers to MSE between SSA and bi-infinite target obtained by mirroring gammak_target (unshifted), as computed above
+    #     In the latter case we don't need to shift the symmetric target because the effect is just a scaling, see the computation of crit_rhoy_target
+    if (symmetric_target)
+    { 
+      # Mirror left/right tails
+      # Note_ length must be the same as gammak_target_mse i.e. we mirror half-length
+      gammak_target_two=cbind(gammak_target_two[,as.integer((1+ncol(gammak_target_two))/2):2,drop=FALSE],gammak_target_two[,1:as.integer((1+ncol(gammak_target_two))/2),drop=FALSE])
+      # For even length we just have to add a zero    
+      if (ncol(gammak_target_two)<ncol(gammak_target_mse))
+        gammak_target_two<-cbind(gammak_target_two,rep(0,nrow(gammak_target_two)))
+    } 
+  }
+  # Check that target does not vanish: otherwise SSA-criterion is singular (solution 0 does not have a properly defined holding-time)  
+  if (sum(abs(gammak_target_mse))<1.e-20)
+  {
+    print("Error: the target is zero. Change the target specification or the forecast horizon")
+    return()
+  }
+  
+  
+  # Loop over all series (n=1 for a univariate design; n>1 for a multivariate design) 
+  n<-ifelse(is.null(Sigma),1,n)
+  # Initialize criteria, parameters, filters  
+  crit_rhoyy<-crit_rhoyz<-crit_rhoy_target<-lambda_opt<-nu_opt<-bk_best<-NULL
+  for (m in 1:n)#m<-1
+  { 
+    # Compute spectral weights based on reordered eigenvectors: ordering according to lambda_k*sigma_j in multivariate case    
+    # See section 3 in JBCY paper    
+    w<-t(V)%*%gammak_target_mse[m,]
+    
+    
+    # Compute SSA-filter      
+    bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj,grid_size)
+    # Compute lag-one acf of SSA-filter: should come as close as possible to lag-one acf of holding-time constraint      
+    rho_yy=bk_obj$rho_yy
+    # Solution is determined up to sign, see theorem 1 in JBCY-paper: change sign of filterif necessary    
+    if (bk_obj$rho_yz<0)
+    {  
+      bk<--bk_obj$bk
+      rho_yz<--bk_obj$rho_yz
+    } else
+    {
+      bk<-bk_obj$bk
+      rho_yz<-bk_obj$rho_yz
+    }
+    # Optimal solution
+    bk_best<-bk
+    # Lag-one acf (should match holding-time constraint very closely)       
+    crit_rhoyy<-rho_yy
+    # Criterion value (correlation with MSE-target): according to theorem 1 this is maximized by above filter      
+    crit_rhoyz<-rho_yz
+    # Compute also criterion with respect to effective target (for example bi-infinite filter) 
+    # Background:
+    #   crit_rhoyz is cor with respect to MSE i.e. gammak_target_mse
+    #   we want cor with respect to gammak_generic
+    #   Replace length of MSE by length of target, see proposition 4 in JBCY paper 
+    if (is.null(Sigma))
+    {
+      #      target_vec<-as.vector(gammak_target)
+    } else
+    {  
+      #      target_vec<-gammak_target[m,]
+    }
+    crit_rhoy_target<-crit_rhoyz[length(crit_rhoyz)]*as.vector(sqrt((gammak_target_mse[m,,drop=F])%*%I_tilde%*%t(gammak_target_mse[m,,drop=F])/
+                                                                      (gammak_target_two[m,,drop=F])%*%I_tilde%*%t(gammak_target_two[m,,drop=F])))
+    nu<-
+      if (!lower_limit_nu=="0")
+      {
+        nu<-bk_obj$c*(lambda+1/lambda)
+      } else
+      {
+        # lambda is in [-1,1] and therefore nu is in [-2,2]: this is how nu is parameterized in bk_func if lower_limit_nu=="0" 
+        nu<-2*lambda
+      }
+    
+  }
+  
+  # If the data xt is not white noise, then we have to proceed to deconvolution, see section 2 in JBCY paper
+  # Background
+  # -The above optimal solution is the filter as applied to epsilont: it is the convolution of SSA-filter and Wold-decomposition of xt
+  # -If xt=epsilont then the above filter is the final solution: one can skip the following code-lines
+  # -if xt!=epsilont  (xt is an autocorrelated stationary process) then the above filter must be deconvoluted prior to being applied to xt  
+  # Deconvolution: in use iff xi!=NULL        
+  if (!is.null(xi))
+  {
+    bk_x<-matrix(rep(0,dim(bk_best)[1]*dim(bk_best)[2]),nrow=dim(bk_best)[1],ncol=dim(bk_best)[2])
+    xi_0<-xi[,1+(0:(n-1))*L]
+    xi_0_inv<-solve(xi_0)
+    # Invert convolution back to bk as applied to xt  
+    # Lag 0 is just bk_best*Xi_0^{-1}      
+    bk_x[1+(0:(n-1))*L,]<-bk_best[1+(0:(n-1))*L,]%*%xi_0_inv
+    # Lag ijk (in fact ijk-1)      
+    for (ijk in 2:L)#ijk<-2
+    {
+      # Initialize with convolution        
+      bk_x[ijk+(0:(n-1))*L,]<-bk_best[ijk+(0:(n-1))*L,]
+      for (k in 1:min(ijk-1,L-1))#k<-1
+      {
+        # dimensions of xi and b_mat are transposed
+        B_k<-bk_x[k+L*(0:(n-1)),]
+        xi_k<-xi[,ijk-(k-1)+(0:(n-1))*L]
+        # Ordering is important: B is applied to Xi (not commutative in multivariate setting)
+        # Must use transpose of B_k because rows of B_k correspond to eps1, eps2 and eps3 (instead of series 1, series2, series 3)         
+        B_dot_xi<-t(B_k)%*%xi_k
+        # Use transpose of B_dot_xi again        
+        bk_x[ijk+(0:(n-1))*L,]<- bk_x[ijk+(0:(n-1))*L,]-t(B_dot_xi)
+      }
+      # Multiply with X_0^{-1}        
+      bk_x[ijk+(0:(n-1))*L,]<- bk_x[ijk+(0:(n-1))*L,]%*%xi_0_inv
+    }
+    
+    
+    # Check deconvolution: compute convolution of bk_x and xi: should give bk_best   
+    # This is a local internal check: the user doesn't see the outcome    
+    b_xi<-matrix(rep(0,n^2*L),nrow=n*L,ncol=n)
+    for (m in 1:L)#m<-4
+    {
+      # Compute m-th term of convolution: sum over m summands: 
+      #   Set all terms to zero if lag is larger than L i.e. loop runs from 1 to min(m,L-delta-1)  
+      for (k in 1:min(m,L))# k<-1
+      {
+        # Shift target by forecast_horizon and extract matrix Gamma_{k+forecast_horizon} from gamma_target    
+        b_deltak<-bk_x[k+(0:(n-1))*L,]
+        # Extract matrix xi_{m-k} from xi[1:n,m-(k-1)+(0:(n-1))*L]    
+        xi_m_k<-xi[,m-(k-1)+(0:(n-1))*L]  #xi[,c(1,51,101)]<-rep(1,n)
+        # Add Gamma_{k+forecast_horizon}%*%xi_{m-k} to m-th term gamma_xi[1:n,m-(k-1)+(0:(n-1))*L]  of convolution  
+        b_xi[m+(0:(n-1)*L),]<-b_xi[m+(0:(n-1)*L),]+t(t(b_deltak)%*%xi_m_k)
+      }  
+    }
+    # Check completed: difference should vanish (or be very small)  
+    max(abs(b_xi-bk_best))
+    
+  } else
+  {
+    # If xt=epsilont then bk_x is the same as bk_best    
+    bk_x<-bk_best
+  }
+  gammak_mse<-gammak_target_mse
+  
+  return(list(bk_best=bk_best,crit_rhoyy=crit_rhoyy,
+              crit_rhoyz=crit_rhoyz,bk_x=bk_x,
+              nu=nu,gammak_mse=gammak_mse,crit_rhoy_target=crit_rhoy_target,w=w))
+}
+
+
+
+
+

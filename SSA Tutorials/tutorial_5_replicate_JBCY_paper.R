@@ -207,7 +207,7 @@ ht_hp<-htrho_obj$ht
 #----------------------------
 # Generate data: AR(1)
 len<-12000
-a1<-0.4
+a1<-0.6
 set.seed(2)
 x<-arima.sim(list(ar=a1),n=len)
 acf(x,type="partial")
@@ -220,7 +220,7 @@ use_empirical_a1<-F
 a1f<-ifelse(use_empirical_a1,arima(x,order=c(1,0,0),include.mean=F)$coef,a1)
 
 xi<-a1f^(1:L)
-gamma_target<-hp_mse
+gamma_target<-hp_trend
 
 conv<-xi
 for (i in 1:L)
@@ -262,7 +262,6 @@ if (F)
 # 3. SSA-design: negative a1
 a1f<--ifelse(use_empirical_a1,arima(x,order=c(1,0,0),include.mean=F)$coef,a1)
 xi<--(a1f^(1:L))
-gamma_target<-hp_mse
 conv<-xi
 for (i in 1:L)
 {
@@ -357,8 +356,7 @@ if (recompute_results)
   anzsim<-100000
   a1_vec<-c(-0.9,-0.5,-0.2,0.0001,0.2,0.5,0.9)
   set.seed(2)
-  gamma_target<-hp_mse
-  
+
   ht_emp_vec<-1:anzsim
   mean_vec_HP<-sd_vec_HP<-ht_vec_true_HP<-mean_vec_SSA<-sd_vec_SSA<-ht_vec_true_SSA<-a1_vec
   
@@ -414,26 +412,37 @@ if (recompute_results)
   }
   list_ht<-list(ht_vec_true_HP=ht_vec_true_HP,mean_vec_HP=mean_vec_HP,sd_vec_HP=sd_vec_HP,
                   ht_vec_true_SSA=ht_vec_true_SSA,mean_vec_SSA=mean_vec_SSA,sd_vec_SSA=sd_vec_SSA)
+  save(list_ht,file=paste(getwd(),"/Data/list_ht",sep=""))
   
-  
-  mat<-rbind(round(ht_vec_true_HP,2),round(mean_vec_HP,2),round(sd_vec_HP,2),
-             round(ht_vec_true_SSA,2),round(mean_vec_SSA,2),round(sd_vec_SSA,2))
-  colnames(mat)<-paste("a1=",round(a1_vec,2),sep="")
-  rownames(mat)<-c("ht HP true a1", "mean empirical ht HP", "sd empirical ht HP",
-                   "ht SSA(12,0) true a1", "mean empirical SSA(12,0)", "sd empirical SSA(12,0)")
-  
-  
-  
-  xtable(mat[1:3,], dec = 1,digits=rep(2,dim(mat)[2]+1),
-  paste("holding times of HP concurrent based on true AR(1)-parameter vs. finite sample estimates: sample length 120 (10 years of monthly data)"),
-  label=paste("ht_fsamp",sep=""),
-  center = "centering", file = "", floating = FALSE)
-  
-  xtable(mat[4:6,], dec = 1,digits=rep(2,dim(mat)[2]+1),
-  paste("holding times of SSA(12,0) based on true AR(1)-parameter vs. finite sample estimates: sample length 120 (10 years of monthly data)"),
-  label=paste("ht_fsamp_ssa",sep=""),
-  center = "centering", file = "", floating = FALSE)
+} else
+{
+  load(file=paste(getwd(),"/Data/list_ht",sep=""))
+  ht_vec_true_HP=list_ht$ht_vec_true_HP
+  mean_vec_HP=list_ht$mean_vec_HP
+  sd_vec_HP=list_ht$sd_vec_HP
+  ht_vec_true_SSA=list_ht$ht_vec_true_SSA
+  mean_vec_SSA=list_ht$mean_vec_SSA
+  sd_vec_SSA=list_ht$sd_vec_SSA
+
 }
+
+mat<-rbind(round(ht_vec_true_HP,2),round(mean_vec_HP,2),round(sd_vec_HP,2),
+           round(ht_vec_true_SSA,2),round(mean_vec_SSA,2),round(sd_vec_SSA,2))
+colnames(mat)<-paste("a1=",round(a1_vec,2),sep="")
+rownames(mat)<-c("ht HP true a1", "mean empirical ht HP", "sd empirical ht HP",
+                 "ht SSA(12,0) true a1", "mean empirical SSA(12,0)", "sd empirical SSA(12,0)")
+
+
+
+xtable(mat[1:3,], dec = 1,digits=rep(2,dim(mat)[2]+1),
+       paste("holding times of HP concurrent based on true AR(1)-parameter vs. finite sample estimates: sample length 120 (10 years of monthly data)"),
+       label=paste("ht_fsamp",sep=""),
+       center = "centering", file = "", floating = FALSE)
+
+xtable(mat[4:6,], dec = 1,digits=rep(2,dim(mat)[2]+1),
+       paste("holding times of SSA(12,0) based on true AR(1)-parameter vs. finite sample estimates: sample length 120 (10 years of monthly data)"),
+       label=paste("ht_fsamp_ssa",sep=""),
+       center = "centering", file = "", floating = FALSE)
 
 
 rho_fixed<-compute_rho_from_ht(12)
@@ -444,11 +453,10 @@ if (recompute_results)
   #----------------------------
   # Generate data: AR(1)
   len<-120
-  anzsim<-100
+  anzsim<-1000
   a1_vec<-c(-0.9,-0.5,-0.2,0.0001,0.2,0.5,0.9)
   set.seed(2)
-  gamma_target<-hp_mse
-  
+
   ht_emp_vec<-1:anzsim
   mean_vec_SSA<-sd_vec_SSA<-ht_emp_vec_SSA<-a1_vec
   
@@ -476,29 +484,29 @@ if (recompute_results)
     
     mean_vec_SSA[k]<-mean(ht_emp_vec_SSA)
     sd_vec_SSA[k]<-sd(ht_emp_vec_SSA)
+    sd_vec_SSA/sqrt(anzsim)
+    round(mean_vec_SSA,1)
   }
-  list_ht<-list(mean_vec_SSA=mean_vec_SSA,sd_vec_SSA=sd_vec_SSA)
+  list_ht<-list(mean_vec_SSA=mean_vec_SSA,sd_vec_SSA=sd_vec_SSA,ht_emp_vec_SSA=ht_emp_vec_SSA)
   
-  save(list_ht,file=paste(path.result,"list_ht_ssa",sep=""))
+  save(list_ht,file=paste(getwd(),"/Data/list_ht_empirical_ssa",sep=""))
   
 } else
 {
-  load(file=paste(path.result,"list_ht_ssa",sep=""))
+  load(file=paste(getwd(),"/Data/list_ht_empirical_ssa",sep=""))
   mean_vec_SSA=list_ht$mean_vec_SSA
   sd_vec_SSA=list_ht$sd_vec_SSA
+# This is the realization for the last a1 in a1_vec only  
+  ht_emp_vec_SSA=list_ht$ht_emp_vec_SSA
   
 }
-mat<-rbind(round(ht_vec_true_SSA,2),round(mean_vec_SSA,2),round(sd_vec_SSA,2))
-colnames(mat)<-paste("a1=",round(a1_vec,2),sep="")
-rownames(mat)<-c("ht SSA(12,0) true a1", "mean empirical SSA(12,0)", "sd empirical SSA(12,0)")
+mat<-rbind(round(mean_vec_SSA,2),round(sd_vec_SSA,2))
+colnames(mat)<-c(paste("AR(1)=",round(a1_vec[1],2),sep=""),round(a1_vec,2)[2:length(a1_vec)])
+rownames(mat)<-c("mean empirical SSA(12,0)", "sd empirical SSA(12,0)")
+
+mat
 
 
-
-
-xtable(mat, dec = 1,digits=rep(2,dim(mat)[2]+1),
-       paste("holding times of SSA(12,0) based on true AR(1)-parameter vs. finite sample estimates: sample length 120 (10 years of monthly data)"),
-       label=paste("ht_fsamp_ssa",sep=""),
-       center = "centering", file = "", floating = FALSE)
 
 
 
