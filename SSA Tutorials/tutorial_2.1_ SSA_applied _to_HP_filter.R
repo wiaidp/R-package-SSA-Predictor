@@ -1315,7 +1315,7 @@ heatmap.2(log(target_mat[nrow(target_mat):1,]), dendrogram="none",scale = "none"
 # We can now observe additional structure
 
 # 8.2.3 We can plot slices (selected columns) of the above heat-map 
-select_vec<-c(1:4)+21
+select_vec<-1:3
 mplot<-target_mat[,select_vec]
 coli<-rainbow(length(select_vec))
 par(mfrow=c(1,1))

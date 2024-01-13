@@ -242,7 +242,7 @@ delta<-0
 # Account for AR(1)-DGP: if xi is omitted then it is assumed that data is white noise
 xi<-xi
 
-SSA_obj<-SSA_func(L,forecast_horizon_vec,gamma_target,rho1,xi)
+SSA_obj<-SSA_func(L,delta,gamma_target,rho1,xi)
 
 ssa_eps<-SSA_obj$ssa_eps
 ssa_x<-SSA_obj$ssa_x
@@ -271,7 +271,7 @@ for (i in 1:L)
 ts.plot(conv)
 ht_conv_neg<-compute_holding_time_func(conv)$ht
 
-SSA_obj<-SSA_func(L,forecast_horizon_vec,gamma_target,rho1,xi)
+SSA_obj<-SSA_func(L,delta,gamma_target,rho1,xi)
 
 
 ssa_eps_neg<-SSA_obj$ssa_eps
@@ -348,13 +348,14 @@ box()
 # if recompute_results==T then the computations are made
 
 recompute_results<-F
+a1_vec<-c(-0.9,-0.5,-0.2,0.0001,0.2,0.5,0.9)
+
 if (recompute_results)
 {  
   #----------------------------
   # Generate data: AR(1)
   len<-120
   anzsim<-100000
-  a1_vec<-c(-0.9,-0.5,-0.2,0.0001,0.2,0.5,0.9)
   set.seed(2)
 
   ht_emp_vec<-1:anzsim
@@ -434,15 +435,6 @@ rownames(mat)<-c("ht HP true a1", "mean empirical ht HP", "sd empirical ht HP",
 
 
 
-xtable(mat[1:3,], dec = 1,digits=rep(2,dim(mat)[2]+1),
-       paste("holding times of HP concurrent based on true AR(1)-parameter vs. finite sample estimates: sample length 120 (10 years of monthly data)"),
-       label=paste("ht_fsamp",sep=""),
-       center = "centering", file = "", floating = FALSE)
-
-xtable(mat[4:6,], dec = 1,digits=rep(2,dim(mat)[2]+1),
-       paste("holding times of SSA(12,0) based on true AR(1)-parameter vs. finite sample estimates: sample length 120 (10 years of monthly data)"),
-       label=paste("ht_fsamp_ssa",sep=""),
-       center = "centering", file = "", floating = FALSE)
 
 
 rho_fixed<-compute_rho_from_ht(12)
