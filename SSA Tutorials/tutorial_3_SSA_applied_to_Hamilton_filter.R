@@ -123,10 +123,10 @@ sum(lm_obj$coefficients[1+1:p])
 # The sum of the Hamilton filter nearly vanishes
 sum(hamilton_filter)
 # The fact that the sum of the Hamilton filter coefficients doesn't vanish exactly is a slight 
-#   drawback (due to overfitting), when compared to HP (The coefficients of HP-gap add to zero but the gap-filter tends to generate spurious cycles, see tutorial 2, example 7)
+#   drawback (problem is due to overfitting), when compared to HP (The coefficients of HP-gap add to zero but the gap-filter tends to generate spurious cycles, see tutorial 2, example 7)
 
 # We now correct the filter such that the sum of the coefficients is zero: cointegration constraint
-#   -We just distribute the difference evenly across coefficients.
+#   -We just distribute the difference (error) evenly across coefficients.
 #   -Alternative corrections could be envisioned but the rounding-error (to achieve a zero-sum) is much smaller than 
 #     the regression sampling error and therefore we can ignore such subtleties (you are welcome to experiment)
 #   -In any case, these adjustments do not affect relative performances of SSA
