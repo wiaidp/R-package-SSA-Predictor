@@ -119,8 +119,10 @@ ts.plot(cbind(residuals,lm_obj$residuals),main="Replication of Hamilton cycle: b
 
 # The regression coefficients nearly sum to one: this is because the series is trending and therefore the filter must remove 
 #   the trend; otherwise the residuals wouldn't be stationary out-of-sample (cointegration)
+sum(lm_obj$coefficients[1+1:p])
+# The sum of the Hamilton filter nearly vanishes
 sum(hamilton_filter)
-# The fact that the sum of the Hamilton filter coefficients doesn't vanish is a slight 
+# The fact that the sum of the Hamilton filter coefficients doesn't vanish exactly is a slight 
 #   drawback (due to overfitting), when compared to HP (The coefficients of HP-gap add to zero but the gap-filter tends to generate spurious cycles, see tutorial 2, example 7)
 
 # We now correct the filter such that the sum of the coefficients is zero: cointegration constraint
@@ -139,6 +141,16 @@ if (F)
   residuals_adjusted<-residuals_adjusted-mean(residuals_adjusted)
 
 # Compare both cycles
+# 1. Hamilton cycle (red), Hamilton cycle shifted by regression intercept (orange line), adjusted cycle (blue)
+par(mfrow=c(1,1))
+ts.plot(cbind(residuals,residuals+intercept,residuals_adjusted),col=c("red","orange","blue"),main="Cycles")
+mtext("Unit-root adjusted un-centered cycle",col="blue",line=-1)
+mtext("Hamilton Cycle",col="red",line=-2)
+mtext("Hamilton cycle shifted by regression intercept",col="orange",line=-3)
+abline(h=0)
+# The series differ mainly in terms of level; the dynamics are indistinguishable
+
+# 2. Hamilton original vs. adjusted
 par(mfrow=c(2,2))
 ts.plot(y,main="Log(GDPC1)")
 ts.plot(cbind(residuals,residuals_adjusted),col=c("red","blue"),main="Cycles")
