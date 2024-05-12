@@ -708,6 +708,86 @@ box()
 #   -Transformed HP-trend approaches zero more linearly (first order zero: cancels a single unit-root only)
 #   -Transformed HP-trend is a hair smoother (the amplitude is a bit larger at business-cycle frequencies, where it peaks)
 
+#-----------------------------------------
+# Spurious cycles
+# -The following simulation experiment applies hp_trend and hp_gap_diff to an artificial time series
+# -The time series in differences corresponds to a deterministic changing level (signal) overlaid with noise
+# -The series in levels is a non-stationary series with changing growth-rate
+
+
+set.seed(35)
+len<-1000
+# Deterministic changing level 
+mu1<-c(rep(-1,200),seq(-1,1,by=0.05),rep(1,100),seq(1,0,by=-0.005),rep(1,198))
+mu<-c(mu1,mu1)[1:len]
+# Noise+level
+eps<-rnorm(len)+mu
+
+# Apply hp_trend and hp_gap_diff to the data 
+x_trende<-filter(eps,scale(hp_trend,center=F,scale=T)/sqrt(L-1),sides=1)
+x_gape<-filter(eps,scale(hp_gap_diff,center=F,scale=T)/sqrt(L-1),sides=1)
+
+
+par(mfrow=c(2,2))
+# Plot data together with level: representative of economic data in first differences
+mplot<-na.exclude(cbind(eps[(L+1):len]))
+plot(mplot[,1],main="Series in differences",axes=F,type="l",xlab="",ylab="",ylim=c(min(mplot),max(mplot)),col="grey")
+#lines(c(rep(3.28,200),rep(NA,200)),lty=2)
+#lines(c(rep(NA,400),rep(3.28,200)),lty=2)
+lines(mu[L:len],lty=2,lwd=2)
+abline(h=0)
+axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
+axis(2)
+box()
+
+# Plot integrated data: representative of economic indicator in levels
+mplot<-na.exclude(cbind(eps[(L+1):len]))
+plot(cumsum(mplot[,1]),main="Series in levels",axes=F,type="l",xlab="",ylab="",col="grey")
+#lines(c(rep(3.28,200),rep(NA,200)),lty=2)
+#lines(c(rep(NA,400),rep(3.28,200)),lty=2)
+#lines(mu[L:800],lty=2)
+abline(h=0)
+axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
+axis(2)
+box()
+
+# Plot filter outputs
+mplot<-na.exclude(cbind(x_trende,x_gape))
+plot(mplot[,1],main="Filter outputs",axes=F,type="l",xlab="",ylab="",ylim=c(min(mplot),max(mplot)),col="brown")
+lines(mplot[,2],col="red")
+mtext("Original HP-trend",col="brown",line=-1)
+mtext("Transformed HP-gap",col="red",line=-2)
+#lines(c(rep(3.28,200),rep(NA,200)),lty=2)
+#lines(c(rep(NA,400),rep(3.28,200)),lty=2)
+lines(3.28*mu[L:len],lty=2,lwd=2)
+abline(h=0)
+axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
+axis(2)
+box()
+
+
+# Outcomes:
+# -hp_gap_diff (red line) cancels the signal (changing level) and stays centered at the zero line
+# -hp_trend (brown line) tracks the changing level (changing growth rate of data in levels)
+# -The output of hp_gap_diff is a spurious cycle whose duration is determined by the frequency at which its amplitude peaks.
+#   -the corresponding `cycle' is an artifact of the bandpass characteristics of the filter, as determined by lambda.
+#   -the corresponding cycle is not related to a salient feature of the data.
+# -In contrast, the output of hp_trend `extracts` a salient feature of the data, namely the changing level
+
+
+# The undesirable `cyclical` movements of hp_trend are just `noise' which is due to high-frequency leakage of the filter
+#   -The level shifts of the data are the proper `signal'
+# In contrast, the `cyclical' gap of hp_gap_diff is the proper signal and the level-shifts of the data are a nuisance.
+
+# Questions:
+# Which filter output is `less spurious'? 
+# Which filter output is more likely to extract relevant (salient) features from economic data?
+
+
+
+
+
+
 ###################################################################################################
 ###################################################################################################
 # 8. Summary
