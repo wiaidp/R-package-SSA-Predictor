@@ -1,4 +1,6 @@
-# This series of tutorials is about optimal prediction
+# This series of tutorials is about optimal prediction.
+
+# See Wildi, M. (2024) Business Cycle Analysis and Zero-Crossings of Time Series: a Generalized Forecast Approach: https://doi.org/10.1007/s41549-024-00097-5.
 
 # The structure of a prediction problem  can put forward different aspects of a predictor
 #   -One-step ahead forecasting: short-term performances, track higher frequency components
@@ -14,7 +16,7 @@
 #   -Timeliness or lead/lag: controlling the systematic advancement or retardation (until an alarm is set)
 
 
-# SSA is an acronym for Simple Sign Accuracy. 
+# SSA is an acronym for Simple Sign Accuracy or Smooth Sign Accuracy. 
 # SSA: addresses prediction 
 #   -one step ahead, multi-step ahead, backcasting, nowcasting or forecasting 
 # SSA emphasizes characteristics of a predictor which are related to 

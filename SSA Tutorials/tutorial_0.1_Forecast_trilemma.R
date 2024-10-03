@@ -1,4 +1,6 @@
 # We here present and discuss a fundamental forecast trilemma
+# See Wildi, M. (2024) Business Cycle Analysis and Zero-Crossings of Time Series: a Generalized Forecast Approach: https://doi.org/10.1007/s41549-024-00097-5.
+
 
 rm(list=ls())
 
@@ -91,7 +93,7 @@ compute_empirical_ht_func(y_mse)
 compute_empirical_ht_func(y_sym)$empirical_ht/compute_empirical_ht_func(y_mse)$empirical_ht
 
 
-# We can also compute the true (expected) ht, if the data is white noise, see proposition 2 in JBCY paper
+# We can also compute the true (expected) ht, if the data is white noise, see  Wildi, M. (2024)
 #   This number is connected to the lag-one autocorrelation function (ACF)
 compute_holding_time_func(gamma)$ht
 compute_holding_time_func(b_mse)$ht
@@ -106,7 +108,7 @@ filter_mat<-cbind(y_sym,y_mse)
 # The following function shifts the series in the second column against the series in the first column for various leads and lags
 # For each shift it computes the distances between (closest) zero-crossings of both series and sums these distances
 # The shift at which the sum is smallest is a measure for the lead (left shift) or lag (right shift) of the series 
-#   in the first column 
+#   in the first column,  see Wildi, M. (2024) for background
 # The following plot suggest a lead of the target (a lag of the MSE) of three time-units: the minimum of 
 #   the curve is at -3
 compute_min_tau_func(filter_mat)
@@ -144,7 +146,7 @@ box()
 mean((y_sym-y_mse)^2,na.rm=T)
 # The `true' MSE (expected squared error) can be obtained easily by realizing that we substituted 0-forecasts for the future xt
 #   Therefore the error is the cummulated weighted sum of future xt
-#   Since xt is white noise the MSE must be
+#   Since xt is white noise the `true' MSE must be
 sum(sigma^2*gamma[1:((L-1)/2+delta)]^2)
 # The empirical MSE converges to the expected squared error for longer time series
 
@@ -187,7 +189,7 @@ colnames(table)<-paste("delta=",delta_vec,sep="")
 table
 
 # Discussion
-# -The MSE predictor emphasizes MSE performances, only and exclusively
+# -The MSE predictor emphasizes MSE performances, only/exclusively
 #   MSE does not allow for explicit controls of smoothness (ht) or timeliness (shift)
 # -MSE performances and ht worsen with increasing delta (forecast horizon)
 #   The predictor becomes noisier and it lies farther away from the target
@@ -224,6 +226,6 @@ table
 # -This proceeding `works' and it is intuitively appealing
 # -However, timeliness can be addressed more directly, more fundamentally and more effectively: 
 #   A corresponding extension is on the way 
-# 2. McElroy and Wildi address a forecast trilemma, too: AST-trilemma (use your favorite search engine)
+# 2. McElroy and Wildi (2018) address a forecast trilemma, too: AST-trilemma (use your favorite search engine)
 # -However, their so called ATS-trilemma does not optimize MSE conditional on ht and shift
 # -SSA improves on the ATS-trilemma mainly in terms of interpretability

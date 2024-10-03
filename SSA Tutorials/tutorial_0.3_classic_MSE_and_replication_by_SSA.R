@@ -1,8 +1,8 @@
 # We here 
 # -briefly derive the classic mean-square error (MSE) predictor for a simple `toy' signal extraction problem
-#   -Based on white: example 1
+#   -Based on white noise: example 1
 #   -Based on an autocorrelated process: example 2
-# -Introduce SSA
+# -Introduce SSA, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 #   -replicate MSE by SSA: example 3
 #   -`play' with the input to SSA: example 4`
 # -In the subsequent tutorials we can view the MSE predictor both as a benchmark, for comparing performances, as well 
@@ -79,7 +79,7 @@ abline(h=0)
 compute_empirical_ht_func(y_sym)
 compute_empirical_ht_func(y_mse)
 # The MSE filter crosses the zero line more often than the target (excess of 'noisy' alarms)
-# We can compare the empirical holding times to the expected ht, see proposition 2 in JBCY paper
+# We can compare the empirical holding times to the expected ht, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 #   In the long run, empirical numbers converge to expected numbers (in the absence of model misspecification)
 compute_holding_time_func(gamma)$ht
 compute_holding_time_func(b_MSE)$ht
@@ -90,7 +90,7 @@ compute_holding_time_func(b_MSE)$ht
 # For that purpose we compare target and MSE
 data_mat<-cbind(y_sym,y_mse)
 # The function shifts the series in the second column against the series in the first column for various leads and lags
-# For each shift it computes the distances between (closest) zero-crossings of both series and sums these distances
+# For each shift it computes the distances between (closest) zero-crossings of both series and sums these distances, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 # The shift at which the sum is smallest is a measure for the lead (left shift) or lag (right shift) of the series 
 #   in the first column 
 # The following plot suggest a lead of the target (a lag of the MSE) of one time-unit
@@ -138,7 +138,7 @@ box()
 #   they are entirely determined by the filter
 # Therefore, they offer an alternative `independent' ('data-free' and `model-free') assessment of vital characteristics
 #   of the optimal estimate
-# Tutorials 2-3 and 5 confirm the above findings: 
+# Tutorials 2-3 and 5 will confirm the above findings: 
 #   -faster SSA (leading or left shifted) will have a smaller shift
 #   -smoother SSA (larger ht) typically will have a smaller amplitude at higher-frequencies 
 #     (tutorial 4 proposes an instructive counter-example) 
@@ -161,7 +161,7 @@ box()
 #   -No other competing design can outperform y_mse in terms of MSE performances 
 # But y_mse is right-shifted (lagging) and y_mse is noisier (smaller ht)
 # Can we improve somehow smoothness and/or timeliness? Both at once? What price do we have to pay in terms of MSE-performances?
-# The formal SSA-framework introduced in the JBCY paper addresses these questions
+# The formal SSA-framework introduced in Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5 addresses these questions
 
 #######################################################################################################
 ######################################################################################################
@@ -171,6 +171,7 @@ gamma<-c(0.25,0.5,0.75,1,0.75,0.5,0.25)
 # New series
 set.seed(76)
 len<-1200
+# Specify ARMA parameters for the DGP (data generating process)
 a1<-0.4
 b1<-0.3
 sigma<-1
@@ -182,7 +183,7 @@ for (i in 2:len)
   x[i]<-a1*x[i-1]+epsilon[i]+b1*epsilon[i-1]
 }
 
-# There's autocorrelation now
+# The empirical autocorrelation function: nomore white noise
 acf(x)
 
 # Set filter length: should be sufficiently large for filter weights to decay to zero
@@ -215,7 +216,7 @@ ts.plot(cbind(y_sym,y_conv),main="Target applied to xt overlaps convolved target
 # Why do we transform the target filter by convolution? 
 # Four main purposes: 
 # 1. We can easily derive the MSE nowcast (or any forecast or backcast) by replacing future epsilont by their optimal MSE zero-forecast
-# 2. we can apply the formula for ht in proposition 2 of the JBCY paper (because the expression assumes the data to be white noise)
+# 2. we can apply the formula for ht in Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5 (because the expression assumes the data to be white noise)
 # 3. We can easily derive the spectral density of the MSE predictor yt 
 # 4. We can easily compute its expected MSE
 
@@ -226,7 +227,7 @@ gamma_conv_mse<-c(gamma_conv[4:L],rep(0,3))
 
 ts.plot(gamma_conv_mse,main="MSE filter as applied to epsilont")
 
-# In general we would like the MSE filter as applied to xt. Very easy: just deconvolve gamma_mse from gamma_conv_mse
+# In general we would like the MSE filter as applied to xt (not epsilont). Very easy: just deconvolve gamma_mse from gamma_conv_mse
 
 gamma_mse<-deconvolute_func(gamma_conv_mse,xi)$dec_filt
 
@@ -252,7 +253,7 @@ compute_empirical_ht_func(y_sym)
 compute_empirical_ht_func(y_mse)
 # The MSE filter crosses the zero line more often than the target (excess of 'noisy' alarms)
 
-# We can compare the empirical holding times to the expected ht, see proposition 2 in JBCY paper
+# We can compare the empirical holding times to the expected ht, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 #   In the long run, empirical numbers converge to expected numbers (in the absence of model misspecification)
 # But these numbers do not seem to match 
 #   Random sample deviations cannot explain the mismatch since the  series are sufficiently long
@@ -329,7 +330,7 @@ axis(2)
 box()
 
 #####################################################################################################
-# We provide context for understanding SSA, assuming example 2 as formal background 
+# We provide context for understanding SSA, assuming the above example 2 for background 
 # Let zt designate a target: zt=sum_{k=-\infty}^{\infty} gamma_k x_{t-k}
 #   In the above example examples: zt=y_sym the output of the acausal two-sided filter 
 # Let xt=sum_{j=0}^{\infty} xi_j epsilon_{t-k} be a stationary (or non-stationary integrated process)
@@ -386,7 +387,7 @@ box()
 # Holding time: we want SSA to replicate the MSE predictor: therefore we set ht accordingly
 # We need the convolved filter (applied to epsilont) for inferring ht
 ht<-compute_holding_time_func(gamma_conv_mse)$ht
-# Instead of ht, we provide the bijective `twin', namely the lag-one acf, see proposition 2 in JBCY paper
+# Instead of ht, we provide the bijective `twin', namely the lag-one acf, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 # We can transform ht in rho1 with the function compute_rho_from_ht 
 rho1<-compute_rho_from_ht(ht)
 # Alternatively we could set rho1 directly (the above function computes ht as well as the lag-one acf)
@@ -423,7 +424,7 @@ axis(2)
 box()
 
 
-# Same for the convolved designs
+# Same for the convolved designs (filters applied to epsilont)
 ssa_eps=SSA_obj$ssa_eps
 mplot<-cbind(ssa_eps,gamma_conv_mse)
 # Both filters overlap: SSA just replicated MSE up to arbitrary scaling
@@ -458,7 +459,7 @@ box()
 # A. Criterion values: 
 # 1. Maximize the correlation with the MSE solution (here gamma_conv_mse) or
 # 2. Maximize the correlation with the effective target (here the two sided filter)
-# Both criteria are equivalent, see proposition 4 in JBCY paper
+# Both criteria are equivalent, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 # Let's compute the first one:
 #   We can rely on the convolved filters (applied to epsilont) to compute correlations
 #   Assuming white noise, the exact formula for the cross-correlation is
@@ -467,14 +468,14 @@ t(ssa_eps)%*%gamma_conv_mse/sqrt(t(ssa_eps)%*%ssa_eps*t(gamma_conv_mse)%*%gamma_
 # SSA returns this criterion value
 SSA_obj$crit_rhoyz
 # The second criterion: maximize correlation with two-sided target
-#   We just have to correct for the different squared lengths (or variances) of MSE and two-sided target, see proposition 5 in JBCY paper
+#   We just have to correct for the different squared lengths (or variances) of MSE and two-sided target, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 #   Since this ratio is independent of ssa_eps both criteria are equivalent (up to scaling)
 length_ratio<-sqrt(sum(gamma_conv_mse^2)/sum(gamma_conv^2))
 t(ssa_eps)%*%gamma_conv_mse/sqrt(t(ssa_eps)%*%ssa_eps*t(gamma_conv_mse)%*%gamma_conv_mse)*length_ratio
 # SSA also returns the corresponding criterion value
 SSA_obj$crit_rhoy_target
 # The correlation with the effective target is smaller than one because the two-sided filter relies on future (unobserved) data
-# In applications it is invariably the case that crit_rhoy_target<=crit_rhoyz 
+# In applications it is invariably the case that crit_rhoy_target <= crit_rhoyz 
 
 # We can verify pertinence of the above criterion values by computing empirical correlations
 y_ssa<-filter(x,ssa_x,side=1)
@@ -491,7 +492,7 @@ ht
 rho1
 # After optimization, SSA achieves
 SSA_obj$crit_rhoyy
-# If both values match, then this is proof that the optimization reached the global maximum (technical details are explained in another article in preparation)
+# If both values match, then this is proof that the optimization reached the global maximum 
 #   We could improve tightness of the approximation by increasing the number of iterations (of the numerical optimization)
 #   The default value is 20: this is sufficient for typical (non-exotic) applications (in short: don't be concerned about this technical feature)
 
@@ -511,7 +512,7 @@ acf(na.exclude(y_ssa))$acf[2]
 rho1
 # Let's have a look at the empirical ht
 compute_empirical_ht_func(y_ssa)
-# It matches our constraint
+# It matches our constraint (error can be made arbitrarily small when increasing the sample size)
 ht
 # Empirical measures converge to expected numbers for longer time series because xi is the true model
 # If empirical estimates differ substantially from returned theoretical or expected values, then the model (xi) is misspecified
@@ -521,8 +522,7 @@ ht
 #########################################################################################
 #########################################################################################
 # Example 4: alternative target specifications
-# We copy example 3 but we exchange the symmetric filter for the MSE-filter in the target specification
-#   -Proposition 5 in JBCY paper shows that both targets are equivalent
+# We copy example 3 but we exchange the symmetric filter for the MSE-filter in the target specification, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 # We can supply either gamma_mse (as applied to xt) or gamma_conv_mse (as applied to epsilont)
 #   But we must be careful when doing so...
 # A. First case: gamma_mse the MSE filter applied to xt

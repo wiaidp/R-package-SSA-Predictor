@@ -1,4 +1,4 @@
-# In this tutorial we explain the SSA criterion in example 1, based on a simple case study
+# In this tutorial we explain the SSA criterion based on a simple case study
 #   -This background is needed for understanding some of the counter-intuitive `idiosyncrasies' of our approach
 #   -For example: the predictor is claimed to predict signs and to control zero-crossings
 #   -But the criterion relies on cross-correlations and lag-one autocorrelations only: nothing about signs!  
@@ -6,8 +6,7 @@
 # There exist alternative approaches for predicting signs of a target
 #   -We argue that SSA is more efficient than these!
 #   -In particular, we benchmark SSA to a classic logit model in example 2 of this tutorial
-
-
+# For background, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5. 
 
 
 rm(list=ls())
@@ -80,7 +79,7 @@ abline(h=0)
 # 1: empirical ht
 compute_empirical_ht_func(y_sym)
 compute_empirical_ht_func(y_mse)
-# 2. true or expected ht
+# 2. true or expected ht, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 compute_holding_time_func(gamma)$ht
 compute_holding_time_func(b_MSE)$ht
 # Empirical ht converge to expected ht for increasing sample size len
@@ -92,7 +91,7 @@ compute_holding_time_func(b_MSE)$ht
 # We first compute the empirical sign-accuracy
 SA_empirical<-sum((sign(y_mse*y_sym)+1)/2,na.rm=T)/length(na.exclude(y_sym))
 SA_empirical
-# If xt and thus yt and zt are gaussian, then proposition 1 in JBCY paper links empirical and expected or true sign-accuracy
+# If xt and thus yt and zt are Gaussian, then sign-accuracy and target correlation can be linked, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 # For this purpose we compute the (true or expected) correlation between target and predictor
 filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_MSE)),b_MSE))
 colnames(filter_mat)[2]<-"predictor"
@@ -100,14 +99,14 @@ filter_mat
 # Compute (true) correlation assuming white noise
 rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
 rho_yz
-# Proposition 1 in JBCY paper shows that the following non-linear expression in rho_yz corresponds to the true/expected SA
+# The following non-linear expression of rho_yz corresponds to the true/expected SA, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 SA_true<-asin(rho_yz)/pi+0.5
 SA_true
 # We can also compute a second empirical estimate
 asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
 # Here our original estimate
 SA_empirical
-# Both empirical estimates of SA converge towards SA_true for large sample sizes
+# One can verify that both empirical estimates of SA converge towards SA_true for large sample sizes
 
 
 
@@ -146,7 +145,7 @@ asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
 # Discussion:
 # -By relying on the closed-form `true' expression SA_true for SA, we can link the predictor to Sign Accuracy and maximize accuracy as 
 #     a function of filter weights: optimality
-# -SSA criterion (see section 2 in JBCY) paper:
+# -SSA criterion, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5 
 #   -Maximize SA under a constraint for ht
 # -Alternative (effective) criterion as implemented in R-code
 #   -Maximize rho_yz under a constraint for lag-one ACF: the solution is the same!
@@ -155,8 +154,7 @@ asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
 
 # Note: rho_yz, SA, ht or the lag-one ACF are indifferent to affine transformations
 #   -The solution of SSA is determined up to an arbitrary scaling constant s: any s is allowed 
-#   -We solve this undeterminacy by computing that particular scaling s which maximizes MSE-performances under the posited ht-constraint , see section
-#     2 in JBCY paper
+#   -We solve this undeterminacy by computing that particular scaling s which maximizes MSE-performances under the posited ht-constraint
 #   -Therefore, if we insert the holding-time ht_mse of the optimal MSE predictor, then SSA replicates the latter,
 #     see tutorial 0.3
 
@@ -251,7 +249,7 @@ z<-filter(x,gamma)
 sum((sign(y_mse*z)+1)/2,na.rm=T)/length(na.exclude(z))
 # Empirical SA of logit-predictor
 sum((sign(y_logit*z)+1)/2,na.rm=T)/length(na.exclude(z))
-# MSE outperforms logit
+# MSE outperforms logit!
 
 # We can also compute the true or expected SA of both predictors, 
 #   The empirical out-of-sample estimates converge to the true SA, for increasing out-of-sample span
