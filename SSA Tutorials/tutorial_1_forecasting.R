@@ -1,16 +1,16 @@
-# In this tutorial we propose applications of SSA mainly to forecasting. 
+# In this tutorial we propose applications of SSA mainly to classic forecasting (not signal extraction/nowcasting). 
 # -All examples emphasize the holding-time (ht) concept as a method and concept for controlling the smoothness 
 #   of a (forecast or signal extraction) filter in a systematic and predictable way. 
 # -We relate the theoretical or expected ht to the effective (empirical or measured) ht, see example 1.
 # -We discuss feasibility, see example 2. 
-# -We improve smoothness of a simple one-steo ahead predictor, see example 3.
+# -We improve smoothness of a simple one-step ahead predictor, see example 3.
 # -We replicate the MSE predictor by SSA, see example 4.
 # -We `play' with the flexible interface and interchange role of data-generating process and target filter, see example 5.
 # -We propose an `unsmoothing' exercise whereby SSA is asked to generate more zero-crossings 
 #   than the benchmark predictor, see example 6
 # -We analyze simple cases of model misspecification, for which expected and empirical hts differ, and we 
 #   show how to resolve the mismatch or misspecification by simple adjustments, see example 7.  
-# -Finally, in the last example we replicate the HP filter designs in section 4 of the JBCY paper
+# -Finally, in the last example we replicate the HP filter designs, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 
 
 rm(list=ls())
@@ -30,7 +30,7 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 #---------------------------------------------------------
 # Example 1
-# Illustrate the holding-time and proposition 2 in BCJY paper
+# Illustrate the holding-time, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 
 
 # Let xt be a realization of length 12000 of an AR(1)-process
@@ -60,7 +60,7 @@ empirical_ht
 empirical_ht<-compute_empirical_ht_func(x)
 empirical_ht
 
-# We now rely on the exact holding-time expression based on proposition 3 of the JBCY paper
+# We now rely on the exact holding-time expression, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 # For that purpose we need the MA-inversion of the process: we can use the true a1 or the MSE estimate for that purpose
 # The function ARMAtoMA can invert arbitrary stationary ARMA-specifications
 xi<-c(1,ARMAtoMA(ar=a1,lag.max=len-1))
@@ -80,7 +80,6 @@ compute_holding_time_from_rho_func(rho)
 ht<-ht_obj$ht
 compute_rho_from_ht(ht)
 
-# These three functions are the workhorses for implementing proposition 3 of the JBCY paper
 
 # We can analyze finite sample issues
 # For that purpose consider a much shorter sample of the above process
@@ -103,14 +102,14 @@ ahat<-ar_obj$coef["ar1"]
 rho<-ahat
 # Compare with true/expected holding-time above
 compute_holding_time_from_rho_func(rho)
-# See also tables 3 and 4 in the JBCY paper (simulation experiments) and the comments referring to the sampling error
+# See also tables 3 and 4 in Wildi 2024 and the comments referring to the sampling error
 #   -The sampling error is mostly irrelevant in applications because it cancels in relative terms
 #   -SSA is mainly about relative performances, against a benchmark
 
 
 #----------------------------------------------------------------------------------------------------
 # Example 2
-# Inconsistent settings: proposition 3 in JBCY-paper suggests that the filter-length L cannot be set arbitrarily
+# Inconsistent settings: 
 #   A MA-filter of length L cannot exceed an upper limit for the holding-time
 #   We here briefly illustrate such a case
 
@@ -132,7 +131,7 @@ rho1
 # This function computes the maximal lag-one acf for a filter of length L, see proposition 3: the maximum is smaller than rho1 above 
 #  In this case there does not exist a SSA-solution (L is too small)
 rhomax_func(L)
-# Estimation function: the estimation is based on corollary 1 and theorem 1 in JBCY paper
+# Estimation function: 
 # There are two optimization routines: brute-force grid-search (for 'exotic' cases) and fast triangulation (for most practically relevant applications)
 #   Fast triangulation can handle all cases such that the imposed holding-time does not exceed some limit which depends on L (see examples further down)
 # The function generates an error message: ht is too large (rho1>rhomax)
@@ -232,7 +231,7 @@ yhat<-filter(x,ssa_x,sides = 1)
 # Compute empirical holding-time
 empirical_ht<-compute_empirical_ht_func(yhat)
 empirical_ht
-# compare with imposed constraint
+# compare with imposed constraint: seems to work!
 ht
 
 # 2. Compare lag-one acf of optimized design with ht: 
@@ -255,6 +254,7 @@ cor(yhat,MSE_forecast,use='pairwise.complete.obs')
 SSA_obj$crit_rhoy_target
 # Compare with empirical correlation: target=original series shifted forward by forecast_horizon
 cor(yhat,c(x[(1+forecast_horizon):len],rep(NA,forecast_horizon)),use='pairwise.complete.obs')
+# The sample estimate converges to the criterion value for large sample size
 # Both targets are equivalent, see proposition 4 in JBCY paper: both lead to the same SSA-filter 
 # -The correlation with the effective target (second criterion) is smaller because the latter assumes knowledge of future observations (in this case: the one-step ahead observation) 
 # -The correlation with the MSE target is larger because the latter is one-sided (it does not assume knowledge of future data)
@@ -302,7 +302,7 @@ ssa_eps[2:L]/ssa_eps[1:(L-1)]
 # Example 5
 # Exchange roles of xi and gammak_target in the previous examples
 # Background: 
-# In the above examples we assumed that xt = AR(1) and that zt=xt identity (z_{t+delta} is the target, see section 2 in JBCY paper
+# In the above examples we assumed that xt = AR(1) and that zt=xt identity (z_{t+delta} is the target, see , see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 # However, we could look at the forecast problem alternatively, by setting xt=epsilont and zt=AR(1)-filter applied to xt
 # We now show how to implement the latter design
 
@@ -314,7 +314,7 @@ xi<-NULL
 rho1<-0.8
 # Filter length
 L<-20
-# Target: we now supply the AR(1)-filter (its MA-inversion): in the above example gamma_k_generic was the identity
+# Target: we now supply the AR(1)-filter (its MA-inversion): in the previous example gamma_k_generic was the identity
 gammak_generic<-c(1,ARMAtoMA(ar=a1,lag.max=len-1))
 # Forecast horizon: one-step ahead
 forecast_horizon<-1
@@ -452,7 +452,7 @@ ssa_eps<-conv_two_filt_func(xi,b)$conv
 # Compare ssa_eps and b
 ts.plot(ssa_eps[1:30],col="red",main="Original filter (black) vs. convolved filter (red)")
 lines(b,col="black")
-# Compute expected holding time of convolved filter: it matches the empirical ht of yhat above
+# Compute expected holding time of convolved filter: once corrected, the filter matches the empirical ht of yhat above
 compute_holding_time_func(ssa_eps)$ht
 
 # Filter data
@@ -517,7 +517,7 @@ x<-y+mu
 yhat_x<-filter(x-mean(x),b,side=1)
 yhat_eps<-filter(eps,ssa_eps[1:30],side=1)
 mplot<-na.exclude(cbind(yhat_x,yhat_eps))
-# Both series are nearly identical: up to finite sample estimation error of mu by mean(x)
+# Both series are virtually identical: up to finite sample estimation error of mu by mean(x)
 ts.plot(mplot[1:1000,],lty=1:2)
 
 # Now the empirical ht matches the expected number (up to sampling error)
@@ -540,8 +540,8 @@ compute_holding_time_func(ssa_eps)$ht
 
 #-----------------------------------------------------------------
 # Example 8
-# We here replicate the SSA-filters in the business-cycle analysis of section 4 in the JBCY paper
-# SSA-filters in the JBCY paper assume white noise i.e. xi=NULL: we do not `mine' the data by fitting a model
+# We here replicate the SSA-filters in the business-cycle analysis, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
+# SSA-filters assume white noise i.e. xi=NULL: we do not `mine' the data by fitting a model
 
 # HP and hyperparameter
 L<-201
@@ -569,7 +569,7 @@ hp_mse=HP_obj$hp_mse
 # Its holding time is:
 compute_holding_time_func(hp_trend)$ht
 # We therefore ask SSA to target hp_trend while simultaneously improving noise-suppression (less noisy alarms)  
-# For this purpose we impose a larger holding-time (see section 4 in JBCY paper)
+# For this purpose we impose a larger holding-time, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 ht<-12
 # The resulting SSA filter will generate roughly 40% less (noisy) crossings:
 ht/compute_holding_time_func(hp_trend)$ht
@@ -635,7 +635,8 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
-# We employ these filters in tutorial 5, when applied to the monthly INDPRO series, see also section 4 in JBCY paper
+# We employ these filters in tutorial 5, when applied to the monthly INDPRO series
+# The above plot replicates results in Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 
 
 
