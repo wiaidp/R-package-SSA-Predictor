@@ -1,6 +1,6 @@
 # This series of tutorials is about optimal prediction.
 
-# See Wildi, M. (2024) Business Cycle Analysis and Zero-Crossings of Time Series: a Generalized Forecast Approach: https://doi.org/10.1007/s41549-024-00097-5.
+# For background: see Wildi, M. (2024) Business Cycle Analysis and Zero-Crossings of Time Series: a Generalized Forecast Approach: https://doi.org/10.1007/s41549-024-00097-5.
 
 # The structure of a prediction problem  can put forward different aspects of a predictor
 #   -One-step ahead forecasting: short-term performances, track higher frequency components
