@@ -5,7 +5,7 @@
 # In particular we prefer HP-trend applied to differenced (stationary) data to the original HP-gap (applied to levels)
 
 # Accordingly, we here consider the HP-trend or lowpass filter, applied to stationary data
-#   -This design is used in the JBCY paper: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
+#   -This design is used in Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
 #   -All examples in this tutorial rely on artificial (simulated) stationary series: knowing the true model allows for verification of theoretical results 
 #     -Tutorial 5 applies HP and SSA to US-INDPRO
 
@@ -18,7 +18,7 @@
 
 # Note: a look at tutorial 2.0 suggests that the two-sided target is less relevant in a BCA-context: 
 #   -it is too smooth: recession dips are washed-out and may eventually vanish or merge
-#   -the classic one-sided HP-trend filter is relevant, though (it has desirable frequency-domain and time-domain characteristics)
+#   -the classic one-sided HP-trend filter is relevant (it has desirable frequency-domain and time-domain characteristics)
 
 
 # Main outcomes: 
@@ -189,6 +189,7 @@ box()
 # This is just the truncate right tail of the symmetric filter
 # This one is optimal if the data is white noise
 hp_mse=hp_mse_example7=HP_obj$hp_mse
+par(mfrow=c(1,1))
 ts.plot(hp_mse)
 # Compute lag-one acf and ht for hp_mse
 htrho_obj<-compute_holding_time_func(hp_mse)
@@ -381,7 +382,7 @@ abline(h=0)
 # 2.4 Look at shift
 # The above plot also suggests that the concurrent HP is slightly left-shifted (small lead): see also phase-lag plot below for formal background
 
-# Here we compute the shift at zero-crossings: the tau-statistic is proposed in the JBCY-paper and explained in previous tutorials
+# Here we compute the shift at zero-crossings: the tau-statistic is proposed in Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5 and explained in previous tutorials
 #   -The minimum value (trough) indicates a relative lead (left of zero) or lag (right of zero) of the series in the first column of the matrix (here: SSA)
 # The slight asymmetry suggests that SSA is marginally lagging HP-concurrent (by roughly half a time-unit)
 shift_tau_obj<-compute_min_tau_func(mplot)
