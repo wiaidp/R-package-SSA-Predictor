@@ -441,8 +441,7 @@ box()
 ###########################################################################################################
 ############################################################################################################
 # Example 3: 
-# We can address lags (time shifts) by selecting a different forecast_horizon (delta in JBCY paper) 
-#   in the above example 2, see sections 3.3 and 4.2 in JBCY paper
+# We can address lags (time shifts) by selecting a different forecast_horizon, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5 
 # We here look specifically at a one-year forecast
 # Note, however, that we keep the holding-time fixed: 
 #   -The resulting SSA-filter will retain smoothness (noise suppression) 
@@ -591,12 +590,12 @@ box()
 # 3. The shift becomes negative towards lower frequencies 
 # The effect of imposing a larger holding-time is:
 # 1. The amplitude function is closer to zero in the stopband
-# 2. All direct effects of this stronger noise suppression on the shift (for minimum-phase filters, both functions are linked bijectively)
+# 2. The stronger noise suppression affects the shift (for minimum-phase filters, both amplitude and shift functions are linked bijectively)
 
 ########################################################################################################
 ##########################################################################################################
 # Example 4
-# Play with target and forecast horizon (=delta in JBCY paper)
+# Play with target and forecast horizon 
 # We rely on example 1 but we specify the symmetric two-sided HP filter as our target
 # Problem: 
 #   -hp_target provided by the R-package mFilter is a causal one-sided filter (it should be two-sided) 
@@ -645,7 +644,7 @@ SSA_filt_HP<-SSA_example4<-SSA_obj_HP$ssa_x
 # 4.3 Plot: 
 #   -The filters in examples 1 and 4 (here) are identical! 
 #   -This is because hp_mse in example 1 is the MSE predictor of hp_target here, at least if xt=epsilont (white noise)
-#   -Proposition 5 in the JBCY paper then implies that the SSA-solution must be the same: we can replace the two-sided target by its MSE predictor without affecting optimization
+#   -Therefore the SSA-solution must be the same, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5 (we can replace the two-sided target by its MSE predictor without affecting optimization)
 colo<-c("black","brown","blue")
 par(mfrow=c(1,1))
 mplot<-cbind(SSA_example1,SSA_example4)
@@ -687,6 +686,7 @@ mplot<-na.exclude(scale(cbind(yhat,HP_concurrent,HP_symmetric),scale=T,center=F)
 colnames(mplot)<-c(paste("SSA(",round(ht,1),",",forecast_horizon,")",sep=""),"HP-MSE","HP-symmetric (effective target")
 cor(mplot)
 # The empirical correlations (see first row in the empirical correlation matrix) match crit_rhoyz and crit_rhoy_target
+# The MSE filter has a slightly larger target correlation with the symmetric HP, by design (it maximizes the target correlation)
 
 ######################################################################################################################
 ######################################################################################################################
@@ -718,7 +718,7 @@ ht_hp
 compute_empirical_ht_func(y_hp)
 # This is because xt is not white noise!
 # However, the computation of the holding-time assumes white noise
-# Therefore, we have to decompose xt in a white noise sequence: Wold decomposition, see section 2 in JBCY paper
+# Therefore, we have to decompose xt in a white noise sequence: Wold decomposition, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 # Once decomposed, the holding-time is calculated properly
 
 # Step 1: Compute the MA-inversion of the ARMA (Wold-decomposition or MA-inversion)
@@ -905,7 +905,7 @@ box()
 # Proceeding for obtaining the MSE-filter (recall that hp_mse is not optimal here because xt is not white noise):
 #   a. Compute the convolution of symmetric filter hp_trend and Wold-decomposition xi: this way, HP is applied to epsilont 
 #   b. Truncate the convolution at lag forecast_horizon+1 (which is lag 0 in un-shifted data) because forecasts of future epsilont are zero
-# Step a: convolve xi_data and symmetric hp_target, see section 2 of JBCY paper: 
+# Step a: convolve xi_data and symmetric hp_target
 hp_conv_mse_d<-conv_two_filt_func(xi_data,hp_target)$conv
 # Step b: truncate at lag 0 corresponding to forecast_horizon
 hp_conv_mse<-hp_conv_mse_d[(forecast_horizon+1):L_sym]
@@ -1116,8 +1116,8 @@ ts.plot(hp_gap)
 hp_trend<-HP_obj$hp_trend
 ts.plot(hp_trend)
 # Gap is 1-hp_trend
-# Check: the difference of the following filters should vanish
-(c(1,rep(0,L_sym-1))-hp_trend)-hp_gap
+# Check: the difference of the following filters should vanish everywhere
+max(abs((c(1,rep(0,L_sym-1))-hp_trend)-hp_gap))
 
 #---------------------------------------------
 # 7.2 Transformation: from levels to first differences
@@ -1316,7 +1316,7 @@ heatmap.2(log(target_mat[nrow(target_mat):1,]), dendrogram="none",scale = "none"
 # We can now observe additional structure
 
 # 8.2.3 We can plot slices (selected columns) of the above heat-map 
-select_vec<-1:3
+select_vec<-22:24
 mplot<-target_mat[,select_vec]
 coli<-rainbow(length(select_vec))
 par(mfrow=c(1,1))
