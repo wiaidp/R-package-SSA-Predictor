@@ -96,7 +96,7 @@ lm_obj<-lm(y[(h+p):len]~explanatory)
 # Only the first coefficient is significant, as is often the case in applications to non-stationary economic series.
 # This is a potential problem because the sum of the parameters is not one and therefore 1-sum(coefficients)!=0.
 # As a result the forecast residual y_{t+h}-\hat{y}_{t+h} is stationary in-sample (due to overfitting) but non-stationary out-of-sample. 
-# Stated differently: the out-of-sample forecast and the future observation are not cointegrated.
+# Stated differently: the out-of-sample forecast and the future observation are not `cointegrated' (the MSE diverges asymptotically).
 # One of the problems is that the growth-rate (drift) of the series is changing over time i.e. first differences are non-stationary.
 # Selecting p=4 removes this second-order non-stationarity in-sample; but not out-of-sample.
 # Therefore the model has to be up-dated continuously over time as new data becomes available which leads to revisions.
@@ -120,7 +120,7 @@ ts.plot(cbind(residuals,lm_obj$residuals),main="Replication of Hamilton cycle: b
 # The regression coefficients nearly sum to one: this is because the series is trending and therefore the filter must remove 
 #   the trend; otherwise the residuals wouldn't be stationary out-of-sample (cointegration)
 sum(lm_obj$coefficients[1+1:p])
-# The sum of the Hamilton filter nearly vanishes
+# The sum of the Hamilton filter nearly vanishes (should vanish exactly to cancel the unit root out-of-sample)
 sum(hamilton_filter)
 # The fact that the sum of the Hamilton filter coefficients doesn't vanish exactly is a slight 
 #   drawback (problem is due to overfitting), when compared to HP (The coefficients of HP-gap add to zero but the gap-filter tends to generate spurious cycles, see tutorial 2, example 7)
@@ -166,7 +166,7 @@ ts.plot(residuals-residuals_adjusted,main="Cycle difference")
 #   -Both designs would require some additional tweaking in order to track recessions (as declared by the NBER).
 # The adjusted cycle lies further away from the classic cycle at the start, where the growth of log(GDP) is stronger.
 # The adjusted cycles is closer to the classic cycle at the end, where the growth of log(GDP) is weaker.
-# The cycle-difference in the bottom plot looks a bit like a reduced copy of the original data.
+# The cycle-difference in the bottom plot resembles a shrunken copy/version of the original data.
 # Depending on the particular preference, one might consider classic or adjusted cycles
 #   Since both cycles are essentially statistical artifacts, this choice mainly reflects subjective preferences
 # For the purpose of engrafting SSA onto the Hamilton-filter, we here consider the adjusted and un-centered cycle 
@@ -175,8 +175,8 @@ ts.plot(residuals-residuals_adjusted,main="Cycle difference")
 cycle_diffh<-residuals-residuals_adjusted
 #---------------------------------------------------
 # 1.2 Transformation: from levels to differences
-# Next step: in order to plug SSA on HF we have to transform the empirical setting such that the data is stationary, see section 2.3 (proposition 4) in JBCY paper.
-#   -Recall that the concept of zero-crossings does not make sense for non-stationary (integrated) series 
+# Next step: in order to plug SSA on HF we have to transform the empirical setting such that the data is stationary, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
+#   -Recall that the concept of zero-crossings is not properly defined for non-stationary (integrated) series 
 # Proceeding: we transform HF such that it can be applied to first differences (instead of levels)
 # This proceeding can be applied to all bandpass-cycle designs working with data in levels: CF, BK (see tutorial 4), HP-gap (see tutorials 2 and 5)
 # Ideas/background:
@@ -309,7 +309,7 @@ ht
 
 # Apply SSA to data
 SSA_out<-filter(x,SSA_filt_ham_diff,side=1)
-# Compare empirical and theoretical (imposed) holding-times: they differ because xt is not white noise
+# Compare empirical and theoretical (imposed) holding-times: they differ because xt is not centered
 ht  
 compute_empirical_ht_func(SSA_out)
 # Apply HF to data and compare holding-times
@@ -352,7 +352,7 @@ abline(h=0)
 #   recall exercise 7 in tutorial 1
 compute_empirical_ht_func(original_hamilton_cycle)
 compute_empirical_ht_func(scale_shifted_SSA)
-# We can also compute the mean shift at zero-crossings by the Tau-statistic in JBCY paper
+# We can also compute the mean shift at zero-crossings by the Tau-statistic, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 # Idea
 #   -We shift one series relative to the other until the absolute difference in timings of zero-crossings (of both series) is minimized
 #   -The shift with the smallest timing difference of crossings (minimum of the plotted function) is a measure for the relative lead or lag
@@ -364,7 +364,7 @@ lead_lag_obj<-compute_min_tau_func(mat)
 #-----------------------------------------------
 # 1.6 Forecasting
 # Let us now address timeliness or lead/lags: the last plot suggested that SSA is synchronized with the target (and smoother)
-# We here increase the forecast horizon (delta in the JBCY paper) to obtain a faster SSA filter 
+# We here increase the forecast horizon to obtain a faster SSA filter 
 # However, we do not give-up in terms of smoothness since we impose the same ht constraint to the forecast filter 
 
 # One year forecast: everything else is unchanged 
@@ -497,7 +497,7 @@ box()
 # The positive phase-shift or lag of HF is substantial
 #   -It is larger than the classic HP-concurrent trend, applied to returns (the shift of HP-trend must vanish at frequency zero because of the implicit assumption of a second-order unit-root)
 #   -The size of the lag is due to the forecast horizon (2 years) in the regression equation 
-#   -It is not clear, at this point, "why you should never use the HP"
+#   -It is not clear, at this point, "why you should never use the HP" (which HP?)
 #     -Don't use HP-gap, applied to the original data: yes, see confirmation in tutorial 2.
 #     -But HP-trend applied to returns performs well: its lag is smaller and the filter is smoother than HF, see tutorial 2.
 
@@ -587,7 +587,7 @@ residuals<-data_mat%*%hamilton_filter-intercept
 # We just replicated the regression residuals (Hamilton filter)
 ts.plot(cbind(residuals,lm_obj$residuals),main="Replication of regression residuals by HF (both series overlap)")
 
-# The coefficients nearly sum-up to one: this is because the series is non-stationary and therefore the filter must 
+# The sum of the coefficients nearly vanishes: this is because the series is non-stationary and therefore the filter must 
 #     remove the trend
 sum(hamilton_filter)
 # We now correct the filter such that the sum of the coefficients is zero:  cointegration constraint 
@@ -732,7 +732,7 @@ SSA_out<-filter(x,SSA_filt_ham_diff,side=1)
 # Empirical ht much larger than targeted ht, see explanation above (series is non-stationary)
 compute_empirical_ht_func(SSA_out)
 ht  
-# 2.6.2. Hamilton
+# 2.6.2. Hamilton: SSA generates less crossings, as expected
 ham_out<-filter(x,ham_diff,side=1)
 compute_empirical_ht_func(ham_out)
 ht_ham_diff_obj$ht 
@@ -1243,7 +1243,7 @@ box()
 # Once again, the positive phase-shift or lag of HF is substantial
 #   -It is larger than the classic HP-concurrent trend, applied to returns, whose shift must vanish at frequency zero
 #   -The size of the lag is due to the forecast horizon (2 years) in the regression equation 
-#   -It is not clear at this point "why you should never use the HP"
+#   -It is not clear at this point "why you should never use the HP" (which HP?)
 #     -Don't use HP-gap, applied to the original data: yes, see confirmation in tutorial 2.
 #     -But HP-trend applied to returns performs well: it is pretty smooth and its lag is smaller than HF, see tutorial 2.
 
@@ -1296,7 +1296,7 @@ residuals<-data_mat%*%hamilton_filter-intercept
 par(mfrow=c(1,1))
 ts.plot(cbind(residuals,lm_obj$residuals),main="Replication of regression residuals by hamilton_filter")
 
-# The coefficients nearly sum-up to one: this is because the series is non-stationary and therefore the filter must 
+# The sum of filter coefficients nearly vanishes: this is because the series is non-stationary and therefore the filter must 
 #   remove the trend 
 # But there is no cointegration imposed: the out-of-sample cycle will be non-stationary
 # Therefore HF must be regularly up-dated, as new data is available, which leads to revisions
@@ -1659,16 +1659,17 @@ box()
 
 #----------------------------------------------------------------------------------------------
 # 4.9 To conclude we apply the above filters unchanged (no re-estimation) out-of-sample, including the pandemic.
-# With an instructive outcome...
+# With a potentially instructive outcome...
 
 # Compute long sample
 y<-as.double(log(PAYEMS["1990/"]))
 x<-diff(y)
 # The very strong pandemic outliers will act as `impulses`, triggering the impulse response of the filter, 
 #   i.e., the proper (sign inverted) filter coefficients
+par(mfrow=c(1,1))
 ts.plot(x)
 
-# Apply all filters unchanged
+# Apply all filters unchanged (out of sample)
 # 1. SSA nowcast
 SSA_out<-filter(x,SSA_filt_ham_diff_x,side=1)
 # 2. Hamilton
@@ -1678,7 +1679,7 @@ SSA_out_forecast_6<-filter(x,SSA_filt_ham_diff_x_forecast[,1],side=1)
 # 12 months ahead
 SSA_out_forecast_12<-filter(x,SSA_filt_ham_diff_x_forecast[,2],side=1)
 
-# Fascinating:
+# Interesting:
 # The pandemic dip is mirrored by a later peak whose timing depends on the SSA-design
 # Explanation: negative Impulse responses of the filters
 mplot<-na.exclude(cbind(SSA_out,SSA_out_forecast_6,SSA_out_forecast_12,ham_out))
@@ -1709,7 +1710,7 @@ mtext("Nowcast",col="blue",line=-3)
 #   -therefore, this type of filter `forgets' more rapidly extreme or singular observations (than nowcast or target)
 #   -As an example, the one-year ahead forecast could be applied 1.5 years after the outliers occurred
 #   -In contrast, the nowcast or HF would need another 10-11 months to `forget' the singularity
-# It is not clear, at this point, "why you should never use the HP"
+# It is not clear, at this point, "why you should never use the HP" (which HP?)
 #   -The impulse response of the classic HP-trend decays faster than HF 
 #   -Therefore the effects of gross outliers (pandemic) would be less pronounced (smeared)
 
