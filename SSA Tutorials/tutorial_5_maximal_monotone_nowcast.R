@@ -5,9 +5,8 @@
 #   -Technical/formal background to Wildi (2024)
 #   -Introduction of a new SSA predictor for non-stationary time series
 
-# For non-stationary time series, an extension of SSA is proposed which matches the target optimally in a MSE sense
-#   (predictor and target are cointegrated) and which controls the rate of zero-crossings of (stationary) 
-#   FIRST DIFFERENCES of the predictor.
+# For non-stationary time series, an extension of SSA is proposed which tracks the target optimally in a MSE sense
+#   (predictor and target are cointegrated) and which controls the rate of zero-crossings of (stationary) FIRST DIFFERENCES of the predictor.
 # The predictor tracks the target as closely as possible subject to a holding-time constraint imposed to its first differences.
 #   -In its dual form: the predictor generates the least number of zero-crossings in first differences.
 #   -Equivalently: the original predictor (in levels) is maximal monotone
@@ -19,6 +18,7 @@
 # -Therefore, we replicate the holding-time (smoothness) of the classic one-sided HP by SSA
 # -By optimization we then expect SSA to equal classic HP in terms of smoothness and to outperform classic HP in terms of MSE (tracking accuracy)
 # -Since SSA is much smoother than the MSE nowcast we are interested in finding out how much SSA looses in terms of MSE performances.
+#   -The SSA criterion minimizes MSE losses for given smoothness (holding-time)
 
 #-----------------------------------------------------------------------
 # Make a clean-sheet, load packages and functions
@@ -33,9 +33,6 @@ library(quantmod)
 
 # Load all relevant SSA-functions
 source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
-# Load tau-statistic: quantifies time-shift performances (lead/lag)
-source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
-
 # Load signal extraction functions used for JBCY paper (relies on mFilter)
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
@@ -56,8 +53,6 @@ tail(INDPRO)
 end_year<-2024
 start_year<-1982
 
-L<-101
-lambda_hp<-14400
 y<-as.double(log(INDPRO[paste(start_year,"/",end_year,sep="")]))
 y_xts<-log(INDPRO[paste(start_year,"/",end_year,sep="")])
 
@@ -91,11 +86,16 @@ x_tilde<-as.double(y_xts)
 # We assume the differenced data (INDPRO) to be an AR(1): see ACF above.
 a1<-0.3
 
+# Filter settings: length and HP-lambda
+L<-101
+lambda_hp<-14400
+
+# Compute all relevant system matrices: HP two- and one-sided and all relevant SSA design filters
 filter_obj<-compute_system_filters_func(L,lambda_hp,a1)
 
-# Cointegration matrix
+# Cointegration matrix: ensures finite MSE in the case of I(2) processes
 B=filter_obj$B
-# Autocovariance generating matrix
+# Autocovariance generating matrix, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 M=filter_obj$M
 # Transformed target, see section 5.3 Wildi (2025)
 gamma_tilde=filter_obj$gamma_tilde
@@ -282,7 +282,7 @@ box()
 
 
 #----------------------------------------
-# Sample performances
+# Sample performances: we expect SSA to equal HP-C in terms of smoothness and to outperform in terms of MSE performances; 
 
 # MSE with respect to two-sided target
 mean((y_target-y_mse)^2,na.rm=T)
@@ -305,11 +305,12 @@ compute_empirical_ht_func(diff(y_target))$empirical_ht
 mat_perf<-matrix(nrow=2,ncol=3)
 mat_perf[1,]<-c(mean((y_target-y_mse)^2,na.rm=T),mean((y_target-y_ssa)^2,na.rm=T),mean((y_target-y_hp_concurrent)^2,na.rm=T))
 mat_perf[2,]<-c(compute_empirical_ht_func(diff(y_mse)[anf:enf])$empirical_ht,compute_empirical_ht_func(diff(y_ssa)[anf:enf])$empirical_ht,compute_empirical_ht_func(diff(y_hp_concurrent)[anf:enf])$empirical_ht)
-colnames(mat_perf)<-c("MSE","SSA","HP-C")
+colnames(mat_perf)<-c("MSE nowcast","SSA","HP-C")
 rownames(mat_perf)<-c("Sample mean square error","Sample holding time")
 
 # MSE-nowcast has smallest MSE, by design; but it is very noisy (small holding-time)
 # HP-C is much smoother but its MSE is twice as large as MSE-nowcast
 # SSA is as smooth as HP-C and its MSE is halfway between MSE-nowcast and HP-C
-# We conclude that SSA can gain in smoothness over MSE without lossing too much in terms of MSE: optimal tradeoff by SSA criterion 
+# We conclude that SSA can gain substantially in terms of smoothness (ten times larger holding time) over MSE without loosing 
+#   excessively in terms of MSE: optimal tradeoff ensured by SSA criterion 
 mat_perf
