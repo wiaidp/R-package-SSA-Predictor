@@ -115,6 +115,13 @@ deconvolute_func<-function(filt1,filt2)
   return(list(dec_filt=dec_filt))
 }
 
+
+sa_from_rho_func<-function(rho)
+{
+  return(0.5+asin(rho)/pi)
+}
+
+
 #-------------------------------------------------------
 # SSA functions
 # This function computes the solution of corollary 1 in JBCY paper 
@@ -287,6 +294,8 @@ SSA_func<-function(L,forecast_horizon_vec,gammak_generic,rho1,xi=NULL,Sigma=NULL
     crit_rhoy_target<-c(crit_rhoy_target,opt_obj$crit_rhoy_target)
 # Spectral decomposition of (MSE-) target: see section 3 in JBCY paper    
     w_mat<-cbind(w_mat,opt_obj$w)
+# Spectral Fourier vectors
+    V<-opt_obj$V
 # Provide optimal MSE scaling of SSA    
     scaling<-as.double(t(gammak_mse)%*%bk_mat[,i]/t(bk_mat[,i])%*%bk_mat[,i])
     ssa_eps<-cbind(ssa_eps,scaling*bk_mat[,i])
@@ -343,7 +352,7 @@ SSA_func<-function(L,forecast_horizon_vec,gammak_generic,rho1,xi=NULL,Sigma=NULL
   
   return(list(crit_rhoyy=crit_rhoyy,ssa_eps=ssa_eps,lambda_opt=lambda_opt,crit_rhoy_target=crit_rhoy_target,
               ssa_x=ssa_x,crit_rhoyz=crit_rhoyz,nu_opt=nu_opt,mse_eps=mse_eps,rho_mat=rho_mat,
-              w_mat=w_mat,mse_x=mse_x,ssa_eps=ssa_eps))
+              w_mat=w_mat,mse_x=mse_x,ssa_eps=ssa_eps,V=V))
 } 
 
 
@@ -686,7 +695,7 @@ fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<
   
   return(list(bk_best=bk_best,crit_rhoyy=crit_rhoyy,
               crit_rhoyz=crit_rhoyz,lambda_opt=lambda_opt,bk_x=bk_x,
-              nu_opt=nu_opt,gammak_mse=gammak_mse,crit_rhoy_target=crit_rhoy_target,w=w))
+              nu_opt=nu_opt,gammak_mse=gammak_mse,crit_rhoy_target=crit_rhoy_target,w=w,V=V))
 }
 
 
@@ -1042,7 +1051,7 @@ grid_search_find_lambda1_subject_to_holding_time_constraint_func<-function(grid_
 
   return(list(rho_mat=rho_mat,bk_best=bk_best,crit_rhoyy=crit_rhoyy,
               crit_rhoyz=crit_rhoyz,lambda_opt=lambda_opt,nu_vec=nu_vec,bk_x=bk_x,
-              nu_opt=nu_opt,gammak_mse=gammak_mse,crit_rhoy_target=crit_rhoy_target,w=w))
+              nu_opt=nu_opt,gammak_mse=gammak_mse,crit_rhoy_target=crit_rhoy_target,w=w,V=V))
 }
 
 
@@ -1470,7 +1479,215 @@ Compute_SSA_for_given_lambda<-function(lambda,split_grid,L,gammak_generic,rho1,f
               nu=nu,gammak_mse=gammak_mse,crit_rhoy_target=crit_rhoy_target,w=w))
 }
 
+# SSA_obj<-SSA_obj_pos  xi<-xi_pos  target<-gamma_target
+# This function computes SSA trffkt and amplitudes and replicates estimates
+spec_an_func<-function(SSA_obj,target,xi=NULL)
+{  
+# 1. Spectral weights of target    
+  w_mat<-SSA_obj$w_mat
+  ts.plot(SSA_obj$w_mat)
+  L<-nrow(w_mat)
+  # Replicate w_mat  
+  V<-SSA_obj$V
+  ts.plot(t(V)[1,])
+  
+  if (is.null((xi)))
+  {  
+    target_conv<-target
+  }  else
+  {
+    target_conv<-conv_two_filt_func(xi,target)$conv
+  }
+# spectral weights of MSE as applied to epsilont  
+  w_mse_eps<-t(V)%*%target_conv
+# Same but when applied to xt  
+  w_mse<-t(V)%*%target
+# They match  
+  w_mse_eps-SSA_obj$w_mat
+  ts.plot(abs(w_mse))
+  ts.plot(abs(w_mse_eps))
+  nu<-SSA_obj$nu_opt
+  
+# 2. Compute amplitude functions with formulas in paper: K=L+1    
+  trffkt_ar2<-rep(NA,L)
+  for (i in 1:L)
+  {
+    omegai<-i*pi/(L+1)
+    trffkt_ar2[i]<-1/(nu-2*cos(omegai))
+  }
+  ts.plot(trffkt_ar2)
+  ts.plot(abs(trffkt_ar2))
+  # 3. Replicate SSA predictor with frequency domain convolution formula 
+  br_white_noise<-br_eps<-rep(0,L)
+  for (i in 1:L)
+  {  
+    br_eps<-br_eps+w_mse_eps[i]*trffkt_ar2[i]*V[,i]
+    br_white_noise<-br_white_noise+w_mse[i]*trffkt_ar2[i]*V[,i]
+  }
+# They match up to arbitrary scaling (and sign) 
+  scale(cbind(SSA_obj$ssa_eps,br_eps))
+  if (is.null((xi)))
+  {  
+    scale(cbind(SSA_obj$ssa_x,br_eps))
+  }  else
+  {
+# Deconvolute xi from b_eps 
+    scale(cbind(SSA_obj$ssa_x,deconvolute_func(br_eps,xi)$dec_filt))
+  }
+# This one doesn't match in general (if xi!=NULL)
+  scale(cbind(SSA_obj$ssa_x,br_white_noise))
+
+# 4. Spectral decomposition of SSA predictor  
+  w_br_x<-t(V)%*%SSA_obj$ssa_x
+  w_br_eps<-t(V)%*%br_eps
+  w_br_white_noise<-t(V)%*%br_white_noise
+  ts.plot(abs(w_br_white_noise))
+  ts.plot(abs(w_br_x))
+  ts.plot(abs(w_br_eps))
+# 5. Convolution: they match  
+  w_br_white_noise-trffkt_ar2*w_mse
+  w_br_eps-trffkt_ar2*w_mse_eps
+  # Convolution in absolute value  
+  abs(w_br_white_noise)-abs(trffkt_ar2)*abs(w_mse)
+  return(list(trffkt_ar2=trffkt_ar2,w_br_white_noise=w_br_white_noise,w_br_eps=w_br_eps,w_br_x=w_br_x,w_mse=w_mse,w_mse_eps=w_mse_eps))
+}
 
 
 
 
+# This function computes bk  in non-stationary I(1) case by imposing cointegration constraint
+# For given Lagrangian multiplier lambda the function derives bk based on cointegration solution
+# Target:  gamma_tilde is the MSE target as applied to epsilon_t; gamma_mse (this is the MSE target as applied to original data) is used for 
+#   computing Gamma(0) in the cointegration constraint only
+# For lambda=0 the SSA transformation is an identity, i.e., bk=gamma_tilde
+# Xi is the Wold decomposition, Sigma is the summation (integration) operator (it is only used for computing target correlation); 
+# M is the autocovariance generating matrix; B is used for setting-up cointegration constraint
+bk_int_func<-function(lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)
+{ #lambda1<-lambda_opt   lower_limit_nu<-lower_limit_nu_triangulation
+  # Dimension checks  
+  L<-dim(M)[1]
+  if (length(gamma_mse)!=L)
+  {
+    print(paste("length of gamma differs from L=",L,sep=""))
+  }
+  if (dim(B)[1]!=L)
+  {
+    print(paste("dim(B) differs from L=",L,sep=""))
+  }
+  if (dim(Sigma)[1]!=L)
+  {
+    print(paste("dim(Sigma) differs from L=",L,sep=""))
+  }
+  if (dim(Xi_tilde)[1]!=L)
+  {
+    print(paste("dim(Xi_tilde) differs from L=",L,sep=""))
+  }
+# First Cartesian basis vector for cointegration constraint, see section 6.2 technical paper  
+  e1<-c(1,rep(0,L-1))
+  e1
+# Cointegration constraint: sum of SSA coefficients should equal sum of MSE coefficients, see section 6.2 technical paper    
+  Gamma0<-sum(gamma_mse)
+# Formula for bk given lambda under cointegration constraint, see section 6.2 technical paper    
+  b_tilde<-solve(t(B)%*%t(Xi_tilde)%*%Xi_tilde%*%B+
+                   lambda*t(B)%*%t(Xi)%*%(M-rho1*diag(rep(1,L)))%*%Xi%*%B)%*%
+    (t(B)%*%t(Xi_tilde)%*%(gamma_tilde-Gamma0*Xi_tilde%*%e1)
+     -lambda*Gamma0*t(B)%*%t(Xi)%*%(M-rho1*diag(rep(1,L)))%*%
+       Xi%*%e1)
+# Derive b_x applied to original data from b_tilde, see section 6.2 technical paper  
+# This is also the same parameter which is applied to first differences of data in the synthetic stationary processes, see section 6.2 technical paper    
+  b_x<-Gamma0*e1+B%*%b_tilde
+# Derive b_eps as applied epsilon: this is used to compute lag-one ACF rho_yy and MSE mse_yz of SSA below  
+  b_eps<-Xi%*%b_x
+  
+# Compute lag-one acf      
+  rho_yy<-as.double(t(b_eps)%*%M%*%b_eps/(t(b_eps)%*%b_eps))
+  
+# Compute criterion (objective function): two different targets: rho_yz (virtual target correlation based on synthetic stationary series) and mse_yz
+# We use mse_yz because formula of cointegrated SSA is simpler when relying on MSE objective  
+# 1. target correlation based on synthetic stationary series
+  rho_yz<-as.double(t(Sigma%*%b_eps)%*%gamma_tilde)/(sqrt(t(Sigma%*%b_eps)%*%(Sigma%*%b_eps))*sqrt(t(gamma_tilde)%*%gamma_tilde))
+# 2. MSE  
+  mse_yz<-as.double(t(gamma_tilde-Sigma%*%b_eps)%*%(gamma_tilde-Sigma%*%b_eps))
+  return(list(b_x=b_x,b_eps=b_eps,rho_yy=rho_yy,rho_yz=rho_yz,mse_yz=mse_yz))
+}
+
+# This function is used in numerical optimization of Lagrangian lambda such that solution bk conforms with HT constraint
+# It uses bk_int_func above and returns the absolute difference between desired rho1 and effective rho_yy
+# Numerical optimization then minimizes this gap
+b_optim<-function(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)
+{
+  return(abs(bk_int_func(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)$rho_yy-rho1))
+}
+
+
+
+# This function computes system matrices, in particular also for the I(1) case with cointegration
+compute_system_filters_func<-function(L,lambda_hp,a1)
+{
+  
+  HP_obj<-HP_target_mse_modified_gap(2*(L-1)+1,lambda_hp)
+  hp_two<-HP_obj$target
+  
+  
+  HP_obj<-HP_target_mse_modified_gap(L,lambda_hp)
+  # Concurrent MSE estimate of bi-infinite HP assuming white noise (truncate symmetric filter)
+  #  HP_obj$hp_trend
+  gamma<-HP_obj$hp_mse
+  ts.plot(gamma)
+  hp_trend<-HP_obj$hp_trend
+  
+  xi<-a1^(0:(L-1))
+  
+  
+  # Compute all system matrices
+  Xi<-NULL
+  for (i in 1:L)
+    Xi<-rbind(Xi,c(xi[i:1],rep(0,L-i)))#c(1,0,0),c(1,1,0),c(1,1,1)))
+  Xi
+  
+  
+  Sigma<-NULL
+  for (i in 1:L)
+    Sigma<-rbind(Sigma,c(rep(1,i),rep(0,L-i)))#c(1,0,0),c(1,1,0),c(1,1,1)))
+  Sigma
+
+  
+  # Invert: gives Delta
+  Delta<-solve(Sigma)
+  Delta
+  
+  
+  Xi_tilde<-(Sigma)%*%Xi
+  
+# Compute gamma_mse: the optimal MSE filter applied to x_tilde the non stationary data
+# 1. Compute weights of MA-inversion of process i.e. x_tilde: this is applied to two-sided filter and it must be of the same length as that filter  
+  xi_int<-conv_two_filt_func(rep(1,length(hp_two)),xi)$conv
+# 2. Convolution target filter and MA-inversion  
+  hp_xi<-conv_two_filt_func(hp_two,xi_int)$conv
+# 3. Extract causal part i.e. remove future epsilon (which are replaced by forecast 0)
+  hp_xi_causal<-hp_xi[L:(length(hp_xi))]
+# 4. Deconvolute filt2 from filt1: filt1 is the convolution
+  gamma_mse<-deconvolute_func(hp_xi_causal,xi_int[1:L])$dec_filt
+
+  if (F)
+  {
+# MSE filter for random-walk: the above specification is more general since it accounts for Wold decomposition of first differences too    
+    gamma_mse<-hp_two[L:length(hp_two)]+c(sum(hp_two[(L+1):length(hp_two)]),rep(0,L-1))
+    ts.plot(gamma_mse)
+  }
+  
+# Compute transformed MSE filter, see section 6.2 technical SSA paper  
+  gamma_tilde<-Xi_tilde%*%gamma_mse
+# Autocovariance generating matrix, see theorem 1  
+  M<-matrix(nrow=L,ncol=L)
+  M[L,]<-rep(0,L)
+  M[L-1,]<-c(rep(0,L-1),0.5)
+  for (i in 1:(L-2))
+    M[i,]<-c(rep(0,i),0.5,rep(0,L-1-i))
+  M<-M+t(M)
+  M
+# Cointegration matrix, see section 6.2 technical paper  
+  B<-rbind(rep(-1,L-1),diag(rep(1,L-1)))
+  B
+  return(list(B=B,M=M,gamma_tilde=gamma_tilde,gamma_mse=gamma_mse,Xi_tilde=Xi_tilde,Sigma=Sigma,Delta=Delta,Xi=Xi,hp_two=hp_two,hp_trend=hp_trend))
+}
