@@ -7,16 +7,17 @@
 
 # For non-stationary time series, an extension of SSA is proposed which tracks the target optimally in a MSE sense
 #   (predictor and target are cointegrated) and which controls the rate of zero-crossings of (stationary) FIRST DIFFERENCES of the predictor.
-# The predictor tracks the target as closely as possible subject to a holding-time constraint imposed to its first differences.
-#   -In its dual form: the predictor generates the least number of zero-crossings in first differences.
+# The predictor tracks the target as closely as possible subject to a holding-time constraint imposed to first differences.
+#   -In its dual form: the predictor generates the least number of zero-crossings in first differences for a given track accuracy (MSE).
 #   -Equivalently: the original predictor (in levels) is maximal monotone
 
 # Application/prediction problem:
 # -We compute a maximal monotone SSA nowcast for the two-sided (bi-infinite) HP(14400) applied to monthly US-INDPRO.
-# -We compute the MSE nowcast of HP based on an ARIMA(1,1,0)-model for INDPRO
-# -This MSE nowcast is much noisier than the classic HP concurrent (real-time) filter, widely used in business-cycle applications
-# -Therefore, we replicate the holding-time (smoothness) of the classic one-sided HP by SSA
-# -By optimization we then expect SSA to equal classic HP in terms of smoothness and to outperform classic HP in terms of MSE (tracking accuracy)
+# -We compute the MSE nowcast of HP based on an ARIMA(1,1,0)-model for INDPRO: benchmark 1
+#   -This MSE nowcast is much noisier than the classic HP concurrent (real-time) filter, widely used in business-cycle applications
+# -Therefore, we consider the classic concurrent one-sided HP (HP-C): benchmark 2
+#   -We replicate the holding-time (smoothness) of HP-C by SSA
+# -By optimization we then expect SSA to equal HP-C in terms of smoothness and to outperform HP-C in terms of MSE (tracking accuracy)
 # -Since SSA is much smoother than the MSE nowcast we are interested in finding out how much SSA looses in terms of MSE performances.
 #   -The SSA criterion minimizes MSE losses for given smoothness (holding-time)
 
@@ -79,19 +80,24 @@ acf(na.exclude(diff(y_xts)),main="ACF of diff-log")
 len<-length(y)
 x_tilde<-as.double(y_xts)
 
+# In contrast to Wildi (2024), who emphasizes log-differences of INDPRO, Wildi (2025) considers log-INDPRO (in levels)
+#   SSA must track the two-sided HP as applied to levels (not first differences)
+
 ####################################################################
 # The novel maximal monotone predictor relies on a cointegration constraint such that the MSE between predictor and target 
 #   is finite, see Wildi 2025 for background.
 # For this purpose we need to compute particular system matrices
-# We assume the differenced data (INDPRO) to be an AR(1): see ACF above.
+# We assume (log-) INDPRO to follow an ARIMA(1,1,0) specification, see ACF above.
+# We do not fit a model to avoid data-mining (the singular observations during great lockdown are likely to corrupt parameter estimates)
 a1<-0.3
+b1<-0
 
 # Filter settings: length and HP-lambda
 L<-101
 lambda_hp<-14400
 
 # Compute all relevant system matrices: HP two- and one-sided and all relevant SSA design filters
-filter_obj<-compute_system_filters_func(L,lambda_hp,a1)
+filter_obj<-compute_system_filters_func(L,lambda_hp,a1,b1)
 
 # Cointegration matrix: ensures finite MSE in the case of I(2) processes
 B=filter_obj$B
@@ -111,7 +117,7 @@ Delta=filter_obj$Delta
 Xi=filter_obj$Xi
 # Two-sided target: used for computing sample MSEs below
 hp_two=filter_obj$hp_two
-# Classic concurrent HP: we want to replivate the latter's holding-time by SSA
+# Classic concurrent HP: we want to replicate the latter's holding-time by SSA
 hp_trend=filter_obj$hp_trend
 
 # Specify rho1 in HT constraint, see Wildi (2025) section 5.4
@@ -122,20 +128,27 @@ rho_mse<-compute_holding_time_func(Xi%*%gamma_mse)$rho_ff1
 # We also use the MA-inversion Xi%*%hp_trend for deriving the lag-one ACF of HP-C
 rho_hp_concurrent<-as.double(compute_holding_time_func(Xi%*%hp_trend)$rho_ff1)
 
-# The lag-one ACF of the MSE nowcast is small: the filter generates loss of noisy zero-crossings
+# The lag-one ACF of the MSE nowcast is small: the filter generates many noisy zero-crossings (see last plot below)
 rho_mse
 # We set rho1=rho_hp_concurrent in the HT constraint
 # Research question/assumption: impose same smoothness as HP-C; should outperform HP-C in terms of MSE; without loosing too much vs. gamma_mse 
+# Increasing smoothness leads to worse MSE performances (Accuracy-Smoothness dilemma)
 rho1<-rho_hp_concurrent
 
-
+if (F)
+{
+# We can impose a holding time 50% larger than HP-C to equal MSE performances: 
+#   SSA will replicate MSE performances of HP-C with less noisy zero-crossings  
+  ht<-1.5*as.double(compute_holding_time_func(Xi%*%hp_trend)$ht)
+  rho1<-compute_rho_from_ht(ht)$rho
+} 
 #----------------------------
 # Compute SSA solution, seee Wildi (2025) sections 5.3 and 5.4
 #   Use optim to determine optimal Lagrangian multiplier lambda numerically
 #     The optimal Lagrangian ensures compliance with the HT constraint
 #   Initialize lambda with 0: MSE benchmark (numerical optimization must improve upon MSE-initialization)
 lambda<-0
-opt_obj<-optim(lambda,b_optim,lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)
+opt_obj<-optim(lambda,b_optim,lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde,rho1)
 
 # Optimized lambda
 lambda_opt<-opt_obj$par

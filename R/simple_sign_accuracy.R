@@ -1614,15 +1614,22 @@ bk_int_func<-function(lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)
 # This function is used in numerical optimization of Lagrangian lambda such that solution bk conforms with HT constraint
 # It uses bk_int_func above and returns the absolute difference between desired rho1 and effective rho_yy
 # Numerical optimization then minimizes this gap
-b_optim<-function(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)
+b_optim<-function(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde,rho1)
 {
-  return(abs(bk_int_func(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)$rho_yy-rho1))
+  if (abs(rho1)>1)
+  {
+    print(paste("Lag-one ACF rho1 is larger one in absolute value; rho1=",rho1,sep=""))
+    return()
+  } else
+  {
+    return(abs(bk_int_func(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)$rho_yy-rho1))
+  }
 }
 
 
 
 # This function computes system matrices, in particular also for the I(1) case with cointegration
-compute_system_filters_func<-function(L,lambda_hp,a1)
+compute_system_filters_func<-function(L,lambda_hp,a_vec,b_vec)
 {
   
   HP_obj<-HP_target_mse_modified_gap(2*(L-1)+1,lambda_hp)
@@ -1635,11 +1642,12 @@ compute_system_filters_func<-function(L,lambda_hp,a1)
   gamma<-HP_obj$hp_mse
   ts.plot(gamma)
   hp_trend<-HP_obj$hp_trend
+
+# Wold decompoistion (MA inversion)  
+  xi<-ARMAtoMA(ar=a_vec,ma=b_vec,lag.max=L)
+
   
-  xi<-a1^(0:(L-1))
-  
-  
-  # Compute all system matrices
+# Compute all system matrices: all matrices are specified in Wildi (2025)
   Xi<-NULL
   for (i in 1:L)
     Xi<-rbind(Xi,c(xi[i:1],rep(0,L-i)))#c(1,0,0),c(1,1,0),c(1,1,1)))
