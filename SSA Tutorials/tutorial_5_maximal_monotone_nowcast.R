@@ -321,9 +321,13 @@ mat_perf[2,]<-c(compute_empirical_ht_func(diff(y_mse)[anf:enf])$empirical_ht,com
 colnames(mat_perf)<-c("MSE nowcast","SSA","HP-C")
 rownames(mat_perf)<-c("Sample mean square error","Sample holding time")
 
-# MSE-nowcast has smallest MSE, by design; but it is very noisy (small holding-time)
-# HP-C is much smoother but its MSE is twice as large as MSE-nowcast
-# SSA is as smooth as HP-C and its MSE is halfway between MSE-nowcast and HP-C
-# We conclude that SSA can gain substantially in terms of smoothness (ten times larger holding time) over MSE without loosing 
-#   excessively in terms of MSE: optimal tradeoff ensured by SSA criterion 
+# All performances at a glance:
 mat_perf
+
+# Summary/findings:
+# -MSE-nowcast has smallest MSE, by design; but it is very noisy (small holding-time), see previous plot, top panel
+# -The classic one-sided HP-C is much smoother but its MSE is twice as large as MSE-nowcast
+# -SSA is as smooth as HP-C and its MSE is halfway between MSE-nowcast and HP-C
+# -We conclude that SSA can gain substantially in terms of smoothness (ten times larger holding time) over MSE without loosing 
+#   excessively in terms of MSE: optimal tradeoff ensured by SSA criterion 
+
