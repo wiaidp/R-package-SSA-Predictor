@@ -3,7 +3,7 @@
     "path": "C:/Users/wlmr/R-package-SSA-Predictor/SSA Tutorials/tutorial_6_SSA_applied_to_refined_beverige_nelson_filter.R",
     "project_path": "SSA Tutorials/tutorial_6_SSA_applied_to_refined_beverige_nelson_filter.R",
     "type": "r_source",
-    "hash": "0",
+    "hash": "2648137836",
     "contents": "",
     "dirty": false,
     "created": 1731303248172.0,
@@ -13,15 +13,15 @@
         "tempName": "Untitled1",
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "290,0",
-        "scrollLine": "249"
+        "cursorPosition": "288,0",
+        "scrollLine": "251"
     },
     "folds": "",
-    "lastKnownWriteTime": 1731306464,
+    "lastKnownWriteTime": 1731307526,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1731306464174,
+    "last_content_update": 1731307526959,
     "read_only": false,
     "read_only_alternatives": []
 }

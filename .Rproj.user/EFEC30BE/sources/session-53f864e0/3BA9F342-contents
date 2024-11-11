@@ -105,7 +105,7 @@ cat('\n')
 # From now on we work with the above code
 # 1. First, we want to specify and replicate the filter of the refined procedure proposed by the authors
 # The composite filter is based on modifications of the original BN-filter and additional refinements
-# While it is possible to replicate the filter from the cited literatur, an easier proceeding consists in obtaining the filter weights directly from the above filter output, by inversion 
+# While it is possible to replicate the filter based on the cited literature, an easier proceeding consists in obtaining the filter weights directly from the above filter output, by inversion 
 
 # 1.1: combine original and filtered data
 mat<-cbind(y,bnf$cycle)
@@ -124,7 +124,7 @@ filt<-as.double(solve(reg_mat)%*%bnf$cycle[len:(len-L+1)])
 
 ts.plot(filt,main="Refined BN filter: default settings of 2024 CAMA paper")
 
-# 1.4 Check: apply obtained filter to data and verify repliaction of original filter output
+# 1.4 Check: apply obtained filter to data and verify replication of original filter output
 y_check<-rep(NA,len)
 for (i in L:len)
   y_check[i]<-filt%*%y[i:(i-L+1)]
@@ -204,13 +204,15 @@ conv_with_unitroot_func<-function(filt)
 filt_d<-conv_with_unitroot_func(filt)$conv
 
 # Check: verify that output of transformed and original filters match
-
+# New filter_d is applied to differenced data
 y_d<-rep(NA,len)
 for (i in (L+1):len)
   y_d[i]<-filt_d%*%diff(y)[-1+i:(i-L+1)]
+
+# Check
 ts.plot(cbind(y_d,bnf$cycle),main="Both outputs overlap")
 
-# 2.3 Compute amplitude and shift of transfortmed filter
+# 2.3 Compute amplitude and shift of transformed filter
 
 amp_shift_obj<-amp_shift_func(K,filt_d,F)
 
