@@ -1,19 +1,19 @@
 {
-    "id": "3BA9F342",
+    "id": "AC6A607F",
     "path": "C:/Users/wlmr/R-package-SSA-Predictor/SSA Tutorials/tutorial_6_SSA_applied_to_refined_beverige_nelson_filter.R",
     "project_path": "SSA Tutorials/tutorial_6_SSA_applied_to_refined_beverige_nelson_filter.R",
     "type": "r_source",
     "hash": "2648137836",
     "contents": "",
     "dirty": false,
-    "created": 1731303248172.0,
+    "created": 1731308365886.0,
     "source_on_save": false,
     "relative_order": 1,
     "properties": {
         "tempName": "Untitled1",
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "288,0",
+        "cursorPosition": "294,0",
         "scrollLine": "251"
     },
     "folds": "",
@@ -21,7 +21,7 @@
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1731307526959,
+    "last_content_update": 1731307526,
     "read_only": false,
     "read_only_alternatives": []
 }
