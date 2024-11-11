@@ -235,8 +235,9 @@ which(amp==max(amp))
 2*K/(which(amp==max(amp))-1)
 
 #----------------------------------------------------------
-# Apply the (original) filter to a random-walk
+# 2.3 Apply the  filter to a random-walk
 
+# 2.3.1 Original filter (in level)
 set.seed(123)
 len_rw<-1200
 x<-cumsum(rnorm(len_rw))
@@ -248,9 +249,42 @@ output<-rep(NA,len_rw)
 for (i in L:len_rw)
   output[i]<-filt%*%x[i:(i-L+1)]
 
-ts.plot(output,main="Cycle")
+# The filter generates a spurious cycle
+ts.plot(output,main="Spurious cycle")
 
 
+# 2.3.2 Apply differenced filter to noise
+
+set.seed(123)
+len_rw<-1200
+x<-(rnorm(len_rw))
+par(mfrow=c(1,1))
+ts.plot(x,main="Noise")
+
+# Apply filter: output is the same as above (up to negligible finite sample convolution error)
+output<-rep(NA,len_rw)
+for (i in L:len_rw)
+  output[i]<-filt_d%*%x[i:(i-L+1)]
+
+
+# The filter generates a spurious cycle
+ts.plot(output,main="Spurious cycle")
+
+
+# Add slowly changing deterministic level to noise
+omega<-2*pi/len_rw
+level<-cos((1:len_rw)*omega)
+
+ts.plot(x+level)
+
+# Filter data
+output<-rep(NA,len_rw)
+for (i in L:len_rw)
+  output[i]<-filt_d%*%(x+level)[i:(i-L+1)]
+
+
+# The filter cannot track salient feature (changing level: recessions/expansions)
+ts.plot(output,main="Bandpass cannot track changing level")
 
 
 
