@@ -235,7 +235,7 @@ box()
 
 # Peak of amplitude
 which(amp==max(amp))
-# Periodicity of corresponding frequency: roughly 6 years
+# Periodicity of corresponding frequency: roughly 17 years (data quarterly)
 2*K/(which(amp==max(amp))-1)
 
 #----------------------------------------------------------
@@ -326,4 +326,35 @@ abline(h=0)
 box()
 
 #---------------------------------------------------------------------
-# 5. To do: Compare rbn with HP-gap and rbn_trend with HP_trend
+# 5. Compare rbn with HP-gap and rbn_trend with HP_trend
+
+library(mFilter)
+source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+# Load all relevant SSA-functions
+source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
+
+L<-length(rbn)
+# Should be an odd number
+if (L/2==as.integer(L/2))
+{
+  print("Filter length should be an odd number")
+  print("If L is even then HP cannot be adequately centered")
+  L<-L+1
+}  
+# Specify lambda: querterly design to match rbn filter
+lambda_monthly<-1600
+par(mfrow=c(1,1))
+# This function relies on mFilter and it derives additional HP-designs to be discussed further down
+HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
+
+hp_trend<-HP_obj$hp_trend
+hp_gap<-HP_obj$hp_gap
+
+colo<-c("black","red")
+par(mfrow=c(1,2))
+# Gap filters look similar
+ts.plot(cbind(rbn,hp_gap),main="Original gap filters",col=colo)
+# Trend filters are a bit different: strange negative lob towards lag 40 (10 years)
+ts.plot(cbind(rbn_trend,hp_trend),main="Trend filters",col=colo)
+
+
