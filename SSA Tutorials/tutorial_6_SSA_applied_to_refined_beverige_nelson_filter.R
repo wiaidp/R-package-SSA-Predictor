@@ -121,14 +121,15 @@ for (i in 1:(L-1))
 dim(reg_mat)
 
 # 1.3 Obtain filter weights by applying the inverted regression matrix to the filtered output
-filt<-as.double(solve(reg_mat)%*%bnf$cycle[len:(len-L+1)])
+# The acronym rbn refers to refined Beveridge-Nelson
+rbn<-as.double(solve(reg_mat)%*%bnf$cycle[len:(len-L+1)])
 
-ts.plot(filt,main="Refined BN filter: default settings of 2024 CAMA paper")
+ts.plot(rbn,main="Refined BN filter: default settings of 2024 CAMA paper")
 
 # 1.4 Check: apply obtained filter to data and verify replication of original filter output
 y_check<-rep(NA,len)
 for (i in L:len)
-  y_check[i]<-filt%*%y[i:(i-L+1)]
+  y_check[i]<-rbn%*%y[i:(i-L+1)]
 
 ts.plot(cbind(y_check,bnf$cycle),main="Replication successful: both series overlap")
 
@@ -172,7 +173,7 @@ amp_shift_func<-function(K,b,plot_T)
 # 2.1 Analyze original refined BN
 K<-600
 
-amp_shift_obj<-amp_shift_func(K,filt,F)
+amp_shift_obj<-amp_shift_func(K,rbn,F)
 
 amp<-amp_shift_obj$amp
 shift<-amp_shift_obj$shift
@@ -202,20 +203,20 @@ conv_with_unitroot_func<-function(filt)
   return(list(conv=conv))
 }
 
-filt_d<-conv_with_unitroot_func(filt)$conv
+rbn_d<-conv_with_unitroot_func(rbn)$conv
 
 # Check: verify that output of transformed and original filters match
 # New filter_d is applied to differenced data
 y_d<-rep(NA,len)
 for (i in (L+1):len)
-  y_d[i]<-filt_d%*%diff(y)[-1+i:(i-L+1)]
+  y_d[i]<-rbn_d%*%diff(y)[-1+i:(i-L+1)]
 
 # Check
 ts.plot(cbind(y_d,bnf$cycle),main="Both outputs overlap")
 
 # 2.3 Compute amplitude and shift of transformed filter
 
-amp_shift_obj<-amp_shift_func(K,filt_d,F)
+amp_shift_obj<-amp_shift_func(K,rbn_d,F)
 
 amp<-amp_shift_obj$amp
 shift<-amp_shift_obj$shift
@@ -238,9 +239,9 @@ which(amp==max(amp))
 2*K/(which(amp==max(amp))-1)
 
 #----------------------------------------------------------
-# 2.3 Apply the  filter to a random-walk
+# 3 Apply the  filter to a random-walk
 
-# 2.3.1 Original filter (in level)
+# 3.1 Original filter (in level)
 set.seed(123)
 len_rw<-1200
 x<-cumsum(rnorm(len_rw))
@@ -250,13 +251,13 @@ ts.plot(x,main="Random-walk")
 # Apply filter
 output<-rep(NA,len_rw)
 for (i in L:len_rw)
-  output[i]<-filt%*%x[i:(i-L+1)]
+  output[i]<-rbn%*%x[i:(i-L+1)]
 
 # The filter generates a spurious cycle
 ts.plot(output,main="Spurious cycle")
 
 
-# 2.3.2 Apply differenced filter to noise
+# 3.2 Apply differenced filter to noise
 
 set.seed(123)
 len_rw<-1200
@@ -267,7 +268,7 @@ ts.plot(x,main="Noise")
 # Apply filter: output is the same as above (up to negligible finite sample convolution error)
 output<-rep(NA,len_rw)
 for (i in L:len_rw)
-  output[i]<-filt_d%*%x[i:(i-L+1)]
+  output[i]<-rbn_d%*%x[i:(i-L+1)]
 
 
 # The filter generates a spurious cycle
@@ -283,13 +284,46 @@ ts.plot(x+level)
 # Filter data
 output<-rep(NA,len_rw)
 for (i in L:len_rw)
-  output[i]<-filt_d%*%(x+level)[i:(i-L+1)]
+  output[i]<-rbn_d%*%(x+level)[i:(i-L+1)]
 
 
 # The filter cannot track salient feature (changing level: recessions/expansions)
 ts.plot(output,main="Bandpass cannot track changing level")
 
 
+#------------------------------------------------------------------------
+# 4. Define an equivalent trend filter:
+# 4.1 rbn is a `gap` filter much like HP_gap
+# To obtain the equivalent trend filter we just use 1-rbn
 
+rbn_trend<-c(1,rep(0,length(rbn)-1))-rbn
 
+# Coefficients add to one
+sum(rbn_trend)
 
+# Looks `strange' (overfitting?)
+ts.plot(rbn_trend,main="rbn trend filter")
+
+#---------------
+# 4.2 Analyze in frequency-domain
+amp_shift_obj<-amp_shift_func(K,rbn_trend,F)
+
+amp<-amp_shift_obj$amp
+shift<-amp_shift_obj$shift
+
+par(mfrow=c(1,2))
+# Amplitude is unsmooth: overfitting?
+# Peak amplitude matches business-cycle frequencies
+plot(amp,type="l",axes=F,xlab="Frequency",ylab="",main="Amplitude filter rbn trend")
+axis(1,at=1+0:6*K/6,labels=c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi"))
+axis(2)
+box()
+# Like classic concurrent HP the shift vanishes at frequency zero (rbn cancels a double unit-root)
+plot(shift,type="l",axes=F,xlab="Frequency",ylab="Shift",main="Shift",ylim=c(-3,5))
+axis(1,at=1+0:6*K/6,labels=c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi"))
+axis(2)
+abline(h=0)
+box()
+
+#---------------------------------------------------------------------
+# 5. To do: Compare rbn with HP-gap and rbn_trend with HP_trend
