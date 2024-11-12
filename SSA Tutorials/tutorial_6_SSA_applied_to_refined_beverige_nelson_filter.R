@@ -354,7 +354,8 @@ colo<-c("black","red")
 par(mfrow=c(1,2))
 # Gap filters look similar
 ts.plot(cbind(rbn,hp_gap),main="Original gap filters",col=colo)
-# Trend filters are a bit different: strange negative lob towards lag 40 (10 years)
+# Trend filters are a bit different: strange negative lob of rbn_trend towards lag 40 (10 years)
 ts.plot(cbind(rbn_trend,hp_trend),main="Trend filters",col=colo)
+
 
 
