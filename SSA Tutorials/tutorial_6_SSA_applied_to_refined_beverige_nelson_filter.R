@@ -358,4 +358,32 @@ ts.plot(cbind(rbn,hp_gap),main="Original gap filters",col=colo)
 ts.plot(cbind(rbn_trend,hp_trend),main="Trend filters",col=colo)
 
 
+# Compare amplitude functions of trend filters
+
+amp_shift_obj<-amp_shift_func(K,rbn_trend,F)
+
+amp_rbn<-amp_shift_obj$amp
+shift_rbn<-amp_shift_obj$shift
+
+amp_shift_obj<-amp_shift_func(K,hp_trend,F)
+
+amp_hp<-amp_shift_obj$amp
+shift_hp<-amp_shift_obj$shift
+
+
+par(mfrow=c(1,2))
+# Amplitude rbn_trend is unsmooth (overfitting) and stronger noise suppression than hp_trend
+plot(amp_rbn,col=colo[1],type="l",axes=F,xlab="Frequency",ylab="",main="Amplitude trend filters",ylim=c(0,1.3))
+lines(amp_hp,col=colo[2])
+abline(h=0)
+axis(1,at=1+0:6*K/6,labels=c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi"))
+axis(2)
+box()
+# Larger shift of rbn_trend due to stronger noise suppression: HP is faster but noisier
+plot(shift_rbn,col=colo[1],type="l",axes=F,xlab="Frequency",ylab="",main="Shift trend filters")
+lines(shift_hp,col=colo[2])
+abline(h=0)
+axis(1,at=1+0:6*K/6,labels=c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi"))
+axis(2)
+box()
 
