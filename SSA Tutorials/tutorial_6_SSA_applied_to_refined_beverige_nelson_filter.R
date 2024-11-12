@@ -333,6 +333,8 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 # Load all relevant SSA-functions
 source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
 
+# 5.1 Compute HP(1600): quarterly data
+# Same length as rbn
 L<-length(rbn)
 # Should be an odd number
 if (L/2==as.integer(L/2))
@@ -357,8 +359,8 @@ ts.plot(cbind(rbn,hp_gap),main="Original gap filters",col=colo)
 # Trend filters are a bit different: strange negative lob of rbn_trend towards lag 40 (10 years)
 ts.plot(cbind(rbn_trend,hp_trend),main="Trend filters",col=colo)
 
-
-# Compare amplitude functions of trend filters
+#------------------------
+# 5.2 Compare amplitude functions of trend filters
 
 amp_shift_obj<-amp_shift_func(K,rbn_trend,F)
 
