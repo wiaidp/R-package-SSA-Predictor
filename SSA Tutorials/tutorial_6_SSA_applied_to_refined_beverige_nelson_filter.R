@@ -95,7 +95,6 @@ if (demean == "pm"){iterative <- 0}		#override choice to dynamically demean if s
 
 bnf <- bnf(y)
 
-write.csv(bnf$cycle, "us_cycle_R_bnf.csv")
 plot(bnf, main = "US Output Gap", col = "red", plot_ci = TRUE)
 cat("\nPrinting out cycle data...\n")
 print(bnf) # comment this command to stop the cycle data being printed to the console

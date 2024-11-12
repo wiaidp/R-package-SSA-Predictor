@@ -2,6 +2,7 @@
 # Gunes Kamber & James Morley & Benjamin Wong, 2024. "Trend-Cycle Decomposition in the Presence of Large Shocks," CAMA Working Papers 2024-24, Centre for Applied Macroeconomic Analysis, Crawford School of Public Policy, The Australian National University, revised Aug 2024.
 
 # For this purpose we rely on their R-code at https://drive.google.com/file/d/15P2OOV7aPl8qcwAsvSltaO2QfmuxID_N/view?pli=1
+# Alternative web-side for codes: https://bnfiltering.com/
 
 # Here is the description of the R-code by the authors:
 
@@ -94,7 +95,6 @@ if (demean == "pm"){iterative <- 0}		#override choice to dynamically demean if s
 
 bnf <- bnf(y)
 
-write.csv(bnf$cycle, "us_cycle_R_bnf.csv")
 plot(bnf, main = "US Output Gap", col = "red", plot_ci = TRUE)
 cat("\nPrinting out cycle data...\n")
 print(bnf) # comment this command to stop the cycle data being printed to the console
@@ -120,14 +120,15 @@ for (i in 1:(L-1))
 dim(reg_mat)
 
 # 1.3 Obtain filter weights by applying the inverted regression matrix to the filtered output
-filt<-as.double(solve(reg_mat)%*%bnf$cycle[len:(len-L+1)])
+# The acronym rbn refers to refined Beveridge-Nelson
+rbn<-as.double(solve(reg_mat)%*%bnf$cycle[len:(len-L+1)])
 
-ts.plot(filt,main="Refined BN filter: default settings of 2024 CAMA paper")
+ts.plot(rbn,main="Refined BN filter: default settings of 2024 CAMA paper")
 
 # 1.4 Check: apply obtained filter to data and verify replication of original filter output
 y_check<-rep(NA,len)
 for (i in L:len)
-  y_check[i]<-filt%*%y[i:(i-L+1)]
+  y_check[i]<-rbn%*%y[i:(i-L+1)]
 
 ts.plot(cbind(y_check,bnf$cycle),main="Replication successful: both series overlap")
 
@@ -171,7 +172,7 @@ amp_shift_func<-function(K,b,plot_T)
 # 2.1 Analyze original refined BN
 K<-600
 
-amp_shift_obj<-amp_shift_func(K,filt,F)
+amp_shift_obj<-amp_shift_func(K,rbn,F)
 
 amp<-amp_shift_obj$amp
 shift<-amp_shift_obj$shift
@@ -201,20 +202,20 @@ conv_with_unitroot_func<-function(filt)
   return(list(conv=conv))
 }
 
-filt_d<-conv_with_unitroot_func(filt)$conv
+rbn_d<-conv_with_unitroot_func(rbn)$conv
 
 # Check: verify that output of transformed and original filters match
 # New filter_d is applied to differenced data
 y_d<-rep(NA,len)
 for (i in (L+1):len)
-  y_d[i]<-filt_d%*%diff(y)[-1+i:(i-L+1)]
+  y_d[i]<-rbn_d%*%diff(y)[-1+i:(i-L+1)]
 
 # Check
 ts.plot(cbind(y_d,bnf$cycle),main="Both outputs overlap")
 
 # 2.3 Compute amplitude and shift of transformed filter
 
-amp_shift_obj<-amp_shift_func(K,filt_d,F)
+amp_shift_obj<-amp_shift_func(K,rbn_d,F)
 
 amp<-amp_shift_obj$amp
 shift<-amp_shift_obj$shift
@@ -233,13 +234,13 @@ box()
 
 # Peak of amplitude
 which(amp==max(amp))
-# Periodicity of corresponding frequency: roughly 6 years
+# Periodicity of corresponding frequency: roughly 17 years (data quarterly)
 2*K/(which(amp==max(amp))-1)
 
 #----------------------------------------------------------
-# 2.3 Apply the  filter to a random-walk
+# 3 Apply the  filter to a random-walk
 
-# 2.3.1 Original filter (in level)
+# 3.1 Original filter (in level)
 set.seed(123)
 len_rw<-1200
 x<-cumsum(rnorm(len_rw))
@@ -249,13 +250,13 @@ ts.plot(x,main="Random-walk")
 # Apply filter
 output<-rep(NA,len_rw)
 for (i in L:len_rw)
-  output[i]<-filt%*%x[i:(i-L+1)]
+  output[i]<-rbn%*%x[i:(i-L+1)]
 
 # The filter generates a spurious cycle
 ts.plot(output,main="Spurious cycle")
 
 
-# 2.3.2 Apply differenced filter to noise
+# 3.2 Apply differenced filter to noise
 
 set.seed(123)
 len_rw<-1200
@@ -266,7 +267,7 @@ ts.plot(x,main="Noise")
 # Apply filter: output is the same as above (up to negligible finite sample convolution error)
 output<-rep(NA,len_rw)
 for (i in L:len_rw)
-  output[i]<-filt_d%*%x[i:(i-L+1)]
+  output[i]<-rbn_d%*%x[i:(i-L+1)]
 
 
 # The filter generates a spurious cycle
@@ -282,13 +283,108 @@ ts.plot(x+level)
 # Filter data
 output<-rep(NA,len_rw)
 for (i in L:len_rw)
-  output[i]<-filt_d%*%(x+level)[i:(i-L+1)]
+  output[i]<-rbn_d%*%(x+level)[i:(i-L+1)]
 
 
 # The filter cannot track salient feature (changing level: recessions/expansions)
 ts.plot(output,main="Bandpass cannot track changing level")
 
 
+#------------------------------------------------------------------------
+# 4. Define an equivalent trend filter:
+# 4.1 rbn is a `gap` filter much like HP_gap
+# To obtain the equivalent trend filter we just use 1-rbn
+
+rbn_trend<-c(1,rep(0,length(rbn)-1))-rbn
+
+# Coefficients add to one
+sum(rbn_trend)
+
+# Looks `strange' (overfitting?)
+ts.plot(rbn_trend,main="rbn trend filter")
+
+#---------------
+# 4.2 Analyze in frequency-domain
+amp_shift_obj<-amp_shift_func(K,rbn_trend,F)
+
+amp<-amp_shift_obj$amp
+shift<-amp_shift_obj$shift
+
+par(mfrow=c(1,2))
+# Amplitude is unsmooth: overfitting?
+# Peak amplitude matches business-cycle frequencies
+plot(amp,type="l",axes=F,xlab="Frequency",ylab="",main="Amplitude filter rbn trend")
+axis(1,at=1+0:6*K/6,labels=c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi"))
+axis(2)
+box()
+# Like classic concurrent HP the shift vanishes at frequency zero (rbn cancels a double unit-root)
+plot(shift,type="l",axes=F,xlab="Frequency",ylab="Shift",main="Shift",ylim=c(-3,5))
+axis(1,at=1+0:6*K/6,labels=c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi"))
+axis(2)
+abline(h=0)
+box()
+
+#---------------------------------------------------------------------
+# 5. Compare rbn with HP-gap and rbn_trend with HP_trend
+
+library(mFilter)
+source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+# Load all relevant SSA-functions
+source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
+
+# 5.1 Compute HP(1600): quarterly data
+# Same length as rbn
+L<-length(rbn)
+# Should be an odd number
+if (L/2==as.integer(L/2))
+{
+  print("Filter length should be an odd number")
+  print("If L is even then HP cannot be adequately centered")
+  L<-L+1
+}  
+# Specify lambda: querterly design to match rbn filter
+lambda_monthly<-1600
+par(mfrow=c(1,1))
+# This function relies on mFilter and it derives additional HP-designs to be discussed further down
+HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
+
+hp_trend<-HP_obj$hp_trend
+hp_gap<-HP_obj$hp_gap
+
+colo<-c("black","red")
+par(mfrow=c(1,2))
+# Gap filters look similar
+ts.plot(cbind(rbn,hp_gap),main="Original gap filters",col=colo)
+# Trend filters are a bit different: strange negative lob of rbn_trend towards lag 40 (10 years)
+ts.plot(cbind(rbn_trend,hp_trend),main="Trend filters",col=colo)
+
+#------------------------
+# 5.2 Compare amplitude functions of trend filters
+
+amp_shift_obj<-amp_shift_func(K,rbn_trend,F)
+
+amp_rbn<-amp_shift_obj$amp
+shift_rbn<-amp_shift_obj$shift
+
+amp_shift_obj<-amp_shift_func(K,hp_trend,F)
+
+amp_hp<-amp_shift_obj$amp
+shift_hp<-amp_shift_obj$shift
 
 
+par(mfrow=c(1,2))
+# Amplitude rbn_trend is unsmooth (overfitting) and stronger noise suppression than hp_trend
+plot(amp_rbn,col=colo[1],type="l",axes=F,xlab="Frequency",ylab="",main="Amplitude trend filters",ylim=c(0,1.3))
+lines(amp_hp,col=colo[2])
+abline(h=0)
+axis(1,at=1+0:6*K/6,labels=c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi"))
+axis(2)
+box()
+# Larger shift of rbn_trend due to stronger noise suppression: HP is faster but noisier
+plot(shift_rbn,col=colo[1],type="l",axes=F,xlab="Frequency",ylab="",main="Shift trend filters")
+lines(shift_hp,col=colo[2])
+abline(h=0)
+axis(1,at=1+0:6*K/6,labels=c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi"))
+axis(2)
+box()
 
