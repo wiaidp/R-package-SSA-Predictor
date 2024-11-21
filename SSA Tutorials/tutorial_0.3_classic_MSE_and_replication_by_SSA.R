@@ -321,7 +321,7 @@ box()
 #   this effect is also due to the fact that the ARMA-filter, linking xt to epsilont, is a lowpass in this example: 
 #   xt is smoother than epsilont
 amp_obj_xi<-amp_shift_func(K,as.vector(xi),F)
-amp_arma<-amp_obj_mse$amp
+amp_arma<-amp_obj_xi$amp
 par(mfrow=c(1,1))
 plot(amp_arma,type="l",axes=F,xlab="Frequency",ylab="",main="Amplitude of ARMA filter",col="green",ylim=c(0,max(amp_arma)))
 abline(h=0)
