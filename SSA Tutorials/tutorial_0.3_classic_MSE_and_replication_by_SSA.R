@@ -4,7 +4,7 @@
 #   -Based on an autocorrelated process: example 2
 # -Introduce SSA, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 #   -replicate MSE by SSA: example 3
-#   -`play' with the input to SSA: example 4`
+#   -`play' with the input to SSA: example 4
 # -In the subsequent tutorials we can view the MSE predictor both as a benchmark, for comparing performances, as well 
 #   as a base-predictor, on which SSA can be plugged to alter performances: smoothness and/or timeliness 
 
@@ -153,7 +153,7 @@ abline(h=0)
 axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
 axis(2)
 box()
-# The spectral density will be useful when assessing whether a particular BCA-tool (HP-filter, BK-filter, Hamilton-filter) 
+# The spectral density will be useful when assessing whether a particular BCA-tool (HP-filter, BK-filter, Hamilton-filter, BN-filter) 
 #   generates spurious cycles or not. And some of them do, indeed!
 
 
@@ -183,7 +183,7 @@ for (i in 2:len)
   x[i]<-a1*x[i-1]+epsilon[i]+b1*epsilon[i-1]
 }
 
-# The empirical autocorrelation function: nomore white noise
+# The empirical autocorrelation function: no more white noise
 acf(x)
 
 # Set filter length: should be sufficiently large for filter weights to decay to zero
@@ -194,7 +194,7 @@ L<-50
 
 xi<-c(1,ARMAtoMA(ar=a1,ma=b1,lag.max=L-1))
 par(mfrow=c(1,1))
-ts.plot(xi,main="Wold decomposition of ARMA(1,1")
+ts.plot(xi,main="Wold decomposition of ARMA(1,1)")
 
 # Note that we can replicate xt by relying on the MA-inversion (Wold-decomposition) of the ARMA:
 x_wold<-filter(epsilon,xi,side=1)
@@ -332,7 +332,7 @@ box()
 #####################################################################################################
 # We provide context for understanding SSA, assuming the above example 2 for background 
 # Let zt designate a target: zt=sum_{k=-\infty}^{\infty} gamma_k x_{t-k}
-#   In the above example examples: zt=y_sym the output of the acausal two-sided filter 
+#   In the above examples, zt=y_sym is the output of the acausal two-sided filter 
 # Let xt=sum_{j=0}^{\infty} xi_j epsilon_{t-k} be a stationary (or non-stationary integrated process)
 # We want to estimate or predict z_{t+delta}, for integer delta
 
@@ -349,11 +349,13 @@ box()
 #   3. xi: if one does not supply xi, then SSA assumes by default the data to be white noise (xt=epsilont)
 # Additionally to the MSE estimate we also specify 
 #   3. ht or, more exactly, the lag-one ACF rho1 of the holding-time constraint
-#   4. L: the filter length. Restriction: 3<=L<=len-1. A larger L automatically leads to a better predictor if xi (Wold decomposition) is correctly specified. For most applications the filter coefficients decay pretty fast twoards zero: therefore truncation at smaller L generally does not affect performances.
+#   4. L: the filter length. Restriction: 3<=L<=len-1. A larger L automatically leads to a better predictor if xi (Wold decomposition) is correctly specified. 
+#     For most applications the filter coefficients decay pretty fast towards zero: therefore truncation at smaller L 
+#     generally does not affect performances.
 # For given L, the SSA criterion computes the `best' or optimal finite-length filter subject to the holding-time constraint
 #   Best or optimal means
-#     1. The filter which best matches signs of the target z_{t+delta}
-#     2. The filter which correlates most strongly with the target z_{t+delta}
+#     1. The filter which best matches signs of the target z_{t+delta}: maximization of the sign-accuracy
+#     2. The filter which correlates most strongly with the target z_{t+delta}: maximization of the target correlation
 #   Both criteria are equivalent under Gaussianity (see JBCY paper) and the link is fairly robust against departures of Gaussianity (t-distribution up to nu=2 still works fine, equity data is OK, Macro data is fine too,...)
 
 # The SSA function returns
@@ -400,6 +402,7 @@ delta<-0
 # In order to obtain the two-sided acausal target we have to left-shift gamma by (length(gamma)-1)/2 lags or, 
 #   stated otherwise, to forecast the causal gamma by (length(gamma)-1)/2+delta steps ahead 
 forecast_horizon<-(length(gamma)-1)/2+delta
+forecast_horizon
 # We let SSA know that the data is an ARMA: recall that the ARMA-filter pre-whitens the noise (it's a lowpass) 
 xi<-xi
 # Target: symmetric (one-sided) filter: this will be shifted by forecast_horizon in SSA_func
@@ -452,7 +455,7 @@ axis(1,at=1:L,labels=-1+1:L)
 axis(2)
 box()
 
-# In applications one typically relies on ssa_x 
+# In applications one typically relies on ssa_x: but the package also returns all other filters (for diagnostics, benchmarling, validation,...)
 
 #------------------------------
 # Some checks of performances: convergence of sample estimates to theoretical criterion values and ht
@@ -529,6 +532,7 @@ ht
 gammak_generic<-gamma_mse
 # This target is causal and does not have to be shifted (in contrast to gamma in exercise 3). We set:
 forecast_horizon<-delta
+forecast_horizon
 # Since gamma_mse is applied to xt, we have to supply information about the link between xt and epsilont in terms of xi
 xi<-xi
 # Don't forget xi in the function call: otherwise SSA assumes xt=epsilont white noise, by default
