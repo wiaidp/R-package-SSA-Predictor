@@ -428,16 +428,16 @@ MSSA_obj$crit_rhoyz
 
 ##########################################################################################
 # Summary:
-# -M-SSA has a rich output with many additional filters (including the classic MSE signal extraction filter) and performance measures
-# -Theoretical expressions for expected values of any performance number (see M-SSA paper for derivation) match sample estimates (for sufficiently long samples)
-# -The M-SSA optimization concept is sound: maximize target correlation (equivalently: minimize mean-square forecast error) subject to HT constraint
+# -M-SSA has a rich output with additional filters (including the classic MSE signal extraction filter) and performance metrics
+# -Theoretical expressions (expected values) of any performance number (see M-SSA paper for derivation) match sample estimates (for sufficiently long samples)
+# -M-SSA optimization concept: maximize target correlation (equivalently: minimize mean-square forecast error) subject to HT constraint
 # -M-SSA replicates classic MSE signal extraction filter by inserting the HT of the latter into the M-SSA optimization
 # -M-SSA can address backcasting (delta<0), nowcasting (delta=0) and forecasting (delta>0)
-# -The target specification is completely generic: in the above experiment we relied on the two-sided HP
+# -The target specification is generic: in the above experiment we relied on the two-sided HP
 #   -Classic h-step ahead forecasting can be obtained by replacing the HP-filter by the identity (see univariate SSA tutorials on the topic)
 # -The data generating process (DGP) is assumed to be stationary (could be generalized); otherwise the specification is completely general
-#   -M-SSA relies on the (reduced-form) MA-inversion of the DGP which is straightforward to obtain for for VARMA processes (see above illustration)
-# -Obviously, a convergence of sample performances towards expected numbers assumes the model to be `true'
+#   -M-SSA relies on the (reduced-form) MA-inversion of the DGP which is straightforward to obtain for VARMA processes (see above illustration)
+# -A convergence of sample performances towards expected numbers assumes the model to be `true'
 #   -However, we shall see that the above application to German macro data is remarkably robust 
 #     -against singular Pandemic data (outliers)
 #     -against in-sample span for VAR: pre-financial crisis M-SSA (data up Jan-2007) performs nearly as well as full sample M-SSA
