@@ -260,27 +260,27 @@ ht_mssa_vec[m]
 # Target correlation: with respect to classic MSE benchmark 
 # M-SSA replicates the classic MSE estimate when HT in the constraint matches HT of MSE
 #   In general the MSE benchmark is `noisy' and we want M-SSA to be smoother (stronger noise suppression)`
-#   Therefore the correlation with thge MSE benchmark is generally smaller one
+#   Therefore the correlation with the MSE benchmark is generally smaller one
 #   But the correlation is always larger than the target correlation with the two-sided (acausal) HP 
 MSSA_obj$crit_rhoyz
 # Target correlation: with respect to effective acausal target  
 MSSA_obj$crit_rhoy_target
 # Lag one ACF: should match imposed lag-one ACF 
-# This is a quick check to verify sucessfull numerical optimization
-# If the discrepancy is `too large', the number of iteration steps specifeid by split_grid can be increased`
+# This is a quick check to verify successful numerical optimization
+# If the discrepancy is `too large', the number of iteration steps specified by split_grid can be increased
 MSSA_obj$crit_rhoyy
 rho0
 # Equivalently, the HT of the optimized M-SSA should match the imposed HT
 compute_holding_time_from_rho_func(MSSA_obj$crit_rhoyy)
 compute_holding_time_from_rho_func(rho0)
 
-# Optimized nu in discrete difference equation, see paper  
+# Optimized nu in discrete difference equation, see paper for interpretation  
 MSSA_obj$nu_opt
 # M-SSA also computes optimal filters when applied to residuals of the VAR
 #   This can be useful for visualization of the smoothing property (impulse response, for expert users)
 #   Applying these filters to VAR residuals replicates the ordinary M-SSA output (see time series y above)
 #   The approximation improves with larger L
-# M-SSA computes bk_mat and the final filter bk_x_mat (used in above simulation exercise) is obtained by deconvolution
+# M-SSA computes bk_mat; the final filter bk_x_mat (used in above simulation exercise) is obtained by deconvolution
 bk_mat<-MSSA_obj$bk_mat
 par(mfrow=c(1,n))
 for (i in 1:n)# i<-1
@@ -347,7 +347,7 @@ for (i in 1:n)# i<-1
 #   This is the symmetric filter when applied to VAR residuals
 gamma_target_long<-MSSA_obj$gammak_target
 dim(gamma_target_long)
-# We plot the filters: vertical lines indicate delimitations between target series i=1,...,n
+# We plot the filters: vertical lines indicate delimitations between explanatory series i=1,...,n
 #   -Note that for a particular series (say the first, i=1), the convolution of original target and MA-inversion xi 
 #       generally assigns weight to all residuals in the presence of cross-correlation (non-diagonal Sigma) 
 # -In contrast, the original gamma_target (see plot above) assigns weight only to the target series (all other series receive weight 0)
@@ -355,12 +355,13 @@ ts.plot(gamma_target_long,col=rainbow(n))
 abline(v=(1:n*(nrow(gamma_target_long)/n)))
 # M-SSA also computes the true variance of the two-sided HP output
 var_target<-MSSA_obj$var_target
-# Can compare variances on diagonal of acausal target (var_target) and causal MSE (below): the latter are roughly 50% smaller (because MSE is missing future epsilons)
+# We cCan compare variances on diagonal of acausal target (var_target) and causal MSE (below): the latter are roughly 50% smaller (because MSE is missing future epsilons)
 # Need system matrices M_tilde and I_tilde to compute expectations
 M_obj<-M_func(L,Sigma)
 M_tilde<-M_obj$M_tilde
 I_tilde<-M_obj$I_tilde
 
+# Variance of target
 diag(var_target)
 # Variance of classic MSE predictor
 diag(t(gammak_mse)%*%I_tilde%*%gammak_mse)
@@ -378,7 +379,7 @@ var(na.exclude(zdelta))
 rho_mse<-gammak_mse[,1]%*%M_tilde%*%gammak_mse[,1]/gammak_mse[,1]%*%I_tilde%*%gammak_mse[,1]
 for (i in 2:n)
   rho_mse<-c(rho_mse,gammak_mse[,i]%*%M_tilde%*%gammak_mse[,i]/gammak_mse[,i]%*%I_tilde%*%gammak_mse[,i])
-# Similarly, we cxan compute the true lag-one ACFs of M-SSA
+# Similarly, we can compute the true lag-one ACFs of M-SSA
 rho_ssa<-bk_mat[,1]%*%M_tilde%*%bk_mat[,1]/bk_mat[,1]%*%I_tilde%*%bk_mat[,1]
 for (i in 2:n)
   rho_ssa<-c(rho_ssa,bk_mat[,i]%*%M_tilde%*%bk_mat[,i]/bk_mat[,i]%*%I_tilde%*%bk_mat[,i])
@@ -395,7 +396,7 @@ ht_mssa_vec
 apply(matrix(rho_mse,nrow=1),1,compute_holding_time_from_rho_func)[[1]]$ht
 
 # Next we can compute the target correlations
-#   -More precsiely we here compute the correlation of M-SSA with MSE benchmark
+#   -More precisely we here compute the correlation of M-SSA with MSE benchmark
 #   -If HT of M-SSA matches MSE-benchmark, then M-SSA replicates the latter and correlation is one
 #   -If HT of M-SSA is larger than that of MSE-benchmark, then correlation is smaller one: but M-SSA maximizes this correlation subject to the HT constraint
 crit_mse<-gammak_mse[,1]%*%I_tilde%*%gammak_mse[,1]/gammak_mse[,1]%*%I_tilde%*%gammak_mse[,1]
@@ -418,7 +419,7 @@ colnames(criterion_mat)<-c(paste("Series ",1:n,paste=""))
 rownames(criterion_mat)<-c("MSE","SSA")
 criterion_mat
 # Compare second row with MSSA_obj$crit_rhoyz computed by M-SSA 
-#  crit_rhoyz is the objective function of the optimization criterion and is maximzed by M-SSA
+#  crit_rhoyz is the objective function of the optimization criterion and is maximized by M-SSA
 MSSA_obj$crit_rhoyz
 
 
