@@ -147,11 +147,15 @@ ts.plot(c(hp_one_sided[L:2],hp_one_sided[1:L]))
 #--------------------------------------------------------------------------------
 # Forecast horizon
 # delta=0 means a nowcast
+# delta>0 means a forecast
+# delta<0 means a backcast: clearly, this is not our main application case
+#   Note that for backcasts the filters may look weird because the HT in the constraint is too small (M-SSA will unsmooth the data)
 delta<-6
 
 # Holding times
 # We have to specify a HT for each series
-# The following numbers are derived from the Macro-tool
+# The following numbers are derived from the Macro-tool: 
+#   We impose roughly between 1.5 and 2 years as mean duration between consecutive zero-crossings of the predictor
 ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
 # Compute corresponding lag-one ACF in HT constraint: see previous tutorials on the link between HT and lag-one ACF  
@@ -218,7 +222,7 @@ if (delta>0)
 {
   if (delta<0)
   {
-    zdelta<-c(rep(NA,delta),z[1:(len-abs(delta))])
+    zdelta<-c(rep(NA,abs(delta)),z[1:(len-abs(delta))])
   } else
   {
     zdelta<-z
