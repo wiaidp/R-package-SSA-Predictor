@@ -151,10 +151,11 @@ ts.plot(c(hp_one_sided[L:2],hp_one_sided[1:L]))
 # delta<0 means a backcast: clearly, this is not our main application case
 #   Note that for backcasts the filters may look weird because the HT in the constraint is too small (M-SSA will unsmooth the data)
 
-# One year ahead forecast for quarterly data
-delta<-4
 # Nowcast
 delta<-0
+# One year ahead forecast for quarterly data
+delta<-4
+
 
 # Holding times
 # We have to specify a HT for each series
@@ -392,7 +393,8 @@ ht_comp
 #  Increasing the number of iterations specified by split_grid tightens the fit
 ht_mssa_vec
 # We can also compute HTs of MSE: 
-#  In general M-SSA is smoother, i.e., ht_mssa_vec is larger
+#   In general M-SSA is designed to be smoother (stronger nois suppression), i.e., ht_mssa_vec is larger than the below HTs of MSE design
+#   We can of course change the HT in the constraint as specified in the call to M-SSA
 apply(matrix(rho_mse,nrow=1),1,compute_holding_time_from_rho_func)[[1]]$ht
 
 # Next we can compute the target correlations
