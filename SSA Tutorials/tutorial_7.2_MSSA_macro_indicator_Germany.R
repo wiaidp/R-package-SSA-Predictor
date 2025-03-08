@@ -285,6 +285,7 @@ for (i in 1:length(h_vec))#i<-1
   filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,shift)
   target_mat=filt_obj$target_mat
   target<-target_mat[,1]
+# Collect the forward shifted targets: at i=1 shift=h_vec[1]+lag_vec[1]=1 corresponds to the publication lag of BIP  
   target_shifted_mat<-cbind(target_shifted_mat,target)
 
   mplot<-cbind(target,indicator_mat)
