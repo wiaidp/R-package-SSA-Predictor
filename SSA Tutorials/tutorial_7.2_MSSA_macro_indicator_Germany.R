@@ -37,6 +37,7 @@ load(file="C:\\Users\\marca\\OneDrive\\2025\\R-package-SSA-Predictor\\Data\\macr
 # All indicators where log-transformed (except spread), differenced and standardized
 #   -Calibration of true levels and variances can be obtained afterwards, by simple linear regression
 # Extreme (singular) observations during Pandemic (2019-2020) where trimmed at 3 standard deviations 
+#   After discussion this trimming was deemed acceptable (and transparent,reproducible) to avoid overly strong impact of singular data
 tail(data)
 
 
