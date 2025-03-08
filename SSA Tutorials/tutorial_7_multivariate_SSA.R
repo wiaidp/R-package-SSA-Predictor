@@ -650,7 +650,7 @@ filt_obj<-filter_func(x_mat,bk_x_mat,gamma_target,symmetric_target,delta)
 mssa_mat=filt_obj$mssa_mat
 target_mat=filt_obj$target_mat
 
-# Checks: the obtained output should be identical to previous y and zdelta for series m_check
+# Checks: the obtained output should be identical to previous y and zdelta for series m_check: differences should vanish
 max(abs(y-mssa_mat[,m_check]),na.rm=T)
 max(abs(zdelta-target_mat[,m_check]),na.rm=T)
 
@@ -661,7 +661,7 @@ apply(na.exclude((target_mat-mssa_mat)^2),2,mean)
 for (i in 1:n)
   print(cor(na.exclude(cbind(target_mat[,i],mssa_mat[,i])))[1,2])
 # This is the criterion value of M-SSA: the target correlation is maximized under the HT constraint
-# We can see that the theoretical criterion value (maximized `true' correlation) matches the sample statistic
+# We can see that the theoretical criterion value (maximized `true' correlation) matches the sample correlations (assuming a sufficiently large sample size len)
 MSSA_obj$crit_rhoy_target
 
 # M-SSA optimizes target correlation under holding time constraint:
@@ -669,4 +669,4 @@ MSSA_obj$crit_rhoy_target
 apply(mssa_mat,2,compute_empirical_ht_func)
 ht_mssa_vec
 
-# Confirmed
+# Operation confirmed
