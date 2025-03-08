@@ -98,7 +98,8 @@ symmetric_target
 
 #-------------------------
 # 3. Fit the VAR
-
+# Select any in-sample span: the effect on the final M-SSA predictor is remarkably weak
+#   -The VAR is sparsely parametrized  (p=1 and regularization)
 # Set in-sample span: full set
 date_to_fit<-"2200"
 # Set in-sample span: prior Pandemic
