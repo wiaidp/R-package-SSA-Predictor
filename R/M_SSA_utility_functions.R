@@ -57,7 +57,7 @@ MA_inv_VAR_func<-function(Phi,Theta,L,n,Plot=F)
 }
 
 # M-SSA
-MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Plot=F)
+MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Sigma,Plot=F)
 {
   # Compute lag-one ACF corresponding to HT in M-SSA constraint: see previous tutorials on the link between HT and lag-one ACF  
   rho0<-compute_rho_from_ht(ht_vec)$rho
@@ -71,6 +71,8 @@ MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Plot=F)
   # Optimization with half-way triangulation: effective resolution is 2^split_grid. Much faster than brute-force grid-search.
   # 20 is a good value: fast and strong convergence in most applications
   split_grid<-20
+# M-SSA wants the target with rows=target-series and columns=lags: for this purpose we here transpose the filter  
+  gamma_target<-t(gamma_target)
   
   # Now we can apply M-SSA
   MSSA_obj<-MSSA_func(split_grid,L,delta,grid_size,gamma_target,rho0,with_negative_lambda,xi,lower_limit_nu,Sigma,symmetric_target)
@@ -100,25 +102,38 @@ MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Plot=F)
 
 # 4. Filter function: apply M-SSA filter to data
 
-filter_func<-function(x_mat,bk_x_mat,gamma_target,symmetric_target,delta)
+filter_func<-function(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
 {
   len<-nrow(x_mat)
   n<-dim(bk_x_mat)[2]
   # Compute M-SSA filter output 
-  mssa_mat<-target_mat<-NULL
+  mssa_mat<-mmse_mat<-target_mat<-NULL
   for (m in 1:n)
   {
     bk<-NULL
     # Extract coefficients applied to m-th series    
     for (j in 1:n)#j<-2
       bk<-cbind(bk,bk_x_mat[((j-1)*L+1):(j*L),m])
-    ts.plot((bk))
     y<-rep(NA,len)
     for (j in L:len)#j<-L
     {
       y[j]<-sum(apply(bk*(x_mat[j:(j-L+1),]),2,sum))
     }
     mssa_mat<-cbind(mssa_mat,y)
+  }  
+  # Compute M-MSE: classic MSE signal extraction design 
+  for (m in 1:n)
+  {
+    gamma_mse<-NULL
+    # Extract coefficients applied to m-th series    
+    for (j in 1:n)#j<-2
+      gamma_mse<-cbind(gamma_mse,gammak_x_mse[((j-1)*L+1):(j*L),m])
+    ymse<-rep(NA,len)
+    for (j in L:len)#j<-L
+    {
+      ymse[j]<-sum(apply(gamma_mse*(x_mat[j:(j-L+1),]),2,sum))
+    }
+    mmse_mat<-cbind(mmse_mat,ymse)
   }  
   # Apply target to m-th-series
   target_mat<-NULL
@@ -129,7 +144,7 @@ filter_func<-function(x_mat,bk_x_mat,gamma_target,symmetric_target,delta)
     for (j in 1:n)
     {
       # Retrieve j-th filter for m-th target       
-      gammak<-cbind(gammak,gamma_target[m,(j-1)*L+1:L])
+      gammak<-cbind(gammak,gamma_target[(j-1)*L+1:L,m])
     }
     z<-rep(NA,len)
     if (symmetric_target)
@@ -147,9 +162,9 @@ filter_func<-function(x_mat,bk_x_mat,gamma_target,symmetric_target,delta)
       }
     }
     
-    names(zdelta)<-names(y)<-rownames(x_mat)
+    names(z)<-names(y)<-rownames(x_mat)
     target_mat<-cbind(target_mat,z)
   } 
   colnames(mssa_mat)<-colnames(target_mat)<-colnames(x_mat)
-  return(list(mssa_mat=mssa_mat,target_mat=target_mat))
+  return(list(mssa_mat=mssa_mat,target_mat=target_mat,mmse_mat=mmse_mat))
 }

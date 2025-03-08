@@ -26,14 +26,13 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 #-----------------------------------------------
 # Specify data generating process (DGP): this model is obtained by fitting a VAR(1) to quarterly German macro data
-# The VAR is based on data up to Jan 2007 to demonstrate out-of-sample prioperties of the M-SSA predictor on 
-#   a long out-of-sample span including the financial crisis as well as all subsequent `never ending' sequence of crises
+# The VAR is based on data without Pandemic
 # It is a 5-dimensional design comprising BIP (i.e. GDP), industrial production, economic sentiment, spread and an ifo indicator
 #   -All series are log-transformed (except spread) and differenced (no cointegration)
 # Since the series are relatively short (introduction of EURO up to Jan-2007) the VAR is sparsely parametrized
 n<-5
 # AR order
-p_mult<-1
+p<-1
 # AR(1) coefficient
 Phi<-matrix(c( 0.0000000,  0.00000000, 0.4481816,    0, 0.0000000,
                0.2387036, -0.33015450, 0.5487510,    0, 0.0000000,
@@ -51,7 +50,7 @@ Sigma<-matrix(c(0.755535544,  0.49500481, 0.11051024, 0.007546104, -0.16687913,
 # Simulate a series corresponding to 25 years of quarterly data    
 len<-100
 set.seed(31)
-x_mat=VARMAsim(len,arlags=c(p_mult),phi=Phi,sigma=Sigma)$series
+x_mat=VARMAsim(len,arlags=c(p),phi=Phi,sigma=Sigma)$series
 
 # Use the original column names: GDP (BIP), industrial production, ifo, sentiment and spread
 colnames(x_mat)<-c("BIP", "ip", "ifo_c","ESI", "spr_10y_3m") 
@@ -62,8 +61,8 @@ ts.plot(x_mat[(len-99):len,])
 
 # Generate a very long series for our simulation experiment    
 len<-100000
-set.seed(87)
-x_mat=VARMAsim(len,arlags=c(p_mult),phi=Phi,sigma=Sigma)$series
+set.seed(871)
+x_mat=VARMAsim(len,arlags=c(p),phi=Phi,sigma=Sigma)$series
 
 # Use the original column names: GDP (BIP), industrial production, ifo, sentiment and spread
 colnames(x_mat)<-c("BIP", "ip", "ifo_c","ESI", "spr_10y_3m") 
@@ -531,7 +530,7 @@ MA_inv_VAR_func<-function(Phi,Theta,L,n,Plot=F)
 }
 
 # M-SSA
-MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Plot=F)
+MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Sigma,Plot=F)
 {
   # Compute lag-one ACF corresponding to HT in M-SSA constraint: see previous tutorials on the link between HT and lag-one ACF  
   rho0<-compute_rho_from_ht(ht_vec)$rho
@@ -545,6 +544,8 @@ MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Plot=F)
   # Optimization with half-way triangulation: effective resolution is 2^split_grid. Much faster than brute-force grid-search.
   # 20 is a good value: fast and strong convergence in most applications
   split_grid<-20
+  # M-SSA wants the target with rows=target-series and columns=lags: for this purpose we here transpose the filter  
+  gamma_target<-t(gamma_target)
   
   # Now we can apply M-SSA
   MSSA_obj<-MSSA_func(split_grid,L,delta,grid_size,gamma_target,rho0,with_negative_lambda,xi,lower_limit_nu,Sigma,symmetric_target)
@@ -573,7 +574,7 @@ MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Plot=F)
 
 
 # 4. Filter function: apply M-SSA filter to data and compute target
-filter_func<-function(x_mat,bk_x_mat,gamma_target,symmetric_target,delta)
+filter_func<-function(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
 {
   len<-nrow(x_mat)
   n<-dim(bk_x_mat)[2]
@@ -602,7 +603,7 @@ filter_func<-function(x_mat,bk_x_mat,gamma_target,symmetric_target,delta)
     for (j in 1:n)
     {
 # For m-th target: retrieve filter applied to j-th explanatory       
-      gammak<-cbind(gammak,gamma_target[m,(j-1)*L+1:L])
+      gammak<-cbind(gammak,gamma_target[(j-1)*L+1:L,m])
     }
 # Apply filters to data x_mat
 # Distinguish the cases symmetric_target=T (right tail of filter is mirrored to the left at its peak)    
@@ -642,12 +643,12 @@ L<-31
 
 target_obj<-HP_target_sym_T(n,lambda_HP,L)
 
-gamma_target=target_obj$gamma_target
+gamma_target=t(target_obj$gamma_target)
 symmetric_target=target_obj$symmetric_target 
 
 # The targets are one-sided
 par(mfrow=c(1,1))
-ts.plot(t(gamma_target),col=rainbow(n))
+ts.plot(gamma_target,col=rainbow(n))
 
 # But we tell M-SSA to mirror the target filter at its peak value
 symmetric_target
@@ -664,14 +665,16 @@ delta<-0
 # One year ahead forecast for quarterly data
 delta<-4
 
-MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,T)
+MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
 
 MSSA_main_obj$bk_x_mat=bk_x_mat
 MSSA_obj=MSSA_main_obj$MSSA_obj 
+# Benchmark MSE predictor
+gammak_x_mse<-MSSA_obj$gammak_x_mse
 
 # 4. Filter function: apply M-SSA filter to data
 
-filt_obj<-filter_func(x_mat,bk_x_mat,gamma_target,symmetric_target,delta)
+filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
 
 mssa_mat=filt_obj$mssa_mat
 target_mat=filt_obj$target_mat
