@@ -26,10 +26,12 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 # Utility functions for M-SSA, see tutorial 
 source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 
-# 
 
 #------------------------------------------------------------------------
-# Let's apply the above functions to the previous simulation experiment
+# Let's apply M-SSA to quarterly German Macro-data
+
+load(file="C:\\Users\\marca\\OneDrive\\2025\\R-package-SSA-Predictor\\Data\\macro")
+tail(data)
 
 # 1. Target
 lambda_HP<-160
