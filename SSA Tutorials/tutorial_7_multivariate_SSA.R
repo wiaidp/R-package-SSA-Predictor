@@ -546,8 +546,7 @@ MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Plot=F)
 }
 
 
-# 4. Filter function: apply M-SSA filter to data
-
+# 4. Filter function: apply M-SSA filter to data and compute target
 filter_func<-function(x_mat,bk_x_mat,gamma_target,symmetric_target,delta)
 {
   len<-nrow(x_mat)
@@ -568,27 +567,31 @@ filter_func<-function(x_mat,bk_x_mat,gamma_target,symmetric_target,delta)
     }
     mssa_mat<-cbind(mssa_mat,y)
   }  
-  # Apply target to m-th-series
+# Compute acausal target
   target_mat<-NULL
   for (m in 1:n)#
   {
-    # In general, m-th target is based on j=1,...,n filters applied to explanatory variables j=1,...,n
+# In general, m-th target is based on j=1,...,n filters applied to explanatory variables j=1,...,n
     gammak<-NULL
     for (j in 1:n)
     {
-      # Retrieve j-th filter for m-th target       
+# For m-th target: retrieve filter applied to j-th explanatory       
       gammak<-cbind(gammak,gamma_target[m,(j-1)*L+1:L])
     }
+# Apply filters to data x_mat
+# Distinguish the cases symmetric_target=T (right tail of filter is mirrored to the left at its peak)    
+# Shift the data by delta: delta>0 means that we're looking into the future (acausal design)
     z<-rep(NA,len)
     if (symmetric_target)
     {
-      # Here the right half of the filter is mirrored to the left at its peak
-      # Moreover, the data is shifted by delta
+# Here the right half of the filter is mirrored to the left at its peak: 
+#   -this part is generally lurking into the future (acausal design)
+# Moreover, the data is shifted by delta
       for (j in (L-delta):(len-L-delta+1))#j<-L-delta
         z[j]<-sum(apply(gammak*x_mat[delta+j:(j-L+1),],2,sum))+sum(apply(gammak[-1,]*x_mat[delta+(j+1):(j+L-1),],2,sum))
     } else
     {
-      # Data shifted by delta: we do not mirror filter weights      
+# Data shifted by delta: we do not mirror filter weights      
       for (j in (L-delta):(len-delta))
       {
         z[j]<-sum(apply(gammak*(x_mat[delta+j:(j-L+1),]),2,sum))
@@ -671,3 +674,8 @@ apply(mssa_mat,2,compute_empirical_ht_func)
 ht_mssa_vec
 
 # Operation confirmed
+
+# The above functions can also be sourced
+source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
+
+
