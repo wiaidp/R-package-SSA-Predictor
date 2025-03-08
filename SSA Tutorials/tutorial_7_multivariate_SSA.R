@@ -650,14 +650,15 @@ filt_obj<-filter_func(x_mat,bk_x_mat,gamma_target,symmetric_target,delta)
 mssa_mat=filt_obj$mssa_mat
 target_mat=filt_obj$target_mat
 
+#------------------------
 # Checks: the obtained output should be identical to previous y and zdelta for series m_check: differences should vanish
 max(abs(y-mssa_mat[,m_check]),na.rm=T)
 max(abs(zdelta-target_mat[,m_check]),na.rm=T)
 
-# Mean-square error
+# Mean-square errors
 apply(na.exclude((target_mat-mssa_mat)^2),2,mean)
 
-# Correlation between target and M-SSA: sample estimates converge to criterion value for increasing sample size len
+# Correlations between target and M-SSA: sample estimates converge to criterion value for increasing sample size len
 for (i in 1:n)
   print(cor(na.exclude(cbind(target_mat[,i],mssa_mat[,i])))[1,2])
 # This is the criterion value of M-SSA: the target correlation is maximized under the HT constraint
