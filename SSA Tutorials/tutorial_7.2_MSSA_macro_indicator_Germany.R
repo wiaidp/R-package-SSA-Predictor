@@ -216,14 +216,14 @@ unlist(apply(mmse_mat,2,compute_empirical_ht_func))/unlist(apply(mssa_mat,2,comp
 # These are the interesting forecast horizons
 # We compute a BIP indicator for each of these forecast horizons and we evaluate its performances based on various performance metrics
 h_vec<-c(0,1,2,4,6)
-# Forecast excesses
-f_excess<-c(4,1)
-# Publications lags (in quarters)
+# Forecast excesses: we demonstrate a `mildly aggressive' design
+f_excess<-c(4,2)
+# Publications lags (in quarters): must be accounted for because BIP is lagging
 lag_vec<-c(1,rep(0,n-1))
 mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-NULL
 for (i in 1:length(h_vec))#i<-1
 {
-  # BIP and ip require a larger forecast excess
+# BIP and ip require a larger forecast excess
   delta<-h_vec[i]+lag_vec[1]+f_excess[1]
   
   MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
