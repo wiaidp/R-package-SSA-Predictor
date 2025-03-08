@@ -31,7 +31,35 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 # Let's apply M-SSA to quarterly German Macro-data
 
 load(file="C:\\Users\\marca\\OneDrive\\2025\\R-package-SSA-Predictor\\Data\\macro")
+# BIP(GDP) has a publication lag of a quarter
+# The target column corresponds to a nowcast of BIP
+# Columns 2-8 are the data available in Jan-2025 for nowcasting the target
+# All indicators where log-transformed (except spread), differenced and standardized
+#   -Calibration of true levels and variances can be obtained afterwards, by simple linear regression
+# Extreme (singular) observations during Pandemic (2019-2020) where trimmed at 3 standard deviations 
 tail(data)
+
+
+# Plot the data
+# The real-time BIP (red) is lagging the target by one quarter (publication lag)
+par(mfrow=c(1,1))
+mplot<-data
+shift<-0
+colo<-c("black",rainbow(ncol(data)-1))
+main_title<-paste("Quarterly design: BIP (target) shifted forward by ",shift," Quarters",sep="")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
+  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+}
+abline(h=0)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+
+
 
 # 1. Target
 lambda_HP<-160
