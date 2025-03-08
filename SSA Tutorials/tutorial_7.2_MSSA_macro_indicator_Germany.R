@@ -16,6 +16,8 @@ rm(list=ls())
 library(mFilter)
 # Multivariate time series: VARMA model for macro indicators: used here for simulation purposes only
 library(MTS)
+# HAC estimate of standard deviations in the presence of autocorrelation and heteroscedasticity
+library(sandwich)
 
 
 # Load the relevant M-SSA functionalities
@@ -214,8 +216,8 @@ unlist(apply(mmse_mat,2,compute_empirical_ht_func))/unlist(apply(mssa_mat,2,comp
 # These are the interesting forecast horizons
 # We compute a BIP indicator for each of these forecast horizons and we evaluate its performances based on various performance metrics
 h_vec<-c(0,1,2,4,6)
-# These are the forecast excesses
-f_excess<-c(6,0)
+# Forecast excesses
+f_excess<-c(4,1)
 # Publications lags (in quarters)
 lag_vec<-c(1,rep(0,n-1))
 mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-NULL
@@ -278,12 +280,12 @@ cor_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
 
 for (i in 1:length(h_vec))#i<-1
 {
-  shift<-h_vec[i]
+  shift<-h_vec[i]+lag_vec[1]
 # Compute target shifted forward by shift  
   filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,shift)
   target_mat=filt_obj$target_mat
   target<-target_mat[,1]
-  target_shifted_mat<-cbind(target_shifted_mat,target_mat[,1])
+  target_shifted_mat<-cbind(target_shifted_mat,target)
 
   mplot<-cbind(target,indicator_mat)
   colnames(mplot)[1]<-paste("Target left-shifted by ",shift,sep="")
@@ -315,5 +317,40 @@ rownames(cor_mat)<-paste("Shift of target: ",h_vec,sep="")
 #   with correspondingly forward-shifted target
 # -The largest correlations tend to lie on (or close to) the diagonal of cor_mat
 cor_mat
+
+# We infer that the M-SSA predictors are informative about future BIP trend growth
+# Since future BIP trend growth tells something about the low-frequency part of future BIP, we infer that 
+#   the M-SSA predictors are also informative about future BIP
+# However, (differenced) BIP is a very noisy series
+# Therefore it is difficult to assess statistical significance of forecast accuracy with respect to BIP
+# But we can assess statistical significance of the effect observed in cor_mat
+# For this purpose we regress the predictors on the shifted targets and compute HAC-adjusted p-values of the corresponding regression coefficients
+t_HAC_mat<-p_value_HAC_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
+for (i in 1:length(h_vec))# i<-1
+{
+  for (j in 1:length(h_vec))# j<-1
+  {
+    lm_obj<-lm(target_shifted_mat[,i]~indicator_mat[,j])
+    summary(lm_obj)
+    # This one replicates std in summary
+    sd<-sqrt(diag(vcov(lm_obj)))
+    # Here we use HAC  
+    sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
+    # This is the same as
+    sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
+    t_HAC_mat[i,j]<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
+    p_value_HAC_mat[i,j]<-2*pt(t_HAC_mat[i,j], len-length(select_vec_multi), lower=FALSE)
+    
+  }
+}
+
+
+colnames(t_HAC_mat)<-colnames(p_value_HAC_mat)<-paste("M-SSA: h=",h_vec,sep="")
+rownames(t_HAC_mat)<-rownames(p_value_HAC_mat)<-paste("Shift of target: ",h_vec,sep="")
+# p-values
+p_value_HAC_mat
+
+
+
 
 
