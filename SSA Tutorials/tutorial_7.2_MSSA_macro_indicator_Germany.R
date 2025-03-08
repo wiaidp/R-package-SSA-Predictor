@@ -35,22 +35,25 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 # 1. Load data and select indicators
 load(file="C:\\Users\\marca\\OneDrive\\2025\\R-package-SSA-Predictor\\Data\\macro")
 # BIP(GDP) has a publication lag of a quarter
-# The target column corresponds to a nowcast of BIP
+# The target column corresponds to a one-step ahead forecast: BIP has a publication lag of one quarter but we 
+#   shifted the data in the target columnone additional quarter upwards to be on the safe-side (for example to account for revisions)
 # Columns 2-8 are the data available in Jan-2025 for nowcasting the target
 # All indicators where log-transformed (except spread), differenced and standardized
 #   -Calibration of true levels and variances can be obtained afterwards, by simple linear regression
 # Extreme (singular) observations during Pandemic (2019-2020) where trimmed at 3 standard deviations 
 #   After discussion this trimming was deemed acceptable (and transparent,reproducible) to avoid overly strong impact of singular data
 tail(data)
-
+# We see that the data in the target column (BIP) is shifted upwards two quarters: 
+# We here want to nowcast/predict this series given the data in columns 2-7 (explanatory variables)
+# Specify the publication lag
+lag_vec<-c(2,rep(0,ncol(data)-1))
 
 # Plot the data
 # The real-time BIP (red) is lagging the target by one quarter (publication lag)
 par(mfrow=c(1,1))
 mplot<-data
-shift<-0
 colo<-c("black",rainbow(ncol(data)-1))
-main_title<-paste("Quarterly design: BIP (target) shifted forward by ",shift," Quarters",sep="")
+main_title<-paste("Quarterly design BIP: the target (black) assumes a publication lag of ",lag_vec[1]," Quarters",sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (i in 1:ncol(mplot))
@@ -72,7 +75,7 @@ n<-dim(x_mat)[2]
 # Number of observations
 len<-dim(x_mat)[1]
 #------------------------------
-# 2. Target
+# 2. Target filter: the two-sided HP will be applied to target column (or equivalently: BIP shifted upward by lag_vec[1] quarters)
 lambda_HP<-160
 # Filter length: roughly 4 years. The length should be an odd number in order to have a symmetric HP 
 #   with a peak in the middle (for even numbers the peak is truncated)
@@ -96,7 +99,11 @@ symmetric_target
 #-------------------------
 # 3. Fit the VAR
 
-# Set in-sample span: without Pandemic
+# Set in-sample span: full set
+date_to_fit<-"2200"
+# Set in-sample span: prior Pandemic
+date_to_fit<-"2019"
+# Set in-sample span: prior financial crisis
 date_to_fit<-"2008"
 data_fit<-na.exclude(x_mat[which(rownames(x_mat)<date_to_fit),])#date_to_fit<-"2019-01-01"
 # Have a look at cross correlation: in-sample span
@@ -132,8 +139,8 @@ xi<-MA_inv_obj$xi
 
 #-----------------------------------
 # 5. M-SSA function
-# One year ahead forecast
-delta<-4
+# One year ahead forecast: 4 quarters + publication lag
+delta<-4+lag_vec[1]
 # Specify HT constraint: 
 ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
@@ -152,6 +159,8 @@ colnames(bk_x_mat)<-colnames(gammak_x_mse)<-select_vec_multi
 #-----------------------
 # 6. Filter: apply M-SSA filter to data
 
+# Note that delta accounts for publication lag so that output of two-sided filter is leaft shifted accordingly
+#   4 quarters+lag_vec[1]
 filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
 
 
@@ -164,7 +173,7 @@ for (i in 1:n)
 {
   par(mfrow=c(1,1))
   mplot<-cbind(target_mat[,i],mssa_mat[,i],mmse_mat[,i])
-  colnames(mplot)<-c(paste("Target: HP applied to ",select_vec_multi[i],", left-shifted by ",delta," quarters",sep=""),"M-SSA","M-MSE")
+  colnames(mplot)<-c(paste("Target: HP applied to ",select_vec_multi[i],", left-shifted by ",delta-lag_vec[1]," quarters",sep=""),"M-SSA","M-MSE")
 
   colo<-c("black","blue","green")
   main_title<-paste("M-SSA ",select_vec_multi[i],": delta=",delta,", in-sample span ending in ",rownames(data_fit)[nrow(data_fit)],sep="")
@@ -218,12 +227,10 @@ unlist(apply(mmse_mat,2,compute_empirical_ht_func))/unlist(apply(mssa_mat,2,comp
 h_vec<-c(0,1,2,4,6)
 # Forecast excesses: we demonstrate a `mildly aggressive' design
 f_excess<-c(4,2)
-# Publications lags (in quarters): must be accounted for because BIP is lagging
-lag_vec<-c(1,rep(0,n-1))
 mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-NULL
 for (i in 1:length(h_vec))#i<-1
 {
-# BIP and ip require a larger forecast excess
+# BIP and ip require a larger forecast excess. We also add the publication lag
   delta<-h_vec[i]+lag_vec[1]+f_excess[1]
   
   MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
@@ -289,7 +296,7 @@ for (i in 1:length(h_vec))#i<-1
   target_shifted_mat<-cbind(target_shifted_mat,target)
 
   mplot<-cbind(target,indicator_mat)
-  colnames(mplot)[1]<-paste("Target left-shifted by ",shift,sep="")
+  colnames(mplot)[1]<-paste("Target left-shifted by ",shift-lag_vec[1],sep="")
   par(mfrow=c(1,1))
   colo<-c("black",rainbow(ncol(indicator_mat)))
   main_title<-paste("M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep="")
@@ -316,7 +323,7 @@ colnames(cor_mat)<-paste("M-SSA: h=",h_vec,sep="")
 rownames(cor_mat)<-paste("Shift of target: ",h_vec,sep="")
 # -We can see that M-SSA predictors optimized for larger forecast horizons correlate more strongly 
 #   with correspondingly forward-shifted target
-# -The largest correlations tend to lie on (or close to) the diagonal of cor_mat
+# -The largest correlations tend to lie on (or to be close to) the diagonal of cor_mat
 cor_mat
 
 # We infer that the M-SSA predictors are informative about future BIP trend growth
@@ -348,7 +355,9 @@ for (i in 1:length(h_vec))# i<-1
 
 colnames(t_HAC_mat)<-colnames(p_value_HAC_mat)<-paste("M-SSA: h=",h_vec,sep="")
 rownames(t_HAC_mat)<-rownames(p_value_HAC_mat)<-paste("Shift of target: ",h_vec,sep="")
-# p-values
+# p-values: small p-values lie on (or close to) the diagonal
+# Statistical significance after HAC-correction reaches up to max(h_vec)
+# Significance decreases with increasing forward-shift
 p_value_HAC_mat
 
 
