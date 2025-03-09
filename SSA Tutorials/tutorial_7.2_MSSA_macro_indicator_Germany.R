@@ -520,12 +520,13 @@ p_value_HAC_mat
 #--------------------------------------------------
 # The above result suggest predictablity of M-SSA indicators with respect to future HP-BIP
 # What about future BIP?
-t_HAC_mat<-p_value_HAC_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
+t_HAC_mat_BIP<-p_value_HAC_mat_BIP<-matrix(ncol=length(h_vec),nrow=length(h_vec))
 for (i in 1:length(h_vec))# i<-1
 {
+# Shift BIP  
   shift<-h_vec[i]+lag_vec[1]
   BIP_target<-c(x_mat[(1+shift):nrow(x_mat),"BIP"],rep(NA,shift))
-  
+# Rgress predictors on shifted BIP  
   for (j in 1:length(h_vec))# j<-1
   {
     lm_obj<-lm(BIP_target~indicator_mat[,j])
@@ -536,17 +537,21 @@ for (i in 1:length(h_vec))# i<-1
     sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
     # This is the same as
     sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
-    t_HAC_mat[i,j]<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-    p_value_HAC_mat[i,j]<-2*pt(t_HAC_mat[i,j], len-length(select_vec_multi), lower=FALSE)
+    t_HAC_mat_BIP[i,j]<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
+    p_value_HAC_mat_BIP[i,j]<-2*pt(t_HAC_mat_BIP[i,j], len-length(select_vec_multi), lower=FALSE)
     
   }
 }
-colnames(t_HAC_mat)<-colnames(p_value_HAC_mat)<-paste("M-SSA: h=",h_vec,sep="")
-rownames(t_HAC_mat)<-rownames(p_value_HAC_mat)<-paste("Shift of target: ",h_vec,sep="")
-# p-values: small p-values lie on (or close to) the diagonal
-# Statistical significance (after HAC-correction) is still achieved towards larger forecast horizons
-# As expected, the Significance decreases (p-values increase) with increasing forward-shift
-p_value_HAC_mat
+colnames(t_HAC_mat_BIP)<-colnames(p_value_HAC_mat_BIP)<-paste("M-SSA: h=",h_vec,sep="")
+rownames(t_HAC_mat_BIP)<-rownames(p_value_HAC_mat_BIP)<-paste("Shift of target: ",h_vec,sep="")
+# p-values: 
+# In contrast to HP-BIP, significance with respect to BIP is less conclusive: BIP is much noisier
+# However, we still find that for increasing forward-shift of BIP (from top to bottom) 
+#   the M-SSA indicators optimized for larger forecast horizon (from left to right) tend to perform better
+# These results could be altered by modifying the forecast excesses: 
+#   -Selecting more aggressive designs (larger excesses) may lead to stronger significance at larger shifts, up to a point 
+#   -You may try f_excess<-c(6,4): strong result at one-year ahead forecast horizon (plus publication lag)
+p_value_HAC_mat_BIP
 
 
 
