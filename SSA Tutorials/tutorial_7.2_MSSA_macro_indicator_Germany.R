@@ -451,11 +451,11 @@ for (i in 1:length(h_vec))#i<-1
 #   For the first loop-run, i=1 and shift=h_vec[1]+lag_vec[1]=2 corresponds to the publication lag of BIP (note that we selected a slightly larger publication lag, as discussed at the top of the this tutorial)  
   target_shifted_mat<-cbind(target_shifted_mat,target)
 # Plot indicators and shifting target
-  mplot<-cbind(target,indicator_mat)
+  mplot<-scale(cbind(target,indicator_mat))
   colnames(mplot)[1]<-paste("Target left-shifted by ",shift-lag_vec[1],sep="")
   par(mfrow=c(1,1))
   colo<-c("black",rainbow(ncol(indicator_mat)))
-  main_title<-paste("M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep="")
+  main_title<-paste("Standardized M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep="")
   plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
   mtext(colnames(mplot)[1],col=colo[1],line=-1)
   for (j in 1:ncol(mplot))
@@ -475,7 +475,7 @@ for (i in 1:length(h_vec))#i<-1
 
 }
 # Observe the shifts: 
-#   The target is shifted upward by publication lag (2) + forecast horizon relative to the predictor (in the first column) 
+#   The target is shifted upward by publication lag (assumed to be 2 quarters) + forecast horizon relative to the predictor (in the first column) 
 cbind(indicator_mat[,1],target_shifted_mat)[(L-10):(L+6),]
 
 colnames(cor_mat)<-paste("M-SSA: h=",h_vec,sep="")
