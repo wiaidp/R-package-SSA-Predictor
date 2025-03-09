@@ -80,6 +80,9 @@ n<-dim(x_mat)[2]
 len<-dim(x_mat)[1]
 #------------------------------
 # 2. Target filter: the two-sided HP will be applied to target column (or equivalently: BIP shifted upward by lag_vec[1] quarters)
+#   -The classic quarterly setting lambda_HP=1600 leads to a design which tends to smooth out recessions
+#   -Also, dynamics are too weak to be useful as a forecast tool (dynamic changes over a one-year horizon are weak)
+#   -Finally, the classic design (lambda_HP=1600) is subject to erratic readings due to singular Pandemic data
 lambda_HP<-160
 # Filter length: roughly 4 years. The length should be an odd number in order to have a symmetric HP 
 #   with a peak in the middle (for even numbers the peak is truncated)
@@ -521,11 +524,13 @@ p_value_HAC_mat
 # The above result suggest predictablity of M-SSA indicators with respect to future HP-BIP
 # What about future BIP?
 t_HAC_mat_BIP<-p_value_HAC_mat_BIP<-matrix(ncol=length(h_vec),nrow=length(h_vec))
+BIP_target_mat<-NULL
 for (i in 1:length(h_vec))# i<-1
 {
 # Shift BIP  
   shift<-h_vec[i]+lag_vec[1]
   BIP_target<-c(x_mat[(1+shift):nrow(x_mat),"BIP"],rep(NA,shift))
+  BIP_target_mat<-cbind(BIP_target_mat,BIP_target)
 # Rgress predictors on shifted BIP  
   for (j in 1:length(h_vec))# j<-1
   {
@@ -552,6 +557,33 @@ rownames(t_HAC_mat_BIP)<-rownames(p_value_HAC_mat_BIP)<-paste("Shift of target: 
 #   -Selecting more aggressive designs (larger excesses) may lead to stronger significance at larger shifts, up to a point 
 #   -You may try f_excess<-c(6,4): a strong result at a one-year ahead forecast horizon (plus publication lag) is achievable
 p_value_HAC_mat_BIP
+
+
+# Select a forecast horizon 
+k<-1
+h_vec[k]
+par(mfrow=c(1,1))
+# Scale the data for better visual interpretation of effect of excess forecast on M-SSA (red) vs. previous M-SSA (blue)
+mplot<-scale(cbind(BIP_target_mat[,k],indicator_mat[,k]))
+colnames(mplot)<-c(paste("BIP left-shifted by ",h_vec[k]," quarters",sep=""),"M-SSA predictor")
+colo<-c("black","blue")
+main_title<-"Forward-shifted BIP vs. predictor"
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
+  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+}
+abline(h=0)
+abline(v=which(rownames(mplot)==rownames(data_fit)[nrow(data_fit)]),lwd=2,lty=2)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+
+
+
+
 
 #################################################################
 # Findings
