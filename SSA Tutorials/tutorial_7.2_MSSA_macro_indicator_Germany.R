@@ -550,10 +550,21 @@ rownames(t_HAC_mat_BIP)<-rownames(p_value_HAC_mat_BIP)<-paste("Shift of target: 
 #   the M-SSA indicators optimized for larger forecast horizon (from left to right) tend to perform better
 # These results could be altered by modifying the forecast excesses: 
 #   -Selecting more aggressive designs (larger excesses) may lead to stronger significance at larger shifts, up to a point 
-#   -You may try f_excess<-c(6,4): strong result at one-year ahead forecast horizon (plus publication lag)
+#   -You may try f_excess<-c(6,4): a strong result at a one-year ahead forecast horizon (plus publication lag) is achievable
 p_value_HAC_mat_BIP
 
+#################################################################
+# Findings
+# -The main construction principles behind M-SSA indicators lead to forecast designs with predictive relevance
+# -Predicting HP-BIP is easier than predicting BIP: we do not need to address the erratic and unpredictable 
+#   high-frequency components of BIP
+# -The effect of increasing the forecast horizon in M-SSA leads to consistent performance results: 
+#   increasing the forecast horizon leads to better performances at larger forward-shifts: forecast-shift effect 
+# -Performances with respect to BIP are less conclusive, due to the unpredictable high-frequency noise
+#   -But we can still observe the forecast-shift effect
+#   -And more aggressive settings for the forecast excess reinforce these findings
+#   -Lastly, a predictor of the low-frequency component of future HP-BIP is intrinsically informative about 
+#     future BIP, even if statistical significance would tell otherwise (which is not the case actually). 
 
 
-
-
+# Coming next: rRMSE (relative root mean-square error) and HAC-adjusted DM/GW statistics of predictive outperformance
