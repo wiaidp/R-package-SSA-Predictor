@@ -241,6 +241,11 @@ box()
 # Sample correlation: this corresponds to cor_mat_BIP computed by our function
 cor(na.exclude(mplot))[2,ncol(mplot)]
 cor_mat_HP_BIP[k,j]
+
+
+
+
+
 # The following two correlations should match exactly
 # However, they differ because by removing NAs (due to inclusion of the two-sided target) we change the sample-size
 cor(na.exclude(mplot))[1,3]
@@ -256,10 +261,43 @@ cor(na.exclude(mplot_without_two_sided))[1,2]
 # Is predictability statistically significant?
 # Let's have a look at the HAC-adjusted p-values
 p_value_HAC_mat_BIP[k,j]
-# In contrast to previous lambda_HP=160 setting, the predictor is now statisticially significant for BIP 
-# Let's see HP-BIP shifted one year ahead
+# In contrast to previous lambda_HP=160 setting, the predictor is now statisticially significant 
+#   for forward-shifted BIP 
+# Let's check significance for forward-shifted HP-BIP
 p_value_HAC_mat_HP_BIP[k,j]
-# almost significant
+# Almost significant
+
+# We might ask why the t-test suggests weaker significance while the correlation is larger for HP-BIP
+# Let's have a look at the HAC-adjustment for autocorrelation and heteroscedasticity of regression residuals
+# Consider HP-BIP and M-SSA predictor
+mplot<-scale(cbind(target_shifted_mat[,k],indicator_mat[,j]))
+# Correlation: quite large (at least for a one-year ahead forecast)
+cor(na.exclude(mplot))
+# Regress M-SSA on HP-BIP  
+lm_obj<-lm(mplot[,1]~mplot[,2])
+# OLS statistics: strongly significant (in accordance with large correlation)
+summary(lm_obj)
+# We can replicate the OLS t-statistics as follows
+sd<-sqrt(diag(vcov(lm_obj)))
+lm_obj$coef/sd
+# We can now compare to HAC adjustment
+# This is the HAC adjusted standard error: it is nearly twice as large as the OLS estimate above  
+sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
+sd_HAC
+# The HAC-adjusted t-statistics is then nearly one half in size (compared to OLS) 
+t_HAC<-lm_obj$coef/sd_HAC
+t_HAC
+# Accordingly, the p-values are larger
+p_value<-2*pt(t_HAC, len-length(select_vec_multi), lower=FALSE)
+p_value 
+# So the HAC-adjustment leads to weaker statistical significance despite stronger correlation when targeting HP-BIP 
+
+
+
+
+
+
+
 
 # Summary: transitioning from lambda_HP=160 (mildly adaptive) to lambda_HP=16 (adaptive) reverts the 
 #       ordering of significance at the one-year ahead forecast horizon:
