@@ -29,7 +29,7 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 # The VAR is based on data without Pandemic
 # It is a 5-dimensional design comprising BIP (i.e. GDP), industrial production, economic sentiment, spread and an ifo indicator
 #   -All series are log-transformed (except spread) and differenced (no cointegration)
-# Since the series are relatively short (introduction of EURO up to Jan-2007) the VAR is sparsely parametrized
+# Since the series are relatively short (starting at the introduction of EURO) the VAR is sparsely parametrized
 n<-5
 # AR order
 p<-1

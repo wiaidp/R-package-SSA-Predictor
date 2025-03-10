@@ -76,7 +76,7 @@ lambda_HP<-160
 # Filter length: nearly 8 years is fine for the selected lambda_HP (filter weights decay sufficiently fast)
 L<-31
 # In-sample span for VAR, i.e., M-SSA (the proposed design is quite insensitive to this specification because the VAR is parsimoniously parameterized)
-date_to_fit<-"2008"
+date_to_fit<-"2019"
 # VARMA model orders: keep the model simple in particular for short/tight in-sample spans
 p<-1
 q<-0
