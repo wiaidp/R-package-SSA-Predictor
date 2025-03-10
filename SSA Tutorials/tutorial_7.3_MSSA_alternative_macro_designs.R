@@ -117,7 +117,7 @@ if (k>length(h_vec))
 # Forward shift of target in quarters
 h_vec[k]
 # Select a M-SSA predictor: optimized for forecast horizon h_vec[j]
-j<-5
+j<-k
 if (j>length(h_vec))
 {
   print(paste("j should be smaller equal ",length(h_vec),sep=""))
@@ -156,27 +156,33 @@ mplot_without_two_sided<-scale(cbind(BIP_target_mat[,k],indicator_mat[,j]))
 # This number now matches cor_mat_BIP[k,j]
 cor(na.exclude(mplot_without_two_sided))[1,2]
 
-# Assume one selects k=4 and j=5 in the above plot:
-# Then the positive correlation between M-SSA and shifted BIP suggests that the predictor is informative 
-#   for BIP one-year ahead (including the publication lag) 
-# Is predictability statistically significant?
+# Assume one selects k=j=4 (one-year ahead) in the above plot (you might want to have a look at k=4 but j=5, too):
+# Then the (weak) positive correlation between M-SSA and shifted BIP might suggest a (weak) predictability one year ahead
+#    (including the publication lag) 
+# Is this (weak) effect statistically significant?
 # Let's have a look at the HAC-adjusted p-values
 p_value_HAC_mat_BIP[k,j]
-# Almost...
-# But we can look if the predictor is relevant for HP-BIP shifted one year ahead
+# Instead of BIP we might have a look at targeting HP-BIP instead (also shifted one year ahead)
 p_value_HAC_mat_HP_BIP[k,j]
-# Statistical significance is stronger for shifted HP-BIP because we ignore random (unpredictable) short-term components of BIP
+
+# Finding: statistical significance is stronger for shifted HP-BIP (than for BIP)
+#   -Is it because short-term components of BIP are unpredictable?
+#   -Or is it because lambda_HP=160 is not sufficiently adaptive (still too smooth)?
+
 
 ###############################################################################################
 # Let's now analyze a more adaptive design by selecting a smaller lambda_HP
 
 lambda_HP<-16
-# Everything else is kept fixed
+# Everything else in the above design is kept fixed
+# Notes: 
+#   -Keeping the above settings fixed is probably a bad idea because the `faster` filters (less smoothing required 
+#       for lambda_HP=16) most likely do not require additional `acceleration' by the forecast excesses 
+#   -You might try smaller values for f_excess
 
-# Run the function packing and implementing our previous findings (tutorial 7.2) 
+# Run the M-SSA predictor function
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess)
 
-# We replicate performances obtained in tutorial 7.2  
 cor_mat_BIP<-mssa_indicator_obj$cor_mat_BIP
 cor_mat_HP_BIP<-mssa_indicator_obj$cor_mat
 p_value_HAC_mat_HP_BIP<-mssa_indicator_obj$p_value_HAC_mat
@@ -185,14 +191,14 @@ BIP_target_mat=mssa_indicator_obj$BIP_target_mat
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 indicator_mat<-mssa_indicator_obj$indicator_mat
 
-# Correlations between M-SSA predictors and forward-shifted BIP (including the publication lag)
+# Look at correlations between M-SSA predictors and forward-shifted BIP (including the publication lag)
 #   -We see that for increasing forward-shift (from top to bottom) the predictors optimized for 
 #     larger forecast horizons (from left to right) tend to perform better
 # Note: in contrast to the previous lambda_HP=160 setting, we here emphasize BIP (not HP-BIP)
 p_value_HAC_mat_BIP
 cor_mat_BIP
 
-# Finding: the more adaptive design based on lambda_HP=16 seems to be able to track future BIP 
+# Finding: the more adaptive design based on lambda_HP=16 seems to be able to track future BIP better
 
 # Let's visualize these correlations by plotting target against predictor
 # Select a forward-shift of target (the k-th entry in h_vec)
@@ -251,10 +257,11 @@ cor(na.exclude(mplot_without_two_sided))[1,2]
 # Let's have a look at the HAC-adjusted p-values
 p_value_HAC_mat_BIP[k,j]
 # In contrast to previous lambda_HP=160 setting, the predictor is now statisticially significant for BIP 
-# Let0s see HP-BIP shifted one year ahead
+# Let's see HP-BIP shifted one year ahead
 p_value_HAC_mat_HP_BIP[k,j]
 # almost significant
 
-# Summary: transitioning from lambda_HP=160 (midly adaptive) to lambda_HP=16 (adaptive) reverts significance at the one-year ahead forecast horizon
-# -The more adaptive design is better at forecasting BIP
-# -The mildly adaptive design is better at forecasting HP-BIP
+# Summary: transitioning from lambda_HP=160 (mildly adaptive) to lambda_HP=16 (adaptive) reverts the 
+#       ordering of significance at the one-year ahead forecast horizon:
+#   -The more adaptive design is better at forecasting BIP
+#   -The mildly adaptive design is better at forecasting HP-BIP
