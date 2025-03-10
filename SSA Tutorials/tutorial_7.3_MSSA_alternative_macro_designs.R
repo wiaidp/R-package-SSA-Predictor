@@ -69,18 +69,18 @@ head(compute_mssa_BIP_predictors_func)
 # In order to use the function, we need to specify hyperparameters, see tutorial 7.2 for background
 # We here first replicate tutorial 7.2
 
-# Target filter: lambda_HP is a crucial determinant of prediction ability, see tutorial 7.1 for a discussion
-# Briefly: we avoid the classic quarterly setting lambda_HP=1600 because the resulting filter is too smooth
-# Too smooth means: the forecast horizon has nearly no effect on the M-SSA predictor (no left-shift, no anticipation)
+# Target filter: lambda_HP is the single most important hyperparameter, see tutorial 7.1 for a discussion
+# Briefly: we avoid the classic quarterly setting lambda_HP=1600 because the resulting filter would be too smooth
+# Too smooth means: the forecast horizon would have nearly no effect on the M-SSA predictor (no left-shift, no anticipation)
 lambda_HP<-160
 # Filter length: nearly 8 years is fine for the selected lambda_HP (filter weights decay sufficiently fast)
 L<-31
 # In-sample span for VAR, i.e., M-SSA (the proposed design is quite insensitive to this specification because the VAR is parsimoniously parameterized)
 date_to_fit<-"2008"
-# VARMA model orders
+# VARMA model orders: keep the model simple in particular for short/tight in-sample spans
 p<-1
 q<-0
-# HT: controls smoothness of M-SSA (the following numbers are pasted from the original predictor)
+# Holding-times (HT): controls smoothness of M-SSA (the following numbers are pasted from the original predictor)
 # Increasing these numbers leads to predictors with less zero-crossings (smoother)
 ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
@@ -89,8 +89,7 @@ h_vec<-c(0,1,2,4,6)
 # Forecast excesses: see tutorial 7.1 for background
 f_excess<-c(4,2)
 
-
-# Run the function
+# Run the function packing and implementing our previous findings (tutorial 7.2) 
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess)
 
 # We replicate performances obtained in tutorial 7.2  
@@ -102,21 +101,36 @@ BIP_target_mat=mssa_indicator_obj$BIP_target_mat
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 indicator_mat<-mssa_indicator_obj$indicator_mat
 
+# Correlations between M-SSA predictors and forward-shifted HP-BIP (including the publication lag)
+#   -We see that for increasing forward-shift (from top to bottom) the predictors optimized for 
+#     larger forecast horizons (from left to right) tend to perform better
+cor_mat_HP_BIP
 
+# Let's visualize these correlations by plotting target against predictor
 # Select a forward-shift of target (the k-th entry in h_vec)
 k<-4
+if (k>length(h_vec))
+{
+  print(paste("k should be smaller equal ",length(h_vec),sep=""))
+  k<-length(h_vec)
+}  
 # Forward shift of target in quarters
 h_vec[k]
 # Select a M-SSA predictor: optimized for forecast horizon h_vec[j]
 j<-5
-# Plot target and predictor
+if (j>length(h_vec))
+{
+  print(paste("j should be smaller equal ",length(h_vec),sep=""))
+  j<-length(h_vec)
+}  
+# Plot targets (forward-shifted BIP and HP-BIP) and predictor
 par(mfrow=c(1,1))
 # Scale the data for better visual interpretation of effect of excess forecast on M-SSA (red) vs. previous M-SSA (blue)
-mplot<-scale(cbind(BIP_target_mat[,k],indicator_mat[,j]))
+mplot<-scale(cbind(BIP_target_mat[,k],target_shifted_mat[,k],indicator_mat[,j]))
 rownames(mplot)<-rownames(x_mat)
-colnames(mplot)<-c(paste("BIP left-shifted by ",h_vec[k]," quarters",sep=""),"M-SSA predictor")
-colo<-c("black","blue")
-main_title<-"Standardized forward-shifted BIP vs. predictor"
+colnames(mplot)<-c(paste("BIP left-shifted by ",h_vec[k]," quarters",sep=""),paste("HP-BIP left-shifted by ",h_vec[k]," quarters",sep=""),paste("M-SSA predictor optimized for h=",h_vec[j],sep=""))
+colo<-c("black","violet","blue")
+main_title<-"Standardized forward-shifted BIP and HP-BIP vs. M-SSA predictor"
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(x_mat)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (i in 1:ncol(mplot))
@@ -130,12 +144,117 @@ axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot
 axis(2)
 box()
 
-# Sample correlation: this corresponds to cor_mat_BIP computed above
-cor(na.exclude(mplot))
+# Sample correlation: this corresponds to cor_mat_BIP computed by our function
+cor(na.exclude(mplot))[2,ncol(mplot)]
+cor_mat_HP_BIP[k,j]
+# The following two correlations should match exactly
+# However, they differ because by removing NAs (due to inclusion of the two-sided target) we change the sample-size
+cor(na.exclude(mplot))[1,3]
 cor_mat_BIP[k,j]
+# We can easily amend by removing the two-sided target
+mplot_without_two_sided<-scale(cbind(BIP_target_mat[,k],indicator_mat[,j]))
+# This number now matches cor_mat_BIP[k,j]
+cor(na.exclude(mplot_without_two_sided))[1,2]
 
+# Assume one selects k=4 and j=5 in the above plot:
+# Then the positive correlation between M-SSA and shifted BIP suggests that the predictor is informative 
+#   for BIP one-year ahead (including the publication lag) 
+# Is predictability statistically significant?
+# Let's have a look at the HAC-adjusted p-values
+p_value_HAC_mat_BIP[k,j]
+# Almost...
+# But we can look if the predictor is relevant for HP-BIP shifted one year ahead
+p_value_HAC_mat_HP_BIP[k,j]
+# Statistical significance is stronger for shifted HP-BIP because we ignore random (unpredictable) short-term components of BIP
 
+###############################################################################################
+# Let's now analyze a more adaptive design by selecting a smaller lambda_HP
 
-############################################################
-# Coming next: rRMSE (relative root mean-square error) and HAC-adjusted DM/GW statistics of predictive outperformance
+lambda_HP<-16
+# Everything else is kept fixed
 
+# Run the function packing and implementing our previous findings (tutorial 7.2) 
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess)
+
+# We replicate performances obtained in tutorial 7.2  
+cor_mat_BIP<-mssa_indicator_obj$cor_mat_BIP
+cor_mat_HP_BIP<-mssa_indicator_obj$cor_mat
+p_value_HAC_mat_HP_BIP<-mssa_indicator_obj$p_value_HAC_mat
+p_value_HAC_mat_BIP<-mssa_indicator_obj$p_value_HAC_mat_BIP
+BIP_target_mat=mssa_indicator_obj$BIP_target_mat
+target_shifted_mat=mssa_indicator_obj$target_shifted_mat
+indicator_mat<-mssa_indicator_obj$indicator_mat
+
+# Correlations between M-SSA predictors and forward-shifted BIP (including the publication lag)
+#   -We see that for increasing forward-shift (from top to bottom) the predictors optimized for 
+#     larger forecast horizons (from left to right) tend to perform better
+# Note: in contrast to the previous lambda_HP=160 setting, we here emphasize BIP (not HP-BIP)
+p_value_HAC_mat_BIP
+cor_mat_BIP
+
+# Finding: the more adaptive design based on lambda_HP=16 seems to be able to track future BIP 
+
+# Let's visualize these correlations by plotting target against predictor
+# Select a forward-shift of target (the k-th entry in h_vec)
+k<-4
+if (k>length(h_vec))
+{
+  print(paste("k should be smaller equal ",length(h_vec),sep=""))
+  k<-length(h_vec)
+}  
+# Forward shift of target in quarters
+h_vec[k]
+# Select a M-SSA predictor: optimized for forecast horizon h_vec[j]
+j<-k
+if (j>length(h_vec))
+{
+  print(paste("j should be smaller equal ",length(h_vec),sep=""))
+  j<-length(h_vec)
+}  
+# Plot targets (forward-shifted BIP and HP-BIP) and predictor
+par(mfrow=c(1,1))
+# Scale the data for better visual interpretation of effect of excess forecast on M-SSA (red) vs. previous M-SSA (blue)
+mplot<-scale(cbind(BIP_target_mat[,k],target_shifted_mat[,k],indicator_mat[,j]))
+rownames(mplot)<-rownames(x_mat)
+colnames(mplot)<-c(paste("BIP left-shifted by ",h_vec[k]," quarters",sep=""),paste("HP-BIP left-shifted by ",h_vec[k]," quarters",sep=""),paste("M-SSA predictor optimized for h=",h_vec[j],sep=""))
+colo<-c("black","violet","blue")
+main_title<-"Standardized forward-shifted BIP and HP-BIP vs. M-SSA predictor"
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(x_mat)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
+  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+}
+abline(h=0)
+abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+
+# Sample correlation: this corresponds to cor_mat_BIP computed by our function
+cor(na.exclude(mplot))[2,ncol(mplot)]
+cor_mat_HP_BIP[k,j]
+# The following two correlations should match exactly
+# However, they differ because by removing NAs (due to inclusion of the two-sided target) we change the sample-size
+cor(na.exclude(mplot))[1,3]
+cor_mat_BIP[k,j]
+# We can easily amend by removing the two-sided target
+mplot_without_two_sided<-scale(cbind(BIP_target_mat[,k],indicator_mat[,j]))
+# This number now matches cor_mat_BIP[k,j]
+cor(na.exclude(mplot_without_two_sided))[1,2]
+
+# Assume one selects k=j=4 (one year ahead) in the above plot:
+# Then the positive correlation between M-SSA and shifted BIP suggests that the predictor is informative 
+#   for BIP one-year ahead (including the publication lag) 
+# Is predictability statistically significant?
+# Let's have a look at the HAC-adjusted p-values
+p_value_HAC_mat_BIP[k,j]
+# In contrast to previous lambda_HP=160 setting, the predictor is now statisticially significant for BIP 
+# Let0s see HP-BIP shifted one year ahead
+p_value_HAC_mat_HP_BIP[k,j]
+# almost significant
+
+# Summary: transitioning from lambda_HP=160 (midly adaptive) to lambda_HP=16 (adaptive) reverts significance at the one-year ahead forecast horizon
+# -The more adaptive design is better at forecasting BIP
+# -The mildly adaptive design is better at forecasting HP-BIP
