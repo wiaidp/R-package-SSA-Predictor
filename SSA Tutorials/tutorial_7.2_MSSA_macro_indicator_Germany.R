@@ -53,7 +53,7 @@ tail(data)
 lag_vec<-c(2,rep(0,ncol(data)-1))
 
 # Plot the data
-# The real-time BIP (red) is lagging the target by one quarter (publication lag)
+# The real-time BIP (red) is lagging the target by lag_vec[1] quarters (publication lag)
 par(mfrow=c(1,1))
 mplot<-data
 colo<-c("black",rainbow(ncol(data)-1))
@@ -81,11 +81,22 @@ len<-dim(x_mat)[1]
 #------------------------------
 # 2. Target filter: the two-sided HP will be applied to target column (or equivalently: BIP shifted upward by lag_vec[1] quarters)
 #   -The classic quarterly setting lambda_HP=1600 leads to a design which tends to smooth out recessions
-#   -Also, dynamics are too weak to be useful as a forecast tool (dynamic changes over a one-year horizon are weak)
-#   -Finally, the classic design (lambda_HP=1600) is subject to erratic readings due to singular Pandemic data
+#   -Dynamics are too weak to be `useful' as a forecast tool (dynamic changes over a one-year horizon are weak)
+#     -Therefore, imposing a one-year ahead forecast horizon does not significantly affect the M-SSA predictor
+#   -Most important: the left-shift of the M-SSA predictor as a function of the forecast horizon 
+#      is either inexistent or weak when selecting lambda_HP=1600 
+#     -As stated, HP(1600) is so smooth that the series does not vary/change substantially over a one-year horizon
+#     -Therefore, predictors are affected only marginally by the forecast horizon over such a `short' time span 
+#   -Finally, the classic design (lambda_HP=1600) is (more) sensitive to Pandemic: the finite-length truncated filter looks `bad'
+# To summarize
+# -lambda_HP=160 is adapting more rapidly to changes of BIP, so as to be able track dynamic shifts within a one-year horizon
+#   -Accordingly, M-SSA predictors are reactive to the forecast horizon
+#   -Predictors are increasingly left-shifted (anticipative) as a function of the forecast horizon
+# In the next tutorial we shall present an even more reactive design, which tracks future BIP slightly better 
+
 lambda_HP<-160
-# Filter length: roughly 4 years. The length should be an odd number in order to have a symmetric HP 
-#   with a peak in the middle (for even numbers the peak is truncated)
+# Filter length: roughly 4 years. 
+#   The length should be an odd number in order to have a center point of the filter (where left and right tails are mirrored)
 L<-31
 
 target_obj<-HP_target_sym_T(n,lambda_HP,L)
@@ -95,11 +106,11 @@ symmetric_target=target_obj$symmetric_target
 colnames(gamma_target)<-select_vec_multi
 
 
-# The targets are one-sided
+# The targets of each series are one-sided
 par(mfrow=c(1,1))
 ts.plot(gamma_target,col=rainbow(n))
 
-# But we tell M-SSA to mirror the target filter at its peak value
+# But we tell M-SSA to mirror the right tail at the center peak: symmetric_target==T
 symmetric_target
 
 
@@ -521,7 +532,7 @@ rownames(t_HAC_mat)<-rownames(p_value_HAC_mat)<-paste("Shift of target: ",h_vec,
 p_value_HAC_mat
 
 #--------------------------------------------------
-# The above result suggest predictablity of M-SSA indicators with respect to future HP-BIP
+# The above result suggest predictability of M-SSA indicators with respect to future HP-BIP
 # What about future BIP?
 t_HAC_mat_BIP<-p_value_HAC_mat_BIP<-matrix(ncol=length(h_vec),nrow=length(h_vec))
 BIP_target_mat<-NULL
@@ -560,14 +571,14 @@ p_value_HAC_mat_BIP
 
 
 # Select a forecast horizon 
-k<-1
+k<-4
 h_vec[k]
 par(mfrow=c(1,1))
 # Scale the data for better visual interpretation of effect of excess forecast on M-SSA (red) vs. previous M-SSA (blue)
 mplot<-scale(cbind(BIP_target_mat[,k],indicator_mat[,k]))
 colnames(mplot)<-c(paste("BIP left-shifted by ",h_vec[k]," quarters",sep=""),"M-SSA predictor")
 colo<-c("black","blue")
-main_title<-"Forward-shifted BIP vs. predictor"
+main_title<-"Standardized forward-shifted BIP vs. predictor"
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (i in 1:ncol(mplot))
@@ -581,22 +592,119 @@ axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot
 axis(2)
 box()
 
+# Sample correlation
+cor(na.exclude(mplot))
 
+
+#--------------------------------------------------------------------------------
+# Full-length HP
+# -In the above experiment we relied on finite length (L=31) truncated version of the two-sided HP filter
+# -Instead, we could rely on the full-length HP filter and recompute HAC-adjusted t-statistics to verify 
+#   statistical significance (predictability) of M-SSA predictors
+
+# 1. Compute full-length HP
+len<-nrow(x_mat)
+hp_obj<-hpfilter(rnorm(len),type="lambda", freq=lambda_HP)
+# Specify trend filters: the above function returns HP-gap
+fmatrix<-diag(rep(1,len))-hp_obj$fmatrix
+# Check: plot one-sided trend at start, two-sided in middle and one-sided at end
+ts.plot(fmatrix[,c(1,len/2,len)])
+
+# 2. Compute full-length HP trend output
+#   -Relies on full-length filter
+#   -Does not have NAs at start and end
+target_without_publication_lag<-t(fmatrix)%*%x_mat[,1]
+# Shift forward by publication lag (2 quarters)
+target<-c(target_without_publication_lag[(1+lag_vec[1]):length(target_without_publication_lag)],rep(NA,lag_vec[1]))
+
+
+# Plot
+#   -Note that full-length HP becomes increasingly asymmetric towards the sample boundaries
+#   -The quality towards the sample boundaries degrades
+# We here discard the first and last year
+target[length(target):(length(target)-3)]<-target[1:4]<-NA
+
+mplot<-scale(cbind(target,indicator_mat))
+rownames(mplot)<-rownames(x_mat)
+colnames(mplot)<-c("Full-length HP",colnames(indicator_mat))
+colo<-c("black",rainbow(ncol(indicator_mat)))
+main_title<-"Full-length HP"
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
+  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+}
+abline(h=0)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+
+# Compute correlations: note that the target corresponds to a nowcast
+cor(na.exclude(mplot))
+
+# 3. In addition to a nowcast we also analyze forward-shifts of the target
+target_shifted_mat<-NULL
+for (i in 1:length(h_vec))
+{
+  shift<-h_vec[i]
+  target_shifted_mat<-cbind(target_shifted_mat,c(target[(1+shift):length(target)],rep(NA,shift)))
+}
+
+# 4. Recompute correlations and HAC-adjusted t-statistics of regression of M-SSA indicators on shifted full-sample HP trend
+cor_mat<-p_value_HAC_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
+for (i in 1:length(h_vec))# i<-1
+{
+  for (j in 1:length(h_vec))# j<-1
+  {
+    cor_mat[i,j]<-cor(na.exclude(cbind(target_shifted_mat[,i],indicator_mat[,j])))[1,2]
+    lm_obj<-lm(target_shifted_mat[,i]~indicator_mat[,j])
+    summary(lm_obj)
+    # This one replicates std in summary
+    sd<-sqrt(diag(vcov(lm_obj)))
+    # Here we use HAC  
+    sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
+    # This is the same as
+    sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
+    t_HAC_mat<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
+    p_value_HAC_mat[i,j]<-2*pt(t_HAC_mat, len-length(select_vec_multi), lower=FALSE)
+    
+  }
+}
+colnames(cor_mat)<-colnames(p_value_HAC_mat)<-paste("M-SSA: h=",h_vec,sep="")
+rownames(cor_mat)<-rownames(p_value_HAC_mat)<-paste("Shift of target: ",h_vec,sep="")
+# The full-length HP results confirm earlier findings 
+cor_mat
+p_value_HAC_mat
 
 
 
 #################################################################
 # Findings
-# -The main construction principles behind M-SSA indicators lead to forecast designs with predictive relevance
-# -Predicting HP-BIP is easier than predicting BIP: we do not need to address the erratic and unpredictable 
-#   high-frequency components of BIP
-# -The effect of increasing the forecast horizon in M-SSA leads to consistent performance results: 
-#   increasing the forecast horizon leads to better performances at larger forward-shifts: forecast-shift effect 
-# -Performances with respect to BIP are less conclusive, due to the unpredictable high-frequency noise
-#   -But we can still observe the forecast-shift effect
-#   -And more aggressive settings for the forecast excess reinforce these findings
-#   -Lastly, a predictor of the low-frequency component of future HP-BIP is intrinsically informative about 
-#     future BIP, even if statistical significance would tell otherwise (which is not the case actually). 
+# A. When targeting forecast horizons of a year or less, we need to concentrate on signals (HP-trends) with sufficiently 
+#   strong dynamic changes over such a time interval
+#   -For this purpose we selected lambda_HP=160 (more adaptive than the classic lambda_HP=1600 setting)
+#   -The increased adaptivity forces predictors to react to the forecast horizon by a commensurate left-shift (anticipation)
+#   -In the next tutorial we shall look at even more adaptive designs
+# -Assuming a suitable choice for lambda_HP, the main construction principles behind M-SSA indicators leads to 
+#   forecast designs with predictive relevance
+#   -Left-shift controlled by forecast horizon
+#   -Smoothness (nois-suppression) controlled by HT
+# -Predicting HP-BIP (the trend component) seems easier than predicting BIP
+#   -HP-BIP is mostly exempted from erratic (unpredictable) high-frequency components of BIP
+# -The effect of the forecast horizon (hyperparameter) in M-SSA is statistically as well as logically consistent: 
+#   -Increasing the forecast horizon leads to improved performances at larger forward-shifts
+#   -Forecast horizon is commensurate to `physical' forward shift of target 
+# -Performances with respect to BIP (instead of HP-BIP) are less conclusive, due in part to unpredictable high-frequency noise
+#   -However, the link between forecast horizon and physical-shift is still recognizable
+#   -More aggressive settings for the forecast excess may reinforce these findings (up to a point)
+# -Finally, a predictor of the low-frequency component of (future) HP-BIP is intrinsically informative about 
+#     (future) BIP, even if statistical significance is obstructed by noise. 
+
+#---------------------------------------------------------------------------------------------------
 
 
+############################################################
 # Coming next: rRMSE (relative root mean-square error) and HAC-adjusted DM/GW statistics of predictive outperformance
+
