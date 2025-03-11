@@ -38,11 +38,13 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 
 # 1. Load data and select indicators
 load(file="C:\\Users\\marca\\OneDrive\\2025\\R-package-SSA-Predictor\\Data\\macro")
-# BIP(GDP) has a publication lag of a quarter
-# The target column corresponds to a one-step ahead forecast: BIP has a publication lag of one quarter but we 
-#   shifted the data in the target columnone additional quarter upwards to be on the safe-side (for example to account for revisions)
-# Columns 2-8 are the data available in Jan-2025 for nowcasting the target
-# All indicators where log-transformed (except spread), differenced and standardized
+# BIP(GDP) has a publication lag of one quarter
+# The target column in the data-file below corresponds to a one-step ahead forecast: 
+#   -BIP has a publication lag of one quarter but we shifted the data (BIP) in the target column one additional 
+#     quarter upwards (forward) to be on the safe-side (for example to account for revisions)
+#   -In summary: a nowcast in our designs assumes that the two-sided target filter is applied to the target column in the data file below
+# Columns 2-8 are the data available in Jan-2025 for nowcasting the target column (we can also rely on BIP as an explanatory variable)
+# All indicators except spread are log-transformed. Then all indicators are differenced (quarterly differences) and standardized
 #   -Calibration of true levels and variances can be obtained afterwards, by simple linear regression
 # Extreme (singular) observations during Pandemic (2019-2020) where trimmed at 3 standard deviations 
 #   After discussion this trimming was deemed acceptable (and transparent,reproducible) to avoid overly strong impact of singular data
