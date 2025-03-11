@@ -356,8 +356,8 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
       
     }
   }
-  colnames(t_HAC_mat_BIP)<-colnames(p_value_HAC_mat_BIP)<-paste("M-SSA: h=",h_vec,sep="")
-  rownames(t_HAC_mat_BIP)<-rownames(p_value_HAC_mat_BIP)<-paste("Shift of target: ",h_vec,sep="")
+  colnames(t_HAC_mat_BIP)<-colnames(p_value_HAC_mat_BIP)<-colnames(cor_mat_BIP)<-paste("M-SSA: h=",h_vec,sep="")
+  rownames(t_HAC_mat_BIP)<-rownames(p_value_HAC_mat_BIP)<-rownames(cor_mat_BIP)<-paste("Shift of target: ",h_vec,sep="")
   # p-values: 
   # In contrast to HP-BIP, significance with respect to BIP is less conclusive: BIP is much noisier
   # However, we still find that for increasing forward-shift of BIP (from top to bottom) 

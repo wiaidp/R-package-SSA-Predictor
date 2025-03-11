@@ -9,14 +9,12 @@
 rm(list=ls())
 
 # Load the required R-libraries
-
 # Standard filter package
 library(mFilter)
 # Multivariate time series: VARMA model for macro indicators: used here for simulation purposes only
 library(MTS)
 # HAC estimate of standard deviations in the presence of autocorrelation and heteroscedasticity
 library(sandwich)
-
 
 # Load the relevant M-SSA functionalities
 # M-SSA functions
@@ -47,7 +45,7 @@ for (i in 1:ncol(mplot))
   mtext(colnames(mplot)[i],col=colo[i],line=-i)
 }
 abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
 axis(2)
 box()
 
@@ -121,7 +119,7 @@ if (k>length(h_vec))
 # Forward shift of target in quarters
 h_vec[k]
 # Select a M-SSA predictor: optimized for forecast horizon h_vec[j]
-j<-4
+j<-k
 if (j>length(h_vec))
 {
   print(paste("j should be smaller equal ",length(h_vec),sep=""))
@@ -244,30 +242,13 @@ axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot
 axis(2)
 box()
 
-# Sample correlation HP-BIP: this corresponds to cor_mat_BIP computed by our function
-cor(na.exclude(mplot))[2,ncol(mplot)]
+# Target correlations with respect to forward-shifted BIP are now improved
 cor_mat_HP_BIP[k,j]
-
-# The following two correlations should match exactly
-# However, they differ because by removing NAs (due to inclusion of the two-sided target) we change the sample-size
-cor(na.exclude(mplot))[1,3]
 cor_mat_BIP[k,j]
-# We can easily amend by removing the two-sided target
-mplot_without_two_sided<-scale(cbind(BIP_target_mat[,k],indicator_mat[,j]))
-# This number now matches cor_mat_BIP[k,j]
-cor(na.exclude(mplot_without_two_sided))[1,2]
-
-# Assume one selects k=j=4 (one year ahead) in the above plot:
-# Then the positive correlation between M-SSA and shifted BIP suggests that the predictor is informative 
-#   for BIP one-year ahead (including the publication lag) 
-# Is predictability statistically significant?
-# Let's have a look at the HAC-adjusted p-values
-p_value_HAC_mat_BIP[k,j]
-# In contrast to previous lambda_HP=160 setting, the predictor is now statisticially significant 
-#   for forward-shifted BIP 
-# Let's check significance for forward-shifted HP-BIP
+# We find statistical significance when targeting forward-shifted BIP
 p_value_HAC_mat_HP_BIP[k,j]
-# Almost significant
+p_value_HAC_mat_BIP[k,j]
+
 
 
 # We might ask why the t-test suggests weaker significance while the correlation is larger for HP-BIP
@@ -346,7 +327,7 @@ if (k>length(h_vec))
 # Forward shift of target in quarters
 h_vec[k]
 # Select a M-SSA predictor: optimized for forecast horizon h_vec[j]
-j<-4
+j<-k
 if (j>length(h_vec))
 {
   print(paste("j should be smaller equal ",length(h_vec),sep=""))
