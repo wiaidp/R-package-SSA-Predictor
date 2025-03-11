@@ -132,8 +132,6 @@ acf(data_fit)
 # Check span
 tail(data_fit)
 
-
-
 # VARMA modelling
 p<-1
 q<-0
