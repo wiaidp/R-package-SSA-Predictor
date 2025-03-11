@@ -72,7 +72,7 @@ head(compute_mssa_BIP_predictors_func)
 
 # Target filter: lambda_HP is the single most important hyperparameter, see tutorial 7.1 for a discussion
 # Briefly: we avoid the classic quarterly setting lambda_HP=1600 because the resulting filter would be too smooth
-# Too smooth means: the forecast horizon would have nearly no effect on the M-SSA predictor (no left-shift, no anticipation)
+# Too smooth means: the forecast horizon would have nearly no effect on the M-SSA predictor (almost no left-shift, no anticipation)
 lambda_HP<-160
 # Filter length: nearly 8 years is fine for the selected lambda_HP (filter weights decay sufficiently fast)
 L<-31
@@ -94,11 +94,15 @@ f_excess<-c(4,2)
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess)
 
 # Sample performances: target correlations and HAC-adjusted p-values for forward-shifted BIP and HP-BIP targets
-# We replicate performances obtained in tutorial 7.2  
+#   -We replicate performances obtained in tutorial 7.2 
+# 1. Target correlations of M-SSA predictors with forward-shifted BIP
 cor_mat_BIP<-mssa_indicator_obj$cor_mat_BIP
+# 2. Target correlation with forward-shifted HP-BIP 
 cor_mat_HP_BIP<-mssa_indicator_obj$cor_mat
-p_value_HAC_mat_HP_BIP<-mssa_indicator_obj$p_value_HAC_mat
+# HAC-adjusted p-Values of regressions of M-SSA predictors on forward-shifted BIP
 p_value_HAC_mat_BIP<-mssa_indicator_obj$p_value_HAC_mat_BIP
+# HAC-adjusted p-Values of regressions of M-SSA predictors on forward-shifted HP-BIP
+p_value_HAC_mat_HP_BIP<-mssa_indicator_obj$p_value_HAC_mat
 # Forward-shifted BIP
 BIP_target_mat=mssa_indicator_obj$BIP_target_mat
 # Forward-shifted HP-BIP
