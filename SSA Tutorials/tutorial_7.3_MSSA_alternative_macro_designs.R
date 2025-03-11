@@ -63,7 +63,7 @@ head(compute_mssa_BIP_predictors_func)
 
 # We can supply various hyperparameters (designs) and the function returns corresponding
 #   -M-SSA predictors
-#   -Performance measures: $
+#   -Performance measures: 
 #     -Correlations with shifted HP-BIP or BIP
 #     -HAC-adjusted p-values of regressions of predictors on shifted HP-BIP and BIP: to assess statistical significance
 
@@ -117,7 +117,7 @@ cor_mat_HP_BIP
 
 # Let's visualize these correlations by plotting target against predictor
 # Select a forward-shift of target (the k-th entry in h_vec)
-k<-1
+k<-4
 if (k>length(h_vec))
 {
   print(paste("k should be smaller equal ",length(h_vec),sep=""))
