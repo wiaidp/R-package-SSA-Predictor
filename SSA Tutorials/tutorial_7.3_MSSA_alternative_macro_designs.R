@@ -110,7 +110,7 @@ cor_mat_HP_BIP
 
 # Let's visualize these correlations by plotting target against predictor
 # Select a forward-shift of target (the k-th entry in h_vec)
-k<-4
+k<-1
 if (k>length(h_vec))
 {
   print(paste("k should be smaller equal ",length(h_vec),sep=""))
