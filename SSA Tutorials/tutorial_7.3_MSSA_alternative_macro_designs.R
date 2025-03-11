@@ -99,8 +99,11 @@ cor_mat_BIP<-mssa_indicator_obj$cor_mat_BIP
 cor_mat_HP_BIP<-mssa_indicator_obj$cor_mat
 p_value_HAC_mat_HP_BIP<-mssa_indicator_obj$p_value_HAC_mat
 p_value_HAC_mat_BIP<-mssa_indicator_obj$p_value_HAC_mat_BIP
+# Forward-shifted BIP
 BIP_target_mat=mssa_indicator_obj$BIP_target_mat
+# Forward-shifted HP-BIP
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
+# M-SSA indicators
 indicator_mat<-mssa_indicator_obj$indicator_mat
 
 # Correlations between M-SSA predictors and forward-shifted HP-BIP (including the publication lag)
