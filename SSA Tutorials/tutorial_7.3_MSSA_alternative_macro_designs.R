@@ -27,10 +27,32 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 
 #------------------------------------------------------------------------
 # Load data and select indicators: see tutorial 7.2 for background
-load(file="C:\\Users\\marca\\OneDrive\\2025\\R-package-SSA-Predictor\\Data\\macro")
-# We assume a publication lag of two quarters for BIP (the effective lag is smaller but we'd like to stay on the safe side, in particular since BIP is subject to revisions)
-lag_vec<-c(2,rep(0,ncol(data)-1))
+load(file=paste(getwd(),"\\Data\\macro",sep=""))
 tail(data)
+# -We assume a publication lag of two quarters for BIP (the effective lag is smaller but we'd like to stay on the safe side, in particular since BIP is subject to revisions)
+#     -Therefore the target column (first column) in data is up-shifted by two quarters as compared to the second column (BIP)
+# -In general, we shall apply a two-sided HP to the target column: this is called HP-BIP
+# -The challenge (and purpose of M-SSA) then consists in nowcasting or forecasting HP-BIP based on the 
+#     explanatory variables as listed in columns 2-8 (available data at each time point, ignoring revisions)
+#   -The two-quarter publication lag is too large (in practice it is one quarter). 
+#   -But GDP/BIP is subject to revisions
+#   -Since we ignore data revisions, we allow for a larger publication lag: in principle we discard the first (noisiest) release of GDP.
+# -For the sake of interest, we shall consider forecast horizons of up to 6 quarters (one and a half years)
+#   -Performances of institutional forecasters (`big five' German forecast institutes) degrade steeply 
+#     beyond a one quarter forecast horizon, see up-coming publication by Heinisch Neufing (currently working paper)
+#   -We here illustrate that BIP can possibly be predicted consistently beyond half a year
+#   -Our main emphasize is the mid-term predictability: 2-6 quarters ahead
+#   -Institutional forecasters are very good at nowcasting GDP: indeed, much better than M-SSA presented here
+#   -But M-SSA as proposed in this tutorial could possibly provide additional insights into the prospect of mid-term GDP/BIP forecasting
+# -We shall consider performances of M-SSA against forward-shifted HP-BIP and BIP (without HP) based on
+#   -target correlation: correlation of predictor with forward-shifted BIP or HP-BIP
+#   -rRMSE: relative root mean-square error when benchmarked against classic direct predictors or mean(BIP) (simple benchmark)
+#   -HAC-adjusted p-values of t-statistics of regression of predictor on target (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
+#   -Diebold-Mariano (DM) and Giacomini-White (GW) tests of unequal predictability (benchmarked against mean(BIP))
+lag_vec<-c(2,rep(0,ncol(data)-1))
+
+
+
 # Plot the data
 # The real-time BIP (red) is lagging the target by lag_vec[1] quarters (publication lag)
 par(mfrow=c(1,1))
