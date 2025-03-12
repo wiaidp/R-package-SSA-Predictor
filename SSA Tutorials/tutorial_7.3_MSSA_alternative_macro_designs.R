@@ -36,6 +36,11 @@ library(mFilter)
 library(MTS)
 # HAC estimate of standard deviations in the presence of autocorrelation and heteroscedasticity
 library(sandwich)
+# Extended time series
+library(xts)
+# Library for Diebold-Mariano test of equal forecast performance
+library(multDM)
+
 
 # Load the relevant M-SSA functionalities
 # M-SSA functions
@@ -234,6 +239,16 @@ p_value_HAC_mat_BIP<-mssa_indicator_obj$p_value_HAC_mat_BIP
 BIP_target_mat=mssa_indicator_obj$BIP_target_mat
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 indicator_mat<-mssa_indicator_obj$indicator_mat
+
+tail(indicator_mat)
+
+#indicator_cal<-indicator_mat[,1]
+#select_direct_indicator<-c("ifo_c","ESI")
+#h<-0
+perf_obj<-compute_all_perf_func(indicator_cal,data,lag_vec,h_vec,h,select_direct_indicator,L,lambda_HP)
+
+perf_obj$mat_all
+  
 
 # Look at correlations between M-SSA predictors and forward-shifted BIP (including the publication lag)
 #   -We see that for increasing forward-shift (from top to bottom) the predictors optimized for 
