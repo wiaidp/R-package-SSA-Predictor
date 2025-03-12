@@ -325,7 +325,7 @@ p_value
 
 
 
-# Note: the following is currently under construction????
+# Note: the following functionality is currently under construction????
 # To conclude we can use the more general compute_all_perf_func function to obtain additional performance measures:
 #   -rRMSE: relative root means-square forecast error
 #   -DM and GW tests of unequal predictability
@@ -348,6 +348,9 @@ perf_obj$mat_all
 p_value_HAC_mat_BIP[,i]
 # We can obtain the rRMSE and p-values of the direct predictor based on the indicators selected by select_direct_indicator above
 # The direct forecasts generally perform poorly for shifts larger than 2 quarters
+# Note: direct predictors are sensitive to the singular Pandemic readings:
+#   -Performances tend to be substantially better when removing the Pandemic
+#   -Performances tend to be somehow random, depending on the predictors matching randomly the Covid-outliers dependening on the forward-shift
 perf_obj$mat_all_direct
 # We also report p-values of DM and GW statistics of unequal predictive ability
 #   The first two columns are DM and GW testing whether M-SSA performs better than mean(BIP) when targeting BIP
