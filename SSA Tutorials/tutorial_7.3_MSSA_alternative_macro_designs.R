@@ -49,6 +49,8 @@ source(paste(getwd(),"/R/functions_MSSA.r",sep=""))
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 # Utility functions for M-SSA, see tutorial 
 source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
+# Set of performance metrics and tests of unequal predictability
+source(paste(getwd(),"/R/performance_statistics_functions.r",sep=""))
 
 
 #------------------------------------------------------------------------
