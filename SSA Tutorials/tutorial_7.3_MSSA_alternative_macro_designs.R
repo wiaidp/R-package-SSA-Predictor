@@ -327,7 +327,8 @@ p_value
 
 
 #---------------------
-# The following code is currently not working properly for the direct predictors!!!
+# The following code is not working properly for the direct predictors!!!
+# Ignore all results related to the latter!!!
 # More extensive evaluation metrics: 
 #   -Full-sample and out-of-sample 
 #   -rRMSE, HAC adjusted p-values (the same as above),  DM and (HAC-) GW statistics
