@@ -312,7 +312,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
   t_HAC_mat<-p_value_HAC_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
   for (i in 1:length(h_vec))# i<-1
   {
-    for (j in 1:length(h_vec))# j<-1  
+    for (j in 1:length(h_vec))# j<-1  j<-3
     {
 # Remove NAs      
       da<-na.exclude(cbind(target_shifted_mat[,i],indicator_mat[,j]))
