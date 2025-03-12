@@ -101,8 +101,8 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
   mat_all<-matrix(mat_all,nrow=length(h_vec))
   mat_short<-matrix(mat_short,nrow=length(h_vec))
   mat_out<-matrix(mat_out,nrow=length(h_vec))
-  colnames(mat_all)<-colnames(mat_short)<-colnames(mat_out)<-c("rRMSE","t-stat OLS")
-  rownames(mat_all)<-rownames(mat_short)<-rownames(mat_out)<-paste("Agg-BIP h=",h,": shift ",h_vec,sep="")
+  colnames(mat_all)<-colnames(mat_short)<-colnames(mat_out)<-c("rRMSE","HAC t-stat OLS")
+  rownames(mat_all)<-rownames(mat_short)<-rownames(mat_out)<-paste("M-SSA optimized for h=",h,": shift ",h_vec,sep="")
   
   mat_all
   mat_short 
@@ -252,7 +252,7 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
   direct_pred_mat<-p_dm_vec_direct<-p_gw_vec_direct<-p_dm_vec_direct_short<-p_gw_vec_direct_short<-p_dm_vec_direct_out<-p_gw_vec_direct_out<-NULL
   
   # C.3 Compute direct predictor up to sample end and derive performances for all shifts
-  for (j in 1:length(h_vec))#i<-0
+  for (j in 1:length(h_vec))#j<-1
   {
     # Forward shift
     i<-h_vec[j]
@@ -260,7 +260,7 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
     dat_m<-cbind(dat_mh[(1+i):nrow(dat_mh),1],dat_mh[1:(nrow(dat_mh)-i),2:ncol(dat_mh)])
     tail(dat_m)
     # We apply regression to full sample to obtain predictor values up to the sample end    
-    dat_apply_reg<-dat_mh[,2:ncol(dat_mh)]
+    dat_apply_reg<-dat_mh
     
     # Compute direct forecast, t-tests and rRMSE
     comp_obj<-comp_perf_func(dat_m,dat_apply_reg)
@@ -290,14 +290,22 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
     dat_m_short<-dat_m[1:enfh,]
     tail(dat_m_short)
     # Same but out-of-sample
-    ind<-which(rownames(dat_m)>date_to_fit)
+    ind<-which(rownames(dat_m)<date_to_fit)
     dat_m_out<-dat_m[ind,]
     head(dat_m_out)
     tail(dat_m_out)
-    # We fit data to shorter samples but we apply regression to full sample to obtain predictor values up to the sample end    
-    dat_apply_reg<-dat_mh[,2:ncol(dat_mh)]
+# We fit data to shorter samples but we apply regression to full sample to obtain predictor values up to the sample end    
+    dat_apply_reg<-dat_mh
 
     comp_obj_short<-comp_perf_func(dat_m_short,dat_apply_reg)
+    
+# We fit data to insample span but we apply regression to out-of-sample span   
+    ind<-which(rownames(dat_m)>date_to_fit)
+    
+    dat_apply_reg<-dat_mh[ind,]
+    head(dat_apply_reg)
+    tail(dat_apply_reg)
+    
     
     comp_obj_out<-comp_perf_func(dat_m_out,dat_apply_reg)
 
@@ -336,7 +344,7 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
   mat_all_direct<-matrix(mat_all_direct,nrow=length(h_vec))
   mat_short_direct<-matrix(mat_short_direct,nrow=length(h_vec))
   mat_out_direct<-matrix(mat_out_direct,nrow=length(h_vec))
-  colnames(mat_all_direct)<-colnames(mat_short_direct)<-colnames(mat_out_direct)<-c("rRMSE","t-stat OLS")
+  colnames(mat_all_direct)<-colnames(mat_short_direct)<-colnames(mat_out_direct)<-c("rRMSE","HAC t-stat OLS")
   rownames(mat_all_direct)<-rownames(mat_short_direct)<-rownames(mat_out_direct)<-paste("Shift=",h_vec,sep="")
   
   mat_all_direct
@@ -473,14 +481,20 @@ comp_perf_func<-function(dat_m,dat_apply_reg=NULL)
   {
     if (length(sumfm1$coef[2:ncol(dat_m)])==1)
     {
-      direct_pred<-sumfm1$coef[1]+dat_apply_reg*sumfm1$coef[2:nrow(sumfm1$coef),1]
+# Explanatory is in second column      
+      direct_pred<-sumfm1$coef[1]+dat_apply_reg[,2]*sumfm1$coef[2:nrow(sumfm1$coef),1]
     } else
     {
-      direct_pred<-sumfm1$coef[1]+dat_apply_reg%*%sumfm1$coef[2:nrow(sumfm1$coef),1]
+# Explanatories in columns 2,3,...      
+      direct_pred<-sumfm1$coef[1]+dat_apply_reg[,2:ncol(dat_apply_reg)]%*%sumfm1$coef[2:nrow(sumfm1$coef),1]
     }
+# Compute residuals on full data set or on out-of-sample data set    
+    res<-dat_apply_reg[,1]-direct_pred
   } else
   {
     direct_pred<-NULL
+# Use in-sample residuals    
+    res<-lm_obj$res
   }
   # Extract maximum t-value of explanatory variables: if maximum is insignificant then regression is weak  
   max_t_ols<-(abs(summary(lm_obj)$coef[1+1:(ncol(dat_m)-1),4]))
@@ -488,7 +502,7 @@ comp_perf_func<-function(dat_m,dat_apply_reg=NULL)
   t_HAC<-summary(lm_obj)$coef[1+1:(ncol(dat_m)-1),1]/sd_HAC[2:length(sd)]
   # p-value: take minimum  
   min_t_ols<-min(2*pt(t_HAC, nrow(dat_m)-ncol(dat_m), lower=FALSE))
-  mat_all<-c(sqrt(mean(lm_obj$res^2))/sd(dat_m[,1]),min_t_ols)
+  mat_all<-c(sqrt(mean(res^2))/sd(dat_m[,1]),min_t_ols)
   
   
   return(list(mat_all=mat_all,direct_pred=direct_pred))

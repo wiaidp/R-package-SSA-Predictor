@@ -326,61 +326,89 @@ p_value
 # So the HAC-adjustment leads to weaker statistical significance despite stronger correlation when targeting HP-BIP 
 
 
-
-# Note: the following functionality is currently under construction????
+#---------------------
+# The following code is currently not working properly for the direct predictors!!!
+# More extensive evaluation metrics: 
+#   -Full-sample and out-of-sample 
+#   -rRMSE, HAC adjusted p-values (the same as above),  DM and (HAC-) GW statistics
+#     -rRMSE: relative root means-square forecast error (relative to simple mean benchmar)
+#     -Reported p-Values of one-sided DM and GW tests evaluate whether M-SSA outperforms the simple mean(BIP) benchmark or the direct forecasts
+# The function computes benchmark `direct predictors' and evaluates performances of M-SSA against direct predictors as well as 
+#       the simple mean (mean of BIP) benchmark
+#   -Direct predictors are simple OLS regressions of a selection of macro indicators on forward-shifted BIP
+#   -The selection is specified in the vector select_direct_indicator below
+# Note: the following functionality is currently under construction/test
 # To conclude we can use the more general compute_all_perf_func function to obtain additional performance measures:
-#   -rRMSE: relative root means-square forecast error
-#   -DM and GW tests of unequal predictability
-# The function also computes classic `direct' predictors, obtained by selecting the original indicators on forward shifted BIP
-#   -For this purpose we can select the indicators that we wish to use for predicting BIP `directly':
+
+# 1. Select the indicators that we wish to use for predicting BIP `directly':
 select_direct_indicator<-c("ifo_c","ESI")
-# We can select any of the computed  M-SSA predictors
-# Take the last one, i=6, optimized for forecast horizon h_vec[i]=h_vec[6]=6 quarters
-i<-6
+select_direct_indicator<-select_vec_multi
+# 2. Select any of the computed  M-SSA predictors
+#     -Take the last one, i=6, which is optimized for forecast horizon h_vec[i] quarters ahead
+i<-1
 # Forecast horizon
 h<-h_vec[i]
+h
+# M-SSA predictor
 indicator_cal<-indicator_mat[,i]
-# Call the more general performance evaluation function  
+
+# Call the performance evaluation function  
 perf_obj<-compute_all_perf_func(indicator_cal,data,lag_vec,h_vec,h,select_direct_indicator,L,lambda_HP,date_to_fit)
 
 # Here we have the rRMSE of the M-SSA predictor (first column) and the HAC-adjusted p-values (second column)
-# THis is for the full sample: in-sample and out-of-sample aggregated
+# This is for the full sample: in-sample and out-of-sample aggregated
 # We can see that M-SSA outperforms significantly at the intended forward-shift  
 perf_obj$mat_all
 # We can compare the p-values (second column above) to the previously obtained p-values: they match perfectly
-p_value_HAC_mat_BIP[,i]
-# Same as above but out-of-sample only
+matrix(p_value_HAC_mat_BIP[,i],ncol=1)
+# Same as above but out-of-sample only: once again, the M-SSA predictor seems to be informative for BIP at the 
+#   forecast horizon for which M-SSA has been optimized (while intuitively appealing, this outcome is far of trivial given the noisy target)
 perf_obj$mat_out
-
-
-# We can obtain the rRMSE and p-values of the direct predictor based on the indicators selected by select_direct_indicator above
+# Direct predictor benchmarks:
+# Notes:
+#   Note 1: the direct predictors do not depend on the selected forecast horizon h
+#     -The forecast horizon h means that M-SSA has been optimized accordingly
+#     -However, the direct predictors are computed within the above function, specifically for each forward-shift of BIP
+#     -M-SSA depends on h but is independent of the forward-shift; direct predictors do not depend on h but on the forward-shift
+#   Note 2: the direct predictors seem to perform best at shift 2
+#     -Intuitively the predictors should perform best at shift 0 (nowcast)
+#     -This counter intuitive outcome is mainly due to the singular outliers during the Pandemic (affect results despite trimming)
+#   Note 3: direct predictors are sensitive to the singular Pandemic readings even for trimmed data:
+#     -Performances tend to be substantially better when removing the Pandemic
+#     -Performances tend to be somehow random, depending on the predictors hitting randomly the Covid-outliers 
+#         in-phase our out-of-phase (depending on the forward-shift)
+#   -In comparison, M-SSA tends to be less sensitive to Pandemic outliers
+# -We can obtain the rRMSE and p-values of the direct predictors based on the indicators selected by select_direct_indicator above
 # The direct forecasts generally perform poorly for shifts larger than 2 quarters
-# Note: direct predictors are sensitive to the singular Pandemic readings even for trimmed data:
-#   -Performances tend to be substantially better when removing the Pandemic
-#   -Performances tend to be somehow random, depending on the predictors hitting randomly the Covid-outliers 
-#       in-phase our out-of-phase (as a function of the forward-shift)
-#   -In comparison. M-SSA tends to be less sensitive to Pandemic
 # Full sample: in-sample and out-of-sample aggregated
 perf_obj$mat_all_direct
-# Out-of-sample only
+# Out-of-sample only: Adding regressors leads to worse performances (larger rRMSE)
 perf_obj$mat_out_direct
-# We also report p-values of DM and GW statistics of unequal predictive ability
-#   The first two columns are DM and GW testing whether M-SSA performs better than mean(BIP) when targeting BIP
-#     The predictor optimized for forecast horizon 6 has the smallest p-values at the intended forward-shift 
-#   Columns 3 and 4 are DM and GW testing whether M-SSA performs better than mean(BIP) when targeting HP-BIP
-#     The predictor optimized for forecast horizon 6 has the smallest p-values towards small shifts 
-#   Columns 5 and 6 verify if direct predictors outperform mean(BIP) when targeting BIP
-#     The direct predictor have larger p-values
-#   Finally, columns 7 and 8 test whether M-SSA outperforms the direct predictors when targeting BIP
-#     -p-values smaller than 0.5 indicate outperformance of M-SSA
-# In summary: DM and GW statistics suggest predictability at the 10% level and at the intended forward-shift of BIP, 
-#     -Against mean(BIP), see the last row, first two columns
-#     -Against the direct predictors, see the last row, last two columns
-# Note: HAC adjustment is used for GW statistics
-# Full sample: in-sample and out-of-sample aggregated
+# We also report p-values of one-sided DM and GW tests of unequal predictive ability
+# Full sample
 perf_obj$gw_dm_all_mat
 # Out-of-sample only
 perf_obj$gw_dm_out_mat
+# Explanation:
+#   -The first two columns are DM and GW tests verifying whether M-SSA performs better than mean(BIP), 
+#        when targeting forward-shifted BIP (not HP-BIP)
+#     -The M-SSA predictor optimized for forecast horizon 6 has the smallest p-values at the intended forward-shift of 6
+#   -Columns 3 and 4 are DM and GW testing whether M-SSA performs better than mean(BIP) when targeting 
+#       forward-shifted HP-BIP (not BIP) 
+#     -The predictor optimized for forecast horizon 6 has small p-values at small and larger shifts (the latter is desirable, the former is random) 
+#   -Columns 5 and 6 verify if the new benchmarks (classic direct predictors) outperform mean(BIP) when targeting BIP
+#     -The direct predictor generally have a hard-time at forward-shifts larger than 2 quarters (see also see up-coming publication by Heinisch and Neufing (currently working paper))
+#   -Finally, columns 7 and 8 test whether M-SSA outperforms the direct predictors when targeting BIP
+#     -p-values smaller than 0.5 indicate relative outperformance of M-SSA
+# Full sample: in-sample and out-of-sample aggregated
+# In summary: DM and GW statistics suggest predictability in the following terms:  
+#     -Significant test statistics at the intended forward-shift of BIP, out-of-sample 
+#     -Outperformance against mean(BIP), see the last row, first two columns
+#     -Outperformance against the direct predictors, see the last row, last two columns
+# Note:
+# 1. These findings refer to M-SSA optimized for the largest forecast horizon of 6 quarters
+#     -Similar results are obtained for shorter forecast horizons
+# 2. HAC adjustment is used for GW statistics
 
   
 
