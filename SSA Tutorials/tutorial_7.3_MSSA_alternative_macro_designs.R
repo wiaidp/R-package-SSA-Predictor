@@ -56,6 +56,7 @@ rownames(x_mat)<-rownames(data)
 n<-dim(x_mat)[2]
 # Number of observations
 len<-dim(x_mat)[1]
+
 #------------------------------
 
 # Here's the head of the function derived from tutorial 7.2
@@ -86,7 +87,7 @@ q<-0
 ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
 # Forecast horizons: M-SSA is optimized for each forecast horizon in h_vec 
-h_vec<-c(0,1,2,4,6)
+h_vec<-c(0,1,2,3,4,6)
 # Forecast excesses: see tutorial 7.1 for background
 f_excess<-c(4,2)
 
