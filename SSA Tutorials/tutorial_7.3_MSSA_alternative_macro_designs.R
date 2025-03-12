@@ -334,7 +334,7 @@ p_value
 select_direct_indicator<-c("ifo_c","ESI")
 # We can select any of the computed  M-SSA predictors
 # Take the last one, i=6, optimized for forecast horizon h_vec[i]=h_vec[6]=6 quarters
-i<-1
+i<-6
 # Forecast horizon
 h<-h_vec[i]
 indicator_cal<-indicator_mat[,i]
@@ -348,9 +348,11 @@ perf_obj$mat_all
 p_value_HAC_mat_BIP[,i]
 # We can obtain the rRMSE and p-values of the direct predictor based on the indicators selected by select_direct_indicator above
 # The direct forecasts generally perform poorly for shifts larger than 2 quarters
-# Note: direct predictors are sensitive to the singular Pandemic readings:
+# Note: direct predictors are sensitive to the singular Pandemic readings even for trimmed data:
 #   -Performances tend to be substantially better when removing the Pandemic
-#   -Performances tend to be somehow random, depending on the predictors matching randomly the Covid-outliers dependening on the forward-shift
+#   -Performances tend to be somehow random, depending on the predictors hitting randomly the Covid-outliers 
+#       in-phase our out-of-phase (as a function of the forward-shift)
+#   -In comparison. M-SSA tends to be less sensitive to Pandemic
 perf_obj$mat_all_direct
 # We also report p-values of DM and GW statistics of unequal predictive ability
 #   The first two columns are DM and GW testing whether M-SSA performs better than mean(BIP) when targeting BIP
