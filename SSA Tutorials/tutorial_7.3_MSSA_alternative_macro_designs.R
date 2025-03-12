@@ -57,6 +57,7 @@ n<-dim(x_mat)[2]
 # Number of observations
 len<-dim(x_mat)[1]
 
+
 #------------------------------
 
 # Here's the head of the function derived from tutorial 7.2
