@@ -240,26 +240,16 @@ BIP_target_mat=mssa_indicator_obj$BIP_target_mat
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 indicator_mat<-mssa_indicator_obj$indicator_mat
 
-tail(indicator_mat)
-
-#indicator_cal<-indicator_mat[,1]
-#select_direct_indicator<-c("ifo_c","ESI")
-#h<-0
-perf_obj<-compute_all_perf_func(indicator_cal,data,lag_vec,h_vec,h,select_direct_indicator,L,lambda_HP)
-
-perf_obj$mat_all  
-
-perf_obj
-  
-
 # Look at correlations between M-SSA predictors and forward-shifted BIP (including the publication lag)
 #   -We see that for increasing forward-shift (from top to bottom) the predictors optimized for 
 #     larger forecast horizons (from left to right) tend to perform better
 # Note: in contrast to the previous lambda_HP=160 setting, we here emphasize BIP (not HP-BIP)
-p_value_HAC_mat_BIP
 cor_mat_BIP
+# In contrast to the previous setting lambda_HP=160, the new adaptive design based on lambda_HP=16  also leads to 
+#   statistically significant predictors (with respect to BIP, not HP-BIP)
+p_value_HAC_mat_BIP
+# Findings: the more adaptive design based on lambda_HP=16 seems to be able to track future BIP better
 
-# Finding: the more adaptive design based on lambda_HP=16 seems to be able to track future BIP better
 
 # Let's visualize these correlations by plotting target against predictor
 # Select a forward-shift of target (the k-th entry in h_vec)
@@ -332,6 +322,49 @@ t_HAC
 p_value<-2*pt(t_HAC, len-length(select_vec_multi), lower=FALSE)
 p_value 
 # So the HAC-adjustment leads to weaker statistical significance despite stronger correlation when targeting HP-BIP 
+
+
+
+# Note: the following is currently under construction????
+# To conclude we can use the more general compute_all_perf_func function to obtain additional performance measures:
+#   -rRMSE: relative root means-square forecast error
+#   -DM and GW tests of unequal predictability
+# The function also computes classic `direct' predictors, obtained by selecting the original indicators on forward shifted BIP
+#   -For this purpose we can select the indicators that we wish to use for predicting BIP `directly':
+select_direct_indicator<-c("ifo_c","ESI")
+# We can select any of the computed  M-SSA predictors
+# Take the last one, i=6, optimized for forecast horizon h_vec[i]=h_vec[6]=6 quarters
+i<-1
+# Forecast horizon
+h<-h_vec[i]
+indicator_cal<-indicator_mat[,i]
+# Call the more general performance evaluation function  
+perf_obj<-compute_all_perf_func(indicator_cal,data,lag_vec,h_vec,h,select_direct_indicator,L,lambda_HP)
+
+# Here we have the rRMSE of the M-SSA predictor (first column) and the HAC-adjusted p-values (second column)
+# We can see that M-SSA outperforms significantly at the intended forward-shift  
+perf_obj$mat_all
+# We can compare the p-values (second column above) to the previously obtained p-values: they match perfectly
+p_value_HAC_mat_BIP[,i]
+# We can obtain the rRMSE and p-values of the direct predictor based on the indicators selected by select_direct_indicator above
+# The direct forecasts generally perform poorly for shifts larger than 2 quarters
+perf_obj$mat_all_direct
+# We also report p-values of DM and GW statistics of unequal predictive ability
+#   The first two columns are DM and GW testing whether M-SSA performs better than mean(BIP) when targeting BIP
+#     The predictor optimized for forecast horizon 6 has the smallest p-values at the intended forward-shift 
+#   Columns 3 and 4 are DM and GW testing whether M-SSA performs better than mean(BIP) when targeting HP-BIP
+#     The predictor optimized for forecast horizon 6 has the smallest p-values towards small shifts 
+#   Columns 5 and 6 verify if direct predictors outperform mean(BIP) when targeting BIP
+#     The direct predictor have larger p-values
+#   Finally, columns 7 and 8 test whether M-SSA outperforms the direct predictors when targeting BIP
+#     -p-values smaller than 0.5 indicate outperformance of M-SSA
+# In summary: DM and GW statistics suggest predictability at the 10% level and at the intended forward-shift of BIP, 
+#     -Against mean(BIP), see the last row, first two columns
+#     -Against the direct predictors, see the last row, last two columns
+# Note: HAC adjustment is used for GW statistics
+perf_obj$gw_dm_all_mat
+  
+  
 
 
 

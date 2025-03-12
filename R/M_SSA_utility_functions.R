@@ -264,11 +264,8 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
   colnames(indicator_mat)<-colnames(mssa_bip)<-colnames(mssa_ip)<-colnames(mssa_ifo)<-colnames(mssa_esi)<-colnames(mssa_spread)<-paste("Horizon=",h_vec,sep="")
   rownames(indicator_mat)<-rownames(x_mat)
   #-----------------------------
-  # 6. Compute performance measures
-  # 6.1 sample target correlations: all combinations
-  target_shifted_mat<-NULL
-  cor_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
-  
+  # 6. Compute plots
+
   for (i in 1:length(h_vec))#i<-1
   {
     shift<-h_vec[i]+lag_vec[1]
@@ -278,8 +275,8 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     # Select BIP (first column)  
     target<-target_mat[,"BIP"]
     # Collect the forward shifted targets: 
-    #   For the first loop-run, i=1 and shift=h_vec[1]+lag_vec[1]=2 corresponds to the publication lag of BIP (note that we selected a slightly larger publication lag, as discussed at the top of the this tutorial)  
     target_shifted_mat<-cbind(target_shifted_mat,target)
+    
     # Plot indicators and shifting target
     mplot<-scale(cbind(target,indicator_mat))
     colnames(mplot)[1]<-paste("Target left-shifted by ",shift-lag_vec[1],sep="")
@@ -325,7 +322,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
       # This is the same as
       sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
       t_HAC_mat[i,j]<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-      p_value_HAC_mat[i,j]<-2*pt(t_HAC_mat[i,j], nrow(da)-length(select_vec_multi), lower=FALSE)
+      p_value_HAC_mat[i,j]<-2*pt(t_HAC_mat[i,j], nrow(da)-ncol(da), lower=FALSE)
       
     }
   }
@@ -341,7 +338,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     shift<-h_vec[i]+lag_vec[1]
     BIP_target<-c(x_mat[(1+shift):nrow(x_mat),"BIP"],rep(NA,shift))
     BIP_target_mat<-cbind(BIP_target_mat,BIP_target)
-    # Rgress predictors on shifted BIP  
+    # Regress predictors on shifted BIP  
     for (j in 1:length(h_vec))# j<-1
     {
 # Remove NAs      
@@ -356,7 +353,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
       # This is the same as
       sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
       t_HAC_mat_BIP[i,j]<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-      p_value_HAC_mat_BIP[i,j]<-2*pt(t_HAC_mat_BIP[i,j], nrow(da)-length(select_vec_multi), lower=FALSE)
+      p_value_HAC_mat_BIP[i,j]<-2*pt(t_HAC_mat_BIP[i,j], nrow(da)-ncol(da), lower=FALSE)
       
     }
   }
