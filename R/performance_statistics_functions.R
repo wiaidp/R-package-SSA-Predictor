@@ -3,7 +3,7 @@
 # The function returns rMSE, d t-statistics of regressions of predictors on shifted BIP and DM/GW statistics
 #   -tstatistics are based on OLS and GLS (assuming AR(1) process for residuals)
 #   -rRMSE is based on OLS residuals, references against the mean (of BIP) as benchmark
-compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct_indicator,L,lambda_HP)
+compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct_indicator,L,lambda_HP,date_to_fit)
 {
   # A. M-SSA predictor against shifts of BIP
   # A.1. Compute data matrix    
@@ -30,7 +30,7 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
   # A.2 M-SSA predictor against all shifts of BIP
   #   -Compute rRMSE, t- and F-statistics of OLS regression of predictor on shifted target  
   #   -Compute also t- and F-statistics of GLS regression of predictor on shifted target 
-  p_dm_vec<-p_gw_vec<-p_dm_vec_short<-p_gw_vec_short<-NULL
+  p_dm_vec<-p_gw_vec<-p_dm_vec_short<-p_gw_vec_short<-p_dm_vec_out<-p_gw_vec_out<-NULL
   for (j in 1:length(h_vec))#j<-1
   {
     # Forward-shift of target    
@@ -57,37 +57,52 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
     p_dm_vec<-c(p_dm_vec,p_dm)
     p_gw_vec<-c(p_gw_vec,p_gw)
     #---------------------------------------    
-    # Same but data prior Pandemic 
+    # Same but without Pandemic
     ind<-which(rownames(dat_m)<=2019)
     enfh<-ind[length(ind)]
     dat_m_short<-dat_m[1:enfh,]
     tail(dat_m_short)
+    # Same but out-of-sample
+    ind<-which(rownames(dat_m)>date_to_fit)
+    dat_m_out<-dat_m[ind,]
+    head(dat_m_out)
+    tail(dat_m_out)
+
+    comp_obj_short<-comp_perf_func(dat_m_short)
     
-    comp_obj<-comp_perf_func(dat_m_short)
+    comp_obj_out<-comp_perf_func(dat_m_out)
     
     if (j==1)
     {
-      mat_short<-comp_obj$mat_all
+      mat_short<-comp_obj_short$mat_all
+      mat_out<-comp_obj_out$mat_all
     } else
     {
-      mat_short<-rbind(mat_short,comp_obj$mat_all)
+      mat_short<-rbind(mat_short,comp_obj_short$mat_all)
+      mat_out<-rbind(mat_out,comp_obj_out$mat_all)
     }
     
     # Compute DM and GW tests    
-    DM_GW_obj<-pcompute_DM_GW_statistics(dat_m_short,i)
+    DM_GW_obj_short<-pcompute_DM_GW_statistics(dat_m_short,i)
+    DM_GW_obj_out<-pcompute_DM_GW_statistics(dat_m_out,i)
     
-    p_dm=DM_GW_obj$p_dm
-    p_gw=DM_GW_obj$p_gw
+    p_dm=DM_GW_obj_short$p_dm
+    p_gw=DM_GW_obj_short$p_gw
     p_dm_vec_short<-c(p_dm_vec_short,p_dm)
     p_gw_vec_short<-c(p_gw_vec_short,p_gw)
+    p_dm=DM_GW_obj_out$p_dm
+    p_gw=DM_GW_obj_out$p_gw
+    p_dm_vec_out<-c(p_dm_vec_out,p_dm)
+    p_gw_vec_out<-c(p_gw_vec_out,p_gw)
   }
   
-  names(p_dm_vec)<-names(p_gw_vec)<-names(p_dm_vec_short)<-names(p_gw_vec_short)<-paste("shift=",h_vec,sep="")
+  names(p_dm_vec)<-names(p_gw_vec)<-names(p_dm_vec_short)<-names(p_gw_vec_short)<-names(p_dm_vec_out)<-names(p_gw_vec_out)<-paste("shift=",h_vec,sep="")
   
   mat_all<-matrix(mat_all,nrow=length(h_vec))
   mat_short<-matrix(mat_short,nrow=length(h_vec))
-  colnames(mat_all)<-colnames(mat_short)<-c("rRMSE","t-stat OLS")
-  rownames(mat_all)<-rownames(mat_short)<-paste("Agg-BIP h=",h,": shift ",h_vec,sep="")
+  mat_out<-matrix(mat_out,nrow=length(h_vec))
+  colnames(mat_all)<-colnames(mat_short)<-colnames(mat_out)<-c("rRMSE","t-stat OLS")
+  rownames(mat_all)<-rownames(mat_short)<-rownames(mat_out)<-paste("Agg-BIP h=",h,": shift ",h_vec,sep="")
   
   mat_all
   mat_short 
@@ -95,6 +110,8 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
   p_gw_vec_short
   p_dm_vec
   p_gw_vec
+  p_dm_vec_out
+  p_gw_vec_out
   
   #------------------------------------------------------------------------------
   # B. M-SSA predictor against shifts of HP-BIP
@@ -128,7 +145,7 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
   # B.2 M-SSA predictor against all shifts of BIP
   #   -Compute rRMSE, t- and F-statistics of OLS regression of predictor on shifted target  
   #   -Compute also t- and F-statistics of GLS regression of predictor on shifted target 
-  p_dm_vec_HP<-p_gw_vec_HP<-p_dm_vec_short_HP<-p_gw_vec_short_HP<-NULL
+  p_dm_vec_HP<-p_gw_vec_HP<-p_dm_vec_short_HP<-p_gw_vec_short_HP<-p_dm_vec_out_HP<-p_gw_vec_out_HP<-NULL
   for (j in 1:length(h_vec))#i<-0
   {
     # Forward shift    
@@ -137,8 +154,10 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
     dat_m<-cbind(dat_mh[(1+i):nrow(dat_mh),1],dat_mh[1:(nrow(dat_mh)-i),2])
     tail(dat_m)
     # Compute t-tests and rRMSE
+    
     comp_obj<-comp_perf_func(dat_m)
     
+
     if (j==1)
     {
       mat_all_HP<-comp_obj$mat_all
@@ -154,33 +173,49 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
     p_gw=DM_GW_obj$p_gw
     p_dm_vec_HP<-c(p_dm_vec_HP,p_dm)
     p_gw_vec_HP<-c(p_gw_vec_HP,p_gw)
+
     #---------------------------------------    
-    # Same but data prior Pandemic 
+    # Same but without Pandemic
     ind<-which(rownames(dat_m)<=2019)
     enfh<-ind[length(ind)]
     dat_m_short<-dat_m[1:enfh,]
     tail(dat_m_short)
+    # Same but out-of-sample
+    ind<-which(rownames(dat_m)>date_to_fit)
+    dat_m_out<-dat_m[ind,]
+    head(dat_m_out)
+    tail(dat_m_out)
     
-    comp_obj<-comp_perf_func(dat_m_short)
+    comp_obj_short<-comp_perf_func(dat_m_short)
+    
+    comp_obj_out<-comp_perf_func(dat_m_out)
     
     if (j==1)
     {
-      mat_short_HP<-comp_obj$mat_all
+      mat_short_HP<-comp_obj_short$mat_all
+      mat_out_HP<-comp_obj_out$mat_all
     } else
     {
-      mat_short_HP<-rbind(mat_short_HP,comp_obj$mat_all)
+      mat_short_HP<-rbind(mat_short_HP,comp_obj_short$mat_all)
+      mat_out_HP<-rbind(mat_out_HP,comp_obj_out$mat_all)
     }
     
     # Compute DM and GW tests    
-    DM_GW_obj<-pcompute_DM_GW_statistics(dat_m_short,i)
+    DM_GW_obj_short_HP<-pcompute_DM_GW_statistics(dat_m_short,i)
+    DM_GW_obj_out_HP<-pcompute_DM_GW_statistics(dat_m_out,i)
     
-    p_dm=DM_GW_obj$p_dm
-    p_gw=DM_GW_obj$p_gw
+    p_dm=DM_GW_obj_short_HP$p_dm
+    p_gw=DM_GW_obj_short_HP$p_gw
     p_dm_vec_short_HP<-c(p_dm_vec_short_HP,p_dm)
     p_gw_vec_short_HP<-c(p_gw_vec_short_HP,p_gw)
+    p_dm=DM_GW_obj_out_HP$p_dm
+    p_gw=DM_GW_obj_out_HP$p_gw
+    p_dm_vec_out_HP<-c(p_dm_vec_out_HP,p_dm)
+    p_gw_vec_out_HP<-c(p_gw_vec_out_HP,p_gw)
+    
   }
   
-  names(p_dm_vec_HP)<-names(p_gw_vec_HP)<-names(p_dm_vec_short_HP)<-names(p_gw_vec_short_HP)<-paste("shift=",h_vec,sep="")
+  names(p_dm_vec_HP)<-names(p_gw_vec_HP)<-names(p_dm_vec_short_HP)<-names(p_gw_vec_out_HP)<-names(p_dm_vec_out_HP)<-names(p_gw_vec_short_HP)<-paste("shift=",h_vec,sep="")
   
   p_dm_vec_short_HP
   p_gw_vec_short_HP
@@ -214,7 +249,7 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
   nrow(dat_mh)
   
   
-  direct_pred_mat<-p_dm_vec_direct<-p_gw_vec_direct<-p_dm_vec_direct_short<-p_gw_vec_direct_short<-NULL
+  direct_pred_mat<-p_dm_vec_direct<-p_gw_vec_direct<-p_dm_vec_direct_short<-p_gw_vec_direct_short<-p_dm_vec_direct_out<-p_gw_vec_direct_out<-NULL
   
   # C.3 Compute direct predictor up to sample end and derive performances for all shifts
   for (j in 1:length(h_vec))#i<-0
@@ -249,44 +284,60 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
     p_gw_vec_direct<-c(p_gw_vec_direct,p_gw)
     #-----------------------    
     # Same but data prior Pandemic 
+    
     ind<-which(rownames(dat_m)<=2019)
     enfh<-ind[length(ind)]
     dat_m_short<-dat_m[1:enfh,]
     tail(dat_m_short)
-    
-    # We apply regression to full sample to obtain predictor values up to the sample end    
+    # Same but out-of-sample
+    ind<-which(rownames(dat_m)>date_to_fit)
+    dat_m_out<-dat_m[ind,]
+    head(dat_m_out)
+    tail(dat_m_out)
+    # We fit data to shorter samples but we apply regression to full sample to obtain predictor values up to the sample end    
     dat_apply_reg<-dat_mh[,2:ncol(dat_mh)]
+
+    comp_obj_short<-comp_perf_func(dat_m_short,dat_apply_reg)
     
-    # Compute direct forecast, t-tests and rRMSE
-    comp_obj<-comp_perf_func(dat_m_short,dat_apply_reg)
-    
+    comp_obj_out<-comp_perf_func(dat_m_out,dat_apply_reg)
+
     if (j==1)
     {
-      mat_short_direct<-comp_obj$mat_all
-      direct_pred_mat_short=comp_obj$direct_pred
+      mat_short_direct<-comp_obj_short$mat_all
+      mat_out_direct<-comp_obj_out$mat_all
+      direct_pred_mat_short=comp_obj_short$direct_pred
+      direct_pred_mat_out=comp_obj_out$direct_pred
     } else
     {
-      mat_short_direct<-rbind(mat_short_direct,comp_obj$mat_all)
-      direct_pred_mat_short=cbind(direct_pred_mat_short,comp_obj$direct_pred)
+      mat_short_direct<-rbind(mat_short_direct,comp_obj_short$mat_all)
+      direct_pred_mat_short=cbind(direct_pred_mat_short,comp_obj_short$direct_pred)
+      mat_out_direct<-rbind(mat_out_direct,comp_obj_out$mat_all)
+      direct_pred_mat_out=cbind(direct_pred_mat_out,comp_obj_out$direct_pred)
     }
     
     # Compute DM and GW tests    
-    DM_GW_obj<-pcompute_DM_GW_statistics(dat_m_short,i)
+    DM_GW_obj_short<-pcompute_DM_GW_statistics(dat_m_short,i)
+    DM_GW_obj_out<-pcompute_DM_GW_statistics(dat_m_out,i)
     
-    p_dm=DM_GW_obj$p_dm
-    p_gw=DM_GW_obj$p_gw
+    p_dm=DM_GW_obj_short$p_dm
+    p_gw=DM_GW_obj_short$p_gw
     p_dm_vec_direct_short<-c(p_dm_vec_direct_short,p_dm)
     p_gw_vec_direct_short<-c(p_gw_vec_direct_short,p_gw)
+    p_dm=DM_GW_obj_out$p_dm
+    p_gw=DM_GW_obj_out$p_gw
+    p_dm_vec_direct_out<-c(p_dm_vec_direct_out,p_dm)
+    p_gw_vec_direct_out<-c(p_gw_vec_direct_out,p_gw)
     
   }
-  names(p_dm_vec_direct)<-names(p_gw_vec_direct)<-names(p_dm_vec_direct_short)<-names(p_gw_vec_direct_short)<-paste("shift=",h_vec,sep="")
-  
+  names(p_dm_vec_direct)<-names(p_gw_vec_direct)<-names(p_dm_vec_direct_short)<-names(p_gw_vec_direct_short)<-names(p_dm_vec_direct_out)<-names(p_gw_vec_direct_out)<-paste("shift=",h_vec,sep="")
+
   colnames(direct_pred_mat)<-paste("Direct AR predictor: h=",h_vec,sep="")
   rownames(direct_pred_mat)<-rownames(dat_mh)[(nrow(dat_mh)-nrow(direct_pred_mat)+1):nrow(dat_mh)]
   mat_all_direct<-matrix(mat_all_direct,nrow=length(h_vec))
   mat_short_direct<-matrix(mat_short_direct,nrow=length(h_vec))
-  colnames(mat_all_direct)<-colnames(mat_short_direct)<-c("rRMSE","t-stat OLS")
-  rownames(mat_all_direct)<-rownames(mat_short_direct)<-paste("Shift=",h_vec,sep="")
+  mat_out_direct<-matrix(mat_out_direct,nrow=length(h_vec))
+  colnames(mat_all_direct)<-colnames(mat_short_direct)<-colnames(mat_out_direct)<-c("rRMSE","t-stat OLS")
+  rownames(mat_all_direct)<-rownames(mat_short_direct)<-rownames(mat_out_direct)<-paste("Shift=",h_vec,sep="")
   
   mat_all_direct
   mat_short_direct 
@@ -317,7 +368,7 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
   # D.2 M-SSA predictor against all shifts of BIP
   #   -Compute rRMSE, t- and F-statistics of OLS regression of predictor on shifted target  
   #   -Compute also t- and F-statistics of GLS regression of predictor on shifted target 
-  p_dm_vec_mssa_direct<-p_gw_vec_mssa_direct<-p_dm_vec_short_mssa_direct<-p_gw_vec_short_mssa_direct<-NULL
+  p_dm_vec_mssa_direct<-p_gw_vec_mssa_direct<-p_dm_vec_short_mssa_direct<-p_gw_vec_short_mssa_direct<-p_dm_vec_out_mssa_direct<-p_gw_vec_out_mssa_direct<-NULL
   for (j in 1:length(h_vec))#i<-0
   {
     # Forward shift
@@ -350,17 +401,35 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
     
     tail(dat_m_short)
     
-    # Compute DM and GW tests    
-    # Compute DM and GW tests    
-    DM_GW_obj<-pcompute_DM_GW_statistics_MSSA_against_Direct(dat_m_short,mssa_short,i)#end_date<-2019
+    # Same but out-of-sample
+    ind<-which(rownames(dat_m)>date_to_fit)
+    dat_all_out<-dat_all[ind,]
     
-    p_dm=DM_GW_obj$p_dm
-    p_gw=DM_GW_obj$p_gw
+    # Remove M-SSA    
+    dat_m_out<-dat_all_out[,1:(ncol(dat_all_out)-1)]
+    # M-SSA    
+    mssa_out<-dat_all_out[,ncol(dat_all_out)]
+    
+    head(dat_m_out)
+    tail(dat_m_out)
+    
+    
+    # Compute DM and GW tests    
+    # Compute DM and GW tests    
+    DM_GW_obj_short<-pcompute_DM_GW_statistics_MSSA_against_Direct(dat_m_short,mssa_short,i)#end_date<-2019
+    DM_GW_obj_out<-pcompute_DM_GW_statistics_MSSA_against_Direct(dat_m_out,mssa_out,i)#end_date<-2019
+    
+    p_dm=DM_GW_obj_short$p_dm
+    p_gw=DM_GW_obj_short$p_gw
     p_dm_vec_short_mssa_direct<-c(p_dm_vec_short_mssa_direct,p_dm)
     p_gw_vec_short_mssa_direct<-c(p_gw_vec_short_mssa_direct,p_gw)
+    p_dm=DM_GW_obj_out$p_dm
+    p_gw=DM_GW_obj_out$p_gw
+    p_dm_vec_out_mssa_direct<-c(p_dm_vec_out_mssa_direct,p_dm)
+    p_gw_vec_out_mssa_direct<-c(p_gw_vec_out_mssa_direct,p_gw)
   }
   
-  names(p_dm_vec_mssa_direct)<-names(p_gw_vec_mssa_direct)<-names(p_dm_vec_short_mssa_direct)<-names(p_gw_vec_short_mssa_direct)<-paste("shift=",h_vec,sep="")
+  names(p_dm_vec_mssa_direct)<-names(p_gw_vec_mssa_direct)<-names(p_dm_vec_short_mssa_direct)<-names(p_gw_vec_short_mssa_direct)<-names(p_dm_vec_out_mssa_direct)<-names(p_gw_vec_out_mssa_direct)<-paste("shift=",h_vec,sep="")
   
   p_dm_vec_short_mssa_direct
   p_gw_vec_short_mssa_direct
@@ -368,13 +437,15 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
   #---------------------------
   # Collect DM and GW statistics in matrices
   gw_dm_short_mat<-cbind(p_dm_vec_short,p_gw_vec_short,p_dm_vec_HP,p_gw_vec_short_HP,p_dm_vec_direct_short,p_gw_vec_direct_short,p_dm_vec_short_mssa_direct,p_gw_vec_short_mssa_direct)
+  gw_dm_out_mat<-cbind(p_dm_vec_out,p_gw_vec_out,p_dm_vec_HP,p_gw_vec_out_HP,p_dm_vec_direct_out,p_gw_vec_direct_out,p_dm_vec_out_mssa_direct,p_gw_vec_out_mssa_direct)
   gw_dm_all_mat<-cbind(p_dm_vec,p_gw_vec,p_dm_vec_HP,p_gw_vec_HP,p_dm_vec_direct,p_gw_vec_direct,p_dm_vec_mssa_direct,p_gw_vec_mssa_direct)
-  colnames(gw_dm_short_mat)<-colnames(gw_dm_all_mat)<-c("DM M-SSA/BIP","GW M-SSA/BIP","DM M-SSA/HP-BIP","GW M-SSA/HP-BIP","DM direct","GW direct","DM M-SSA vs. direct","GW M-SSA vs. direct")
+  colnames(gw_dm_short_mat)<-colnames(gw_dm_out_mat)<-colnames(gw_dm_all_mat)<-c("DM M-SSA/BIP","GW M-SSA/BIP","DM M-SSA/HP-BIP","GW M-SSA/HP-BIP","DM direct","GW direct","DM M-SSA vs. direct","GW M-SSA vs. direct")
   
   
   
   
-  return(list(mat_all=mat_all,mat_short=mat_short,indicator_cal=indicator_cal,mat_all_direct=mat_all_direct,mat_short_direct=mat_short_direct,direct_pred_mat=direct_pred_mat,direct_pred_mat_short=direct_pred_mat_short,gw_dm_all_mat=gw_dm_all_mat,gw_dm_short_mat=gw_dm_short_mat))
+  return(list(mat_all=mat_all,mat_short=mat_short,mat_out=mat_out,indicator_cal=indicator_cal,mat_all_direct=mat_all_direct,mat_short_direct=mat_short_direct,mat_out_direct=mat_out_direct,direct_pred_mat=direct_pred_mat,
+              direct_pred_mat_short=direct_pred_mat_short,direct_pred_mat_out=direct_pred_mat_out,gw_dm_all_mat=gw_dm_all_mat,gw_dm_short_mat=gw_dm_short_mat,gw_dm_out_mat=gw_dm_out_mat))
   
 }
 

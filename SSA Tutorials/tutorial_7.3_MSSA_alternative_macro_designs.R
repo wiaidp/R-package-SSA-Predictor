@@ -341,13 +341,18 @@ i<-6
 h<-h_vec[i]
 indicator_cal<-indicator_mat[,i]
 # Call the more general performance evaluation function  
-perf_obj<-compute_all_perf_func(indicator_cal,data,lag_vec,h_vec,h,select_direct_indicator,L,lambda_HP)
+perf_obj<-compute_all_perf_func(indicator_cal,data,lag_vec,h_vec,h,select_direct_indicator,L,lambda_HP,date_to_fit)
 
 # Here we have the rRMSE of the M-SSA predictor (first column) and the HAC-adjusted p-values (second column)
+# THis is for the full sample: in-sample and out-of-sample aggregated
 # We can see that M-SSA outperforms significantly at the intended forward-shift  
 perf_obj$mat_all
 # We can compare the p-values (second column above) to the previously obtained p-values: they match perfectly
 p_value_HAC_mat_BIP[,i]
+# Same as above but out-of-sample only
+perf_obj$mat_out
+
+
 # We can obtain the rRMSE and p-values of the direct predictor based on the indicators selected by select_direct_indicator above
 # The direct forecasts generally perform poorly for shifts larger than 2 quarters
 # Note: direct predictors are sensitive to the singular Pandemic readings even for trimmed data:
@@ -355,7 +360,10 @@ p_value_HAC_mat_BIP[,i]
 #   -Performances tend to be somehow random, depending on the predictors hitting randomly the Covid-outliers 
 #       in-phase our out-of-phase (as a function of the forward-shift)
 #   -In comparison. M-SSA tends to be less sensitive to Pandemic
+# Full sample: in-sample and out-of-sample aggregated
 perf_obj$mat_all_direct
+# Out-of-sample only
+perf_obj$mat_out_direct
 # We also report p-values of DM and GW statistics of unequal predictive ability
 #   The first two columns are DM and GW testing whether M-SSA performs better than mean(BIP) when targeting BIP
 #     The predictor optimized for forecast horizon 6 has the smallest p-values at the intended forward-shift 
@@ -369,8 +377,11 @@ perf_obj$mat_all_direct
 #     -Against mean(BIP), see the last row, first two columns
 #     -Against the direct predictors, see the last row, last two columns
 # Note: HAC adjustment is used for GW statistics
+# Full sample: in-sample and out-of-sample aggregated
 perf_obj$gw_dm_all_mat
-  
+# Out-of-sample only
+perf_obj$gw_dm_out_mat
+
   
 
 
