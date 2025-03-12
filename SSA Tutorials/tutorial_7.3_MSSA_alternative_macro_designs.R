@@ -247,7 +247,7 @@ tail(indicator_mat)
 #h<-0
 perf_obj<-compute_all_perf_func(indicator_cal,data,lag_vec,h_vec,h,select_direct_indicator,L,lambda_HP)
 
-perf_obj$mat_all
+perf_obj$mat_all  
   
 
 # Look at correlations between M-SSA predictors and forward-shifted BIP (including the publication lag)
