@@ -5,11 +5,22 @@
 #   -compute rRMSE
 #   -insert Diebold Mariano and Giacomini White tests of equal predictive ability
 
-# -The first M-SSA tutorial, this one, is based on a simulation example derived from an application of M-SSA to 
-#   predicting German GDP (or BIP)
-# -The data generating process here relies on the VAR fitted to German data
-# -We here show that M-SSA is optimal (if the data generating is the true process) and that the most relevant 
-#   sample performances converge to their expected numbers for sufficiently long samples of (artificial) data
+# Main purposes of this tutorial:
+# -Demonstrate  pertinence of the multivariate M-SSA paper: included in the `paper' folder
+# -Specifically, we show that sample estimates of performance numbers converge to theoretical expected numbers, as derived in the paper
+# -Thereby, we intend to demonstrate the practical relevance of the approach
+#   -Maximize the target correlation subject to a holding time constraint
+#   -Generalization of classic mean-square error signal extraction 
+# -In contrast to the previous univariate SSA, the more general M-SSA controls the holding-time of a predictor that 
+#   relies on multiple explanatory variables.
+#   -Therefore we need to model the cross-section as well as the longitudinal dimension
+# -For this purpose we rely on a simple VAR(1)-model of the data generating process
+#   -This VAR model is derived from the macro-application in tutorials 7.2 and 7.3
+# -We here assume this model to be true, i.e., we simulate data based on the VAR(1) and we apply M-SSA to the artificial data
+#   -Thereby we can generate series of arbitrary length to check convergence of sample estimates to expected numbers,
+#     whereby the latter are based on theoretical derivations in the M-SSA paper
+# -We here demonstrate that M-SSA is optimal (if the data generating process is known) and that the most relevant 
+#   sample performances converge to their expected numbers for sufficiently long samples
 
 # Clean sheet
 rm(list=ls())
