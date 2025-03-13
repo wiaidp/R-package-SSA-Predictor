@@ -165,7 +165,7 @@ filter_func<-function(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,
     names(z)<-names(y)<-rownames(x_mat)
     target_mat<-cbind(target_mat,z)
   } 
-  colnames(mssa_mat)<-colnames(target_mat)<-colnames(x_mat)
+  colnames(mssa_mat)<-colnames(mmse_mat)<-colnames(target_mat)<-colnames(x_mat)
   return(list(mssa_mat=mssa_mat,target_mat=target_mat,mmse_mat=mmse_mat))
 }
 
@@ -208,7 +208,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
   #-----------------------
   # 4. Compute M-SSA for the specified forecast horizons in h_vec
   
-  mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-NULL
+  mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-mmse_bip<-mmse_ip<-mmse_esi<-mmse_ifo<-mmse_spread<-NULL
   for (i in 1:length(h_vec))#i<-1
   {
     # For each forecast horizon h_vec[i] we compute M-SSA for BIP and ip first, based on the proposed forecast excess
@@ -233,6 +233,9 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     # Select M-SSA BIP and ip  
     mssa_bip<-cbind(mssa_bip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[1])])
     mssa_ip<-cbind(mssa_ip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[2])])
+    # M-MSE
+    mmse_bip<-cbind(mmse_bip,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[1])])
+    mmse_ip<-cbind(mmse_ip,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[2])])
     
     # Now compute M-SSA for the remaining ifo, ESI and spread  
     # These series require a smaller forecast excess f_excess[2] 
@@ -255,6 +258,10 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     mssa_ifo<-cbind(mssa_ifo,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[3])])
     mssa_esi<-cbind(mssa_esi,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[4])])
     mssa_spread<-cbind(mssa_spread,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[5])])
+    # Select M-MSE-ifo, -ESI and -spread  
+    mmse_ifo<-cbind(mmse_ifo,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[3])])
+    mmse_esi<-cbind(mmse_esi,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[4])])
+    mmse_spread<-cbind(mmse_spread,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[5])])
     
   }
   #------------------------  
@@ -263,6 +270,11 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
   indicator_mat<-(scale(mssa_bip)+scale(mssa_ip)+scale(mssa_ifo)+scale(mssa_esi)+scale(mssa_spread))/length(select_vec_multi)
   colnames(indicator_mat)<-colnames(mssa_bip)<-colnames(mssa_ip)<-colnames(mssa_ifo)<-colnames(mssa_esi)<-colnames(mssa_spread)<-paste("Horizon=",h_vec,sep="")
   rownames(indicator_mat)<-rownames(x_mat)
+  
+  indicator_mse_mat<-(scale(mmse_bip)+scale(mmse_ip)+scale(mmse_ifo)+scale(mmse_esi)+scale(mmse_spread))/length(select_vec_multi)
+  colnames(indicator_mse_mat)<-colnames(mmse_bip)<-colnames(mmse_ip)<-colnames(mmse_ifo)<-colnames(mmse_esi)<-colnames(mmse_spread)<-paste("Horizon=",h_vec,sep="")
+  rownames(indicator_mse_mat)<-rownames(x_mat)
+  
   #-----------------------------
   # 6. Compute plots
   target_shifted_mat<-NULL
@@ -368,7 +380,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
   #   -Selecting more aggressive designs (larger excesses) may lead to stronger significance at larger shifts, up to a point 
   #   -You may try f_excess<-c(6,4): a strong result at a one-year ahead forecast horizon (plus publication lag) is achievable
   p_value_HAC_mat_BIP
-  return(list(indicator_mat=indicator_mat,cor_mat=cor_mat,p_value_HAC_mat_BIP=p_value_HAC_mat_BIP,p_value_HAC_mat=p_value_HAC_mat,cor_mat_BIP=cor_mat_BIP,BIP_target_mat=BIP_target_mat,target_shifted_mat=target_shifted_mat))
+  return(list(indicator_mat=indicator_mat,indicator_mse_mat=indicator_mse_mat,cor_mat=cor_mat,p_value_HAC_mat_BIP=p_value_HAC_mat_BIP,p_value_HAC_mat=p_value_HAC_mat,cor_mat_BIP=cor_mat_BIP,BIP_target_mat=BIP_target_mat,target_shifted_mat=target_shifted_mat))
 }
 
 
