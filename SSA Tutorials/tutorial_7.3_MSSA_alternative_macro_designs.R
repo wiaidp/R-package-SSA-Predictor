@@ -428,8 +428,10 @@ HAC_p_value_mssa_BIP
 
 ##############################################################################################
 
-# The following older code is providing full-sample results, mixing in-sample and out-of-sample
-#   -These measures are less practically relevant (then the above ones) in a real-world (real-time) exercise
+# The following is older code 
+#   -Bad: it is providing full-sample results, mixing in-sample and out-of-sample performances
+#   -Good: it computes Diebold Mariano and Giacomini White tests for unequal predictive ability
+# To do: export DM and GW tests to the previous out-of-sample performance function...
 if (F)
 {
 
