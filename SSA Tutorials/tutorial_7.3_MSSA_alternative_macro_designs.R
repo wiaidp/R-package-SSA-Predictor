@@ -219,6 +219,7 @@ p_value_HAC_mat_HP_BIP[k,j]
 #   -Or is it because lambda_HP=160 is not sufficiently adaptive (still too smooth)?
 
 
+
 ###############################################################################################
 # Let's now analyze a more adaptive design by selecting a smaller lambda_HP
 
@@ -338,7 +339,6 @@ oos_perf_obj<-oos_perf_func(h_vec,data,indicator_mat,date_to_fit)
 rRMSE_mssa_mean=oos_perf_obj$rRMSE_mssa_mean
 rRMSE_mssa_direct=oos_perf_obj$rRMSE_mssa_direct
 rRMSE_direct_mean=oos_perf_obj$rRMSE_direct_mean
-p_value_mssa=oos_perf_obj$p_value_mssa
 HAC_p_value_mssa=oos_perf_obj$HAC_p_value_mssa
 
 
