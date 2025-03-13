@@ -149,6 +149,9 @@ BIP_target_mat=mssa_indicator_obj$BIP_target_mat
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 # M-SSA indicators
 indicator_mat<-mssa_indicator_obj$indicator_mat
+# M-MSE
+indicator_mse_mat<-mssa_indicator_obj$indicator_mse_mat
+
 
 # Correlations between M-SSA predictors and forward-shifted HP-BIP (including the publication lag)
 #   -We see that for increasing forward-shift (from top to bottom) the predictors optimized for 
@@ -254,7 +257,24 @@ rRMSE_mssa_direct_HP_BIP
 # Strongly significant out-of-sample
 HAC_p_value_mssa_HP_BIP
 
-# We now target forward-shifted BIP
+
+# We now compare M-SSA with the M-MSE-predictor
+#   Instead of indicator_mat we now insert indicator_mse_mat in the following function call
+#   Everything else is left unchanged
+oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mse_mat,date_to_fit,lag_vec,target_shifted_mat)
+
+# Compare rRMSE: first MSE predictor:
+oos_perf_obj$rRMSE_mssa_mean
+# Compare with above M-SSA predictor: 
+rRMSE_mssa_mean_HP_BIP
+# M-SSA is uniformly better on its main diagonal (smaller rRMSEs): none of the M-MSE diagonal elements is smaller (than M-SSA)
+which(diag(oos_perf_obj$rRMSE_mssa_mean)<diag(rRMSE_mssa_mean_HP_BIP))
+
+
+
+
+
+# Next we can target forward-shifted BIP instead of HP-BIP
 BIP_target<-T
 
 oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat)
@@ -267,6 +287,19 @@ HAC_p_value_mssa_BIP=oos_perf_obj$HAC_p_value_mssa
 # Results inconclusive: BIP is much noisier
 rRMSE_mssa_mean_BIP
 HAC_p_value_mssa_BIP
+
+# We can compare M-SSA with the M-MSE-predictor
+#   Instead of indicator_mat we now insert indicator_mse_mat in the following function call
+#   Everything else is left unchanged
+oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mse_mat,date_to_fit,lag_vec,target_shifted_mat)
+
+# Compare rRMSE: first MSE predictor:
+oos_perf_obj$rRMSE_mssa_mean
+# Compare with above M-SSA predictor: 
+rRMSE_mssa_mean_BIP
+# M-MSE is now marginally better but still broadly inconclusive 
+which(diag(oos_perf_obj$rRMSE_mssa_mean)<diag(rRMSE_mssa_mean_BIP))
+
 
 #--------------------------------
 # Findings: 
@@ -296,6 +329,7 @@ mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_f
 BIP_target_mat=mssa_indicator_obj$BIP_target_mat
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 indicator_mat<-mssa_indicator_obj$indicator_mat
+indicator_mse_mat<-mssa_indicator_obj$indicator_mse_mat
 
 # Evaluate performances of the more adaptive design out-of-sample when targeting forward-shifted BIP
 #   -We here attempt to address the above question, namely whether mote adaptive designs (lambda_HP=16) 
