@@ -278,6 +278,7 @@ compute_all_perf_func<-function(indicator_cal,data,lag_vec,h_vec,h,select_direct
     # Compute DM and GW tests    
     DM_GW_obj<-pcompute_DM_GW_statistics(dat_m,i)
     
+    
     p_dm=DM_GW_obj$p_dm
     p_gw=DM_GW_obj$p_gw
     p_dm_vec_direct<-c(p_dm_vec_direct,p_dm)
