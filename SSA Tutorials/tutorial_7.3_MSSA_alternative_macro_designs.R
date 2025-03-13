@@ -320,16 +320,23 @@ HAC_p_value_mssa_BIP
 
 
 #---------------------------------------------
-# Findings overall
-# -Classic business-cycle designs  (lambda_HP=1600) smooth out recessions and hide  
-#   dynamics relevant in a short- to mid-term forecast exercise (1-6 quarters ahead)
-# -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent forecast pattern. 
-#     suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
-#   -This result suggest that M-SSA is also informative about forward-shifted BIP, although corresponding 
-#     performance statistics are less conclusive (due to noise)
-# -More adaptive designs (lambda_HP=16) seem to be able to track forward-shifted BIP (more) consistently, 
-#   by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
-#   components of BIP
+# Findings overall:
+
+# A. Classic direct predictors:
+#   -Classic direct predictors generally do not perform better than the simple mean benchmark at 
+#     forward-shifts exceeding 2 quarters
+#   -Classic direct predictors are more sensitive (than M-SSA) to episodes subject to unusual singular readings (e,g,, the Pandemic)
+
+# B. M-SSA
+#   -Classic business-cycle designs (lambda_HP=1600) smooth out recessions and hide  
+#     dynamics relevant in a short- to mid-term forecast exercise (1-6 quarters ahead)
+#   -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent forecast pattern. 
+#       suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
+#     -This result suggest that M-SSA is also informative about forward-shifted BIP, although corresponding 
+#       performance statistics are less conclusive (due to noise)
+#   -More adaptive designs (lambda_HP=16) seem to be able to track forward-shifted BIP (more) consistently, 
+#     by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
+#     components of BIP
 
 
 ##############################################################################################
