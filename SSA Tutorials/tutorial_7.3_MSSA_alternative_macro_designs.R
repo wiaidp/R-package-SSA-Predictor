@@ -279,6 +279,7 @@ HAC_p_value_mssa_BIP
 ################################################################################################################
 ################################################################################################################
 # Let's now analyze a more adaptive design by selecting a smaller lambda_HP: see above for motivation
+# We then verify if the more flexible design is able to predict BIP more consistently 
 
 lambda_HP<-16
 # Everything else in the above design is kept fixed
@@ -291,10 +292,7 @@ f_excess_adaptive<-f_excess
 # Run the M-SSA predictor function
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess_adaptive)
 
-cor_mat_BIP<-mssa_indicator_obj$cor_mat_BIP
-cor_mat_HP_BIP<-mssa_indicator_obj$cor_mat
-p_value_HAC_mat_HP_BIP<-mssa_indicator_obj$p_value_HAC_mat
-p_value_HAC_mat_BIP<-mssa_indicator_obj$p_value_HAC_mat_BIP
+# Collect all predictors and forward-shifted targets
 BIP_target_mat=mssa_indicator_obj$BIP_target_mat
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 indicator_mat<-mssa_indicator_obj$indicator_mat
