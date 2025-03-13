@@ -265,7 +265,8 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
   rownames(indicator_mat)<-rownames(x_mat)
   #-----------------------------
   # 6. Compute plots
-
+  target_shifted_mat<-NULL
+  cor_mat<-matrix(nrow=length(h_vec),ncol=length(h_vec))
   for (i in 1:length(h_vec))#i<-1
   {
     shift<-h_vec[i]+lag_vec[1]

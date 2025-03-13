@@ -502,7 +502,7 @@ comp_perf_func<-function(dat_m,dat_apply_reg=NULL)
   # Use HAC  
   t_HAC<-summary(lm_obj)$coef[1+1:(ncol(dat_m)-1),1]/sd_HAC[2:length(sd)]
   # p-value: take minimum  
-  min_t_ols<-min(2*pt(t_HAC, nrow(dat_m)-ncol(dat_m), lower=FALSE))
+  min_t_ols<-min(pt(t_HAC, nrow(dat_m)-ncol(dat_m), lower=FALSE))
   mat_all<-c(sqrt(mean(res^2))/sd(dat_m[,1]),min_t_ols)
   
   

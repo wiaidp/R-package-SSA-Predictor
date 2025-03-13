@@ -126,7 +126,7 @@ q<-0
 ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
 # Forecast horizons: M-SSA is optimized for each forecast horizon in h_vec 
-h_vec<-c(0,1,2,3,4,6)
+h_vec<-0:6
 # Forecast excesses: see tutorial 7.1 for background
 f_excess<-c(4,2)
 
@@ -157,7 +157,7 @@ cor_mat_HP_BIP
 
 # Let's visualize these correlations by plotting target against predictor
 # Select a forward-shift of target (the k-th entry in h_vec)
-k<-4
+k<-5
 if (k>length(h_vec))
 {
   print(paste("k should be smaller equal ",length(h_vec),sep=""))
@@ -362,7 +362,13 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat)
   }
   # Compute out-of-sample prediction errors
   epsilon_oos<-dat[,1]-cal_oos_pred
-  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos))
+  lm_oos<-lm(dat[,1]~cal_oos_pred)
+  summary(lm_oos)
+  sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
+  t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
+  p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
+
+  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value))
 }
 
 # Select indicators for direct predictor
@@ -370,7 +376,7 @@ select_direct_indicator<-c("ifo_c","ESI")
 # select_direct_indicator<-select_vec_multi
 
 # Specify forward-shift of target (BIP)
-rRMSE_mssa_mean<-rRMSE_mssa_direct<-rRMSE_direct_mean<-matrix(ncol=length(h_vec),nrow=length(h_vec))
+p_value_mssa<-rRMSE_mssa_mean<-rRMSE_mssa_direct<-rRMSE_direct_mean<-matrix(ncol=length(h_vec),nrow=length(h_vec))
 
 for (i in 1:length(h_vec))
 {
@@ -391,10 +397,14 @@ for (i in 1:length(h_vec))
     
     # Compute out-of-sample calibrated predictor
     oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
+    
     # Calibrated M-SSA Predictor    
     oos_mssa_pred<-oos_pred_obj$cal_oos_pred
     # Out of sample forecast error of calibrated predictor    
     epsilon_oos_msa=oos_pred_obj$epsilon_oos
+# HAC adjusted p-value of regression of regression of out-of-sample predictor on target    
+    p_value=oos_pred_obj$p_value
+    p_value_mssa[j,i]<-p_value
     
     # Add NA's at start to match full length
     oos_mssa_pred<-c(rep(NA,nrow(data)-length(oos_mssa_pred)),oos_mssa_pred)
@@ -449,14 +459,16 @@ for (i in 1:length(h_vec))
     rRMSE_mssa_mean[j,i]<-RMSE[paste("MSSA, h=",h_vec[i],sep="")]/RMSE["Mean"]
     rRMSE_mssa_direct[j,i]<-RMSE[paste("MSSA, h=",h_vec[i],sep="")]/RMSE["Direct"]
     rRMSE_direct_mean[j,i]<-RMSE["Direct"]/RMSE["Mean"]
+    
   }
 }
-colnames(rRMSE_mssa_mean)<-colnames(rRMSE_mssa_direct)<-colnames(rRMSE_direct_mean)<-paste("h=",h_vec,sep="")
-rownames(rRMSE_mssa_mean)<-rownames(rRMSE_mssa_direct)<-rownames(rRMSE_direct_mean)<-paste("Shift=",h_vec,sep="")
+colnames(rRMSE_mssa_mean)<-colnames(rRMSE_mssa_direct)<-colnames(rRMSE_direct_mean)<-colnames(p_value_mssa)<-paste("h=",h_vec,sep="")
+rownames(rRMSE_mssa_mean)<-rownames(rRMSE_mssa_direct)<-rownames(rRMSE_direct_mean)<-rownames(p_value_mssa)<-paste("Shift=",h_vec,sep="")
 
 rRMSE_mssa_mean
 rRMSE_mssa_direct
 rRMSE_direct_mean
+p_value_mssa
 
 
 
