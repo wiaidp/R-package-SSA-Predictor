@@ -299,106 +299,8 @@ BIP_target_mat=mssa_indicator_obj$BIP_target_mat
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 indicator_mat<-mssa_indicator_obj$indicator_mat
 
-# Look at correlations between M-SSA predictors and forward-shifted BIP (including the publication lag)
-#   -We see that for increasing forward-shift (from top to bottom) the predictors optimized for 
-#     larger forecast horizons (from left to right) tend to perform better
-# Note: in contrast to the previous lambda_HP=160 setting, we here emphasize BIP (not HP-BIP)
-cor_mat_BIP
-# In contrast to the previous setting lambda_HP=160, the new adaptive design based on lambda_HP=16  also leads to 
-#   statistically significant predictors (with respect to BIP, not HP-BIP)
-p_value_HAC_mat_BIP
-# Findings: the more adaptive design based on lambda_HP=16 seems to be able to track future BIP better
-
-
-# Let's visualize these correlations by plotting target against predictor
-# Select a forward-shift of target (the k-th entry in h_vec)
-k<-4
-if (k>length(h_vec))
-{
-  print(paste("k should be smaller equal ",length(h_vec),sep=""))
-  k<-length(h_vec)
-}  
-# Forward shift of target in quarters
-h_vec[k]
-# Select a M-SSA predictor: optimized for forecast horizon h_vec[j]
-j<-k
-if (j>length(h_vec))
-{
-  print(paste("j should be smaller equal ",length(h_vec),sep=""))
-  j<-length(h_vec)
-}  
-# Plot targets (forward-shifted BIP and HP-BIP) and predictor
-par(mfrow=c(1,1))
-# Scale the data for better visual interpretation of effect of excess forecast on M-SSA (red) vs. previous M-SSA (blue)
-mplot<-scale(cbind(BIP_target_mat[,k],target_shifted_mat[,k],indicator_mat[,j]))
-rownames(mplot)<-rownames(x_mat)
-colnames(mplot)<-c(paste("BIP left-shifted by ",h_vec[k]," quarters",sep=""),paste("HP-BIP left-shifted by ",h_vec[k]," quarters",sep=""),paste("M-SSA predictor optimized for h=",h_vec[j],sep=""))
-colo<-c("black","violet","blue")
-main_title<-"Standardized forward-shifted BIP and HP-BIP vs. M-SSA predictor"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(x_mat)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
-}
-abline(h=0)
-abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
-axis(2)
-box()
-
-# Target correlations with respect to forward-shifted BIP are now improved
-cor_mat_HP_BIP[k,j]
-cor_mat_BIP[k,j]
-# We find statistical significance when targeting forward-shifted BIP
-p_value_HAC_mat_HP_BIP[k,j]
-p_value_HAC_mat_BIP[k,j]
-
-
-
-# We might ask why the t-test suggests weaker significance while the correlation is larger for HP-BIP
-# Let's have a look at the HAC-adjustment for autocorrelation and heteroscedasticity of regression residuals
-# Consider HP-BIP and M-SSA predictor
-mplot<-scale(cbind(target_shifted_mat[,k],indicator_mat[,j]))
-# Correlation: quite large (at least for a one-year ahead forecast)
-cor(na.exclude(mplot))
-# Regress M-SSA on HP-BIP  
-lm_obj<-lm(mplot[,1]~mplot[,2])
-# OLS statistics: strongly significant (in accordance with large correlation)
-summary(lm_obj)
-# We can replicate the OLS t-statistics as follows
-sd<-sqrt(diag(vcov(lm_obj)))
-sd
-lm_obj$coef/sd
-# We can now compare to HAC adjustment
-# This is the HAC adjusted standard error: it is nearly twice as large as the OLS estimate above  
-sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
-sd_HAC
-# The HAC-adjusted t-statistics is then nearly one half in size (compared to OLS) 
-t_HAC<-lm_obj$coef/sd_HAC
-t_HAC
-# Accordingly, the p-values are larger
-p_value<-2*pt(t_HAC, len-length(select_vec_multi), lower=FALSE)
-p_value 
-# So the HAC-adjustment leads to weaker statistical significance despite stronger correlation when targeting HP-BIP 
-
-
-#############################################################################################
-# The above performance measures (rRMSE, p-values) are full-sample results: they mix in-sample and out-of-sample
-# The following function computes truly out-of-sample evaluations
-#   -Direct predictors are computed based on a rolling-window regressions, forecasting the 
-#     forward-shifted target (either HP-BIP or BIP) based on data available at each time point
-#   -M-SSA predictors are originally standardized. For computing the evaluation metrics we also 
-#     rely on rolling-window regressions of M-SSA on the forward-shifted target based on data available at each time point 
-# rRMSE is based on the ratio of the mean-square out-of-sample prediction errors of a predictor against a benchmark
-#   -For M-SSA the benchmarks are mean(BIP) and the direct predictor
-
-# For the direct predictor we can specify the macro-indicators in the rolling-window regressions
-#   -Too complex designs lead to overfitting and thus worse out-of-sample performances
-select_direct_indicator<-c("ifo_c","ESI")
-# Specify BIP or HP-BIP target: BIP_target<-T means that we target forward-shifted BIP
-#   -We here attempt to address the above question, namely whether mote adaptive designs (lambda_HP=16) $
+# Evaluate performances of the more adaptive design out-of-sample when targeting forward-shifted BIP
+#   -We here attempt to address the above question, namely whether mote adaptive designs (lambda_HP=16) 
 #     are able to forecast BIP `better', given the noisy dynamics of the series
 BIP_target<-T
 
@@ -409,7 +311,7 @@ rRMSE_mssa_direct_BIP=oos_perf_obj$rRMSE_mssa_direct
 rRMSE_direct_mean_BIP=oos_perf_obj$rRMSE_direct_mean
 HAC_p_value_mssa_BIP=oos_perf_obj$HAC_p_value_mssa
 
-# In contrast to the case lambda_HP=160 (fairly adaptive filter), the following HAC-adjusted p-values for 
+# In contrast to the former case lambda_HP=160 (fairly adaptive filter), the following HAC-adjusted p-values for 
 #   lambda_HP=16 (more adaptive) reveal a less-cluttered, more systematic pattern in the sense that 
 #   smaller p-values tend to be located close to or on the main diagonal
 HAC_p_value_mssa_BIP
@@ -419,20 +321,22 @@ HAC_p_value_mssa_BIP
 
 #---------------------------------------------
 # Findings overall
-# -Too smooth (insufficiently flexible) designs (lambda_HP=1600) do smooth relevant dynamics in a short- to mid-term forecast exercise
-# -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent pattern. 
+# -Classic business-cycle designs  (lambda_HP=1600) smooth out recessions and hide  
+#   dynamics relevant in a short- to mid-term forecast exercise (1-6 quarters ahead)
+# -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent forecast pattern. 
 #     suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
 #   -This result suggest that M-SSA is also informative about forward-shifted BIP, although corresponding 
-#     performance statistics are less conclusive
-# -More adaptive designs (lambda_HP=16) seem to be able to track forward-shifted BIP more consistently, 
-#   by allowing the trend-component to provide more overlap with mid- and high-frequency components of BIP
+#     performance statistics are less conclusive (due to noise)
+# -More adaptive designs (lambda_HP=16) seem to be able to track forward-shifted BIP (more) consistently, 
+#   by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
+#   components of BIP
 
 
 ##############################################################################################
 
 # The following is older code 
 #   -Bad: it is providing full-sample results, mixing in-sample and out-of-sample performances
-#   -Good: it computes Diebold Mariano and Giacomini White tests for unequal predictive ability
+#   -Good: it computes additional Diebold Mariano and Giacomini White tests for unequal predictive ability
 # To do: export DM and GW tests to the previous out-of-sample performance function...
 if (F)
 {
