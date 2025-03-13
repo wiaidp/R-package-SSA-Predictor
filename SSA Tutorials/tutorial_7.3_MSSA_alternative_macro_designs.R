@@ -398,22 +398,24 @@ p_value
 #   -Too complex designs lead to overfitting and thus worse out-of-sample performances
 select_direct_indicator<-c("ifo_c","ESI")
 # Specify BIP or HP-BIP target: BIP_target<-T means that we target forward-shifted BIP
+#   -We here attempt to address the above question, namely whether mote adaptive designs (lambda_HP=16) $
+#     are able to forecast BIP `better', given the noisy dynamics of the series
 BIP_target<-T
 
 oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat)
-  
   
 rRMSE_mssa_mean_BIP=oos_perf_obj$rRMSE_mssa_mean
 rRMSE_mssa_direct_BIP=oos_perf_obj$rRMSE_mssa_direct
 rRMSE_direct_mean_BIP=oos_perf_obj$rRMSE_direct_mean
 HAC_p_value_mssa_BIP=oos_perf_obj$HAC_p_value_mssa
 
-rRMSE_mssa_mean_BIP
-# The HAC-adjusted p-values (HAC from R-package sandwich) do not always display a 
-#   (logically/intuitively) consistent pattern: strange realizations for shift=1, h=5 or shift=6, h=5
-# Nevertheless, we find a less-cluttered pattern (than for lambda_HP=160) in the sense that 
+# In contrast to the case lambda_HP=160 (fairly adaptive filter), the following HAC-adjusted p-values for 
+#   lambda_HP=16 (more adaptive) reveal a less-cluttered, more systematic pattern in the sense that 
 #   smaller p-values tend to be located close to or on the main diagonal
 HAC_p_value_mssa_BIP
+# Note: the above HAC-adjusted p-values (HAC from R-package sandwich) do not always display a 
+#   (logically/intuitively) consistent pattern: strange realizations for shift=1, h=5 or shift=6, h=5
+
 
 #---------------------------------------------
 # Findings overall
