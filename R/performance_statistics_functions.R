@@ -55,6 +55,14 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat)
 
 
 
+
+
+
+
+
+
+
+
 oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
 {
   # Initialize all matrices  
@@ -86,6 +94,7 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
         # Remove NAs since otherwise lm (regression) breaks down
         dat<-na.exclude(cbind(target_shifted_mat[,j],indicator_mat[,i]))
       }
+      nrow(dat)
       # Compute out-of-sample calibrated predictor
       oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
       
@@ -103,7 +112,6 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
       oos_mssa_pred<-c(rep(NA,nrow(data)-length(oos_mssa_pred)),oos_mssa_pred)
       epsilon_oos_msa<-c(rep(NA,nrow(data)-length(epsilon_oos_msa)),epsilon_oos_msa)
       
-#-------------------------
       # 2. Same as above but for direct forecast
       # Select indicators
       if (BIP_target)
@@ -127,11 +135,12 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
       oos_direct_pred<-c(rep(NA,nrow(data)-length(oos_direct_pred)),oos_direct_pred)
       epsilon_oos_direct<-c(rep(NA,nrow(data)-length(epsilon_oos_direct)),epsilon_oos_direct)
       
-#-----------------------------      
+      
       # 3. Mean benchmark
+      # We could use something like     
+      cumsum(data[,1])/1:nrow(data)
       if (BIP_target)
       {
-        # We could use something like cumsum(data[,1])/1:nrow(data)
         # But for consistency we use the same function as above, adding a column of ones for the explanatory variable in this case     
         dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],rep(1,nrow(data)-shift-lag_vec[1])))
       } else
@@ -147,7 +156,7 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
       oos_mean_pred<-oos_pred_obj$cal_oos_pred
       epsilon_oos_mean<-oos_pred_obj$epsilon_oos
       # Add NA's at start to match full length
-      oos_mean_pred<-c(rep(NA,nrow(data)-length(oos_direct_pred)),oos_mean_pred)
+      oos_mean_pred<-c(rep(NA,nrow(data)-length(oos_mean_pred)),oos_mean_pred)
       epsilon_oos_mean<-c(rep(NA,nrow(data)-length(epsilon_oos_mean)),epsilon_oos_mean)
       
       # Bind all out-of-sample errors together    
@@ -166,17 +175,58 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
       rRMSE_mssa_mean[j,i]<-RMSE[paste("MSSA, h=",h_vec[i],sep="")]/RMSE["Mean"]
       rRMSE_mssa_direct[j,i]<-RMSE[paste("MSSA, h=",h_vec[i],sep="")]/RMSE["Direct"]
       rRMSE_direct_mean[j,i]<-RMSE["Direct"]/RMSE["Mean"]
+      if (T)
+      {
+
+        # Estimator of variance   
+        method_vec<-c("HAC","NeweyWest","Andrews","LumleyHeagerty")
+        method = method_vec[1]
+        if (BIP_target)
+        {
+          target<-c(rep(NA,shift+lag_vec[1]),data[(shift+1+lag_vec[1]):nrow(data),2])
+        } else
+        {
+          target<-target_shifted_mat[,j]
+        }
+        test_mat<-na.exclude(cbind(target,oos_mean_pred,oos_mssa_pred))
+        # 2. Diebold Mariano    
+        loss.type="SE" 
+        # One-sided tests (of course specification of alternative is just opposite... )    
+        H1<-"more"
+        # c=T in call means finite/small sample correction
+        dm_obj<-DM.test(f1=test_mat[,3],f2=test_mat[,2],y=test_mat[,1],loss=loss.type,h=shift,c=T,H1=H1)
+        
+        dm_mat[j,i]<-dm_obj$p.value
+        
+        summary(lm(test_mat[,1]~test_mat[,2]))
+        summary(lm(test_mat[,1]~test_mat[,3]))
+        ts.plot(test_mat,col=c("black","red","blue"))
+        
+        alternative<-"less"
+        method = "HAC"
+        tau<-shift
+        
+        gw_obj<-gw.test(x = test_mat[,3], y = test_mat[,2], p =test_mat[,1], method = method, alternative = alternative)
+        gw_mat[j,i]<-gw_obj$p.value
+        
+        
+      }
       
     }
   }
   colnames(rRMSE_mssa_mean)<-colnames(rRMSE_mssa_direct)<-colnames(rRMSE_direct_mean)<-colnames(p_value_mssa)<-colnames(HAC_p_value_mssa)<-paste("h=",h_vec,sep="")
   rownames(rRMSE_mssa_mean)<-rownames(rRMSE_mssa_direct)<-rownames(rRMSE_direct_mean)<-rownames(p_value_mssa)<-rownames(HAC_p_value_mssa)<-paste("Shift=",h_vec,sep="")
-# Since direct forecasts do not depend on h all columns are identical: we then just keep the first
+  # Since direct forecasts do not depend on h all columns are identical: we then just keep the first
   rRMSE_direct_mean<-matrix(rRMSE_direct_mean[,1],ncol=1)
   rownames(rRMSE_direct_mean)<-rownames(rRMSE_mssa_mean)
   colnames(rRMSE_direct_mean)<-"rRMSE Direct"
-  return(list(rRMSE_mssa_mean=rRMSE_mssa_mean,rRMSE_mssa_direct=rRMSE_mssa_direct,rRMSE_direct_mean=rRMSE_direct_mean,p_value_mssa=p_value_mssa,HAC_p_value_mssa=HAC_p_value_mssa,eps_mat_oos=eps_mat_oos))
+  return(list(rRMSE_mssa_mean=rRMSE_mssa_mean,rRMSE_mssa_direct=rRMSE_mssa_direct,rRMSE_direct_mean=rRMSE_direct_mean,p_value_mssa=p_value_mssa,HAC_p_value_mssa=HAC_p_value_mssa,dm_mat=dm_mat,gw_mat=gw_mat))
 }
+
+
+
+
+
 
 
 
