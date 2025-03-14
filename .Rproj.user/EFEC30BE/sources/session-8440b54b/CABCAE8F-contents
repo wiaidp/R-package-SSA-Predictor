@@ -247,7 +247,7 @@ rRMSE_direct_mean_HP_BIP=oos_perf_obj$rRMSE_direct_mean
 # HAC adjusted p-values of regressions of out-of-sample M-SSA on target (forward-shifted HP-BIP)
 HAC_p_value_mssa_HP_BIP=oos_perf_obj$HAC_p_value_mssa
 
-# Prototypical: not fully checked yet 
+# Prototypical: not checked yet 
 gw_mat<-oos_perf_obj$gw_mat
 dm_mat<-oos_perf_obj$dm_mat
 

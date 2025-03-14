@@ -36,6 +36,8 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat)
   epsilon_oos<-dat[,1]-cal_oos_pred
 # And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
   lm_oos<-lm(dat[,1]~cal_oos_pred)
+  ts.plot(cbind(dat[,1],cal_oos_pred))
+  summary(lm_oos)
   sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
   t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
   HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
@@ -69,56 +71,61 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
     for (j in 1:length(h_vec))#j<-7
     {
       shift<-h_vec[j]
-      # 1. Compute out-of-sample performances for MSSA
-      # Select forecast horizon for which M-SSA has been optimized: i-th column of indicator_mat
+# 1. Compute out-of-sample performances for MSSA
+# Select forecast horizon for which M-SSA has been optimized: i-th column of indicator_mat
       h_vec[i]
       if (BIP_target)
       {
-        # For the target we can use either 
-        #   -data[(lag_vec[1]+shift+1):nrow(data),2]: this is the second column of data, i.e. BIP aligned at sample end
-        #   -or data[(shift+1):nrow(data),1]: this is the first column of data, i.e., BIP up-shifted by lag_vec[1]
+# For the target we can use either 
+#   -data[(lag_vec[1]+shift+1):nrow(data),2]: this is the second column of data, i.e. BIP aligned at sample end
+#   -or data[(shift+1):nrow(data),1]: this is the first column of data, i.e., BIP up-shifted by lag_vec[1]
         dat<-na.exclude(cbind(data[(shift+1):nrow(data),1],indicator_mat[1:(nrow(data)-shift),i]))
-        # The same as      
+# The same as      
         dat<-na.exclude(cbind(data[(lag_vec[1]+shift+1):nrow(data),2],indicator_mat[1:(nrow(data)-shift-lag_vec[1]),i]))
       } else
       {
-        # Compute matrix with forward-shifted HP-BIP and M-SSA indicator
-        # We do not need to shift the series explicitly since the i-th column target_shifted_mat[,i] is already shifted
-        # Remove NAs since otherwise lm (regression) breaks down
+# Compute matrix with forward-shifted HP-BIP and M-SSA indicator
+# We do not need to shift the series explicitly since the i-th column target_shifted_mat[,i] is already shifted
+# Remove NAs since otherwise lm (regression) breaks down
         dat<-na.exclude(cbind(target_shifted_mat[,j],indicator_mat[,i]))
       }
       nrow(dat)
-      # Compute out-of-sample calibrated predictor
+# Compute out-of-sample calibrated predictor
       oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
       
-      # Calibrated M-SSA Predictor    
+# Calibrated M-SSA Predictor    
       oos_mssa_pred<-oos_pred_obj$cal_oos_pred
-      # Out of sample forecast error of calibrated predictor    
+# Out of sample forecast error of calibrated predictor    
       epsilon_oos_msa=oos_pred_obj$epsilon_oos
-      # HAC adjusted p-value of regression of regression of out-of-sample predictor on target    
+# HAC adjusted p-value of regression of regression of out-of-sample predictor on target    
       HAC_p_value=oos_pred_obj$HAC_p_value
       HAC_p_value_mssa[j,i]<-HAC_p_value
       p_value=oos_pred_obj$p_value
       p_value_mssa[j,i]<-p_value
       
-      # Add NA's at start to match full length
+# Add NA's at start to match full length
       oos_mssa_pred<-c(rep(NA,nrow(data)-length(oos_mssa_pred)),oos_mssa_pred)
       epsilon_oos_msa<-c(rep(NA,nrow(data)-length(epsilon_oos_msa)),epsilon_oos_msa)
       
-      # 2. Same as above but for direct forecast
-      # Select indicators
+#-------------------------------      
+# 2. Same as above but for direct forecast
+# Select indicators
       if (BIP_target)
       {
-        # Compute matrix with forward-shifted BIP and macro-indicators
-        # Remove NAs since otherwise lm breaks down
-        dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],data[1:(nrow(data)-shift-lag_vec[1]),select_direct_indicator]))
+# Compute matrix with forward-shifted BIP and macro-indicators
+# Remove NAs since otherwise lm breaks down
+# We also add M-SSA in last column to obtain the same time span after removing NAs
+        dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],data[1:(nrow(data)-shift-lag_vec[1]),select_direct_indicator],indicator_mat[1:(nrow(data)-shift-lag_vec[1]),j]))
       } else
       {
-        # Compute matrix with forward-shifted HP-BIP and macro-indicators
-        # We do not need to shift the series explicitly since the i-th column target_shifted_mat[,i] is already shifted
-        dat<-na.exclude(cbind(target_shifted_mat[,j],data[,select_direct_indicator]))
-        
+# Compute matrix with forward-shifted HP-BIP and macro-indicators
+# We do not need to shift the series explicitly since the i-th column target_shifted_mat[,i] is already shifted
+# We also add M-SSA in last column to obtain the same time span after removing NAs
+        dat<-na.exclude(cbind(target_shifted_mat[,j],data[,select_direct_indicator],indicator_mat[,i]))
       }
+# We now remove M-SSA in last column: M-SSA was just used to ensure that the samples are comparable after removal of NAs
+      dat<-dat[,-ncol(dat)]
+      nrow(dat)
       # Compute out-of-sample calibrated predictor
       oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
       
@@ -128,21 +135,25 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
       oos_direct_pred<-c(rep(NA,nrow(data)-length(oos_direct_pred)),oos_direct_pred)
       epsilon_oos_direct<-c(rep(NA,nrow(data)-length(epsilon_oos_direct)),epsilon_oos_direct)
       
-      
-      # 3. Mean benchmark
-      # We could use something like     
+#---------------------------      
+# 3. Samer but mean benchmark (the latter is based on expanding window)
+# We could use something like     
       cumsum(data[,1])/1:nrow(data)
       if (BIP_target)
       {
-        # But for consistency we use the same function as above, adding a column of ones for the explanatory variable in this case     
-        dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],rep(1,nrow(data)-shift-lag_vec[1])))
+# For consistency we use the same function as above, adding a column of ones for the explanatory variable in this case     
+# We also add M-SSA in last column in order to have the same data span after removing NAs        
+        dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],rep(1,nrow(data)-shift-lag_vec[1]),indicator_mat[(shift+1+lag_vec[1]):nrow(data),j]))
       } else
       {
-        # Compute matrix with forward-shifted HP-BIP and macro-indicators
-        # We do not need to shift the series explicitly since the i-th column target_shifted_mat[,i] is already shifted
-        dat<-na.exclude(cbind(target_shifted_mat[,j],rep(1,nrow(target_shifted_mat))))
+# Compute matrix with forward-shifted HP-BIP and macro-indicators
+# We do not need to shift the series explicitly since the i-th column target_shifted_mat[,i] is already shifted
+# We also add M-SSA in last column in order to have the same data span after removing NAs        
+        dat<-na.exclude(cbind(target_shifted_mat[,j],rep(1,nrow(target_shifted_mat)),indicator_mat[,i]))
       }
-      
+      nrow(dat)
+# Remove M-SSA in last column      
+      dat<-dat[,-ncol(dat)]
       # Compute out-of-sample calibrated predictor
       oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
       
@@ -187,9 +198,10 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
         
         summary(lm(test_mat[,1]~test_mat[,2]))
         summary(lm(test_mat[,1]~test_mat[,3]))
-        ts.plot(test_mat,col=c("black","red","blue"))
         
-        ts.plot(cbind(target_shifted_mat[,1],indicator_mat[,1]))
+        par(mfrow=c(2,1))
+        ts.plot(test_mat,col=c("black","red","blue"))
+        ts.plot(cbind(target_shifted_mat[,j],indicator_mat[,i]))
         
         alternative<-"less"
         method = "HAC"
