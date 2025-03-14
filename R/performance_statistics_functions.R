@@ -11,10 +11,6 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat)
   {
 # Fit model with data up to time point i    
     lm_obj<-lm(dat[1:i,1]~dat[1:i,2:(n+1)])
-    summary(lm_obj)
-    if (sd(lm_obj$res)<0.0000001)
-      return()
-    
 # Compute out-of-sample prediction for i+1
 # Distinguish only one from multiple explanatory variables (R-code different...)    
     if (n==1)
@@ -40,9 +36,6 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat)
   epsilon_oos<-dat[,1]-cal_oos_pred
 # And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
   lm_oos<-lm(dat[,1]~cal_oos_pred)
-  summary(lm_oos)
-  if (sd(lm_oos$res)<0.0000001)
-    return()
   sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
   t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
   HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
@@ -69,11 +62,11 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
   dm_mat<-gw_mat<-HAC_p_value_mssa<-p_value_mssa<-rRMSE_mssa_mean<-rRMSE_mssa_direct<-rRMSE_direct_mean<-matrix(ncol=length(h_vec),nrow=length(h_vec))
   
   # i runs on the forecast horizon for which M-SSA has been optimized    
-  for (i in 1:length(h_vec))#i<-1
+  for (i in 1:length(h_vec))#i<-7
   {
     print(paste("Shift=",h_vec[i]," out of max ",max(h_vec),sep=""))
     # j runs on the forward-shifts of the target BIP    
-    for (j in 1:length(h_vec))#j<-1
+    for (j in 1:length(h_vec))#j<-7
     {
       shift<-h_vec[j]
       # 1. Compute out-of-sample performances for MSSA
@@ -218,6 +211,13 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
   colnames(rRMSE_direct_mean)<-"rRMSE Direct"
   return(list(rRMSE_mssa_mean=rRMSE_mssa_mean,rRMSE_mssa_direct=rRMSE_mssa_direct,rRMSE_direct_mean=rRMSE_direct_mean,p_value_mssa=p_value_mssa,HAC_p_value_mssa=HAC_p_value_mssa,dm_mat=dm_mat,gw_mat=gw_mat))
 }
+
+
+
+
+
+
+
 
 
 
