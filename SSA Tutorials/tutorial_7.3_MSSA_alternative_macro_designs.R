@@ -221,14 +221,14 @@ p_value_HAC_mat_HP_BIP[k,j]
 #-------------------------------------------
 # The above performance measures (rRMSE, p-values) are full-sample results: they mix in-sample and out-of-sample
 # The following function computes truly out-of-sample evaluations
-#   -Direct predictors are computed based on a rolling-window regressions, forecasting the 
+#   -Direct predictors are computed based on a expanding-window regressions, forecasting the 
 #     forward-shifted target (either HP-BIP or BIP) based on data available at each time point
 #   -M-SSA predictors are originally standardized. For computing the evaluation metrics we also 
-#     rely on rolling-window regressions of M-SSA on the forward-shifted target based on data available at each time point 
+#     rely on expanding-window regressions of M-SSA on the forward-shifted target based on data available at each time point 
 # rRMSE is based on the ratio of the mean-square out-of-sample prediction errors of a predictor against a benchmark
 #   -For M-SSA the benchmarks are mean(BIP) and the direct predictor
 
-# For the direct predictor we can specify the macro-indicators in the rolling-window regressions
+# For the direct predictor we can specify the macro-indicators in the expanding-window regressions
 #   -Too complex designs lead to overfitting and thus worse out-of-sample performances
 select_direct_indicator<-c("ifo_c","ESI")
 # Specify BIP or HP-BIP target: BIP_target<-F means that we target forward-shifted HP-BIP

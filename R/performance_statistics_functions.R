@@ -1,38 +1,46 @@
 compute_calibrated_out_of_sample_predictors_func<-function(dat)
 {
   len<-dim(dat)[1]
-  # First column is target, i.e. dimension is ncol-1  
+# First column is target, i.e. dimension is dim(dat)[2]-1
   n<-dim(dat)[2]-1
-  # Compute calibrated out-of-sample predictor  
+# Compute calibrated out-of-sample predictor, based on expanding window
+#   -Use data up i for fitting the regression
+#   -Compute a prediction with explanatory data in i+1
   cal_oos_pred<-rep(NA,len)
   for (i in (n+1):(len-1)) #i<-134
   {
-    # Fit model with data up to time point i    
+# Fit model with data up to time point i    
     lm_obj<-lm(dat[1:i,1]~dat[1:i,2:(n+1)])
-    # Compute out-of-sample prediction for i+1
-    # Only one explanatory variable    
+# Compute out-of-sample prediction for i+1
+# Distinguish only one from multiple explanatory variables (R-code different...)    
     if (n==1)
     {
-      # Second column are ones (mean benchmark)      
+# Explanatory variable is the constant one (mean benchmark)      
       if (abs(sum(dat[,2]-1))<1.e-10)
       {
+# In this case the regression coefficient by lm is NA (redundant column)
+# Therefore we just use lm_obj$coef[1] which is the expanding mean
         cal_oos_pred[i+1]<-lm_obj$coef[1]
       } else
       {
+# Otherwise we use the classic regression prediction        
         cal_oos_pred[i+1]<-lm_obj$coef[1]+lm_obj$coef[2]*dat[i+1,2] 
       } 
     } else
     {
+# Classic regression prediction though we use %*% instead of * above      
       cal_oos_pred[i+1]<-lm_obj$coef[1]+lm_obj$coef[2:(n+1)]%*%dat[i+1,2:(n+1)] 
     }
   }
-  # Compute out-of-sample prediction errors
+# Once the predictors are computed we can obtain the out-of-sample prediction errors
   epsilon_oos<-dat[,1]-cal_oos_pred
+# And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
   lm_oos<-lm(dat[,1]~cal_oos_pred)
   summary(lm_oos)
   sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
   t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
   HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
+# One-sided test: if predictor is effective, then the sign of the coefficient must be positive  
   p_value<-summary(lm_oos)$coef[2,4]
   
   return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value,HAC_p_value=HAC_p_value))
@@ -40,121 +48,93 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat)
 
 
 
-
-
-
-
-
-
-oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat)
+oos_perf_func<-function(h_vec,data,indicator_mat,date_to_fit)
 {
-  # Initialize all matrices  
+# Initialize all matrices  
   HAC_p_value_mssa<-p_value_mssa<-rRMSE_mssa_mean<-rRMSE_mssa_direct<-rRMSE_direct_mean<-matrix(ncol=length(h_vec),nrow=length(h_vec))
   
-  # i runs on the forecast horizon for which M-SSA has been optimized    
-  for (i in 1:length(h_vec))#i<-7
+# i runs on the forecast horizon for which M-SSA has been optimized    
+  for (i in 1:length(h_vec))#i<-6
   {
     print(paste("Shift=",h_vec[i]," out of max ",max(h_vec),sep=""))
-    # j runs on the forward-shifts of the target BIP    
-    for (j in 1:length(h_vec))#j<-1
+# j runs on the forward-shifts of the target BIP    
+    for (j in 1:length(h_vec))
     {
       shift<-h_vec[j]
-      # 1. Compute out-of-sample performances for MSSA
-      # Select forecast horizon for which M-SSA has been optimized: i-th column of indicator_mat
+# 1. Compute out-of-sample performances for MSSA
+# Select forecast horizon for which M-SSA has been optimized: i-th column of indicator_mat
       h_vec[i]
-      if (BIP_target)
-      {
-      # For the target we can use either 
-      #   -data[(lag_vec[1]+shift+1):nrow(data),2]: this is the second column of data, i.e. BIP aligned at sample end
-      #   -or data[(shift+1):nrow(data),1]: this is the first column of data, i.e., BIP up-shifted by lag_vec[1]
-          dat<-na.exclude(cbind(data[(shift+1):nrow(data),1],indicator_mat[1:(nrow(data)-shift),i]))
-      # The same as      
-          dat<-na.exclude(cbind(data[(lag_vec[1]+shift+1):nrow(data),2],indicator_mat[1:(nrow(data)-shift-lag_vec[1]),i]))
-      } else
-      {
-      # Compute matrix with forward-shifted HP-BIP and M-SSA indicator
-      # We do not need to shift the series explicitly since the i-th column target_shifted_mat[,i] is already shifted
-      # Remove NAs since otherwise lm (regression) breaks down
-        dat<-na.exclude(cbind(target_shifted_mat[,j],indicator_mat[,i]))
-      }
-      # Compute out-of-sample calibrated predictor
+# Compute matrix with forward-shifted BIP and M-SSA indicator
+# Remove NAs since otherwise lm (regression) breaks down
+# For the target we can use either 
+#   -data[(lag_vec[1]+shift+1):nrow(data),2]: this is the second column of data, i.e. BIP aligned at sample end
+#   -or data[(shift+1):nrow(data),1]: this is the first column of data, i.e., BIP up-shifted by lag_vec[1]
+      dat<-na.exclude(cbind(data[(shift+1):nrow(data),1],indicator_mat[1:(nrow(data)-shift),i]))
+      
+# Compute out-of-sample calibrated predictor
       oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
       
-      # Calibrated M-SSA Predictor    
+# Calibrated M-SSA Predictor    
       oos_mssa_pred<-oos_pred_obj$cal_oos_pred
-      # Out of sample forecast error of calibrated predictor    
+# Out of sample forecast error of calibrated predictor    
       epsilon_oos_msa=oos_pred_obj$epsilon_oos
-      # HAC adjusted p-value of regression of regression of out-of-sample predictor on target    
+# HAC adjusted p-value of regression of regression of out-of-sample predictor on target    
       HAC_p_value=oos_pred_obj$HAC_p_value
       HAC_p_value_mssa[j,i]<-HAC_p_value
       p_value=oos_pred_obj$p_value
       p_value_mssa[j,i]<-p_value
       
-      # Add NA's at start to match full length
+# Add NA's at start to match full length
       oos_mssa_pred<-c(rep(NA,nrow(data)-length(oos_mssa_pred)),oos_mssa_pred)
       epsilon_oos_msa<-c(rep(NA,nrow(data)-length(epsilon_oos_msa)),epsilon_oos_msa)
 
-      # 2. Same as above but for direct forecast
-      # Select indicators
+#----------------------------------      
+# 2. Same as above but for direct forecast
+# Select indicators
       select_direct_indicator<-select_direct_indicator
-      if (BIP_target)
-      {
-        # Compute matrix with forward-shifted BIP and macro-indicators
-        # Remove NAs since otherwise lm breaks down
-        dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],data[1:(nrow(data)-shift-lag_vec[1]),select_direct_indicator]))
-      } else
-      {
-        # Compute matrix with forward-shifted HP-BIP and macro-indicators
-        # We do not need to shift the series explicitly since the i-th column target_shifted_mat[,i] is already shifted
-        dat<-na.exclude(cbind(target_shifted_mat[,j],data[,select_direct_indicator]))
-        
-      }
-      # Compute out-of-sample calibrated predictor
+      
+# Compute matrix with forward-shifted BIP and M-SSA indicator
+# Remove NAs since otherwise lm breaks down
+      dat<-na.exclude(cbind(data[(shift+1):nrow(data),1],data[1:(nrow(data)-shift),select_direct_indicator]))
+      
+# Compute out-of-sample calibrated predictor
       oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
       
       oos_direct_pred<-oos_pred_obj$cal_oos_pred
       epsilon_oos_direct<-oos_pred_obj$epsilon_oos
-      # Add NA's at start to match full length
+# Add NA's at start to match full length
       oos_direct_pred<-c(rep(NA,nrow(data)-length(oos_direct_pred)),oos_direct_pred)
       epsilon_oos_direct<-c(rep(NA,nrow(data)-length(epsilon_oos_direct)),epsilon_oos_direct)
       
-      
-      # 3. Mean benchmark
-      # We could use something like     
+#--------------------------      
+# 3. Mean benchmark
+# We could use something like     
       cumsum(data[,1])/1:nrow(data)
-      if (BIP_target)
-      {
-        # But for consistency we use the same function as above, adding a column of ones for the explanatory variable in this case     
-        dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],rep(1,nrow(data)-shift-lag_vec[1])))
-      } else
-      {
-        # Compute matrix with forward-shifted HP-BIP and macro-indicators
-        # We do not need to shift the series explicitly since the i-th column target_shifted_mat[,i] is already shifted
-        dat<-na.exclude(cbind(target_shifted_mat[,j],rep(1,nrow(target_shifted_mat))))
-      }
+# But for consistency we use the same function as above, adding a column of ones for the explanatory variable in this case     
+      dat<-na.exclude(cbind(data[(shift+1):nrow(data),1],rep(1,nrow(data)-shift)))
       
-      # Compute out-of-sample calibrated predictor
+# Compute out-of-sample calibrated predictor
       oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
       
       oos_mean_pred<-oos_pred_obj$cal_oos_pred
       epsilon_oos_mean<-oos_pred_obj$epsilon_oos
-      # Add NA's at start to match full length
+# Add NA's at start to match full length
       oos_mean_pred<-c(rep(NA,nrow(data)-length(oos_direct_pred)),oos_mean_pred)
       epsilon_oos_mean<-c(rep(NA,nrow(data)-length(epsilon_oos_mean)),epsilon_oos_mean)
       
-      # Bind all out-of-sample errors together    
+# Bind all out-of-sample errors together    
       eps_mat<-cbind(epsilon_oos_mean,epsilon_oos_direct,epsilon_oos_msa)
       colnames(eps_mat)<-c("Mean","Direct",paste("MSSA, h=",h_vec[i],sep=""))
       rownames(eps_mat)<-rownames(data)
       
-      # Select out-of-sample span of M-SSA
+# Select out-of-sample span of M-SSA and apply this span to all computed predictors
       eps_mat_oos<-eps_mat[which(rownames(eps_mat)>date_to_fit),]
-      # One could also remove Pandemic    
-      #      eps_mat_oos<-eps_mat[which(rownames(eps_mat)>date_to_fit&rownames(eps_mat)<2019),]
+# One could also remove Pandemic    
+#      eps_mat_oos<-eps_mat[which(rownames(eps_mat)>date_to_fit&rownames(eps_mat)<2019),]
       
-      # Compute out-of-sample root mean-square errors        
-      RMSE<-sqrt(apply(na.exclude(eps_mat_oos)^2,2,mean))
-      # Compute relative root mean-square errors        
+# Compute out-of-sample root mean-square errors        
+      RMSE<-sqrt(apply(eps_mat_oos^2,2,mean))
+# Compute relative root mean-square errors        
       rRMSE_mssa_mean[j,i]<-RMSE[paste("MSSA, h=",h_vec[i],sep="")]/RMSE["Mean"]
       rRMSE_mssa_direct[j,i]<-RMSE[paste("MSSA, h=",h_vec[i],sep="")]/RMSE["Direct"]
       rRMSE_direct_mean[j,i]<-RMSE["Direct"]/RMSE["Mean"]
@@ -170,108 +150,6 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
 
 ##################################################################################
 # Old code
-
-
-
-oos_perf_func_old<-function(h_vec,data,indicator_mat,date_to_fit,lag_vec)
-{
-  # Initialize all matrices  
-  HAC_p_value_mssa<-p_value_mssa<-rRMSE_mssa_mean<-rRMSE_mssa_direct<-rRMSE_direct_mean<-matrix(ncol=length(h_vec),nrow=length(h_vec))
-  
-  # i runs on the forecast horizon for which M-SSA has been optimized    
-  for (i in 1:length(h_vec))#i<-6
-  {
-    print(paste("Shift=",h_vec[i]," out of max ",max(h_vec),sep=""))
-    # j runs on the forward-shifts of the target BIP    
-    for (j in 1:length(h_vec))#j<-6
-    {
-      shift<-h_vec[j]
-      # 1. Compute out-of-sample performances for MSSA
-      # Select forecast horizon for which M-SSA has been optimized: i-th column of indicator_mat
-      h_vec[i]
-      # Compute matrix with forward-shifted BIP and M-SSA indicator
-      # Remove NAs since otherwise lm (regression) breaks down
-      # For the target we can use either 
-      #   -data[(lag_vec[1]+shift+1):nrow(data),2]: this is the second column of data, i.e. BIP aligned at sample end
-      #   -or data[(shift+1):nrow(data),1]: this is the first column of data, i.e., BIP up-shifted by lag_vec[1]
-      dat<-na.exclude(cbind(data[(shift+1):nrow(data),1],indicator_mat[1:(nrow(data)-shift),i]))
-      # The same as      
-      dat<-na.exclude(cbind(data[(lag_vec[1]+shift+1):nrow(data),2],indicator_mat[1:(nrow(data)-shift-lag_vec[1]),i]))
-      
-      # Compute out-of-sample calibrated predictor
-      oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
-      
-      # Calibrated M-SSA Predictor    
-      oos_mssa_pred<-oos_pred_obj$cal_oos_pred
-      # Out of sample forecast error of calibrated predictor    
-      epsilon_oos_msa=oos_pred_obj$epsilon_oos
-      # HAC adjusted p-value of regression of regression of out-of-sample predictor on target    
-      HAC_p_value=oos_pred_obj$HAC_p_value
-      HAC_p_value_mssa[j,i]<-HAC_p_value
-      p_value=oos_pred_obj$p_value
-      p_value_mssa[j,i]<-p_value
-      
-      # Add NA's at start to match full length
-      oos_mssa_pred<-c(rep(NA,nrow(data)-length(oos_mssa_pred)),oos_mssa_pred)
-      epsilon_oos_msa<-c(rep(NA,nrow(data)-length(epsilon_oos_msa)),epsilon_oos_msa)
-      
-      # 2. Same as above but for direct forecast
-      # Select indicators
-      select_direct_indicator<-select_direct_indicator
-      
-      # Compute matrix with forward-shifted BIP and M-SSA indicator
-      # Remove NAs since otherwise lm breaks down
-      dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],data[1:(nrow(data)-shift-lag_vec[1]),select_direct_indicator]))
-      
-      # Compute out-of-sample calibrated predictor
-      oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
-      
-      oos_direct_pred<-oos_pred_obj$cal_oos_pred
-      epsilon_oos_direct<-oos_pred_obj$epsilon_oos
-      # Add NA's at start to match full length
-      oos_direct_pred<-c(rep(NA,nrow(data)-length(oos_direct_pred)),oos_direct_pred)
-      epsilon_oos_direct<-c(rep(NA,nrow(data)-length(epsilon_oos_direct)),epsilon_oos_direct)
-      
-      
-      # 3. Mean benchmark
-      # We could use something like     
-      cumsum(data[,1])/1:nrow(data)
-      # But for consistency we use the same function as above, adding a column of ones for the explanatory variable in this case     
-      dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],rep(1,nrow(data)-shift-lag_vec[1])))
-      
-      # Compute out-of-sample calibrated predictor
-      oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
-      
-      oos_mean_pred<-oos_pred_obj$cal_oos_pred
-      epsilon_oos_mean<-oos_pred_obj$epsilon_oos
-      # Add NA's at start to match full length
-      oos_mean_pred<-c(rep(NA,nrow(data)-length(oos_direct_pred)),oos_mean_pred)
-      epsilon_oos_mean<-c(rep(NA,nrow(data)-length(epsilon_oos_mean)),epsilon_oos_mean)
-      
-      # Bind all out-of-sample errors together    
-      eps_mat<-cbind(epsilon_oos_mean,epsilon_oos_direct,epsilon_oos_msa)
-      colnames(eps_mat)<-c("Mean","Direct",paste("MSSA, h=",h_vec[i],sep=""))
-      rownames(eps_mat)<-rownames(data)
-      
-      # Select out-of-sample span of M-SSA
-      eps_mat_oos<-eps_mat[which(rownames(eps_mat)>date_to_fit),]
-      # One could also remove Pandemic    
-      #      eps_mat_oos<-eps_mat[which(rownames(eps_mat)>date_to_fit&rownames(eps_mat)<2019),]
-      
-      # Compute out-of-sample root mean-square errors        
-      RMSE<-sqrt(apply(eps_mat_oos^2,2,mean))
-      # Compute relative root mean-square errors        
-      rRMSE_mssa_mean[j,i]<-RMSE[paste("MSSA, h=",h_vec[i],sep="")]/RMSE["Mean"]
-      rRMSE_mssa_direct[j,i]<-RMSE[paste("MSSA, h=",h_vec[i],sep="")]/RMSE["Direct"]
-      rRMSE_direct_mean[j,i]<-RMSE["Direct"]/RMSE["Mean"]
-      
-    }
-  }
-  colnames(rRMSE_mssa_mean)<-colnames(rRMSE_mssa_direct)<-colnames(rRMSE_direct_mean)<-colnames(p_value_mssa)<-colnames(HAC_p_value_mssa)<-paste("h=",h_vec,sep="")
-  rownames(rRMSE_mssa_mean)<-rownames(rRMSE_mssa_direct)<-rownames(rRMSE_direct_mean)<-rownames(p_value_mssa)<-rownames(HAC_p_value_mssa)<-paste("Shift=",h_vec,sep="")
-  return(list(rRMSE_mssa_mean=rRMSE_mssa_mean,rRMSE_mssa_direct=rRMSE_mssa_direct,rRMSE_direct_mean=rRMSE_direct_mean,p_value_mssa=p_value_mssa,HAC_p_value_mssa=HAC_p_value_mssa))
-}
-
 
 # The function returns rMSE, d t-statistics of regressions of predictors on shifted BIP and DM/GW statistics
 #   -tstatistics are based on OLS and GLS (assuming AR(1) process for residuals)
