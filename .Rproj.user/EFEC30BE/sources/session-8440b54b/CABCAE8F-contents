@@ -295,6 +295,10 @@ rRMSE_mssa_mean_BIP=oos_perf_obj$rRMSE_mssa_mean
 rRMSE_mssa_direct_BIP=oos_perf_obj$rRMSE_mssa_direct
 rRMSE_direct_mean_BIP=oos_perf_obj$rRMSE_direct_mean
 HAC_p_value_mssa_BIP=oos_perf_obj$HAC_p_value_mssa
+# Prototypical: not checked yet 
+gw_mat<-oos_perf_obj$gw_mat
+dm_mat<-oos_perf_obj$dm_mat
+
 
 # Results inconclusive: BIP is much noisier
 rRMSE_mssa_mean_BIP
@@ -355,6 +359,10 @@ rRMSE_mssa_mean_BIP=oos_perf_obj$rRMSE_mssa_mean
 rRMSE_mssa_direct_BIP=oos_perf_obj$rRMSE_mssa_direct
 rRMSE_direct_mean_BIP=oos_perf_obj$rRMSE_direct_mean
 HAC_p_value_mssa_BIP=oos_perf_obj$HAC_p_value_mssa
+# Prototypical: not checked yet 
+gw_mat<-oos_perf_obj$gw_mat
+dm_mat<-oos_perf_obj$dm_mat
+
 
 # In contrast to the former case lambda_HP=160 (less adaptive), the following HAC-adjusted p-values for 
 #       lambda_HP=16 reveal a less-cluttered, more systematic pattern: 
