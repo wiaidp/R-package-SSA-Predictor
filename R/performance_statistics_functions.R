@@ -202,6 +202,8 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
         summary(lm(test_mat[,1]~test_mat[,3]))
         ts.plot(test_mat,col=c("black","red","blue"))
         
+        ts.plot(cbind(target_shifted_mat[,1],indicator_mat[,1]))
+        
         alternative<-"less"
         method = "HAC"
         tau<-shift
