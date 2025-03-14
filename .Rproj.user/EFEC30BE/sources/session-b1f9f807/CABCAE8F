@@ -3,24 +3,24 @@
     "path": "C:/Users/wlmr/R-package-SSA-Predictor/SSA Tutorials/tutorial_7.3_MSSA_alternative_macro_designs.R",
     "project_path": "SSA Tutorials/tutorial_7.3_MSSA_alternative_macro_designs.R",
     "type": "r_source",
-    "hash": "4085035537",
+    "hash": "0",
     "contents": "",
-    "dirty": false,
+    "dirty": true,
     "created": 1741770616538.0,
     "source_on_save": false,
     "relative_order": 1,
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "245,0",
-        "scrollLine": "225"
+        "cursorPosition": "247,23",
+        "scrollLine": "231"
     },
     "folds": "",
-    "lastKnownWriteTime": 1741953287,
+    "lastKnownWriteTime": 1741966835,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1741953287505,
+    "last_content_update": 1741969083985,
     "read_only": false,
     "read_only_alternatives": []
 }

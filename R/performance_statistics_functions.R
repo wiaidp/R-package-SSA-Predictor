@@ -53,6 +53,35 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat)
 
 
 
+compute_perf_mean_func<-function(dat)
+{
+  len<-dim(dat)[1]
+  # First column is target, i.e. dimension is dim(dat)[2]-1
+  n<-dim(dat)[2]-1
+  # Compute calibrated out-of-sample predictor, based on expanding window
+  #   -Use data up i for fitting the regression
+  #   -Compute a prediction with explanatory data in i+1
+  cal_oos_pred<-dat[,2]
+  # Once the predictors are computed we can obtain the out-of-sample prediction errors
+  epsilon_oos<-dat[,1]-cal_oos_pred
+  # And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
+  lm_oos<-lm(dat[,1]~cal_oos_pred)
+  ts.plot(cbind(dat[,1],cal_oos_pred))
+  summary(lm_oos)
+  sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
+  t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
+  HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
+  # One-sided test: if predictor is effective, then the sign of the coefficient must be positive  
+  p_value<-summary(lm_oos)$coef[2,4]
+  
+  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value,HAC_p_value=HAC_p_value))
+}
+
+
+
+
+
+
 
 
 
@@ -64,11 +93,11 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
   dm_mat<-gw_mat<-HAC_p_value_mssa<-p_value_mssa<-rRMSE_mssa_mean<-rRMSE_mssa_direct<-rRMSE_direct_mean<-matrix(ncol=length(h_vec),nrow=length(h_vec))
   
   # i runs on the forecast horizon for which M-SSA has been optimized    
-  for (i in 1:length(h_vec))#i<-7
+  for (i in 1:length(h_vec))#i<-1
   {
     print(paste("Shift=",h_vec[i]," out of max ",max(h_vec),sep=""))
     # j runs on the forward-shifts of the target BIP    
-    for (j in 1:length(h_vec))#j<-7
+    for (j in 1:length(h_vec))#j<-1
     {
       shift<-h_vec[j]
 # 1. Compute out-of-sample performances for MSSA
@@ -95,6 +124,7 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
       
 # Calibrated M-SSA Predictor    
       oos_mssa_pred<-oos_pred_obj$cal_oos_pred
+
 # Out of sample forecast error of calibrated predictor    
       epsilon_oos_msa=oos_pred_obj$epsilon_oos
 # HAC adjusted p-value of regression of regression of out-of-sample predictor on target    
@@ -136,28 +166,31 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
       epsilon_oos_direct<-c(rep(NA,nrow(data)-length(epsilon_oos_direct)),epsilon_oos_direct)
       
 #---------------------------      
-# 3. Samer but mean benchmark (the latter is based on expanding window)
-# We could use something like     
-      cumsum(data[,1])/1:nrow(data)
+# 3. Same but mean benchmark (the latter is based on expanding window)
+# The mean of BIP based on the expanding window relies on the second column of data:     
+      oos_mean_pred<-cumsum(data[,2])/1:nrow(data)
       if (BIP_target)
       {
 # For consistency we use the same function as above, adding a column of ones for the explanatory variable in this case     
 # We also add M-SSA in last column in order to have the same data span after removing NAs        
-        dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],rep(1,nrow(data)-shift-lag_vec[1]),indicator_mat[(shift+1+lag_vec[1]):nrow(data),j]))
+        dat<-na.exclude(cbind(data[(shift+1+lag_vec[1]):nrow(data),2],oos_mean_pred[(shift+1+lag_vec[1]):nrow(data)],indicator_mat[(shift+1+lag_vec[1]):nrow(data),j]))
       } else
       {
 # Compute matrix with forward-shifted HP-BIP and macro-indicators
 # We do not need to shift the series explicitly since the i-th column target_shifted_mat[,i] is already shifted
 # We also add M-SSA in last column in order to have the same data span after removing NAs        
-        dat<-na.exclude(cbind(target_shifted_mat[,j],rep(1,nrow(target_shifted_mat)),indicator_mat[,i]))
+        dat<-na.exclude(cbind(target_shifted_mat[,j],oos_mean_pred,indicator_mat[,i]))
       }
-      nrow(dat)
 # Remove M-SSA in last column      
       dat<-dat[,-ncol(dat)]
+      ts.plot(dat)
+      
+      oos_pred_obj<-compute_perf_mean_func(dat)
+        
+      
       # Compute out-of-sample calibrated predictor
       oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat)
       
-      oos_mean_pred<-oos_pred_obj$cal_oos_pred
       epsilon_oos_mean<-oos_pred_obj$epsilon_oos
       # Add NA's at start to match full length
       oos_mean_pred<-c(rep(NA,nrow(data)-length(oos_mean_pred)),oos_mean_pred)
@@ -186,6 +219,9 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
         method_vec<-c("HAC","NeweyWest","Andrews","LumleyHeagerty")
         method = method_vec[1]
         target<-c(rep(NA,nrow(data)-length(dat[,1])),dat[,1])
+        length(target)
+        length(oos_mean_pred)
+        length(oos_mssa_pred)
         test_mat<-na.exclude(cbind(target,oos_mean_pred,oos_mssa_pred))
         # 2. Diebold Mariano    
         loss.type="SE" 
@@ -223,7 +259,6 @@ oos_perf_func<-function(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,
   colnames(rRMSE_direct_mean)<-"rRMSE Direct"
   return(list(rRMSE_mssa_mean=rRMSE_mssa_mean,rRMSE_mssa_direct=rRMSE_mssa_direct,rRMSE_direct_mean=rRMSE_direct_mean,p_value_mssa=p_value_mssa,HAC_p_value_mssa=HAC_p_value_mssa,dm_mat=dm_mat,gw_mat=gw_mat))
 }
-
 
 
 
