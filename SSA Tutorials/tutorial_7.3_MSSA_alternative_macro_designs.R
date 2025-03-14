@@ -19,11 +19,10 @@
 # -Forecast performance measures:
 #   -We shall consider forecast performances of M-SSA against forward-shifted HP-BIP and BIP based on
 #     -target correlations: correlations of predictors with forward-shifted BIP or HP-BIP
-#     -rRMSE (on to do list): relative root mean-square error when benchmarked against classic direct predictors or mean(BIP) (simple benchmark)
+#     -rRMSE: relative root mean-square error when benchmarked against classic direct predictors or mean(BIP) (simple benchmark)
 #     -HAC-adjusted p-values of t-statistics of regressions of predictors on target (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
-#     -Diebold-Mariano (DM) and Giacomini-White (GW) tests (on to do list) of unequal predictability (benchmarked against mean(BIP))
 
-# To do: analyze performance of average forecasts (see end of file)
+# To do: provide additional Diebold-Mariano (DM) and Giacomini-White (GW) tests of unequal predictability (benchmarked against mean(BIP))
 
 
 # Start with a clean sheet
@@ -196,19 +195,23 @@ axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4
 axis(2)
 box()
 
-# Sample correlation: this corresponds to cor_mat_BIP computed by our function
+# Sample correlation: 
 cor(na.exclude(mplot))[2,ncol(mplot)]
+# This number corresponds to element (k,j) of the matrix cor_mat_BIP computed by our function
 cor_mat_HP_BIP[k,j]
-# The following two correlations should match exactly
-# However, they differ because by removing NAs (due to inclusion of the two-sided target) we change the sample-size
+
+# We can also look at the correlation of the predictor with the forward-shifted BIP (instead of HP-BIP)
 cor(na.exclude(mplot))[1,3]
+
+# Note: the (k,j) entry of cor_mat_BIP generally differs from cor(na.exclude(mplot))[1,3]
 cor_mat_BIP[k,j]
-# We can easily amend by removing the two-sided target
+# The reason is simple: by removing NAs (due to inclusion of the two-sided target in mplot) we change the sample-size
+# We can easily correct by removing the two-sided target in mplot
 mplot_without_two_sided<-scale(cbind(BIP_target_mat[,k],indicator_mat[,j]))
 # This number now matches cor_mat_BIP[k,j]
 cor(na.exclude(mplot_without_two_sided))[1,2]
 
-# Assume one selects k=j=4 (one-year ahead) in the above plot (you might want to have a look at k=4 and j=5, too):
+# Assume one selects k=j=5 (one-year ahead) in the above plot (you might want to have a look at k=5 and j=7, too):
 # Then the (weak) positive correlation between M-SSA and shifted BIP might suggest a (weak) predictability one year ahead
 #    (including the publication lag) 
 # Is this (weak) effect statistically significant?
@@ -220,22 +223,20 @@ p_value_HAC_mat_HP_BIP[k,j]
 
 #-------------------------------------------
 # The above performance measures (rRMSE, p-values) are full-sample results: they mix in-sample and out-of-sample
-# The following function computes truly out-of-sample evaluations
-#   -Direct predictors are computed based on a expanding-window regressions, forecasting the 
-#     forward-shifted target (either HP-BIP or BIP) based on data available at each time point
+# The following function computes out-of-sample metrics 
+#   -Direct predictors are computed based on expanding-window regressions 
 #   -M-SSA predictors are originally standardized. For computing the evaluation metrics we also 
-#     rely on expanding-window regressions of M-SSA on the forward-shifted target based on data available at each time point 
+#     rely on expanding-window regressions of M-SSA on the forward-shifted target 
 # rRMSE is based on the ratio of the mean-square out-of-sample prediction errors of a predictor against a benchmark
 #   -For M-SSA the benchmarks are mean(BIP) and the direct predictor
 
 # For the direct predictor we can specify the macro-indicators in the expanding-window regressions
-#   -Too complex designs lead to overfitting and thus worse out-of-sample performances
+#   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
 select_direct_indicator<-c("ifo_c","ESI")
 # Specify BIP or HP-BIP target: BIP_target<-F means that we target forward-shifted HP-BIP
 #   -Recall that M-SSA is explicitly designed and optimized for this target 
 BIP_target<-F
-
-oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat)
+oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
 
 # Relative out-of-sample root-mean-square error (rRMSE) of M-SSA vs. (real-time) mean 
 rRMSE_mssa_mean_HP_BIP=oos_perf_obj$rRMSE_mssa_mean
@@ -247,29 +248,37 @@ rRMSE_direct_mean_HP_BIP=oos_perf_obj$rRMSE_direct_mean
 HAC_p_value_mssa_HP_BIP=oos_perf_obj$HAC_p_value_mssa
 
 
-# Direct forecast vs. mean: note that direct forecast do not depend on h (columns are identical)
+# Direct forecast vs. mean
 rRMSE_direct_mean_HP_BIP
-# M-SSA vs. mean: once again a coherent picture: smallest rRMSE are on or close to the diagonal
+# M-SSA vs. mean: once again a coherent picture:
+#   -For increasing forward-shift (from top to bottom) designs optimized for larger h 
+#     (from left to right) tend to perform better
 rRMSE_mssa_mean_HP_BIP
-# M-SSA vs. direct forecast: smallest values on or close to diagonal
+# M-SSA vs. direct forecast: 
+#   -For increasing forward-shift (from top to bottom) designs optimized for larger h 
+#     (from left to right) tend to perform better
 rRMSE_mssa_direct_HP_BIP
-# HAC-adjusted t-statistics: smallest values are on or close to diagonal
+# HAC-adjusted t-statistics: 
+#   -For increasing forward-shift (from top to bottom) designs optimized for larger h 
+#     (from left to right) tend to perform better
 # Strongly significant out-of-sample
 HAC_p_value_mssa_HP_BIP
 
 
 # We now compare M-SSA with the M-MSE-predictor
-#   Instead of indicator_mat we now insert indicator_mse_mat in the following function call
+#   Instead of indicator_mat (M-SSA predictor) we now insert indicator_mse_mat (M-MSE predictors) in the following function call
 #   Everything else is left unchanged
-oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mse_mat,date_to_fit,lag_vec,target_shifted_mat)
+oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mse_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
 
 # Compare rRMSE: first MSE predictor:
 oos_perf_obj$rRMSE_mssa_mean
-# Compare with above M-SSA predictor: 
+# Compare with above M-SSA predictor: in general M-SSA performs better
 rRMSE_mssa_mean_HP_BIP
-# M-SSA is uniformly better on its main diagonal (smaller rRMSEs): none of the M-MSE diagonal elements is smaller (than M-SSA)
+# In particular, M-SSA is uniformly better on its main diagonal (smaller rRMSEs): 
+#   none of the M-MSE diagonal elements is smaller (than M-SSA)
 which(diag(oos_perf_obj$rRMSE_mssa_mean)<diag(rRMSE_mssa_mean_HP_BIP))
-
+# Why do we consider the main diagonal of the performance matrices?
+#   -On the main diagonal, the forecast horizon (for which M-SSA is optimized) matches the forward-shift of the target  
 
 
 
@@ -277,7 +286,7 @@ which(diag(oos_perf_obj$rRMSE_mssa_mean)<diag(rRMSE_mssa_mean_HP_BIP))
 # Next we can target forward-shifted BIP instead of HP-BIP
 BIP_target<-T
 
-oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat)
+oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
 
 rRMSE_mssa_mean_BIP=oos_perf_obj$rRMSE_mssa_mean
 rRMSE_mssa_direct_BIP=oos_perf_obj$rRMSE_mssa_direct
@@ -291,7 +300,7 @@ HAC_p_value_mssa_BIP
 # We can compare M-SSA with the M-MSE-predictor
 #   Instead of indicator_mat we now insert indicator_mse_mat in the following function call
 #   Everything else is left unchanged
-oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mse_mat,date_to_fit,lag_vec,target_shifted_mat)
+oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mse_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
 
 # Compare rRMSE: first MSE predictor:
 oos_perf_obj$rRMSE_mssa_mean
@@ -304,9 +313,10 @@ which(diag(oos_perf_obj$rRMSE_mssa_mean)<diag(rRMSE_mssa_mean_BIP))
 #--------------------------------
 # Findings: 
 #   -Statistical significance is stronger for shifted HP-BIP (than for BIP)
-#   -Is it because short-term components of BIP are unpredictable?
-#   -Or is it because lambda_HP=160 is not sufficiently adaptive (still too smooth)?
-# To find an answer to the previous question we now propose a more adaptive design based on lambda_HP=16
+#   -Is it because mid- and short-term components of BIP are effectively unpredictable?
+#   -Or is it because lambda_HP=160 is not sufficiently adaptive to track mid/short-term dynamics (still too smooth)?
+# To find an answer we now propose a more adaptive design based on lambda_HP=16
+#   -We then check whether BIP can be predicted more consistently
 
 
 ################################################################################################################
@@ -336,16 +346,17 @@ indicator_mse_mat<-mssa_indicator_obj$indicator_mse_mat
 #     are able to forecast BIP `better', given the noisy dynamics of the series
 BIP_target<-T
 
-oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat)
+oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
   
 rRMSE_mssa_mean_BIP=oos_perf_obj$rRMSE_mssa_mean
 rRMSE_mssa_direct_BIP=oos_perf_obj$rRMSE_mssa_direct
 rRMSE_direct_mean_BIP=oos_perf_obj$rRMSE_direct_mean
 HAC_p_value_mssa_BIP=oos_perf_obj$HAC_p_value_mssa
 
-# In contrast to the former case lambda_HP=160 (fairly adaptive filter), the following HAC-adjusted p-values for 
-#   lambda_HP=16 (more adaptive) reveal a less-cluttered, more systematic pattern in the sense that 
-#   smaller p-values tend to be located close to or on the main diagonal
+# In contrast to the former case lambda_HP=160 (less adaptive), the following HAC-adjusted p-values for 
+#       lambda_HP=16 reveal a less-cluttered, more systematic pattern: 
+#   -For increasing forward-shift (from top to bottom), designs optimized for larger forecast horizons 
+#       (from left to right) tend to perform better
 HAC_p_value_mssa_BIP
 # Note: the above HAC-adjusted p-values (HAC from R-package sandwich) do not always display a 
 #   (logically/intuitively) consistent pattern: strange realizations for shift=1, h=5 or shift=6, h=5
@@ -357,14 +368,14 @@ HAC_p_value_mssa_BIP
 # Findings overall:
 
 # A. Classic direct predictors:
-#   -Classic direct predictors generally do not perform better than the simple mean benchmark at 
+#   -Classic direct predictors generally do not perform better (out-of-sample) than the simple mean benchmark at 
 #     forward-shifts exceeding 2 quarters
 #   -Classic direct predictors are more sensitive (than M-SSA) to episodes subject to unusual singular readings (e,g,, the Pandemic)
 
 # B. M-SSA
 #   -Classic business-cycle designs (lambda_HP=1600) smooth out recessions and hide  
-#     dynamics relevant in a short- to mid-term forecast exercise (1-6 quarters ahead)
-#   -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent forecast pattern. 
+#     dynamics potentially relevant in a short- to mid-term forecast exercise (1-6 quarters ahead)
+#   -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent forecast pattern, 
 #       suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
 #     -This result suggest that M-SSA is also informative about forward-shifted BIP, although corresponding 
 #       performance statistics are less conclusive (due to noise)
@@ -372,101 +383,3 @@ HAC_p_value_mssa_BIP
 #     by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
 #     components of BIP
 
-
-##############################################################################################
-
-# The following is older code 
-#   -Bad: it is providing full-sample results, mixing in-sample and out-of-sample performances
-#   -Good: it computes additional Diebold Mariano and Giacomini White tests for unequal predictive ability
-# To do: export DM and GW tests to the previous out-of-sample performance function...
-if (F)
-{
-
-  #---------------------
-  # The following code is not working properly for the direct predictors!!!
-  # Ignore all results related to the latter!!!
-  # More extensive evaluation metrics: 
-  #   -Full-sample and out-of-sample 
-  #   -rRMSE, HAC adjusted p-values (the same as above),  DM and (HAC-) GW statistics
-  #     -rRMSE: relative root means-square forecast error (relative to simple mean benchmar)
-  #     -Reported p-Values of one-sided DM and GW tests evaluate whether M-SSA outperforms the simple mean(BIP) benchmark or the direct forecasts
-  # The function computes benchmark `direct predictors' and evaluates performances of M-SSA against direct predictors as well as 
-  #       the simple mean (mean of BIP) benchmark
-  #   -Direct predictors are simple OLS regressions of a selection of macro indicators on forward-shifted BIP
-  #   -The selection is specified in the vector select_direct_indicator below
-  # Note: the following functionality is currently under construction/test
-  # To conclude we can use the more general compute_all_perf_func function to obtain additional performance measures:
-  
-  # 1. Select the indicators that we wish to use for predicting BIP `directly':
-  select_direct_indicator<-c("ifo_c","ESI")
-  select_direct_indicator<-select_vec_multi
-  # 2. Select any of the computed  M-SSA predictors
-  #     -Take the last one, i=6, which is optimized for forecast horizon h_vec[i] quarters ahead
-  i<-1
-  # Forecast horizon
-  h<-h_vec[i]
-  h
-  # M-SSA predictor
-  indicator_cal<-indicator_mat[,i]
-  
-  # Call the performance evaluation function  
-  perf_obj<-compute_all_perf_func(indicator_cal,data,lag_vec,h_vec,h,select_direct_indicator,L,lambda_HP,date_to_fit)
-  
-  # Here we have the rRMSE of the M-SSA predictor (first column) and the HAC-adjusted p-values (second column)
-  # This is for the full sample: in-sample and out-of-sample aggregated
-  # We can see that M-SSA outperforms significantly at the intended forward-shift  
-  perf_obj$mat_all
-  # We can compare the p-values (second column above) to the previously obtained p-values: they match perfectly
-  matrix(p_value_HAC_mat_BIP[,i],ncol=1)
-  # Same as above but out-of-sample only: once again, the M-SSA predictor seems to be informative for BIP at the 
-  #   forecast horizon for which M-SSA has been optimized (while intuitively appealing, this outcome is far of trivial given the noisy target)
-  perf_obj$mat_out
-  # Direct predictor benchmarks:
-  # Notes:
-  #   Note 1: the direct predictors do not depend on the selected forecast horizon h
-  #     -The forecast horizon h means that M-SSA has been optimized accordingly
-  #     -However, the direct predictors are computed within the above function, specifically for each forward-shift of BIP
-  #     -M-SSA depends on h but is independent of the forward-shift; direct predictors do not depend on h but on the forward-shift
-  #   Note 2: the direct predictors seem to perform best at shift 2
-  #     -Intuitively the predictors should perform best at shift 0 (nowcast)
-  #     -This counter intuitive outcome is mainly due to the singular outliers during the Pandemic (affect results despite trimming)
-  #   Note 3: direct predictors are sensitive to the singular Pandemic readings even for trimmed data:
-  #     -Performances tend to be substantially better when removing the Pandemic
-  #     -Performances tend to be somehow random, depending on the predictors hitting randomly the Covid-outliers 
-  #         in-phase our out-of-phase (depending on the forward-shift)
-  #   -In comparison, M-SSA tends to be less sensitive to Pandemic outliers
-  # -We can obtain the rRMSE and p-values of the direct predictors based on the indicators selected by select_direct_indicator above
-  # The direct forecasts generally perform poorly for shifts larger than 2 quarters
-  # Full sample: in-sample and out-of-sample aggregated
-  perf_obj$mat_all_direct
-  # Out-of-sample only: Adding regressors leads to worse performances (larger rRMSE)
-  perf_obj$mat_out_direct
-  # We also report p-values of one-sided DM and GW tests of unequal predictive ability
-  # Full sample
-  perf_obj$gw_dm_all_mat
-  # Out-of-sample only
-  perf_obj$gw_dm_out_mat
-  # Explanation:
-  #   -The first two columns are DM and GW tests verifying whether M-SSA performs better than mean(BIP), 
-  #        when targeting forward-shifted BIP (not HP-BIP)
-  #     -The M-SSA predictor optimized for forecast horizon 6 has the smallest p-values at the intended forward-shift of 6
-  #   -Columns 3 and 4 are DM and GW testing whether M-SSA performs better than mean(BIP) when targeting 
-  #       forward-shifted HP-BIP (not BIP) 
-  #     -The predictor optimized for forecast horizon 6 has small p-values at small and larger shifts (the latter is desirable, the former is random) 
-  #   -Columns 5 and 6 verify if the new benchmarks (classic direct predictors) outperform mean(BIP) when targeting BIP
-  #     -The direct predictor generally have a hard-time at forward-shifts larger than 2 quarters (see also see up-coming publication by Heinisch and Neufing (currently working paper))
-  #   -Finally, columns 7 and 8 test whether M-SSA outperforms the direct predictors when targeting BIP
-  #     -p-values smaller than 0.5 indicate relative outperformance of M-SSA
-  # Full sample: in-sample and out-of-sample aggregated
-  # In summary: DM and GW statistics suggest predictability in the following terms:  
-  #     -Significant test statistics at the intended forward-shift of BIP, out-of-sample 
-  #     -Outperformance against mean(BIP), see the last row, first two columns
-  #     -Outperformance against the direct predictors, see the last row, last two columns
-  # Note:
-  # 1. These findings refer to M-SSA optimized for the largest forecast horizon of 6 quarters
-  #     -Similar results are obtained for shorter forecast horizons
-  # 2. HAC adjustment is used for GW statistics
-  
-    
-
-}
