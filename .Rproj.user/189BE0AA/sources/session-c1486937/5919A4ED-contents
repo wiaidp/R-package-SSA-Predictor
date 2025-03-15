@@ -168,11 +168,50 @@ target_BIP_mat=perf_obj$target_BIP_mat
 #   -We see that for increasing forward-shift (from top to bottom) the predictors optimized for 
 #     larger forecast horizons (from left to right) tend to perform better
 # 1. Full sample
+# Systematic pattern: for increasing forward-shift (from top to bottom) M-SSA designs optimized for 
+#   larger forecast horizons h (from left to right) tend to perform better (larger correlations), 
+#   until h is too large
 cor_mat_HP_BIP_full
 # 2. Out-of-sample (period following estimation span for VAR-model of M-SSA)
 cor_mat_HP_BIP_oos
 
-# Let's visualize these correlations by plotting target against predictor
+# Same but when targeting forward-shifted BIP
+cor_mat_BIP_full
+cor_mat_BIP_oos
+
+# Relative root mean-square errors: 
+# Remarks:
+#   1. These are all out-of-sample (no full sample estimate implemented so far)
+#   2. Since M-SSA predictors are standardized, we need to calibrate them by regression onto the target
+#   3. As a result, rRMSE against mean(BIP) is an alternative and equivalent reformulation of the above target correlation, see comment further down
+# 
+# M-SSA vs. mean (of BIP) when targeting HP-BIP: numbers smaller mean signify an outperformance of M-SSA against mean-benchmark when targeting HP-BIP
+# These rRMSEs are equivalent to cor_mat_HP_BIP_oos (just an alternative reformulation, possibly more appealing)
+rRMSE_MSSA_HP_BIP_mean
+# M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting HP-BIP
+rRMSE_MSSA_HP_BIP_direct
+# M-SSA vs. mean (of BIP) when targeting BIP
+rRMSE_MSSA_BIP_mean
+# M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting BIP
+rRMSE_MSSA_BIP_direct
+
+# p-values of HAC-adjusted regressions of M-SSA on forward-shifted HP-BIP: full sample
+# Systematic pattern: for increasing forward-shift (from top to bottom) M-SSA designs optimized for 
+#   larger forecast horizons h (from left to right) tend to perform better (smaller p-values), until h is too large
+p_value_HAC_HP_BIP_full
+# Same but out-of-sample (will have to check!)
+p_value_HAC_HP_BIP_oos
+
+# Same as above but now targeting BIP
+# Full sample
+# We still see a systematic pattern from top to bottom and left to right but the overall picture 
+#   is cluttered by noise 
+p_value_HAC_BIP_full
+# Out-of-sample
+p_value_HAC_BIP_oos
+
+
+# Let's visualize the above correlations by plotting target against predictor
 # Select a forward-shift of target (the k-th entry in h_vec)
 k<-5
 if (k>length(h_vec))
