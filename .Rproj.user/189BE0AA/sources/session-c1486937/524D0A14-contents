@@ -362,7 +362,6 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
   rownames(p_value_HAC_HP_BIP_full)<-rownames(t_HAC_HP_BIP_full)<-rownames(cor_mat_HP_BIP_full)<-
   rownames(p_value_HAC_HP_BIP_oos)<-rownames(t_HAC_HP_BIP_oos)<-rownames(cor_mat_HP_BIP_oos)<-paste("Shift of target: ",h_vec,sep="")
   
-  
 # 1.2 Target is forward-shifted BIP
   t_HAC_BIP_full<-p_value_HAC_BIP_full<-t_HAC_BIP_oos<-p_value_HAC_BIP_oos<-cor_mat_BIP_full<-cor_mat_BIP_oos<-matrix(ncol=length(h_vec),nrow=length(h_vec))
   BIP_target_mat<-NULL
@@ -408,7 +407,6 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
   colnames(p_value_HAC_BIP_oos)<-colnames(t_HAC_BIP_oos)<-colnames(cor_mat_BIP_oos)<-paste("M-SSA: h=",h_vec,sep="")
   rownames(p_value_HAC_BIP_full)<-rownames(t_HAC_BIP_full)<-rownames(cor_mat_BIP_full)<-
   rownames(p_value_HAC_BIP_oos)<-rownames(t_HAC_BIP_oos)<-rownames(cor_mat_BIP_oos)<-paste("Shift of target: ",h_vec,sep="")
-  
 # 2. Compute Direct predictors
 # We use full sample direct predictors
 # Idea: calibration
@@ -581,6 +579,28 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
 
 
 
+# Compute HAC-adjusted p-value of-one-sided test when regressing column 2 on column 1 of da
+HAC_ajusted_p_value_func<-function(da)
+{
+  
+  lm_obj<-lm(da[,1]~da[,2])
+  summary(lm_obj)
+  # This one replicates Std. Error in summary
+  sd<-sqrt(diag(vcov(lm_obj)))
+  # Here we use HAC  
+  sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
+  # This is the same as
+  sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
+  sd_max<-max(sd[2],sd_HAC[2])
+  t_stat<-summary(lm_obj)$coef[2,1]/sd[2]
+  t_stat<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
+  t_stat<-summary(lm_obj)$coef[2,1]/sd_max
+  # One-sided test: if regressor is effective, then coefficient must be positive      
+  p_value<-pt(t_stat, df=nrow(da)-ncol(da), lower=FALSE)
+  return(list(p_value=p_value,t_stat=t_stat))
+}
+
+
 
 compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
 {
@@ -628,21 +648,5 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
 
 
 
-# Compute HAC-adjusted p-value of-one-sided test when regressing column 2 on column 1 of da
-HAC_ajusted_p_value_func<-function(da)
-{
-  lm_obj<-lm(da[,1]~da[,2])
-  summary(lm_obj)
-  # This one replicates std in summary
-  sd<-sqrt(diag(vcov(lm_obj)))
-  # Here we use HAC  
-  sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
-  # This is the same as
-  sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
-  t_stat<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-  # One-sided test: if regressor is effective, then coefficient must be positive      
-  p_value<-pt(t_stat, df=nrow(da)-ncol(da), lower=FALSE)
-  return(list(p_value=p_value,t_stat=t_stat))
-}
 
 

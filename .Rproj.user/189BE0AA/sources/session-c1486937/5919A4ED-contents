@@ -260,7 +260,8 @@ lambda_HP<-16
 #   -Keeping the above settings fixed is probably a bad idea because the `faster` filters (less smoothing required 
 #       for lambda_HP=16) most likely do not require additional `acceleration' by the forecast excesses 
 #   -You might try smaller values for f_excess
-f_excess_adaptive<-f_excess
+f_excess_adaptive<-c(0,0)
+h_vec<-0:4
 
 # Run the M-SSA predictor function
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess_adaptive)
