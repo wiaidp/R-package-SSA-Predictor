@@ -102,9 +102,6 @@ head(compute_mssa_BIP_predictors_func)
 
 # We can supply various hyperparameters (designs) and the function returns corresponding
 #   -M-SSA predictors
-#   -Performance measures: 
-#     -Correlations with shifted HP-BIP or BIP
-#     -HAC-adjusted p-values of regressions of predictors on shifted HP-BIP and BIP: to assess statistical significance
 
 # In order to use the function, we need to specify hyperparameters, see tutorial 7.2 for background
 # We here first replicate tutorial 7.2
@@ -199,8 +196,17 @@ rRMSE_MSSA_BIP_mean
 rRMSE_MSSA_BIP_direct
 
 # p-values of HAC-adjusted regressions of M-SSA on forward-shifted HP-BIP: full sample
-# Systematic pattern: for increasing forward-shift (from top to bottom) M-SSA designs optimized for 
-#   larger forecast horizons h (from left to right) tend to perform better (smaller p-values), until h is too large
+# Remarks:
+#   -In some cases the HAC standard error (of the regression coefficient) seems `suspicious' 
+#     -HAC estimate of standard error could be substantially smaller than the ordinary OLS/unadjusted estimate
+#   -We therefore compute both types of standard errors and we rely on the maximum for a derivation of p-values
+#   -In this sense our p-values may be claimed to be `conservative'
+# Looking at the matrix of p-values below, we can recognize a systematic pattern: 
+#   -For increasing forward-shifts (from top to bottom), M-SSA designs optimized for larger forecast 
+#       horizons h (from left to right) tend to perform better (smaller p-values), up to some point, 
+#       where p-values decrease again for h too large
+#   -In other words: when moving from left to right along a specific row, smaller p-values are on 
+#       (or close to) the main diagonal element of that row
 p_value_HAC_HP_BIP_full
 # Same but out-of-sample (will have to check!)
 p_value_HAC_HP_BIP_oos
