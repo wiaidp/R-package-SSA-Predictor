@@ -173,23 +173,23 @@ filter_func<-function(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,
 
 
 # This function operationalizes the M-SSA concept for predicting quarterly (German) GDP
-# It relies on hyperparameters specifying the design
-# It returns 
+# It relies on hyperparameters specifying the design: lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess
+# It returns M-SSA and M-MSE predictors as well as forward-shifted HP-BIP (two-sided HP applied to BIP)
 compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess)
 {
-  # 1. Compute target
+# 1. Compute target
   
   target_obj<-HP_target_sym_T(n,lambda_HP,L)
   
   gamma_target=t(target_obj$gamma_target)
   symmetric_target=target_obj$symmetric_target 
   colnames(gamma_target)<-select_vec_multi
-  #-------------------------
-  # 2. Fit  VAR on specified in-sample span
+#-------------------------
+# 2. Fit  VAR on specified in-sample span
   data_fit<-na.exclude(x_mat[which(rownames(x_mat)<date_to_fit),])#date_to_fit<-"2019-01-01"
   set.seed(12)
   V_obj<-VARMA(data_fit,p=p,q=q)
-  # Apply regularization: see vignette MTS package
+# Apply regularization: see vignette MTS package
   threshold<-1.5
   V_obj<-refVARMA(V_obj, thres = threshold)
   
@@ -197,25 +197,24 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
   Phi<-V_obj$Phi
   Theta<-V_obj$Theta
   
-  #---------------------------------------
-  # 3. MA inversion
+#---------------------------------------
+# 3. MA inversion: M-SSA relies on MA-inversion of VAR
   
   MA_inv_obj<-MA_inv_VAR_func(Phi,Theta,L,n,T)
   
   xi<-MA_inv_obj$xi
-  
-  
-  #-----------------------
-  # 4. Compute M-SSA for the specified forecast horizons in h_vec
+
+#-----------------------
+# 4. Compute M-SSA for the specified forecast horizons in h_vec
   
   mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-mmse_bip<-mmse_ip<-mmse_esi<-mmse_ifo<-mmse_spread<-NULL
   for (i in 1:length(h_vec))#i<-1
   {
-    # For each forecast horizon h_vec[i] we compute M-SSA for BIP and ip first, based on the proposed forecast excess
-    #   BIP and ip require a larger forecast excess f_excess[1]. We also add the publication lag
+# For each forecast horizon h_vec[i] we compute M-SSA for BIP and ip first, based on the proposed forecast excess
+#   -BIP and ip require a larger forecast excess f_excess[1]. We also add the publication lag
     delta<-h_vec[i]+lag_vec[1]+f_excess[1]
     
-    # M-SSA  
+# M-SSA  
     MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
     
     bk_x_mat=MSSA_main_obj$bk_x_mat
@@ -223,22 +222,22 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     gammak_x_mse=MSSA_obj$gammak_x_mse
     colnames(bk_x_mat)<-select_vec_multi
     
-    # Filter
+# Filter
     filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
     
     mssa_mat=filt_obj$mssa_mat
     target_mat=filt_obj$target_mat
     mmse_mat<-filt_obj$mmse_mat
     colnames(mssa_mat)<-select_vec_multi
-    # Select M-SSA BIP and ip  
+# Select M-SSA BIP and ip  
     mssa_bip<-cbind(mssa_bip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[1])])
     mssa_ip<-cbind(mssa_ip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[2])])
-    # M-MSE
+# M-MSE
     mmse_bip<-cbind(mmse_bip,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[1])])
     mmse_ip<-cbind(mmse_ip,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[2])])
     
-    # Now compute M-SSA for the remaining ifo, ESI and spread  
-    # These series require a smaller forecast excess f_excess[2] 
+# Now compute M-SSA for the remaining ifo, ESI and spread  
+#   -These series require a smaller forecast excess f_excess[2] because of their smaller publication lag
     delta<-h_vec[i]+lag_vec[1]+f_excess[2]
     
     MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
@@ -254,47 +253,47 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     mmse_mat<-filt_obj$mmse_mat
     colnames(mssa_mat)<-select_vec_multi
     
-    # Select M-SSA-ifo, -ESI and -spread  
+# Select M-SSA-ifo, -ESI and -spread  
     mssa_ifo<-cbind(mssa_ifo,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[3])])
     mssa_esi<-cbind(mssa_esi,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[4])])
     mssa_spread<-cbind(mssa_spread,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[5])])
-    # Select M-MSE-ifo, -ESI and -spread  
+# Select M-MSE-ifo, -ESI and -spread  
     mmse_ifo<-cbind(mmse_ifo,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[3])])
     mmse_esi<-cbind(mmse_esi,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[4])])
     mmse_spread<-cbind(mmse_spread,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[5])])
     
   }
-  #------------------------  
-  # 5. Compute M-SSA predictors
-  #   Standardize and aggregate: equal weighting
-  indicator_mat<-(scale(mssa_bip)+scale(mssa_ip)+scale(mssa_ifo)+scale(mssa_esi)+scale(mssa_spread))/length(select_vec_multi)
-  colnames(indicator_mat)<-colnames(mssa_bip)<-colnames(mssa_ip)<-colnames(mssa_ifo)<-colnames(mssa_esi)<-colnames(mssa_spread)<-paste("Horizon=",h_vec,sep="")
-  rownames(indicator_mat)<-rownames(x_mat)
+#------------------------  
+# 5. Compute M-SSA predictors
+#   Standardize and aggregate: equal weighting
+  predictor_mssa_mat<-(scale(mssa_bip)+scale(mssa_ip)+scale(mssa_ifo)+scale(mssa_esi)+scale(mssa_spread))/length(select_vec_multi)
+  colnames(predictor_mssa_mat)<-colnames(mssa_bip)<-colnames(mssa_ip)<-colnames(mssa_ifo)<-colnames(mssa_esi)<-colnames(mssa_spread)<-paste("Horizon=",h_vec,sep="")
+  rownames(predictor_mssa_mat)<-rownames(x_mat)
   
-  indicator_mse_mat<-(scale(mmse_bip)+scale(mmse_ip)+scale(mmse_ifo)+scale(mmse_esi)+scale(mmse_spread))/length(select_vec_multi)
-  colnames(indicator_mse_mat)<-colnames(mmse_bip)<-colnames(mmse_ip)<-colnames(mmse_ifo)<-colnames(mmse_esi)<-colnames(mmse_spread)<-paste("Horizon=",h_vec,sep="")
-  rownames(indicator_mse_mat)<-rownames(x_mat)
+  predictor_mmse_mat<-(scale(mmse_bip)+scale(mmse_ip)+scale(mmse_ifo)+scale(mmse_esi)+scale(mmse_spread))/length(select_vec_multi)
+  colnames(predictor_mmse_mat)<-colnames(mmse_bip)<-colnames(mmse_ip)<-colnames(mmse_ifo)<-colnames(mmse_esi)<-colnames(mmse_spread)<-paste("Horizon=",h_vec,sep="")
+  rownames(predictor_mmse_mat)<-rownames(x_mat)
   
-  #-----------------------------
-  # 6. Compute plots
+#-----------------------------
+# 6. Compute plots
   target_shifted_mat<-NULL
-  cor_mat<-matrix(nrow=length(h_vec),ncol=length(h_vec))
+  cor_mat_HP_BIP_full_sample<-cor_mat_HP_BIP_out_of_sample<-matrix(nrow=length(h_vec),ncol=length(h_vec))
   for (i in 1:length(h_vec))#i<-1
   {
     shift<-h_vec[i]+lag_vec[1]
-    # Compute target: two-sided HP applied to BIP and shifted forward by forecast horizon plus publication lag
+# Compute target: two-sided HP applied to BIP and shifted forward by forecast horizon plus publication lag
     filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,shift)
     target_mat=filt_obj$target_mat
-    # Select BIP (first column)  
+# Select HP-BIP (first column)  
     target<-target_mat[,"BIP"]
-    # Collect the forward shifted targets: 
+# Collect the forward shifted targets: 
     target_shifted_mat<-cbind(target_shifted_mat,target)
     
-    # Plot indicators and shifting target
-    mplot<-scale(cbind(target,indicator_mat))
+# Plot indicators and shifting target
+    mplot<-scale(cbind(target,predictor_mssa_mat))
     colnames(mplot)[1]<-paste("Target left-shifted by ",shift-lag_vec[1],sep="")
     par(mfrow=c(1,1))
-    colo<-c("black",rainbow(ncol(indicator_mat)))
+    colo<-c("black",rainbow(ncol(predictor_mssa_mat)))
     main_title<-paste("Standardized M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep="")
     plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
     mtext(colnames(mplot)[1],col=colo[1],line=-1)
@@ -309,81 +308,341 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     axis(2)
     box()
     
-    # Compute target correlations of all M-SSA predictors with shifted target: all combinations
-    for (j in 1:ncol(indicator_mat))
-      cor_mat[i,j]<-cor(na.exclude(cbind(target,indicator_mat[,j])))[1,2]
-    
   }
+  return(list(target_shifted_mat=target_shifted_mat,predictor_mssa_mat=predictor_mssa_mat,predictor_mmse_mat=predictor_mmse_mat))
+}  
   
-  colnames(cor_mat)<-paste("M-SSA: h=",h_vec,sep="")
-  rownames(cor_mat)<-paste("Shift of target: ",h_vec,sep="")
-  
-  # 6.2 HAC-adjusted p-values of t-statistics when targeting shifted HP-BIP
-  t_HAC_mat<-p_value_HAC_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
+
+
+
+
+# Compute sample performances:
+# Correlations with forward-shifted HP-BIP and BIP
+# HAC adjusted p-Values of regressions of predictors on forward-shifted HP-BIP and BIP
+# Full sample and out-of-sample: out-of-sample is based on date_to_fit (in-sample span for estimating VAR of M-SSA)
+compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator) 
+{
+# 1. Compute Correlations and HAC-adjusted p-value of-one-sided test when regressing predictor on target
+# 1.1 Target is forward-shifted HP-BIP
+# Check forward-shifts: HP-BIP cannot reach sample-end since filter is two-sided
+  tail(target_shifted_mat,40)
+  t_HAC_HP_BIP_full<-p_value_HAC_HP_BIP_full<-t_HAC_HP_BIP_oos<-p_value_HAC_HP_BIP_oos<-cor_mat_HP_BIP_full<-cor_mat_HP_BIP_oos<-matrix(ncol=length(h_vec),nrow=length(h_vec))
   for (i in 1:length(h_vec))# i<-1
   {
     for (j in 1:length(h_vec))# j<-1  j<-3
     {
 # Remove NAs      
-      da<-na.exclude(cbind(target_shifted_mat[,i],indicator_mat[,j]))
-      lm_obj<-lm(da[,1]~da[,2])
-      summary(lm_obj)
-      # This one replicates std in summary
-      sd<-sqrt(diag(vcov(lm_obj)))
-      # Here we use HAC  
-      sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
-      # This is the same as
-      sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
-      t_HAC_mat[i,j]<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-      p_value_HAC_mat[i,j]<-2*pt(t_HAC_mat[i,j], nrow(da)-ncol(da), lower=FALSE)
+      da<-na.exclude(cbind(target_shifted_mat[,i],predictor_mssa_mat[,j]))
+# Compute HAC-adjusted p-value of-one-sided test when regressing column 2 (predictor) on column 1 (target) of da
+      p_obj<-HAC_ajusted_p_value_func(da)
+
+      p_value_HAC_HP_BIP_full[i,j]<-p_obj$p_value
+      t_HAC_HP_BIP_full[i,j]=p_obj$t_stat
+      
+# Compute target correlations 
+      cor_mat_HP_BIP_full[i,j]<-cor(da)[1,2]
+      
+# Same but out of sample 
+      oos_index<-which(rownames(predictor_mssa_mat)>date_to_fit)
+      da<-na.exclude(cbind(target_shifted_mat[,i],predictor_mssa_mat[,j])[oos_index,])
+      
+      # Compute HAC-adjusted p-value of-one-sided test when regressing column 2 (predictor) on column 1 (target) of da
+      p_obj<-HAC_ajusted_p_value_func(da)
+      
+      p_value_HAC_HP_BIP_oos[i,j]<-p_obj$p_value
+      t_HAC_HP_BIP_oos[i,j]=p_obj$t_stat
+      
+      # Compute target correlations 
+      cor_mat_HP_BIP_oos[i,j]<-cor(da)[1,2]
       
     }
   }
-  colnames(t_HAC_mat)<-colnames(p_value_HAC_mat)<-paste("M-SSA: h=",h_vec,sep="")
-  rownames(t_HAC_mat)<-rownames(p_value_HAC_mat)<-paste("Shift of target: ",h_vec,sep="")
+  colnames(p_value_HAC_HP_BIP_full)<-colnames(t_HAC_HP_BIP_full)<-colnames(cor_mat_HP_BIP_full)<-
+  colnames(p_value_HAC_HP_BIP_oos)<-colnames(t_HAC_HP_BIP_oos)<-colnames(cor_mat_HP_BIP_oos)<-paste("M-SSA: h=",h_vec,sep="")
+  rownames(p_value_HAC_HP_BIP_full)<-rownames(t_HAC_HP_BIP_full)<-rownames(cor_mat_HP_BIP_full)<-
+  rownames(p_value_HAC_HP_BIP_oos)<-rownames(t_HAC_HP_BIP_oos)<-rownames(cor_mat_HP_BIP_oos)<-paste("Shift of target: ",h_vec,sep="")
   
-  # 6.3 Same as 6.2 but targeting shifted BIP
-  t_HAC_mat_BIP<-p_value_HAC_mat_BIP<-cor_mat_BIP<-matrix(ncol=length(h_vec),nrow=length(h_vec))
+  
+# 1.2 Target is forward-shifted BIP
+  t_HAC_BIP_full<-p_value_HAC_BIP_full<-t_HAC_BIP_oos<-p_value_HAC_BIP_oos<-cor_mat_BIP_full<-cor_mat_BIP_oos<-matrix(ncol=length(h_vec),nrow=length(h_vec))
   BIP_target_mat<-NULL
   for (i in 1:length(h_vec))# i<-1
   {
-    # Shift BIP  
+# Shift BIP forward by publication lag and forecast horizon  
     shift<-h_vec[i]+lag_vec[1]
     BIP_target<-c(x_mat[(1+shift):nrow(x_mat),"BIP"],rep(NA,shift))
+# Collect all forward shifted series    
     BIP_target_mat<-cbind(BIP_target_mat,BIP_target)
-    # Regress predictors on shifted BIP  
+    rownames(BIP_target_mat)<-rownames(x_mat)
+# Check: shifts of target starting with publication-lag to the left and increasing upward-shifts to the right    
+    tail(BIP_target_mat)
+# Regress predictors on shifted BIP  
     for (j in 1:length(h_vec))# j<-1
     {
 # Remove NAs      
-      da<-na.exclude(cbind(BIP_target,indicator_mat[,j]))
-      cor_mat_BIP[i,j]<-cor(da)[1,2]
-      lm_obj<-lm(da[,1]~da[,2])
-      summary(lm_obj)
-      # This one replicates std in summary
-      sd<-sqrt(diag(vcov(lm_obj)))
-      # Here we use HAC  
-      sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
-      # This is the same as
-      sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
-      t_HAC_mat_BIP[i,j]<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-      p_value_HAC_mat_BIP[i,j]<-2*pt(t_HAC_mat_BIP[i,j], nrow(da)-ncol(da), lower=FALSE)
+      da<-na.exclude(cbind(BIP_target,predictor_mssa_mat[,j]))
+# Compute HAC-adjusted p-value of-one-sided test when regressing column 2 (predictor) on column 1 (target) of da
+      p_obj<-HAC_ajusted_p_value_func(da)
+      
+      p_value_HAC_BIP_full[i,j]<-p_obj$p_value
+      t_HAC_BIP_full[i,j]=p_obj$t_stat
+      
+# Compute target correlations 
+      cor_mat_BIP_full[i,j]<-cor(da)[1,2]
+# Same but out of sample 
+      oos_index<-which(rownames(predictor_mssa_mat)>date_to_fit)
+      da<-na.exclude(cbind(BIP_target,predictor_mssa_mat[,j])[oos_index,])
+      # Compute HAC-adjusted p-value of-one-sided test when regressing column 2 (predictor) on column 1 (target) of da
+      p_obj<-HAC_ajusted_p_value_func(da)
+      
+      p_value_HAC_BIP_oos[i,j]<-p_obj$p_value
+      t_HAC_BIP_oos[i,j]=p_obj$t_stat
+      
+      # Compute target correlations 
+      cor_mat_BIP_oos[i,j]<-cor(da)[1,2]
+      
       
     }
   }
-  colnames(t_HAC_mat_BIP)<-colnames(p_value_HAC_mat_BIP)<-colnames(cor_mat_BIP)<-paste("M-SSA: h=",h_vec,sep="")
-  rownames(t_HAC_mat_BIP)<-rownames(p_value_HAC_mat_BIP)<-rownames(cor_mat_BIP)<-paste("Shift of target: ",h_vec,sep="")
-  # p-values: 
-  # In contrast to HP-BIP, significance with respect to BIP is less conclusive: BIP is much noisier
-  # However, we still find that for increasing forward-shift of BIP (from top to bottom) 
-  #   the M-SSA indicators optimized for larger forecast horizon (from left to right) tend to perform better
-  # These results could be altered by modifying the forecast excesses: 
-  #   -Selecting more aggressive designs (larger excesses) may lead to stronger significance at larger shifts, up to a point 
-  #   -You may try f_excess<-c(6,4): a strong result at a one-year ahead forecast horizon (plus publication lag) is achievable
-  p_value_HAC_mat_BIP
-  return(list(indicator_mat=indicator_mat,indicator_mse_mat=indicator_mse_mat,cor_mat=cor_mat,p_value_HAC_mat_BIP=p_value_HAC_mat_BIP,p_value_HAC_mat=p_value_HAC_mat,cor_mat_BIP=cor_mat_BIP,BIP_target_mat=BIP_target_mat,target_shifted_mat=target_shifted_mat))
+  colnames(p_value_HAC_BIP_full)<-colnames(t_HAC_BIP_full)<-colnames(cor_mat_BIP_full)<-
+  colnames(p_value_HAC_BIP_oos)<-colnames(t_HAC_BIP_oos)<-colnames(cor_mat_BIP_oos)<-paste("M-SSA: h=",h_vec,sep="")
+  rownames(p_value_HAC_BIP_full)<-rownames(t_HAC_BIP_full)<-rownames(cor_mat_BIP_full)<-
+  rownames(p_value_HAC_BIP_oos)<-rownames(t_HAC_BIP_oos)<-rownames(cor_mat_BIP_oos)<-paste("Shift of target: ",h_vec,sep="")
+  
+# 2. Compute Direct predictors
+# We use full sample direct predictors
+# Idea: calibration
+#   -Static level and scale adjustments are ignored in M-SSA (objective function relies on target correlation)
+#     -Emphasize dynamic aspects of prediction problem
+#   -We proceed similarly for rRMSE
+# -Direct predictors: 
+#   -Regressing the macro-indicators to full-sample target means an implicit calibration of level and scale
+# -M-SSA:
+#   -Per construction (equal-weighting) the M-SSA predictors are standardized
+#   -MSE-performances: calibrate level and scale to full-sample target (similar to direct predictors)  
+
+# Direct predictor: natural target is forward-shifted BIP  
+  p_val_direct_mat<-matrix(nrow=length(h_vec),ncol=1)
+  direct_pred_mat<-NULL
+  for (i in 1:length(h_vec))#i<-1
+  { 
+    shift<-h_vec[i]
+# Target: first column is forward-shifted BIP    
+    dat<-cbind(c(x_mat[(lag_vec[1]+1+shift):nrow(x_mat),1],rep(NA,lag_vec[1]+shift)),x_mat[,select_direct_indicator])
+    tail(dat,9)
+    dat<-na.exclude(dat)
+    n<-dim(dat)[2]-1
+# Compute calibrated out-of-sample predictor, based on expanding window
+#   -Use data up i for fitting the regression
+#   -Compute a prediction with explanatory data in i+1
+# Fit model with data up to time point i    
+    lm_obj<-lm(dat[,1]~dat[,2:(n+1)])
+    if (n==1)
+    {
+# Classic regression prediction        
+      direct_pred<-c(rep(NA,shift+lag_vec[1]),lm_obj$coef[1]+lm_obj$coef[2]*dat[,2])
+    } else
+    {
+# Classic regression prediction though we use %*% instead of * above  
+      direct_pred<-c(rep(NA,shift+lag_vec[1]),lm_obj$coef[1]+lm_obj$coef[2]%*%dat[,2])
+      
+    }
+    direct_pred_mat<-cbind(direct_pred_mat,direct_pred)
+    
+# Compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
+    lm_obj<-lm(dat[,1]~na.exclude(direct_pred))
+    
+#    ts.plot(cbind(dat[,1],direct_pred))
+    summary(lm_obj)
+    sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
+    t_HAC<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
+    HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
+    # One-sided test: if predictor is effective, then the sign of the coefficient must be positive  
+    p_value<-summary(lm_obj)$coef[2,4]
+    
+    p_val_direct_mat[i,1]<-p_value
+  }
+  rownames(p_val_direct_mat)<-paste("shift=",h_vec,sep="")
+  
+# 3. Compute rRMSEs: 
+# 3.1 Target is forward-shifted HP-BIP
+  rRMSE_MSSA_HP_BIP_direct<-rRMSE_MSSA_HP_BIP_mean<-matrix(nrow=length(h_vec),ncol=length(h_vec))
+  for (i in 1:length(h_vec))#i<-1
+  { 
+    shift<-h_vec[i]
+# Target: first column is forward-shifted HP-BIP  
+    for (j in 1:length(h_vec))
+    {
+      index_oos<-which(rownames(predictor_mssa_mat)>date_to_fit)
+      target_HP_BIP<-target_shifted_mat[,i]
+      dat<-cbind(target_HP_BIP,predictor_mssa_mat[,j])[index_oos,]
+      lm_obj<-lm(dat[,1]~dat[,2])
+      RMSE_MSSA<-summary(lm_obj)$sigma
+      dat<-cbind(target_HP_BIP,direct_pred_mat[,j])[index_oos,]
+      lm_obj<-lm(dat[,1]~dat[,2])
+      RMSE_direct<-summary(lm_obj)$sigma
+      RMSE_mean<-sd(target_HP_BIP[index_oos],na.rm=T)
+      rRMSE_MSSA_HP_BIP_direct[i,j]<-RMSE_MSSA/RMSE_direct  
+      rRMSE_MSSA_HP_BIP_mean[i,j]<-RMSE_MSSA/RMSE_mean  
+    }
+  }
+  
+# 3.2 Target is forward-shifted BIP
+  rRMSE_MSSA_BIP_direct<-rRMSE_MSSA_BIP_mean<-matrix(nrow=length(h_vec),ncol=length(h_vec))
+  target_BIP_mat<-NULL
+  for (i in 1:length(h_vec))#i<-1
+  { 
+    shift<-h_vec[i]
+    index_oos<-which(rownames(predictor_mssa_mat)>date_to_fit)
+    target_BIP<-c(x_mat[(lag_vec[1]+1+shift):nrow(x_mat),1],rep(NA,lag_vec[1]+shift))
+# Chexk forwrad-shift    
+    tail(target_BIP,9)
+    
+    target_BIP_mat<-cbind(target_BIP_mat,target_BIP)
+    
+    # Target: first column is forward-shifted HP-BIP  
+    for (j in 1:length(h_vec))
+    {
+      dat<-cbind(target_BIP,predictor_mssa_mat[,j])[index_oos,]
+      lm_obj<-lm(dat[,1]~dat[,2])
+      RMSE_MSSA<-summary(lm_obj)$sigma
+      dat<-cbind(target_BIP,direct_pred_mat[,j])[index_oos,]
+      lm_obj<-lm(dat[,1]~dat[,2])
+      RMSE_direct<-summary(lm_obj)$sigma
+      RMSE_mean<-sd(target_BIP[index_oos],na.rm=T)
+      rRMSE_MSSA_BIP_direct[i,j]<-RMSE_MSSA/RMSE_direct  
+      rRMSE_MSSA_BIP_mean[i,j]<-RMSE_MSSA/RMSE_mean  
+    }
+  }
+  colnames(target_BIP_mat)<-paste("shift=",h_vec,sep="")
+  rownames(rRMSE_MSSA_HP_BIP_direct)<-rownames(rRMSE_MSSA_HP_BIP_mean)<-rownames(rRMSE_MSSA_BIP_direct)<-rownames(rRMSE_MSSA_BIP_mean)<-paste("shift=",h_vec,sep="")
+  colnames(rRMSE_MSSA_HP_BIP_direct)<-colnames(rRMSE_MSSA_HP_BIP_mean)<-colnames(rRMSE_MSSA_BIP_direct)<-colnames(rRMSE_MSSA_BIP_mean)<-paste("h=",h_vec,sep="")
+    
+
+# Older measures without calibration  
+  if (F)
+  {
+    p_val_mat<-matrix(nrow=length(h_vec),ncol=length(h_vec))
+    date_to_fit<-"2008"
+    for (i in 1:length(h_vec))
+    { 
+      for (j in 1:length(h_vec))#j<-1
+      {
+        shift<-h_vec[i]
+        dat<-cbind(c(x_mat[(lag_vec[1]+1+shift):nrow(x_mat),1],rep(NA,lag_vec[1]+shift)),predictor_mssa_mat[,j])
+        tail(dat,9)
+        dat<-na.exclude(dat)
+        ts.plot(dat)
+        oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit)
+        
+        p_val_mat[i,j]<-oos_pred_obj$HAC_p_value
+        
+      }
+      colnames(p_val_mat)<-paste("h=",h_vec,sep="")
+      rownames(p_val_mat)<-paste("shift=",h_vec,sep="")
+      
+    }
+    
+    p_val_mat
+    
+    p_val_mat<-matrix(nrow=length(h_vec),ncol=1)
+    for (i in 1:length(h_vec))
+    { 
+      shift<-h_vec[i]
+      dat<-cbind(c(x_mat[(lag_vec[1]+1+shift):nrow(x_mat),1],rep(NA,lag_vec[1]+shift)),x_mat[,select_direct_indicator])
+      tail(dat,9)
+      dat<-na.exclude(dat)
+      ts.plot(dat)
+      oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit)
+        
+      p_val_mat[i,1]<-oos_pred_obj$HAC_p_value
+        
+      
+    }
+    rownames(p_val_mat)<-paste("shift=",h_vec,sep="")
+    
+    
+    p_val_mat
+    
+    
+    
+  }
+  
+  return(list(p_value_HAC_HP_BIP_full=p_value_HAC_HP_BIP_full,t_HAC_HP_BIP_full=t_HAC_HP_BIP_full,
+              cor_mat_HP_BIP_full=cor_mat_HP_BIP_full,p_value_HAC_HP_BIP_oos=p_value_HAC_HP_BIP_oos,
+              t_HAC_HP_BIP_oos=t_HAC_HP_BIP_oos,cor_mat_HP_BIP_oos=cor_mat_HP_BIP_oos,
+              p_value_HAC_BIP_full=p_value_HAC_BIP_full,t_HAC_BIP_full=t_HAC_BIP_full,
+              cor_mat_BIP_full=cor_mat_BIP_full,p_value_HAC_BIP_oos=p_value_HAC_BIP_oos,
+              t_HAC_BIP_oos=t_HAC_BIP_oos,cor_mat_BIP_oos=cor_mat_BIP_oos,
+              rRMSE_MSSA_HP_BIP_direct=rRMSE_MSSA_HP_BIP_direct,rRMSE_MSSA_HP_BIP_mean=rRMSE_MSSA_HP_BIP_mean,
+              rRMSE_MSSA_BIP_direct=rRMSE_MSSA_BIP_direct,rRMSE_MSSA_BIP_mean=rRMSE_MSSA_BIP_mean,
+              target_BIP_mat=target_BIP_mat))
 }
 
 
 
+
+compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
+{
+  len<-dim(dat)[1]
+  # First column is target, i.e. dimension is dim(dat)[2]-1
+  n<-dim(dat)[2]-1
+  # Compute calibrated out-of-sample predictor, based on expanding window
+  #   -Use data up i for fitting the regression
+  #   -Compute a prediction with explanatory data in i+1
+  cal_oos_pred<-rep(NA,len)
+  for (i in (n+2):(len-1)) #i<-n+2
+  {
+# Fit model with data up to time point i    
+    lm_obj<-lm(dat[1:i,1]~dat[1:i,2:(n+1)])
+# Compute out-of-sample prediction for i+1
+# Distinguish only one from multiple explanatory variables (R-code different...)    
+    if (n==1)
+    {
+# Classic regression prediction        
+        cal_oos_pred[i+1]<-lm_obj$coef[1]+lm_obj$coef[2]*dat[i+1,2] 
+    } else
+    {
+# Classic regression prediction though we use %*% instead of * above      
+      cal_oos_pred[i+1]<-lm_obj$coef[1]+lm_obj$coef[2:(n+1)]%*%dat[i+1,2:(n+1)] 
+    }
+  }
+# Once the predictors are computed we can obtain the out-of-sample prediction errors
+  epsilon_oos<-dat[,1]-cal_oos_pred
+  index_oos<-which(rownames(dat)>date_to_fit)
+# And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
+  lm_oos<-lm(dat[index_oos,1]~cal_oos_pred[index_oos])
+  ts.plot(cbind(dat[,1],cal_oos_pred))
+  summary(lm_oos)
+  sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
+  t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
+  HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
+# One-sided test: if predictor is effective, then the sign of the coefficient must be positive  
+  p_value<-summary(lm_oos)$coef[2,4]
+  
+  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value,HAC_p_value=HAC_p_value))
+}
+
+
+
+
+
+
+# Compute HAC-adjusted p-value of-one-sided test when regressing column 2 on column 1 of da
+HAC_ajusted_p_value_func<-function(da)
+{
+  lm_obj<-lm(da[,1]~da[,2])
+  summary(lm_obj)
+  # This one replicates std in summary
+  sd<-sqrt(diag(vcov(lm_obj)))
+  # Here we use HAC  
+  sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
+  # This is the same as
+  sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
+  t_stat<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
+  # One-sided test: if regressor is effective, then coefficient must be positive      
+  p_value<-pt(t_stat, df=nrow(da)-ncol(da), lower=FALSE)
+  return(list(p_value=p_value,t_stat=t_stat))
+}
 
 

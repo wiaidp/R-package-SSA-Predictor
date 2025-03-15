@@ -132,30 +132,45 @@ f_excess<-c(4,2)
 # Run the function packing and implementing our previous findings (tutorial 7.2) 
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess)
 
-# Sample performances: target correlations and HAC-adjusted p-values for forward-shifted BIP and HP-BIP targets
-#   -We replicate performances obtained in tutorial 7.2 
-# 1. Target correlations of M-SSA predictors with forward-shifted BIP
-cor_mat_BIP<-mssa_indicator_obj$cor_mat_BIP
-# 2. Target correlation with forward-shifted HP-BIP 
-cor_mat_HP_BIP<-mssa_indicator_obj$cor_mat
-# HAC-adjusted p-Values of regressions of M-SSA predictors on forward-shifted BIP
-p_value_HAC_mat_BIP<-mssa_indicator_obj$p_value_HAC_mat_BIP
-# HAC-adjusted p-Values of regressions of M-SSA predictors on forward-shifted HP-BIP
-p_value_HAC_mat_HP_BIP<-mssa_indicator_obj$p_value_HAC_mat
-# Forward-shifted BIP
-BIP_target_mat=mssa_indicator_obj$BIP_target_mat
+
 # Forward-shifted HP-BIP
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 # M-SSA indicators
-indicator_mat<-mssa_indicator_obj$indicator_mat
+predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
 # M-MSE
-indicator_mse_mat<-mssa_indicator_obj$indicator_mse_mat
+predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 
+# For the direct predictor we can specify the macro-indicators in the expanding-window regressions
+#   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
+select_direct_indicator<-c("ifo_c","ESI")
+
+perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator) 
+  
+p_value_HAC_HP_BIP_full=perf_obj$p_value_HAC_HP_BIP_full
+t_HAC_HP_BIP_full=perf_obj$t_HAC_HP_BIP_full
+cor_mat_HP_BIP_full=perf_obj$cor_mat_HP_BIP_full
+p_value_HAC_HP_BIP_oos=perf_obj$p_value_HAC_HP_BIP_oos
+t_HAC_HP_BIP_oos=perf_obj$t_HAC_HP_BIP_oos
+cor_mat_HP_BIP_oos=perf_obj$cor_mat_HP_BIP_oos
+p_value_HAC_BIP_full=perf_obj$p_value_HAC_BIP_full
+t_HAC_BIP_full=perf_obj$t_HAC_BIP_full
+cor_mat_BIP_full=perf_obj$cor_mat_BIP_full
+p_value_HAC_BIP_oos=perf_obj$p_value_HAC_BIP_oos
+t_HAC_BIP_oos=perf_obj$t_HAC_BIP_oos
+cor_mat_BIP_oos=perf_obj$cor_mat_BIP_oos
+rRMSE_MSSA_HP_BIP_direct=perf_obj$rRMSE_MSSA_HP_BIP_direct
+rRMSE_MSSA_HP_BIP_mean=perf_obj$rRMSE_MSSA_HP_BIP_mean
+rRMSE_MSSA_BIP_direct=perf_obj$rRMSE_MSSA_BIP_direct
+rRMSE_MSSA_BIP_mean=perf_obj$rRMSE_MSSA_BIP_mean
+target_BIP_mat=perf_obj$target_BIP_mat
 
 # Correlations between M-SSA predictors and forward-shifted HP-BIP (including the publication lag)
 #   -We see that for increasing forward-shift (from top to bottom) the predictors optimized for 
 #     larger forecast horizons (from left to right) tend to perform better
-cor_mat_HP_BIP
+# 1. Full sample
+cor_mat_HP_BIP_full
+# 2. Out-of-sample (period following estimation span for VAR-model of M-SSA)
+cor_mat_HP_BIP_oos
 
 # Let's visualize these correlations by plotting target against predictor
 # Select a forward-shift of target (the k-th entry in h_vec)
@@ -177,7 +192,7 @@ if (j>length(h_vec))
 # Plot targets (forward-shifted BIP and HP-BIP) and predictor
 par(mfrow=c(1,1))
 # Scale the data for better visual interpretation of effect of excess forecast on M-SSA (red) vs. previous M-SSA (blue)
-mplot<-scale(cbind(BIP_target_mat[,k],target_shifted_mat[,k],indicator_mat[,j]))
+mplot<-scale(cbind(target_BIP_mat[,k],target_shifted_mat[,k],predictor_mssa_mat[,j]))
 rownames(mplot)<-rownames(x_mat)
 colnames(mplot)<-c(paste("BIP left-shifted by ",h_vec[k]," quarters",sep=""),paste("HP-BIP left-shifted by ",h_vec[k]," quarters",sep=""),paste("M-SSA predictor optimized for h=",h_vec[j],sep=""))
 colo<-c("black","violet","blue")
@@ -197,17 +212,16 @@ box()
 
 # Sample correlation: 
 cor(na.exclude(mplot))[2,ncol(mplot)]
-# This number corresponds to element (k,j) of the matrix cor_mat_BIP computed by our function
-cor_mat_HP_BIP[k,j]
+# This number corresponds to element (k,j) of the matrix cor_mat_HP_BIP_full computed by our function
+cor_mat_HP_BIP_full[k,j]
 
 # We can also look at the correlation of the predictor with the forward-shifted BIP (instead of HP-BIP)
 cor(na.exclude(mplot))[1,3]
-
 # Note: the (k,j) entry of cor_mat_BIP generally differs from cor(na.exclude(mplot))[1,3]
-cor_mat_BIP[k,j]
+cor_mat_BIP_full[k,j]
 # The reason is simple: by removing NAs (due to inclusion of the two-sided target in mplot) we change the sample-size
 # We can easily correct by removing the two-sided target in mplot
-mplot_without_two_sided<-scale(cbind(BIP_target_mat[,k],indicator_mat[,j]))
+mplot_without_two_sided<-scale(cbind(target_BIP_mat[,k],predictor_mssa_mat[,j]))
 # This number now matches cor_mat_BIP[k,j]
 cor(na.exclude(mplot_without_two_sided))[1,2]
 
@@ -216,105 +230,14 @@ cor(na.exclude(mplot_without_two_sided))[1,2]
 #    (including the publication lag) 
 # Is this (weak) effect statistically significant?
 # Let's have a look at the HAC-adjusted p-values
-p_value_HAC_mat_BIP[k,j]
+# 1. Full sample 
+p_value_HAC_BIP_full[k,j]
+# 2. Out-of-sample
+p_value_HAC_BIP_oos[k,j]
+
 # Instead of BIP we might have a look at targeting HP-BIP instead (also shifted one year ahead)
-p_value_HAC_mat_HP_BIP[k,j]
-
-
-#-------------------------------------------
-# The above performance measures (rRMSE, p-values) are full-sample results: they mix in-sample and out-of-sample
-# The following function computes out-of-sample metrics 
-#   -Direct predictors are computed based on expanding-window regressions 
-#   -M-SSA predictors are originally standardized. For computing the evaluation metrics we also 
-#     rely on expanding-window regressions of M-SSA on the forward-shifted target 
-# rRMSE is based on the ratio of the mean-square out-of-sample prediction errors of a predictor against a benchmark
-#   -For M-SSA the benchmarks are mean(BIP) and the direct predictor
-
-# For the direct predictor we can specify the macro-indicators in the expanding-window regressions
-#   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
-select_direct_indicator<-c("ifo_c","ESI")
-# Specify BIP or HP-BIP target: BIP_target<-F means that we target forward-shifted HP-BIP
-#   -Recall that M-SSA is explicitly designed and optimized for this target 
-BIP_target<-F
-oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
-
-# Relative out-of-sample root-mean-square error (rRMSE) of M-SSA vs. (real-time) mean 
-rRMSE_mssa_mean_HP_BIP=oos_perf_obj$rRMSE_mssa_mean
-# Same as above but M-SSA vs. direct (out-of-sample) predictor
-rRMSE_mssa_direct_HP_BIP=oos_perf_obj$rRMSE_mssa_direct
-# Same but direct forecast vs. mean
-rRMSE_direct_mean_HP_BIP=oos_perf_obj$rRMSE_direct_mean
-# HAC adjusted p-values of regressions of out-of-sample M-SSA on target (forward-shifted HP-BIP)
-HAC_p_value_mssa_HP_BIP=oos_perf_obj$HAC_p_value_mssa
-
-# Prototypical: not checked yet 
-gw_mat<-oos_perf_obj$gw_mat
-dm_mat<-oos_perf_obj$dm_mat
-
-# Direct forecast vs. mean
-rRMSE_direct_mean_HP_BIP
-# M-SSA vs. mean: once again a coherent picture:
-#   -For increasing forward-shift (from top to bottom) designs optimized for larger h 
-#     (from left to right) tend to perform better
-rRMSE_mssa_mean_HP_BIP
-# M-SSA vs. direct forecast: 
-#   -For increasing forward-shift (from top to bottom) designs optimized for larger h 
-#     (from left to right) tend to perform better
-rRMSE_mssa_direct_HP_BIP
-# HAC-adjusted t-statistics: 
-#   -For increasing forward-shift (from top to bottom) designs optimized for larger h 
-#     (from left to right) tend to perform better
-# Strongly significant out-of-sample
-HAC_p_value_mssa_HP_BIP
-
-
-# We now compare M-SSA with the M-MSE-predictor
-#   Instead of indicator_mat (M-SSA predictor) we now insert indicator_mse_mat (M-MSE predictors) in the following function call
-#   Everything else is left unchanged
-oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mse_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
-
-# Compare rRMSE: first MSE predictor:
-oos_perf_obj$rRMSE_mssa_mean
-# Compare with above M-SSA predictor: in general M-SSA performs better
-rRMSE_mssa_mean_HP_BIP
-# In particular, M-SSA is uniformly better on its main diagonal (smaller rRMSEs): 
-#   none of the M-MSE diagonal elements is smaller (than M-SSA)
-which(diag(oos_perf_obj$rRMSE_mssa_mean)<diag(rRMSE_mssa_mean_HP_BIP))
-# Why do we consider the main diagonal of the performance matrices?
-#   -On the main diagonal, the forecast horizon (for which M-SSA is optimized) matches the forward-shift of the target  
-
-
-
-
-# Next we can target forward-shifted BIP instead of HP-BIP
-BIP_target<-T
-
-oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
-
-rRMSE_mssa_mean_BIP=oos_perf_obj$rRMSE_mssa_mean
-rRMSE_mssa_direct_BIP=oos_perf_obj$rRMSE_mssa_direct
-rRMSE_direct_mean_BIP=oos_perf_obj$rRMSE_direct_mean
-HAC_p_value_mssa_BIP=oos_perf_obj$HAC_p_value_mssa
-# Prototypical: not checked yet 
-gw_mat<-oos_perf_obj$gw_mat
-dm_mat<-oos_perf_obj$dm_mat
-
-
-# Results inconclusive: BIP is much noisier
-rRMSE_mssa_mean_BIP
-HAC_p_value_mssa_BIP
-
-# We can compare M-SSA with the M-MSE-predictor
-#   Instead of indicator_mat we now insert indicator_mse_mat in the following function call
-#   Everything else is left unchanged
-oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mse_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
-
-# Compare rRMSE: first MSE predictor:
-oos_perf_obj$rRMSE_mssa_mean
-# Compare with above M-SSA predictor: 
-rRMSE_mssa_mean_BIP
-# M-MSE is now marginally better but still broadly inconclusive 
-which(diag(oos_perf_obj$rRMSE_mssa_mean)<diag(rRMSE_mssa_mean_BIP))
+p_value_HAC_HP_BIP_full[k,j]
+p_value_HAC_HP_BIP_oos[k,j]
 
 
 #--------------------------------
@@ -342,36 +265,48 @@ f_excess_adaptive<-f_excess
 # Run the M-SSA predictor function
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess_adaptive)
 
-# Collect all predictors and forward-shifted targets
-BIP_target_mat=mssa_indicator_obj$BIP_target_mat
+# Forward-shifted HP-BIP
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
-indicator_mat<-mssa_indicator_obj$indicator_mat
-indicator_mse_mat<-mssa_indicator_obj$indicator_mse_mat
+# M-SSA indicators
+predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
+# M-MSE
+predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 
-# Evaluate performances of the more adaptive design out-of-sample when targeting forward-shifted BIP
-#   -We here attempt to address the above question, namely whether mote adaptive designs (lambda_HP=16) 
-#     are able to forecast BIP `better', given the noisy dynamics of the series
-BIP_target<-T
+# For the direct predictor we can specify the macro-indicators in the expanding-window regressions
+#   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
+select_direct_indicator<-c("ifo_c","ESI")
 
-oos_perf_obj<-oos_perf_func(BIP_target,h_vec,data,indicator_mat,date_to_fit,lag_vec,target_shifted_mat,select_direct_indicator)
-  
-rRMSE_mssa_mean_BIP=oos_perf_obj$rRMSE_mssa_mean
-rRMSE_mssa_direct_BIP=oos_perf_obj$rRMSE_mssa_direct
-rRMSE_direct_mean_BIP=oos_perf_obj$rRMSE_direct_mean
-HAC_p_value_mssa_BIP=oos_perf_obj$HAC_p_value_mssa
-# Prototypical: not checked yet 
-gw_mat<-oos_perf_obj$gw_mat
-dm_mat<-oos_perf_obj$dm_mat
+perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator) 
+
+p_value_HAC_HP_BIP_full=perf_obj$p_value_HAC_HP_BIP_full
+t_HAC_HP_BIP_full=perf_obj$t_HAC_HP_BIP_full
+cor_mat_HP_BIP_full=perf_obj$cor_mat_HP_BIP_full
+p_value_HAC_HP_BIP_oos=perf_obj$p_value_HAC_HP_BIP_oos
+t_HAC_HP_BIP_oos=perf_obj$t_HAC_HP_BIP_oos
+cor_mat_HP_BIP_oos=perf_obj$cor_mat_HP_BIP_oos
+p_value_HAC_BIP_full=perf_obj$p_value_HAC_BIP_full
+t_HAC_BIP_full=perf_obj$t_HAC_BIP_full
+cor_mat_BIP_full=perf_obj$cor_mat_BIP_full
+p_value_HAC_BIP_oos=perf_obj$p_value_HAC_BIP_oos
+t_HAC_BIP_oos=perf_obj$t_HAC_BIP_oos
+cor_mat_BIP_oos=perf_obj$cor_mat_BIP_oos
+rRMSE_MSSA_HP_BIP_direct=perf_obj$rRMSE_MSSA_HP_BIP_direct
+rRMSE_MSSA_HP_BIP_mean=perf_obj$rRMSE_MSSA_HP_BIP_mean
+rRMSE_MSSA_BIP_direct=perf_obj$rRMSE_MSSA_BIP_direct
+rRMSE_MSSA_BIP_mean=perf_obj$rRMSE_MSSA_BIP_mean
+target_BIP_mat=perf_obj$target_BIP_mat
+
+# We now examine performances targeting BIP (not HP-BIP)
+# 1. Full sample
+cor_mat_BIP_full
+# 2. Out-of-sample (period following estimation span for VAR-model of M-SSA)
+cor_mat_BIP_oos
 
 
-# In contrast to the former case lambda_HP=160 (less adaptive), the following HAC-adjusted p-values for 
-#       lambda_HP=16 reveal a less-cluttered, more systematic pattern: 
-#   -For increasing forward-shift (from top to bottom), designs optimized for larger forecast horizons 
-#       (from left to right) tend to perform better
-HAC_p_value_mssa_BIP
-# Note: the above HAC-adjusted p-values (HAC from R-package sandwich) do not always display a 
-#   (logically/intuitively) consistent pattern: strange realizations for shift=1, h=5 or shift=6, h=5
 
+# Are the results significant?
+p_value_HAC_BIP_full
+p_value_HAC_BIP_oos
 
 
 
