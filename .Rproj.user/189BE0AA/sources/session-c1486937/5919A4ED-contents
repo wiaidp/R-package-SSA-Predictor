@@ -181,10 +181,13 @@ cor_mat_BIP_oos
 
 # Relative root mean-square errors: 
 # Remarks:
-#   1. These are all out-of-sample (no full sample estimate implemented so far)
-#   2. Since M-SSA predictors are standardized, we need to calibrate them by regression onto the target
-#   3. As a result, rRMSE against mean(BIP) is an alternative and equivalent reformulation of the above target correlation, see comment further down
-# 
+#   1. Since M-SSA predictors are standardized, we need to calibrate them by regression onto the target
+#   2. As a result, rRMSE against mean(BIP) is an (alternative and) equivalent reformulation of the above target correlation, see comment further down
+#       -Explanation: the M-SSA objective function is the target correlation 
+#       -Therefore, M-SSA ignores static level and scale adjustments (calibration must be done ex post, if neede)
+#   3. Root mean-square errors are then evaluated on the out-of-sample span (not seen by the VAR in M-SSA)
+#   4. The benchmark direct predictors are full-sample estimates (estimates based on in-sample span only do not perform well)
+#   5. The benchmark mean used in our comparisons is based on the out-of-sample data (ignoring the in-sample span)
 # M-SSA vs. mean (of BIP) when targeting HP-BIP: numbers smaller mean signify an outperformance of M-SSA against mean-benchmark when targeting HP-BIP
 # These rRMSEs are equivalent to cor_mat_HP_BIP_oos (just an alternative reformulation, possibly more appealing)
 rRMSE_MSSA_HP_BIP_mean
