@@ -1,6 +1,5 @@
 
-# Densify code: let's pack the above code into functions with distinct tasks
-# 1. Target function
+# Compute target: two-sided HP
 HP_target_sym_T<-function(n,lambda_HP,L)
 {
   HP_obj<-HP_target_mse_modified_gap(L,lambda_HP)
@@ -21,7 +20,7 @@ HP_target_sym_T<-function(n,lambda_HP,L)
 
 
 
-# 2. MA-inversion as based on VAR model
+# Compute MA-inversion as based on VAR model
 MA_inv_VAR_func<-function(Phi,Theta,L,n,Plot=F)
 {
   # MA inversion of VAR
@@ -56,7 +55,7 @@ MA_inv_VAR_func<-function(Phi,Theta,L,n,Plot=F)
   return(list(xi=xi))
 }
 
-# M-SSA
+# Compute M-SSA (and accessory M-MSE)
 MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Sigma,Plot=F)
 {
   # Compute lag-one ACF corresponding to HT in M-SSA constraint: see previous tutorials on the link between HT and lag-one ACF  
@@ -100,8 +99,17 @@ MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Sigma,Plo
 }
 
 
-# 4. Filter function: apply M-SSA filter to data
-
+# Filter function: apply filters to data
+# data: x_mat
+# M-SSA: bk_x_mat
+# M-MSE: gammak_x_mse
+# Acausal target: gamma_target
+# Forward-shift of acausal target: delta
+# Mirror left half of Two-sided filter to the right to obtain symmetric two-sided filter: symmetric_target==T
+# Returns:
+# M-SSA output: mssa_mat
+# M-MSE output: mmse_mat
+# Target filter output: target_mat
 filter_func<-function(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
 {
   len<-nrow(x_mat)
@@ -320,7 +328,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
 # Correlations with forward-shifted HP-BIP and BIP
 # HAC adjusted p-Values of regressions of predictors on forward-shifted HP-BIP and BIP
 # Full sample and out-of-sample: out-of-sample is based on date_to_fit (in-sample span for estimating VAR of M-SSA)
-compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator) 
+compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec) 
 {
 # 1. Compute Correlations and HAC-adjusted p-value of-one-sided test when regressing predictor on target
 # 1.1 Target is forward-shifted HP-BIP
@@ -585,17 +593,21 @@ HAC_ajusted_p_value_func<-function(da)
   
   lm_obj<-lm(da[,1]~da[,2])
   summary(lm_obj)
-  # This one replicates Std. Error in summary
+# This one replicates Std. Error in summary
   sd<-sqrt(diag(vcov(lm_obj)))
-  # Here we use HAC  
+# Here we use HAC  
   sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
-  # This is the same as
+# This is the same as
   sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
+# In some cases the HAC-adjustment is suspect (too small): we select the max of HAC-adjusted and OLS standard errors  
   sd_max<-max(sd[2],sd_HAC[2])
+# Classic OLS
   t_stat<-summary(lm_obj)$coef[2,1]/sd[2]
+# HAC adjusted  
   t_stat<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
+# Conservative: use the max standard error, i.e. the min t-statistic 
   t_stat<-summary(lm_obj)$coef[2,1]/sd_max
-  # One-sided test: if regressor is effective, then coefficient must be positive      
+# One-sided test: if regressor is effective, then coefficient must be positive (we are not interested in testing negative readings)     
   p_value<-pt(t_stat, df=nrow(da)-ncol(da), lower=FALSE)
   return(list(p_value=p_value,t_stat=t_stat))
 }

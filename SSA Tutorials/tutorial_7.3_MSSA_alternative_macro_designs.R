@@ -49,7 +49,7 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 # Utility functions for M-SSA, see tutorial 
 source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 # Set of performance metrics and tests of unequal predictability
-source(paste(getwd(),"/R/performance_statistics_functions.r",sep=""))
+#source(paste(getwd(),"/R/performance_statistics_functions.r",sep=""))
 
 
 #------------------------------------------------------------------------
@@ -144,7 +144,7 @@ predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 #   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
 select_direct_indicator<-c("ifo_c","ESI")
 
-perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator) 
+perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec) 
   
 p_value_HAC_HP_BIP_full=perf_obj$p_value_HAC_HP_BIP_full
 t_HAC_HP_BIP_full=perf_obj$t_HAC_HP_BIP_full
@@ -255,16 +255,15 @@ p_value_HAC_HP_BIP_oos[k,j]
 # We then verify if the more flexible design is able to predict BIP more consistently 
 
 lambda_HP<-16
-# Everything else in the above design is kept fixed
 # Notes: 
-#   -Keeping the above settings fixed is probably a bad idea because the `faster` filters (less smoothing required 
-#       for lambda_HP=16) most likely do not require additional `acceleration' by the forecast excesses 
-#   -You might try smaller values for f_excess
+# -For adaptive designs, a requested pronounced left-shift might induce phase-reversal which is to be avoided
+# -Therefore we use forecast horizons up to 4 quarters (instead of 6) and no forecast excess
+#   -Phase-reversal would be fine (optimal) if the data were in agreement with the implicit assumptions underlying HP
 f_excess_adaptive<-c(0,0)
-h_vec<-0:4
+h_vec_adaptive<-0:4
 
 # Run the M-SSA predictor function
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess_adaptive)
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec_adaptive,f_excess_adaptive)
 
 # Forward-shifted HP-BIP
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
@@ -277,7 +276,7 @@ predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 #   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
 select_direct_indicator<-c("ifo_c","ESI")
 
-perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator) 
+perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec_adaptive) 
 
 p_value_HAC_HP_BIP_full=perf_obj$p_value_HAC_HP_BIP_full
 t_HAC_HP_BIP_full=perf_obj$t_HAC_HP_BIP_full
@@ -302,8 +301,6 @@ target_BIP_mat=perf_obj$target_BIP_mat
 cor_mat_BIP_full
 # 2. Out-of-sample (period following estimation span for VAR-model of M-SSA)
 cor_mat_BIP_oos
-
-
 
 # Are the results significant?
 p_value_HAC_BIP_full
