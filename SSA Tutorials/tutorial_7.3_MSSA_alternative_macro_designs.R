@@ -178,24 +178,37 @@ cor_mat_BIP_oos
 
 # Relative root mean-square errors: 
 # Remarks:
-#   1. Since M-SSA predictors are standardized, we need to calibrate them by regression onto the target
-#   2. As a result, rRMSE against mean(BIP) is an (alternative and) equivalent reformulation of the above target correlation, see comment further down
-#       -Explanation: the M-SSA objective function is the target correlation 
-#       -Therefore, M-SSA ignores static level and scale adjustments (calibration must be done ex post, if neede)
-#   3. Root mean-square errors are then evaluated on the out-of-sample span (not seen by the VAR in M-SSA)
-#   4. The benchmark direct predictors are full-sample estimates (estimates based on in-sample span only do not perform well)
-#   5. The benchmark mean used in our comparisons is based on the out-of-sample data (ignoring the in-sample span)
-# M-SSA vs. mean (of BIP) when targeting HP-BIP: numbers smaller mean signify an outperformance of M-SSA against mean-benchmark when targeting HP-BIP
-# These rRMSEs are equivalent to cor_mat_HP_BIP_oos (just an alternative reformulation, possibly more appealing)
+#   1. Since M-SSA predictors are standardized (equal-weighting cross-sectional aggregation), we need to 
+#         calibrate them by regression onto the target (to determine static level and scale parameters)
+#   2. As a result, rRMSE of M-SSA against mean(BIP) and the above target correlations are redundant: 
+#         the information content is presented in two alternative but equivalent forms 
+#   3. Background:
+#       -The M-SSA objective function is the target correlation (not the mean-square error) 
+#       -Therefore, M-SSA ignores static level and scale adjustments
+#   4. Root mean-square errors are evaluated on the out-of-sample span (data prior to date_to_fit, relevant for the VAR)
+#   5. The benchmark direct predictors are full-sample estimates (estimates based on short in-sample spans can be unreliable)
+#   6. The benchmark mean-predictor used in our comparisons is based on the mean of the target in the 
+#       out-of-sample span
+#   7. The main purpose of these comparisons is to evaluate the dynamic capability of the M-SSA predictor
+#       -The (ex post) static level and scale adjustments are deemed less relevant
+
+# With these remarks in mind let's begin:
+# The first rRMSE show-cases M-SSA vs. the mean benchmark (of BIP), both targeting HP-BIP: 
+#   -Numbers smaller one signify an outperformance of M-SSA against the mean-benchmark when targeting HP-BIP
+# These rRMSEs are equivalent (in their information) to the above cor_mat_HP_BIP_oos 
+#   -An alternative reformulation, possibly more appealing (to some)
 rRMSE_MSSA_HP_BIP_mean
-# M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting HP-BIP
+# We next look at M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting HP-BIP
 rRMSE_MSSA_HP_BIP_direct
-# M-SSA vs. mean (of BIP) when targeting BIP
+# Next: M-SSA vs. mean (of BIP) when targeting BIP
 rRMSE_MSSA_BIP_mean
-# M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting BIP
+# Finally: M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting BIP
 rRMSE_MSSA_BIP_direct
 
-# p-values of HAC-adjusted regressions of M-SSA on forward-shifted HP-BIP: full sample
+# The above performance metrics do not test for statistical significance (of predictability)
+# The following HAC-adjusted p-values provide a way to infer statistical significance 
+# We look at HAC-adjusted p-values of regressions of M-SSA on forward-shifted targets
+# We first consider forward-shifted HP-BIP and full sample p-values
 # Remarks:
 #   -In some cases the HAC standard error (of the regression coefficient) seems `suspicious' 
 #     -HAC estimate of standard error could be substantially smaller than the ordinary OLS/unadjusted estimate
@@ -208,15 +221,15 @@ rRMSE_MSSA_BIP_direct
 #   -In other words: when moving from left to right along a specific row, smaller p-values are on 
 #       (or close to) the main diagonal element of that row
 p_value_HAC_HP_BIP_full
-# Same but out-of-sample (will have to check!)
+# Same but out-of-sample 
 p_value_HAC_HP_BIP_oos
 
 # Same as above but now targeting BIP
 # Full sample
 # We still see a systematic pattern from top to bottom and left to right but the overall picture 
-#   is cluttered by noise 
+#   is cluttered by noise (BIP is much noisier than HP-BIP) 
 p_value_HAC_BIP_full
-# Out-of-sample
+# Out-of-sample: note that weaker significance is due, in part, to the shorter span
 p_value_HAC_BIP_oos
 
 
