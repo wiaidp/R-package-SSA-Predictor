@@ -4,11 +4,11 @@
 #   -For justifying and motivating some of our decisions when working with HP (which differ from classic applications of HP)
 # In particular we prefer HP-trend applied to differenced (stationary) data to the original HP-gap (applied to levels)
 
-# Accordingly, we here consider the HP-trend or lowpass filter, applied to stationary data
-#   -This design is used in Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
+# Accordingly, we here consider the HP-trend or lowpass filter, applied to stationary data, resembling differenced economic data/series
+#   -This design is used in Wildi (2024) https://doi.org/10.1007/s41549-024-00097-5: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
 #   -All examples in this tutorial rely on artificial (simulated) stationary series: knowing the true model allows for verification of theoretical results 
 #     -Tutorial 5 applies HP and SSA to US-INDPRO
-
+#     -Tutorial 7 presents an application of the more general multivariate SSA (M-SSA) to German macro-data
 # We apply SSA to different targets 
 #   a.The one-sided MSE HP (optimal if data is white noise), applied to white noise, see example 1
 #   b.The classic one-sided HP (optimal if data is an ARIMA(0,2,2)), applied to white noise, too, see example 2
@@ -38,14 +38,16 @@
 #       -SSA real-time (concurrent) designs can be smoother as well as leading, when compared to the concurrent benchmarks 
 #   5. The forecast trilemma (see tutorial 0.1) is visualized in example 8 for a SSA-design targeting HP-MSE
 
-# Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
-#   predictor or BCA-filter (any one as long as it's linear in the data) can be replicated and modified by SSA 
-#   in view of addressing 
-# 1. smoothness (noise suppression) and 
-# 2. timeliness (advancement)
-# In this perspective, HP is considered as a basic platform and a vitrine for showcasing SSA
+# Note: 
+# -our intention is not to push a particular BCA-tool (HP filter). 
+# -Rather, we strive at illustrating that a particular predictor or BCA-filter (any one as long 
+#       as it's linear in the data) can be replicated and modified by SSA in view of addressing 
+#   1. smoothness (noise suppression) and 
+#   2. timeliness (advancement)
+# -In this perspective, HP is considered as a basic platform and a vitrine for showcasing SSA
 #   -We offer a number of compelling performance measures, confirming pertinence of a simple novel optimization principle  
-
+# -Applications of SSA to Hamilton's filter (proposed as an alternative to HP) and to the Baxter-King filter 
+#   are proposed in tutorials 3 and 4, respectively
 
 #-----------------------------------------------------------------------
 # Make a clean-sheet, load packages and functions
@@ -90,7 +92,7 @@ if (L/2==as.integer(L/2))
 lambda_monthly<-14400
 par(mfrow=c(1,1))
 HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
-# Bi-infinite two-sided (symmetric) HP
+# Bi-infinite (here truncated) two-sided (symmetric) HP
 hp_target<-HP_obj$target
 ts.plot(hp_target)
 # Concurrent gap: as applied to series in levels: this is a high pass filter
@@ -124,6 +126,7 @@ x<-arima.sim(n = len, list(ar = a1))
 y_hp_concurrent<-filter(x,hp_trend,side=1)
 y_hp_symmetric<-filter(x,hp_target,side=2)
 
+# The one-sided filter (red) is much noisier, with much more zero-crossings (marked by vertical lines in plot)
 ts.plot(y_hp_concurrent,main="HP: two-sided vs one-sided filter. Vertical lines indicate zero-crossings of one-sided design",col="red")
 lines(y_hp_symmetric)
 abline(h=0)
@@ -134,7 +137,11 @@ mtext("One-sided HP",col="red",line=-2)
 # Let us compute empirical holding times of both filters:
 compute_empirical_ht_func(y_hp_concurrent)
 compute_empirical_ht_func(y_hp_symmetric)
-# The difference of empirical hts is large, as expected (these numbers would converge to the above `true' hts for very long samples)
+# The difference of empirical hts is large, as expected 
+# Note: for very long samples, these estimates converge to the `true' hts
+ht_hp
+compute_holding_time_func(hp_target)$ht
+
 
 
 # -The plot of the time series suggests that the two-sided filter can stay away from the zero-line over long time episodes.
@@ -169,7 +176,7 @@ box()
 #-----------------------
 # c. Summary
 # -The two-sided HP is not necessarily a worthwhile target for BCA: it is possibly `too smooth' 
-#   -The classic values of lambda, proposed in the literature, are too large, see Phillips and Jin (2021) for background 
+#   -The classic values of lambda, proposed in the literature, are eventually too large, see Phillips and Jin (2021) for background 
 #   -Alternatively, we may claim: the model is overtly misspecified, see tutorial 2.0
 # -The classic one-sided HP, on the other hand, is less smooth: therefore it can better track short but severe recession dips
 #   -The peak amplitude matches business-cycle frequencies
@@ -188,7 +195,7 @@ box()
 
 # 1.1 Concurrent MSE estimate of bi-infinite HP assuming white noise
 # This is just the truncate right tail of the symmetric filter
-# This one is optimal if the data is white noise
+# This one is an optimal MSE estimate of the two-sided filter if the data is white noise
 hp_mse=hp_mse_example7=HP_obj$hp_mse
 par(mfrow=c(1,1))
 ts.plot(hp_mse)
@@ -196,8 +203,8 @@ ts.plot(hp_mse)
 htrho_obj<-compute_holding_time_func(hp_mse)
 rho_hp<-htrho_obj$rho_ff1
 ht_mse<-htrho_obj$ht
-# MSE filter is smoother than classic HP concurrent (larger ht) because white noise is, well, `noisier' than ARIMA(0,2,2)
-#   Therefore hp_mse must damp high-frequency components more strongly than hp_trend
+# MSE filter is smoother than classic HP concurrent (larger ht) because white noise is `noisier' than ARIMA(0,2,2)
+#   As a result, hp_mse must damp high-frequency components more strongly than hp_trend
 ht_mse
 
 #-----------------------------------------------------------------------------------
@@ -208,7 +215,7 @@ ht_mse
 ht<-1.5*ht_mse
 # Recall that we provide the lag-one acf: therefore we have to compute rho1 (corresponding to ht) for SSA
 rho1<-compute_rho_from_ht(ht)
-# Our selection here means that SSA will have 33% less crossings:
+# Our selection here means that SSA will have 33% less crossings on average:
 ht/ht_mse
 # Forecast horizon: nowcast i.e. delta=0
 forecast_horizon<-0
@@ -259,7 +266,8 @@ box()
 
 
 #------------------------
-# 1.4 Checks
+# 1.4 Checks: we check convergence of sample estimates to expectations
+# -Thereby we check that the SSA optimization principle is easily interpretable and practically relevant 
 
 len<-100000
 set.seed(16)
@@ -273,7 +281,8 @@ yhat<-filter(x,SSA_filt_HP,side=1)
 # Compute empirical holding-time
 empirical_ht<-compute_empirical_ht_func(yhat)
 empirical_ht
-#  compare with imposed constraint: matches up to sampling error
+# -compare with imposed constraint: both numbers match up to sampling error
+# -SSA controls the ht, as claimed
 ht
 
 # 1.4.2. Compare lag-one acf of optimized design with imposed constraint: successful optimization means that both numbers should be close
@@ -281,18 +290,22 @@ ht
 SSA_obj_HP$crit_rhoyy
 rho1
 
-# 1.4.3. Criterion values: we here check the correlation with the MSE nowcast which is our effective target
+# 1.4.3. Criterion values: we here check the correlation of SSA with the MSE nowcast which is our effective target
 #   -Correlations with the two-sided target are obtained in examples 4 and 6 below 
 #   -crit_rhoyz is computed in the SSA-function: it is the true (expected) correlation of SSA with the target 
 #     if all assumptions are met (correct model for xt)
 crit_example1<-SSA_obj_HP$crit_rhoyz
 crit_example1
-# We now compute the corresponding empirical correlation in two steps: 
+# We now compute the corresponding sample correlation in two steps: 
 # a. First derive the MSE nowcast filter output
 MSE_nowcast<-filter(x,hp_mse,side=1)
-# b. Compute empirical correlation and compare with true or expected number crit_example1
+# b. Second, compute the sample correlation and compare with true or expected number crit_example1
 cor(yhat,MSE_nowcast,use='pairwise.complete.obs')
-# Both numbers match: the empirical correlation will converge to the criterion value with increasing sample length
+# Both numbers match: the sample correlation converges to the criterion value with increasing sample length
+
+# Summary:
+# -We verified that SSA maximizes the correlation of the predictor with the target, subject to the ht constraint
+
 
 ##############################################################################################################
 ###############################################################################################################
