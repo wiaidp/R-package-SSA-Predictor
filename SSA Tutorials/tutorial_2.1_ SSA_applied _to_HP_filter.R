@@ -124,9 +124,10 @@ x<-arima.sim(n = len, list(ar = a1))
 y_hp_concurrent<-filter(x,hp_trend,side=1)
 y_hp_symmetric<-filter(x,hp_target,side=2)
 
-ts.plot(y_hp_concurrent,main="HP: two-sided vs one-sided filter",col="red")
+ts.plot(y_hp_concurrent,main="HP: two-sided vs one-sided filter. Vertical lines indicate zero-crossings of one-sided design",col="red")
 lines(y_hp_symmetric)
 abline(h=0)
+abline(v=which(y_hp_concurrent[2:len]*y_hp_concurrent[1:(len-1)]<0),col="red",lty=3)
 mtext("Two-sided HP",col="black",line=-1)
 mtext("One-sided HP",col="red",line=-2)
 
@@ -351,7 +352,7 @@ yhat<-filter(x,SSA_filt_HP,side=1)
 ht
 compute_empirical_ht_func(yhat)
 
-# Compute concurrent HP-mse
+# Compute concurrent HP
 HP_concurrent<-filter(x,hp_trend,side=1)
 # Compare expected and empirical holding-times
 ht_hp
@@ -451,7 +452,7 @@ box()
 # 3.1. SSA and hyperparameters
 # Forecast horizon: one-year forecast
 forecast_horizon<-12
-# Holding time: see example 2
+# Holding time is kept fixed, see example 2
 ht<-12
 # Recall that we provide the lag-one acf: therefore we have to compute rho1 corresponding to ht
 rho1<-compute_rho_from_ht(ht)

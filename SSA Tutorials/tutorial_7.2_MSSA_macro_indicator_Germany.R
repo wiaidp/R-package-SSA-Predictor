@@ -48,7 +48,7 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 # Let's apply M-SSA to quarterly German Macro-data
 
 # 1. Load data and select indicators
-load(file="C:\\Users\\marca\\OneDrive\\2025\\R-package-SSA-Predictor\\Data\\macro")
+load(file=paste(getwd(),"\\Data\\macro",sep=""))
 # BIP(GDP) has a publication lag of one quarter
 # The target column in the data-file below corresponds to a one-step ahead forecast: 
 #   -BIP has a publication lag of one quarter but we shifted the data (BIP) in the target column one additional 
@@ -255,7 +255,7 @@ unlist(apply(mmse_mat,2,compute_empirical_ht_func))/unlist(apply(mssa_mat,2,comp
 
 
 #############################################################################################################
-# How can we improve performances, in parrticular target correlations?
+# How can we improve performances, in particular target correlations?
 
 # The following plot for BIP suggests that
 # 1. The forecast problem is rather difficult
