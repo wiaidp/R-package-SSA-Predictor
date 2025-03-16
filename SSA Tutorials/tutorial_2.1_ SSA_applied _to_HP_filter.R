@@ -871,7 +871,7 @@ abline(h=0)
 # -Exercise 6, here, addresses specifically an optimal one-sided filter for tracking the two-sided HP, assuming the true 
 #   (or the empirical) model of the data (which is not an ARIMA(0,2,2))
 # -This exercise is meant for analysts mainly interested in tracking the two-sided filter by an optimal concurrent design
-# -Besides the optimal MSE we also present SSA extensions which are smoother or/and faster 
+# -Besides the optimal MSE we also present SSA extensions which are smoother and/or faster 
 
 # 6.1 Specify symmetric filter as target
 L_sym<-401
