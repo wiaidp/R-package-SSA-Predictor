@@ -176,7 +176,20 @@ cor_mat_HP_BIP_oos
 cor_mat_BIP_full
 cor_mat_BIP_oos
 
-# Relative root mean-square errors: 
+# Note: 
+# -Out-of-sample correlations suggest that M-SSA predictors optimized for larger forecast horizons (h>4) 
+#     correlate positively with forward-shifted BIP up to shift 4 quarters 
+#   -Recall that we imposed a publication lag of 2 quarters to BIP, suggesting that a forward-shift of 3 quarters is close to a one-year ahead horizon
+# -Are these results, suggesting a link between predictors and BIP at more than 2 quarters ahead significant?
+# -For this purpose we may look at HAC-adjusted p-values of regressions of out-of-sample predictors on 
+#   forward-shifted BIP (see further down for details)
+p_value_HAC_BIP_oos
+
+# We now look at pairwise comparisons with established benchmarks in terms of relative root mean-square 
+#   errors: rRMSE
+# rRMSE is the ratio of the root mean-Square forecast error (RMSE) of M-SSA over the RMSE of 
+#   a. the mean of BIP or
+#   b. the direct predictor obtained by simple regressions of the data (indicators) on forward-shifted BIP
 # Remarks:
 #   1. Since M-SSA predictors are standardized (equal-weighting cross-sectional aggregation), we need to 
 #         calibrate them by regression onto the target (to determine static level and scale parameters)
@@ -193,10 +206,10 @@ cor_mat_BIP_oos
 #       -The (ex post) static level and scale adjustments are deemed less relevant
 
 # With these remarks in mind let's begin:
-# The first rRMSE show-cases M-SSA vs. the mean benchmark (of BIP), both targeting HP-BIP: 
+# The first rRMSE emphasizes M-SSA vs. the mean benchmark (of BIP), both targeting HP-BIP: 
 #   -Numbers smaller one signify an outperformance of M-SSA against the mean-benchmark when targeting HP-BIP
-# These rRMSEs are equivalent (in their information) to the above cor_mat_HP_BIP_oos 
-#   -An alternative reformulation, possibly more appealing (to some)
+# These rRMSEs are equivalent (in their information content) to the above cor_mat_HP_BIP_oos 
+#   -Just an alternative reformulation, possibly more appealing (simpler to interpret)
 rRMSE_MSSA_HP_BIP_mean
 # We next look at M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting HP-BIP
 rRMSE_MSSA_HP_BIP_direct
@@ -208,7 +221,6 @@ rRMSE_MSSA_BIP_direct
 # The above performance metrics do not test for statistical significance (of predictability)
 # The following HAC-adjusted p-values provide a way to infer statistical significance 
 # We look at HAC-adjusted p-values of regressions of M-SSA on forward-shifted targets
-# We first consider forward-shifted HP-BIP and full sample p-values
 # Remarks:
 #   -In some cases the HAC standard error (of the regression coefficient) seems `suspicious' 
 #     -HAC estimate of standard error could be substantially smaller than the ordinary OLS/unadjusted estimate
@@ -220,6 +232,8 @@ rRMSE_MSSA_BIP_direct
 #       where p-values decrease again for h too large
 #   -In other words: when moving from left to right along a specific row, smaller p-values are on 
 #       (or close to) the main diagonal element of that row
+
+# We first consider forward-shifted HP-BIP and full sample p-values
 p_value_HAC_HP_BIP_full
 # Same but out-of-sample 
 p_value_HAC_HP_BIP_oos
