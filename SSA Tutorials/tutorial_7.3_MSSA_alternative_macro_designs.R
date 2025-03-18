@@ -56,6 +56,7 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 # Load data and select indicators: see tutorial 7.2 for background
 load(file=paste(getwd(),"\\Data\\macro",sep=""))
 tail(data)
+data<-data[-nrow(data),] 
 lag_vec<-c(2,rep(0,ncol(data)-1))
 # -We assume a publication lag of two quarters for BIP (the effective lag is smaller but we'd like to stay on the safe side, in particular since BIP is subject to revisions)
 #     -Therefore the target column (first column) in the above data file is up-shifted by two quarters as compared to the second column (BIP)
