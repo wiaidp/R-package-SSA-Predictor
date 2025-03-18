@@ -94,7 +94,7 @@ par(mfrow=c(1,1))
 HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
 # Bi-infinite (here truncated) two-sided (symmetric) HP
 hp_target<-HP_obj$target
-ts.plot(hp_target)
+ts.plot(hp_target,main=paste("HP(",lambda_monthly,") two-sided target",sep=""))
 # Concurrent gap: as applied to series in levels: this is a high pass filter
 hp_gap=HP_obj$hp_gap
 ts.plot(hp_gap)
@@ -155,8 +155,9 @@ K<-600
 amp_obj<-amp_shift_func(K,as.vector(hp_trend),F)
 par(mfrow=c(1,2))
 # Amplitude
-plot(amp_obj$amp,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Amplitude HP",sep=""))
+plot(amp_obj$amp,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Amplitude HP",sep=""),ylim=c(0,max(amp_obj$amp)))
 mtext("Amplitude classic concurrent HP trend",line=-1)
+abline(h=0)
 axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
 #axis(1,at=1+0:6*K/6,labels=(c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi")))
 axis(2)
