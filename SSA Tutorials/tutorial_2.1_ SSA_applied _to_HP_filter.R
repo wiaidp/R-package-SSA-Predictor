@@ -101,7 +101,7 @@ ts.plot(hp_gap)
 # Concurrent HP assuming I(2)-process 
 # This is the Classic concurrent or one-sided low pass HP, see e.g. McElroy (2006)
 hp_trend=HP_obj$hp_trend
-ts.plot(hp_trend)
+ts.plot(hp_trend,main="One-sided HP")
 
 # Compute lag one acf and holding time of HP concurrent
 htrho_obj<-compute_holding_time_func(hp_trend)
@@ -111,7 +111,6 @@ ht_hp
 
 # Compare holding-times (ht) of one- and two-sided filters
 compute_holding_time_func(hp_target)$ht
-ht_hp
 # The large (atypical) discrepancy between holding-times of two- and one-sided filters is discussed in the JBCY paper
 
 #------------------------------
