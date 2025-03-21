@@ -55,6 +55,7 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 #------------------------------------------------------------------------
 # Load data and select indicators: see tutorial 7.2 for background
 load(file=paste(getwd(),"\\Data\\macro",sep=""))
+data<-data[-nrow(data),]
 tail(data)
 lag_vec<-c(2,rep(0,ncol(data)-1))
 # -We assume a publication lag of two quarters for BIP (the effective lag is smaller but we'd like to stay on the safe side, in particular since BIP is subject to revisions)
@@ -142,7 +143,7 @@ predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 select_direct_indicator<-c("ifo_c","ESI")
 
 perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec) 
-  
+
 p_value_HAC_HP_BIP_full=perf_obj$p_value_HAC_HP_BIP_full
 t_HAC_HP_BIP_full=perf_obj$t_HAC_HP_BIP_full
 cor_mat_HP_BIP_full=perf_obj$cor_mat_HP_BIP_full
@@ -326,19 +327,51 @@ p_value_HAC_HP_BIP_oos[k,j]
 
 ################################################################################################################
 ################################################################################################################
-# Let's now analyze a more adaptive design by selecting a smaller lambda_HP: see above for motivation
-# We then verify if the more flexible design is able to predict BIP more consistently 
+# Let's check if the above tests of statistical significance work for white noise
+# We verify whether we can forecast the white noise data based on the predictors
 
-lambda_HP<-16
-# Notes: 
-# -For adaptive designs, a requested pronounced left-shift might induce phase-reversal which is to be avoided
-# -Therefore we use forecast horizons up to 4 quarters (instead of 6) and no forecast excess
-#   -Phase-reversal would be fine (optimal) if the data were in agreement with the implicit assumptions underlying HP
-f_excess_adaptive<-c(0,0)
-h_vec_adaptive<-0:4
 
-# Run the M-SSA predictor function
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec_adaptive,f_excess_adaptive)
+# Generate artificial white data
+set.seed(11)
+
+a1<-0.0
+b1<-0.0
+
+x_mat_white_noise<-NULL
+for (i in 1:ncol(x_mat))
+  x_mat_white_noise<-cbind(x_mat_white_noise,rnorm(nrow(x_mat)))
+
+# Provide colnmaes and rwonames from x_dat: necessary because the function relies on true dates and column names
+rownames(x_mat_white_noise)<-rownames(x_mat)
+colnames(x_mat_white_noise)<-colnames(x_mat)
+tail(x_mat_white_noise)
+
+
+
+
+# Target filter: lambda_HP is the single most important hyperparameter, see tutorial 7.1 for a discussion
+# Briefly: we avoid the classic quarterly setting lambda_HP=1600 because the resulting filter would be too smooth
+# Too smooth means: the forecast horizon would have nearly no effect on the M-SSA predictor (almost no left-shift, no anticipation)
+lambda_HP<-160
+# Filter length: nearly 8 years is fine for the selected lambda_HP (filter weights decay sufficiently fast)
+L<-31
+# In-sample span for VAR, i.e., M-SSA (the proposed design is quite insensitive to this specification because the VAR is parsimoniously parameterized)
+date_to_fit<-"2008"
+# VARMA model orders: keep the model simple in particular for short/tight in-sample spans
+p<-0
+q<-0
+# Holding-times (HT): controls smoothness of M-SSA (the following numbers are pasted from the original predictor)
+# Increasing these numbers leads to predictors with less zero-crossings (smoother)
+ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
+names(ht_mssa_vec)<-colnames(x_mat)
+# Forecast horizons: M-SSA is optimized for each forecast horizon in h_vec 
+h_vec<-0:6
+# Forecast excesses: see tutorial 7.1 for background
+f_excess<-c(4,2)
+
+# Run the function packing and implementing our previous findings (tutorial 7.2) 
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat_white_noise,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess)
+
 
 # Forward-shifted HP-BIP
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
@@ -351,54 +384,16 @@ predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 #   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
 select_direct_indicator<-c("ifo_c","ESI")
 
-perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec_adaptive) 
+perf_obj<-compute_perf_func(x_mat_white_noise,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec) 
 
-p_value_HAC_HP_BIP_full=perf_obj$p_value_HAC_HP_BIP_full
-t_HAC_HP_BIP_full=perf_obj$t_HAC_HP_BIP_full
-cor_mat_HP_BIP_full=perf_obj$cor_mat_HP_BIP_full
-p_value_HAC_HP_BIP_oos=perf_obj$p_value_HAC_HP_BIP_oos
-t_HAC_HP_BIP_oos=perf_obj$t_HAC_HP_BIP_oos
-cor_mat_HP_BIP_oos=perf_obj$cor_mat_HP_BIP_oos
 p_value_HAC_BIP_full=perf_obj$p_value_HAC_BIP_full
-t_HAC_BIP_full=perf_obj$t_HAC_BIP_full
-cor_mat_BIP_full=perf_obj$cor_mat_BIP_full
 p_value_HAC_BIP_oos=perf_obj$p_value_HAC_BIP_oos
-t_HAC_BIP_oos=perf_obj$t_HAC_BIP_oos
-cor_mat_BIP_oos=perf_obj$cor_mat_BIP_oos
-rRMSE_MSSA_HP_BIP_direct=perf_obj$rRMSE_MSSA_HP_BIP_direct
-rRMSE_MSSA_HP_BIP_mean=perf_obj$rRMSE_MSSA_HP_BIP_mean
-rRMSE_MSSA_BIP_direct=perf_obj$rRMSE_MSSA_BIP_direct
-rRMSE_MSSA_BIP_mean=perf_obj$rRMSE_MSSA_BIP_mean
-target_BIP_mat=perf_obj$target_BIP_mat
 
-# We now examine performances targeting BIP (not HP-BIP)
-# 1. Full sample
-cor_mat_BIP_full
-# 2. Out-of-sample (period following estimation span for VAR-model of M-SSA)
-cor_mat_BIP_oos
 
-# Are the results significant?
+# We just need to check whether we can forecast the white noise data based on the predictors
+# Full sample
 p_value_HAC_BIP_full
+# Out-of-sample: note that weaker significance is due, in part, to the shorter span
 p_value_HAC_BIP_oos
-
-
-
-#---------------------------------------------
-# Findings overall:
-
-# A. Classic direct predictors:
-#   -Classic direct predictors generally do not perform better (out-of-sample) than the simple mean benchmark at 
-#     forward-shifts exceeding 2 quarters
-#   -Classic direct predictors are more sensitive (than M-SSA) to episodes subject to unusual singular readings (e,g,, the Pandemic)
-
-# B. M-SSA
-#   -Classic business-cycle designs (lambda_HP=1600) smooth out recessions and hide  
-#     dynamics potentially relevant in a short- to mid-term forecast exercise (1-6 quarters ahead)
-#   -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent forecast pattern, 
-#       suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
-#     -This result suggest that M-SSA is also informative about forward-shifted BIP, although corresponding 
-#       performance statistics are less conclusive (due to noise)
-#   -More adaptive designs (lambda_HP=16) seem to be able to track forward-shifted BIP (more) consistently, 
-#     by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
-#     components of BIP
+# Findings: p-values above 5%: cannot predict original (white noise) data
 
