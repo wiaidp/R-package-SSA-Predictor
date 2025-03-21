@@ -55,7 +55,6 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 #------------------------------------------------------------------------
 # Load data and select indicators: see tutorial 7.2 for background
 load(file=paste(getwd(),"\\Data\\macro",sep=""))
-data<-data[-nrow(data),]
 tail(data)
 lag_vec<-c(2,rep(0,ncol(data)-1))
 # -We assume a publication lag of two quarters for BIP (the effective lag is smaller but we'd like to stay on the safe side, in particular since BIP is subject to revisions)
@@ -137,6 +136,26 @@ target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
 # M-MSE
 predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
+
+# Plot M-SSA 
+mplot<-predictor_mssa_mat
+colnames(mplot)<-colnames(predictor_mssa_mat)
+par(mfrow=c(1,1))
+colo<-c(rainbow(ncol(predictor_mssa_mat)))
+main_title<-c(paste("Standardized M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep=""),"Vertical line delimites in-sample and out-of-sample span")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (j in 1:ncol(mplot))
+{
+  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
+  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+}
+abline(h=0)
+abline(v=which(rownames(mplot)>date_to_fit)[1]-1,lty=2)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+
 
 # For the direct predictor we can specify the macro-indicators in the expanding-window regressions
 #   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
@@ -311,6 +330,7 @@ p_value_HAC_BIP_full[k,j]
 # 2. Out-of-sample
 p_value_HAC_BIP_oos[k,j]
 
+
 # Instead of BIP we might have a look at targeting HP-BIP instead (also shifted one year ahead)
 p_value_HAC_HP_BIP_full[k,j]
 p_value_HAC_HP_BIP_oos[k,j]
@@ -321,8 +341,8 @@ p_value_HAC_HP_BIP_oos[k,j]
 #   -Statistical significance is stronger for shifted HP-BIP (than for BIP)
 #   -Is it because mid- and short-term components of BIP are effectively unpredictable?
 #   -Or is it because lambda_HP=160 is not sufficiently adaptive to track mid/short-term dynamics (still too smooth)?
-# To find an answer we now propose a more adaptive design based on lambda_HP=16
-#   -We then check whether BIP can be predicted more consistently
+# To find an answer you might try a more adaptive design (such as for example based on lambda_HP=16)
+#   -Then you can check whether BIP can be predicted more consistently (hint: it can)
 
 
 ################################################################################################################
@@ -332,7 +352,7 @@ p_value_HAC_HP_BIP_oos[k,j]
 
 
 # Generate artificial white data
-set.seed(11)
+set.seed(132)
 
 a1<-0.0
 b1<-0.0
