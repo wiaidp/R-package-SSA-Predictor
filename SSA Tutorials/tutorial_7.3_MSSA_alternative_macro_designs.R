@@ -419,7 +419,7 @@ p_value_HAC_HP_BIP_oos[k,j]
 
 
 # Generate artificial white data
-set.seed(132)
+set.seed(111)
 
 a1<-0.0
 b1<-0.0
