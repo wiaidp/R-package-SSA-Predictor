@@ -559,4 +559,10 @@ p_value_HAC_BIP_oos
 #     by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
 #     components of BIP
 
+# Note about the publication lag
+#   -All results relate to forward-shifts augmented by the publication lag
+#   -According to feedback, our setting for the publication lag, i.e., lag_vec[1]=2, is too large (prudence)
+#     -The effective publication lag of BIP is one quarter
+#   -As a result, a forward-shift corresponding to 3 quarters in our evaluations is more likely to 
+#     represent a full year ahead forecast horizon 
 
