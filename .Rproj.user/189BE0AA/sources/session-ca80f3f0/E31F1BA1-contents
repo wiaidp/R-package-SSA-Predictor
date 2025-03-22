@@ -606,7 +606,8 @@ HAC_ajusted_p_value_func<-function(da)
   t_stat<-summary(lm_obj)$coef[2,1]/sd[2]
 # HAC adjusted  
   t_stat<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-# Conservative: use the max standard error, i.e. the min t-statistic 
+# We noted that the HAC adjustment does not always lead to consistent results (maybe a problem with R-package sandwich)
+# In any case we here try to adopt a pragmatic proceeding by using sd_max, the larger of the two variance estimates 
   t_stat<-summary(lm_obj)$coef[2,1]/sd_max
 # One-sided test: if regressor is effective, then coefficient must be positive (we are not interested in testing negative readings)     
   p_value<-pt(t_stat, df=nrow(da)-ncol(da), lower=FALSE)
@@ -649,7 +650,7 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
   summary(lm_oos)
   sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
   t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
-# One-sided test: if predictor is effective, then the sign of the coefficient must be positive  
+# One-sided test: if predictor is effective, then the sign of the coefficient must be positive (ngetaive signs can be ignored) 
   HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
   sd_ols<-sqrt(diag(vcov(lm_obj)))
   t_ols<-summary(lm_obj)$coef[2,1]/sd_ols[2]
