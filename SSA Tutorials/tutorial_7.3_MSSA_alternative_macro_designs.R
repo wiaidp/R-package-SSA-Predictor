@@ -1,7 +1,8 @@
 # Tutorial 7.3: propose various M-SSA BIP (German GDP) predictor designs
 # The concept of M-SSA predictors for BIP was introduced in tutorial 7.2
 # We packed this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
-# We here present two predictor designs but you might be able to find better hyperparameters yourself
+# We here present two predictor designs: a `fairly adaptive' in exercise 1 and a `more adaptive' in exercise 3
+#   -You might be able to find even better hyperparameters yourself by fine-tuning adaptivity further
 
 # Main purposes of this tutorial
 # -Illustrate M-SSA as applied to real data (in contrast to tutorial 7.1, based on simulated data)
@@ -13,7 +14,7 @@
 #   -Our main emphasize in this tutorial is the mid-term predictability: 2-6 quarters ahead
 #   -Institutional forecasters are very good at nowcasting GDP: indeed, much better than M-SSA presented here
 #   -But M-SSA as proposed in this tutorial could possibly provide additional insights into the prospect of mid-term GDP/BIP forecasting
-# -In addition to forecasting BIP we also consider nowcasting and forecasting of the trend-growth of BIP
+# -In addition to forecasting BIP, we also consider nowcasting and forecasting of the trend-growth of BIP
 #   -For this purpose we apply a HP-filter to the differenced (and log-transformed) BIP
 #   -This trend-growth component is termed HP-BIP
 # -Forecast performance measures:
@@ -21,8 +22,17 @@
 #     -target correlations: correlations of predictors with forward-shifted BIP or HP-BIP
 #     -rRMSE: relative root mean-square error when benchmarked against classic direct predictors or mean(BIP) (simple benchmark)
 #     -HAC-adjusted p-values of t-statistics of regressions of predictors on target (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
-
 # To do: provide additional Diebold-Mariano (DM) and Giacomini-White (GW) tests of unequal predictability (benchmarked against mean(BIP))
+
+# The tutorial is structured into 3 exercises
+# Exercise 1: apply a fairly adaptive design based on targeting a HP(160) filter by M-SSA
+#   -HP(160) deviates from the standard HP(1600) specification typically recommended for quarterly data
+#     -see a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
+#   -We shall see that M-SSA can predict HP-BIP (for which it is explicitly optimized) consistently 
+#      multiple quarters ahead (strong statistical significance)
+#   -It is more difficult to predict BIP, though: the noisy high-frequency components of BIP are unpredictable 
+# Exercise 2: apply M-SSA to white noise data to verify that the proposed performance measures and tests indicate unpredictability
+# Exercise 3: analyze a more adaptive M-SSA design based on targeting HP(16) by M-SSA
 
 
 # Start with a clean sheet
