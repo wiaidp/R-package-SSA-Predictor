@@ -3,9 +3,12 @@
 
 # -The first M-SSA tutorial, this one, is based on a simulation example derived from an application of M-SSA to 
 #   predicting German GDP (or BIP)
-# -The data generating process here relies on the VAR fitted to German data
-# -We here show that M-SSA is optimal (if the data generating is the true process) and that the most relevant 
+# -The data generating process relies on the VAR fitted to German data, see turials 7.2. and 7.3
+# -We here show that M-SSA is optimal (if the data generating is the true process) and that the relevant 
 #   sample performances converge to their expected numbers for sufficiently long samples of (artificial) data
+
+# Briefly, we illustrate that the theory proposed in the M-SSA paper works as intended and that it addresses 
+#   problems of concern in applications
 
 # Clean sheet
 rm(list=ls())

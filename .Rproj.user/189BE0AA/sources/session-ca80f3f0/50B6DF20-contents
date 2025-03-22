@@ -15,12 +15,6 @@
 #   relies on multiple explanatory variables.
 #   -Therefore we need to model the cross-section as well as the longitudinal dimension
 # -For this purpose we rely on a simple VAR(1)-model of the data generating process
-#   -This VAR model is derived from the macro-application in tutorials 7.2 and 7.3
-# -We here assume this model to be true, i.e., we simulate data based on the VAR(1) and we apply M-SSA to the artificial data
-#   -Thereby we can generate series of arbitrary length to check convergence of sample estimates to expected numbers,
-#     whereby the latter are based on theoretical derivations in the M-SSA paper
-# -We here demonstrate that M-SSA is optimal (if the data generating process is known) and that the most relevant 
-#   sample performances converge to their expected numbers for sufficiently long samples
 
 # Clean sheet
 rm(list=ls())
@@ -55,10 +49,11 @@ load(file=paste(getwd(),"\\Data\\macro",sep=""))
 #     quarter upwards (forward) to be on the safe-side (for example to account for revisions)
 #   -In summary: a nowcast in our designs assumes that the two-sided target filter is applied to the target column in the data file below
 # Columns 2-8 are the data available in Jan-2025 for nowcasting the target column (we can also rely on BIP as an explanatory variable)
-# All indicators except spread are log-transformed. Then all indicators are differenced (quarterly differences) and standardized
-#   -Calibration of true levels and variances can be obtained afterwards, by simple linear regression
-# Extreme (singular) observations during Pandemic (2019-2020) where trimmed at 3 standard deviations 
-#   After discussion this trimming was deemed acceptable (and transparent,reproducible) to avoid overly strong impact of singular data
+# All indicators except spread are first log-transformed. Subsequently, they are also differenced (quarterly differences) and standardized
+#   -We here emphasize dynaimc aspects of the forecast problem, ignoring static level and scale adjustments
+#   -Calibration of `static' levels (mean) and scales (variance) can be obtained afterwards, by simple linear regression
+# Extreme (singular) observations during Pandemic (2019-2020) are trimmed at 3 standard deviations 
+#   After discussion this trimming was deemed acceptable (and transparent,reproducible) to avoid overly strong impact of the singular portions of the data
 tail(data)
 # We see that the data in the target column (BIP) is shifted upwards two quarters: 
 # We here want to nowcast/predict this series given the data in columns 2-7 (explanatory variables)
@@ -92,20 +87,18 @@ n<-dim(x_mat)[2]
 # Number of observations
 len<-dim(x_mat)[1]
 #------------------------------
-# 2. Target filter: the two-sided HP will be applied to target column (or equivalently: BIP shifted upward by lag_vec[1] quarters)
+# 2. Target filter: the two-sided HP will be applied to the target column (BIP shifted upward by lag_vec[1] quarters)
 #   -The classic quarterly setting lambda_HP=1600 leads to a design which tends to smooth out recessions
-#   -Dynamics are too weak to be `useful' as a forecast tool (dynamic changes over a one-year horizon are weak)
-#     -Therefore, imposing a one-year ahead forecast horizon does not significantly affect the M-SSA predictor
-#   -Most important: the left-shift of the M-SSA predictor as a function of the forecast horizon 
-#      is either inexistent or weak when selecting lambda_HP=1600 
-#     -As stated, HP(1600) is so smooth that the series does not vary/change substantially over a one-year horizon
-#     -Therefore, predictors are affected only marginally by the forecast horizon over such a `short' time span 
-#   -Finally, the classic design (lambda_HP=1600) is (more) sensitive to Pandemic: the finite-length truncated filter looks `bad'
+#     -See a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
+#     -Dynamics are too weak to be `useful' in our forecast context (dynamic changes of HP(1600) over a one-year horizon are weak)
+#     -As a result: a left-shift of the M-SSA predictor as a function of the forecast horizon 
+#        cannot obtained (when targeting HP(1600)) 
+#   -Finally, the classic HP(1600) seems to be (more) sensitive to the Pandemic: the finite-length truncated filter looks `aweful'
 # To summarize
-# -lambda_HP=160 is adapting more rapidly to changes of BIP, so as to be able track dynamic shifts within a one-year horizon
+# -HP(160) is more adaptive and is able to track dynamic shifts within a one-year horizon: it is a `better' target for M-SSA
 #   -Accordingly, M-SSA predictors are reactive to the forecast horizon
 #   -Predictors are increasingly left-shifted (anticipative) as a function of the forecast horizon
-# In the next tutorial we shall present an even more reactive design, which tracks future BIP slightly better 
+# In tutorial 7.3, exercise 3, we shall consider an even more adaptive design, which tracks future BIP slightly better 
 
 lambda_HP<-160
 # Filter length: roughly 4 years. 
@@ -125,6 +118,7 @@ ts.plot(gamma_target,col=rainbow(n))
 
 # But we tell M-SSA to mirror the right tail at the center peak: symmetric_target==T
 symmetric_target
+# Specifically, this means that the effective target will by the two-sided filter, although we supply center-point right tail only
 
 
 #-------------------------
@@ -161,8 +155,13 @@ Phi<-V_obj$Phi
 Theta<-V_obj$Theta
 
 #---------------------------------------
-# 4. MA inversion
-
+# 4. MA inversion: as in SSA, we need to specify the data generating process to M-SSA in terms of MA-inversion
+# A plot should pop-up in the plot-panel, illustrating the MA-inversion
+# An M-inversion is obtained for each of the five series used in the multivariate design
+# The MA-inversion can be used to interpret the VAR: 
+#   -Large weights of series j for series i mean that series j is an important explanatory variable for series i 
+#   -The rate of decay of the weights is indicative about the memory of the data generating process
+#   -In principle, the MA-weights should reflect the previous acf-plot `somehow'
 MA_inv_obj<-MA_inv_VAR_func(Phi,Theta,L,n,T)
 
 xi<-MA_inv_obj$xi
@@ -171,25 +170,41 @@ xi<-MA_inv_obj$xi
 # 5. M-SSA function
 # One year ahead forecast: 4 quarters + publication lag
 delta<-4+lag_vec[1]
-# Specify HT constraint: 
+# Specify HT constraint: these numbers were derived by imposing a larger HT than the classic MSE-predictor, see below for context
 ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
 # Compute corresponding lag-one ACF in HT constraint: see previous tutorials on the link between HT and lag-one ACF  
 rho0<-compute_rho_from_ht(ht_mssa_vec)$rho
+# We can see the lag-one ACFs of the 5 predictors 
+#   -each series has its own predictor
+#   -The following lag-one ACFs match the imposed HTs (see bijective non-linear link between HT and lag-one ACF in paper and previous tutorials)
+rho0
 
+# We van now apply M-SSA
+# -The function requires the following information
+#   -Forecast horizon delta
+#   -HT constraint ht_mssa_vec
+#   -The data-generating process: MA-inversion xi and Sigma
+#   -The target: gamma_target together with the Boolean symmetric_target signifying mirroring (of the right tail of the one-sided target) 
 MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
 
+# Extract M-SSA filter
 bk_x_mat=MSSA_main_obj$bk_x_mat
+# Supply also the entire M-SSA object (which contains much more information, see tutorial 7.1)
 MSSA_obj=MSSA_main_obj$MSSA_obj 
-# Benchmark MSE predictor
+# This is the benchmark MSE predictor
 gammak_x_mse<-MSSA_obj$gammak_x_mse
+
+# Note that we can compute the HT of the MSE predictor and verify that our constraints impose larger HTs for M-SSA
+for (i in 1:ncol(gammak_x_mse))
+  print(paste("HT MSE of series ",select_vec_multi[i],": ",compute_holding_time_func(gammak_x_mse[,i])$ht, " vs. imposed HT ",ht_mssa_vec[i],sep=""))
 
 colnames(bk_x_mat)<-colnames(gammak_x_mse)<-select_vec_multi
 
 #-----------------------
 # 6. Filter: apply M-SSA filter to data
 
-# Note that delta accounts for publication lag so that output of two-sided filter is leaft shifted accordingly
+# Note that delta accounts for publication lag so that output of two-sided filter is left shifted accordingly
 #   4 quarters+lag_vec[1]
 filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
 
@@ -198,19 +213,20 @@ mssa_mat=filt_obj$mssa_mat
 target_mat=filt_obj$target_mat
 mmse_mat<-filt_obj$mmse_mat
 
-# We can verify that target (two-sided HP applied to BIP) is shifted upward by publication-lag+delta=2+4
+# We can verify that target (two-sided HP applied to BIP) is shifted upward (forward) by publication-lag+delta=2+4
 cbind(target_mat[,1],mssa_mat[,1])[(L-6):(L+5),]
 
 
-# Plots: in-sample span is marked by vertical line
+# Plots: for each series we plot the target (black) and the M-SSA (blue) and M-MSE (green) predictors 
+# The in-sample span is marked by a vertical line
 for (i in n:1)
 {
   par(mfrow=c(1,1))
   mplot<-cbind(target_mat[,i],mssa_mat[,i],mmse_mat[,i])
-  colnames(mplot)<-c(paste("Target: HP applied to ",select_vec_multi[i],", left-shifted by ",delta-lag_vec[1],"+publag quarters",sep=""),"M-SSA","M-MSE")
+  colnames(mplot)<-c(paste("Target: HP applied to ",select_vec_multi[i],", left-shifted by ",delta-lag_vec[1],"(+publication lag) quarters",sep=""),"M-SSA","M-MSE")
 
   colo<-c("black","blue","green")
-  main_title<-paste("M-SSA ",select_vec_multi[i],": delta-publag=",delta-lag_vec[1],", in-sample span ending in ",rownames(data_fit)[nrow(data_fit)],sep="")
+  main_title<-paste("M-SSA ",select_vec_multi[i],": forward-shift=",delta-lag_vec[1],", in-sample span ending in ",rownames(data_fit)[nrow(data_fit)],sep="")
   plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
   mtext(colnames(mplot)[1],col=colo[1],line=-1)
   for (i in 1:ncol(mplot))
@@ -228,9 +244,11 @@ for (i in n:1)
 
 
 #------------------------
-# Mean-square errors M-SSA
+# Sample mean-square errors of M-SSA
 apply(na.exclude((target_mat-mssa_mat)^2),2,mean)
-# Mean-square errors M-MSE: for true models and long samples MSE of M-SSA is larger than MSE of M-MSE benchmark
+# Sample mean-square errors M-MSE: 
+#   -For true models  and long samples (in a simulation context) the MSE of M-SSA is larger than the MSE 
+#     of the M-MSE benchmark because we impose stronger smoothness (a larger HT)
 apply(na.exclude((target_mat-mmse_mat)^2),2,mean)
 
 # Correlations between target and M-SSA: sample estimates converge to criterion value for increasing 
@@ -238,9 +256,10 @@ apply(na.exclude((target_mat-mmse_mat)^2),2,mean)
 # The following results look bad: negative sample correlations...
 for (i in 1:n)
   print(cor(na.exclude(cbind(target_mat[,i],mssa_mat[,i])))[1,2])
-# We can compare to the criterion value of M-SSA: the target correlation is maximized under the HT constraint
-#   -By maximization the true correlations must be positive
-#   -A large discrepancy to the above sample correlations suggests that the VAR(1) is misspecified
+# We can compare these smaple estimates to the criterion value of M-SSA: the target correlation is maximized under the HT constraint
+#   -Due to maximization, the true correlations must be positive
+#   -A large discrepancy between true and sample correlations suggests that the VAR(1) might be misspecified 
+#     or that the sample is too short (random fluctuation). Both apply here...
 MSSA_obj$crit_rhoy_target
 
 # M-SSA optimizes target correlation under holding time constraint:
@@ -249,13 +268,14 @@ unlist(apply(mmse_mat,2,compute_empirical_ht_func))
 unlist(apply(mssa_mat,2,compute_empirical_ht_func))
 ht_mssa_vec
 # In contrast to correlations above, the sample HTs look OK, given the rather short sample (random fluctuation)
-# In any case, we'd like M-SSA to be smoother smoother than M-MSE: 
-#   The following ratios should be smaller and this looks fine! 
+# In any case, we'd like M-SSA to be smoother than M-MSE: 
+#   In this case, the following ratios of HTs should all be smaller one and this looks fine!
+# M-SSA is effectively smoother than the classic M-MSE benchmark as requested!
 unlist(apply(mmse_mat,2,compute_empirical_ht_func))/unlist(apply(mssa_mat,2,compute_empirical_ht_func))
 
 
 #############################################################################################################
-# How can we improve performances, in particular target correlations?
+# How can we improve performances and in particular the target correlations (which were strikingly bad!)?
 
 # The following plot for BIP suggests that
 # 1. The forecast problem is rather difficult
@@ -281,7 +301,7 @@ axis(2)
 box()
 
 
-# Let's try a larger forecast horizon than necessary: we call this a forecast excess
+# Let's try a larger forecast horizon than strictly necessary: we call this a forecast excess
 f_excess<-4
 # Increase artificially delta
 delta_excess<-delta+f_excess
@@ -307,11 +327,19 @@ mssa_excess_mat=filt_obj$mssa_mat
 #   We do not rely on delta_excess
 cbind(target_mat[,1],mssa_excess_mat[,1])[(L-6):(L+5),]
 
-# Compute sample correlations: they are now positive!
+# Compute the sample correlations: recall that the above sample target correlations were negative
+# But now they have turned positive! 
 for (i in 1:n)
   print(cor(na.exclude(cbind(target_mat[,i],mssa_excess_mat[,i])))[1,2])
 
-# Compute sample HTs: M-SSA keeps the expected HT fixed (independent of forecast horizon)
+# What happened? 
+#   -The excess forecast horizon leads to a corresponding left-shifting of the M-SSA predictor
+#   -Therefore, the `doped' M-SSA is able to track the recession dips more timely
+#   -The more timely tracking of the recession dips leads to a positive sample target correlation
+#   -The VAR(1) is unable to `explain' (generate) recessions dips: it is misspecified
+#   -We can account for this model misspecification by asking M-SSA to be faster than necessary (if the VAR were the true data generating process)
+
+# Compute sample HTs: M-SSA keeps the expected HT fixed as desired (independent of forecast horizon)
 unlist(apply(mssa_excess_mat,2,compute_empirical_ht_func))
 # Compare with previous M-SSA: differences are mainly due to random fluctuations
 unlist(apply(mssa_mat,2,compute_empirical_ht_func))
@@ -363,7 +391,7 @@ box()
 
 # We see that the concept of `excess forecast' leads to a commensurate left-shift of M-SSA-excess (red)
 # This left-shift is responsible for the improvement seen in the sample target correlations
-#   -If the true process were the fitted VAR(1), then we would probably not observe the marked recession episodes
+#   -If the true process were the fitted VAR(1), then we would probably not observe the marked recession dips
 #   -Therefore, the obtained left-shift would not improve performances (quite the opposite in fact)
 #   -But in the presence of strong asymmetric down-turns, a `faster' filter can track the relevant dynamics better 
 
@@ -388,7 +416,7 @@ box()
 # -We select a larger delta for BIP and ip: forecast excess detailed above 
 # C. Forecast horizons:
 # -We compute M-SSA predictors based on A. and B. above, targeting BIP at horizons 0 (nowcast), 1, 2, 4 (one year) and 6 quarters ahead
-#   -This results in 5 predictors 
+#   -This results in 1 nowcast and 4 forecasts 
 #   -We then compute performances of each of the 5 predictors relative to BIP shifted by 0,1,2,4,6 quarters: 
 #       -We consider all 25 combinations
 #   -We also consider statistical significance, by relying on different statistics (relying on HAC estimates of variances)
@@ -451,21 +479,22 @@ for (i in 1:length(h_vec))#i<-1
   
 }
 
-# Standardize and aggregate: equal weighting
+# Standardize and aggregate all five predictors: equal weighting
 indicator_mat<-(scale(mssa_bip)+scale(mssa_ip)+scale(mssa_ifo)+scale(mssa_esi)+scale(mssa_spread))/length(select_vec_multi)
 
 colnames(indicator_mat)<-colnames(mssa_bip)<-colnames(mssa_ip)<-colnames(mssa_ifo)<-colnames(mssa_esi)<-colnames(mssa_spread)<-paste("Horizon=",h_vec,sep="")
 rownames(indicator_mat)<-rownames(x_mat)
 
-# The five M-SSA predictors
+# The five M-SSA predictors: one for each forecast horizon
 tail(indicator_mat)
 
-# Compute sample target correlations: all 5*5 combinations
+# Compute sample target correlations: compute all 5x5 combinations of forecast horizon and forward-shift
 target_shifted_mat<-NULL
 cor_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
 
 for (i in 1:length(h_vec))#i<-1
 {
+# Forward-shift  
   shift<-h_vec[i]+lag_vec[1]
 # Compute target: two-sided HP applied to BIP and shifted forward by forecast horizon plus publication lag
   filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,shift)
@@ -494,23 +523,25 @@ for (i in 1:length(h_vec))#i<-1
   axis(2)
   box()
 
-# Compute target correlations of all M-SSA predictors with shifted target: all combinations
+# Compute target correlations of all M-SSA predictors with the shifted target: all combinations of 
+#   forecast horizon and forward-shift
   for (j in 1:ncol(indicator_mat))
     cor_mat[i,j]<-cor(na.exclude(cbind(target,indicator_mat[,j])))[1,2]
 
 }
-# Observe the shifts: 
+# Check the shifts: 
 #   The target is shifted upward by publication lag (assumed to be 2 quarters) + forecast horizon relative to the predictor (in the first column) 
 cbind(indicator_mat[,1],target_shifted_mat)[(L-10):(L+6),]
 
+# We can now have a look at the traget correlations
 colnames(cor_mat)<-paste("M-SSA: h=",h_vec,sep="")
 rownames(cor_mat)<-paste("Shift of target: ",h_vec,sep="")
 # -We can see that M-SSA predictors optimized for larger forecast horizons (from left to right in cor_mat) 
 #     correlate more strongly with correspondingly forward-shifted target (from top to bottom in cor_mat)
-# -The largest correlations tend to lie on (or to be close to) the diagonal of cor_mat
+# -For a given forward-shift (row), the largest correlations tend to lie on (or to be close to) the diagonal element of that row in cor_mat
 cor_mat
 
-# We infer from the observed pattern, that the M-SSA predictors tend to be informative about future BIP trend growth
+# We infer from the observed systematic pattern, that the M-SSA predictors tend to be informative about future BIP trend growth
 # Since future BIP trend growth tells something about the low-frequency part of future BIP, we may infer that 
 #   the M-SSA predictors are also informative about future BIP
 # However, (differenced) BIP is a very noisy series
@@ -547,14 +578,14 @@ p_value_HAC_mat
 # What about future BIP?
 t_HAC_mat_BIP<-p_value_HAC_mat_BIP<-matrix(ncol=length(h_vec),nrow=length(h_vec))
 BIP_target_mat<-NULL
-for (i in 1:length(h_vec))# i<-1
+for (i in 1:length(h_vec))# i<-4
 {
 # Shift BIP  
   shift<-h_vec[i]+lag_vec[1]
   BIP_target<-c(x_mat[(1+shift):nrow(x_mat),"BIP"],rep(NA,shift))
   BIP_target_mat<-cbind(BIP_target_mat,BIP_target)
 # Rgress predictors on shifted BIP  
-  for (j in 1:length(h_vec))# j<-1
+  for (j in 1:length(h_vec))# j<-5
   {
     lm_obj<-lm(BIP_target~indicator_mat[,j])
     summary(lm_obj)
@@ -564,8 +595,10 @@ for (i in 1:length(h_vec))# i<-1
     sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
     # This is the same as
     sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
+# Compute HAC-adjusted t-statistic    
     t_HAC_mat_BIP[i,j]<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-    p_value_HAC_mat_BIP[i,j]<-2*pt(t_HAC_mat_BIP[i,j], len-length(select_vec_multi), lower=FALSE)
+# One-sided test: if predictor is effective, then the sign of the coefficient must be positive (we are not interested in negative signs) 
+    p_value_HAC_mat_BIP[i,j]<-pt(t_HAC_mat_BIP[i,j], len-length(select_vec_multi), lower=FALSE)
     
   }
 }
@@ -579,6 +612,12 @@ rownames(t_HAC_mat_BIP)<-rownames(p_value_HAC_mat_BIP)<-paste("Shift of target: 
 #   -Selecting more aggressive designs (larger excesses) may lead to stronger significance at larger shifts, up to a point 
 #   -You may try f_excess<-c(6,4): a strong result at a one-year ahead forecast horizon (plus publication lag) is achievable
 p_value_HAC_mat_BIP
+
+# Note: sometimes the HAC-adjustment seems to deliver inconsistent results (might be a problem in the R-package sandwich)
+#   -In particular, in some cases the adjusted variance is substantially smaller than the classic OLS estimate
+# In the next tutorial we account in a `pragmatic' way for this problem:
+#   -We compute the HAC-adjusted variance as well as the OLS variance
+#   -We select the larger of the two when computing t-statistics and p-values
 
 
 # Select a forecast horizon 
@@ -694,14 +733,14 @@ p_value_HAC_mat
 #################################################################
 # Findings
 # A. When targeting forecast horizons of a year or less, we need to concentrate on signals (HP-trends) with sufficiently 
-#   strong dynamic changes over such a time interval
+#   strong dynamic changes over such a time interval 
 #   -For this purpose we selected lambda_HP=160 (more adaptive than the classic lambda_HP=1600 setting)
 #   -The increased adaptivity forces predictors to react to the forecast horizon by a commensurate left-shift (anticipation)
 #   -In the next tutorial we shall look at even more adaptive designs
 # -Assuming a suitable choice for lambda_HP, the main construction principles behind M-SSA indicators leads to 
 #   forecast designs with predictive relevance
 #   -Left-shift controlled by forecast horizon
-#   -Smoothness (nois-suppression) controlled by HT
+#   -Smoothness (noise-suppression) controlled by HT
 # -Predicting HP-BIP (the trend component) seems easier than predicting BIP
 #   -HP-BIP is mostly exempted from erratic (unpredictable) high-frequency components of BIP
 # -The effect of the forecast horizon (hyperparameter) in M-SSA is statistically as well as logically consistent: 
@@ -716,6 +755,4 @@ p_value_HAC_mat
 #---------------------------------------------------------------------------------------------------
 
 
-############################################################
-# Coming next: rRMSE (relative root mean-square error) and HAC-adjusted DM/GW statistics of predictive outperformance
 
