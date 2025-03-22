@@ -343,8 +343,8 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
       da<-na.exclude(cbind(target_shifted_mat[,i],predictor_mssa_mat[,j]))
 # Compute HAC-adjusted p-value of-one-sided test when regressing column 2 (predictor) on column 1 (target) of da
       p_obj<-HAC_ajusted_p_value_func(da)
-
       p_value_HAC_HP_BIP_full[i,j]<-p_obj$p_value
+# The corresponding t-statistic      
       t_HAC_HP_BIP_full[i,j]=p_obj$t_stat
       
 # Compute target correlations 
@@ -415,6 +415,7 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
   colnames(p_value_HAC_BIP_oos)<-colnames(t_HAC_BIP_oos)<-colnames(cor_mat_BIP_oos)<-paste("M-SSA: h=",h_vec,sep="")
   rownames(p_value_HAC_BIP_full)<-rownames(t_HAC_BIP_full)<-rownames(cor_mat_BIP_full)<-
   rownames(p_value_HAC_BIP_oos)<-rownames(t_HAC_BIP_oos)<-rownames(cor_mat_BIP_oos)<-paste("Shift of target: ",h_vec,sep="")
+  
 # 2. Compute Direct predictors
 # We use full sample direct predictors
 # Idea: calibration
@@ -441,7 +442,7 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
 # Compute calibrated out-of-sample predictor, based on expanding window
 #   -Use data up i for fitting the regression
 #   -Compute a prediction with explanatory data in i+1
-# Fit model with data up to time point i    
+# Fit model    
     lm_obj<-lm(dat[,1]~dat[,2:(n+1)])
     if (n==1)
     {
@@ -451,7 +452,6 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
     {
 # Classic regression prediction though we use %*% instead of * above  
       direct_pred<-c(rep(NA,shift+lag_vec[1]),lm_obj$coef[1]+lm_obj$coef[2]%*%dat[,2])
-      
     }
     direct_pred_mat<-cbind(direct_pred_mat,direct_pred)
     
@@ -460,14 +460,23 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
     
 #    ts.plot(cbind(dat[,1],direct_pred))
     summary(lm_obj)
+# Compute classic and HAC-adjusted standard errors    
     sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
-    t_HAC<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
+    sd_ols<-sqrt(diag(vcov(lm_obj)))
+# Compute max of both: we rely on this estimate because HAC-adjustment is sometimes inconsistent (too small: maybe issue with R-package sandwich)    
+    sd_max<-max(sd_HAC,sd_ols)
+# Rely on max vola    
+    t_HAC<-summary(lm_obj)$coef[2,1]/sd_max[2]
 # One-sided test: if predictor is effective, then the sign of the coefficient must be positive  
     HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
-    sd_ols<-sqrt(diag(vcov(lm_obj)))
-    t_ols<-summary(lm_obj)$coef[2,1]/sd_ols[2]
-    OLS_p_value<-pt(t_ols, nrow(dat)-2, lower=FALSE)
-    p_val_direct_mat[i,1]<-OLS_p_value
+    if (F)
+    {
+# Classic OLS p-values      
+      sd_ols<-sqrt(diag(vcov(lm_obj)))
+      t_ols<-summary(lm_obj)$coef[2,1]/sd_ols[2]
+      OLS_p_value<-pt(t_ols, nrow(dat)-2, lower=FALSE)
+    }
+    p_val_direct_mat[i,1]<-HAC_p_value
   }
   rownames(p_val_direct_mat)<-paste("shift=",h_vec,sep="")
   
@@ -649,13 +658,20 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
   ts.plot(cbind(dat[,1],cal_oos_pred))
   summary(lm_oos)
   sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
-  t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
+  sd_ols<-sqrt(diag(vcov(lm_oos)))
+# Compute max of both vola estimates: HAC-adjustment is not 100% reliable (maybe issue with R-package sandwich)  
+  sd_max<-max(sd_ols,sd_HAC)
+  t_HAC<-summary(lm_oos)$coef[2,1]/sd_max[2]
 # One-sided test: if predictor is effective, then the sign of the coefficient must be positive (ngetaive signs can be ignored) 
   HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
-  sd_ols<-sqrt(diag(vcov(lm_obj)))
-  t_ols<-summary(lm_obj)$coef[2,1]/sd_ols[2]
-  OLS_p_value<-pt(t_ols, nrow(dat)-2, lower=FALSE)
-  p_value<-OLS_p_value
+  if (F)
+  {
+# Classic OLS p-values
+    sd_ols<-sqrt(diag(vcov(lm_obj)))
+    t_ols<-summary(lm_obj)$coef[2,1]/sd_ols[2]
+    OLS_p_value<-pt(t_ols, nrow(dat)-2, lower=FALSE)
+  }
+  p_value<-HAC_p_value
   
   
   return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value,HAC_p_value=HAC_p_value))

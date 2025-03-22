@@ -1,22 +1,16 @@
-# M-SSA: extension of univariate to multivariate SSA
-# Work in progress
-# To dos: 
-#   -use full HP-filtering facility, up to sample end
-#   -compute rRMSE
-#   -insert Diebold Mariano and Giacomini White tests of equal predictive ability
+# Tutorial 7.2 about the multivariate extension M-SSA of SSA
 
-# Main purposes of this tutorial:
-# -Demonstrate  pertinence of the multivariate M-SSA paper: included in the `paper' folder
-# -Specifically, we show that sample estimates of performance numbers converge to theoretical expected numbers, as derived in the paper
-# -Thereby, we intend to demonstrate the practical relevance of the approach
-#   -Maximize the target correlation subject to a holding time constraint
-#   -Generalization of classic mean-square error signal extraction 
-# -In contrast to the previous univariate SSA, the more general M-SSA controls the holding-time of a predictor that 
-#   relies on multiple explanatory variables.
-#   -Therefore we need to model the cross-section as well as the longitudinal dimension
-# -For this purpose we rely on a simple VAR(1)-model of the data generating process
+# Purposes of this tutorial
+# -Apply the M-SSA to quarterly (German) macro-data
+# -Apply the functions proposed in tutorial 7.1
+# -Analyze various designs for nowcasting and forecasting German GDP (BIP:=Brutto Inland Produkt)
+# -Analyze effects of model misspecifications: the VAR(1) cannot render recessions properly
+# -Infer possible solutions for eluding model misspecification issues and analyze their efficacity
+# -Provide an empirical background and basic insights to understand the various forecast designs proposed in tutorial 7.3 
 
-# Clean sheet
+
+#----------------------
+# Start with a clean sheet
 rm(list=ls())
 
 # Let's start by loading the required R-libraries

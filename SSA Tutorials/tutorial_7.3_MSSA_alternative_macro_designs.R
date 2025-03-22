@@ -419,7 +419,7 @@ p_value_HAC_HP_BIP_oos[k,j]
 
 
 # Generate artificial white data
-set.seed(111)
+set.seed(345)
 
 a1<-0.0
 b1<-0.0
@@ -482,7 +482,8 @@ p_value_HAC_BIP_oos=perf_obj$p_value_HAC_BIP_oos
 p_value_HAC_BIP_full
 # Out-of-sample: note that weaker significance is due, in part, to the shorter span
 p_value_HAC_BIP_oos
-# Findings: p-values above 5%: cannot predict original (white noise) data
+# Findings: p-values are above 5%: cannot predict original (white noise) data
+# Note: multiple test problem
 
 #######################################################################################
 # Exercise 3: increase adaptivity
@@ -548,7 +549,7 @@ cor_mat_BIP_oos
 p_value_HAC_BIP_full
 p_value_HAC_BIP_oos
 
-# We can see an improvement when using a more adaptive target for M-SSA
+# We can see a slight improvement (smaller p-values) when using a more adaptive target HP(16) for M-SSA
 
 #---------------------------------------------
 # Findings overall:

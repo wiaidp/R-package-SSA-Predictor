@@ -3,7 +3,7 @@
     "path": "C:/Users/marca/OneDrive/2025/Projects/R-package-SSA-Predictor/SSA Tutorials/tutorial_7.3_MSSA_alternative_macro_designs.R",
     "project_path": "SSA Tutorials/tutorial_7.3_MSSA_alternative_macro_designs.R",
     "type": "r_source",
-    "hash": "5036577",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1741760312447.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "483,0",
-        "scrollLine": "461"
+        "cursorPosition": "555,0",
+        "scrollLine": "532"
     },
     "folds": "",
-    "lastKnownWriteTime": 1742633707,
+    "lastKnownWriteTime": 1742651290,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1742633707921,
+    "last_content_update": 1742651290209,
     "read_only": false,
     "read_only_alternatives": []
 }
