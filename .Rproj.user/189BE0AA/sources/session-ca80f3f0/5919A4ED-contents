@@ -1,6 +1,6 @@
-# Tutorial 7.3: propose various M-SSA BIP (German GDP) predictor designs
+# Tutorial 7.3: we propose various M-SSA BIP (German GDP) predictor designs
 # The concept of M-SSA predictors for BIP was introduced in tutorial 7.2
-# We packed this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
+# We wrapped this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
 # We here present two predictor designs: a `fairly adaptive' in exercise 1 and a `more adaptive' in exercise 3
 #   -You might be able to find even better hyperparameters yourself by fine-tuning adaptivity further
 
@@ -31,7 +31,7 @@
 #   -We shall see that M-SSA can predict HP-BIP (for which it is explicitly optimized) consistently 
 #      multiple quarters ahead (strong statistical significance)
 #   -It is more difficult to predict BIP, though: the noisy high-frequency components of BIP are unpredictable 
-# Exercise 2: apply M-SSA to white noise data to verify that the proposed performance measures and tests indicate unpredictability
+# Exercise 2: apply M-SSA to white noise data to verify that the proposed performance measures and tests confirm unpredictability
 # Exercise 3: analyze a more adaptive M-SSA design based on targeting HP(16) by M-SSA
 
 
