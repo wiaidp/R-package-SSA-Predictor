@@ -534,28 +534,30 @@ abline(v=(1:n*(nrow(gamma_target_long)/n)))
 #     cross-correlation (non-diagonal VAR) 
 
 
-# M-SSA also computes the (true) variance of the two-sided HP output
+# M-SSA also computes the (true) variance of the two-sided HP output (assuming no model misspecification)
 var_target<-MSSA_obj$var_target
 # We can compare variances on the diagonal of var_target with variances of the MSE (below): 
-#   -The latter are roughly 50% smaller (because the causal MSE predictor is missing future epsilons)
+#   -The latter are smaller (because the causal MSE predictor is missing future epsilons)
 # For this purpose, weed system matrices M_tilde and I_tilde, see M-SSA paper for background
 M_obj<-M_func(L,Sigma)
 M_tilde<-M_obj$M_tilde
 I_tilde<-M_obj$I_tilde
 
-# Variance of target series
+# Variance of target series: computed by M-SSA
 diag(var_target)
-# Variance of classic MSE predictors
+# Variance of classic MSE predictors: formula based on M-SSA paper
 diag(t(gammak_mse)%*%I_tilde%*%gammak_mse)
 # Variance of M-SSA: in general variances of M-SSA <= variances MSE <= variances target (due to zero-shrinkage)
 diag(t(bk_mat)%*%I_tilde%*%bk_mat)
-# The m-th entry of the above vector should match the sample variance of the M-SSA output of the m-th series, see simulation above
+# Compare true and sample estimates: the following two numbers match (sample converges to true for increasing sample length)
+#   The m-th entry of the above vector should match the sample variance of the M-SSA output of the m-th series, see simulation above
 diag(t(bk_mat)%*%I_tilde%*%bk_mat)[m]
 var(na.exclude(y))
 # Similarly, the m-th variance of the target should match the sample variance of zdelta, see above simulation experiment
 diag(var_target)[m]
 var(na.exclude(zdelta))
-# Summary: we verified the theoretical expressions in the M-SSA paper: sample estimates converge to expected values
+# Summary: we verified (some of) the theoretical expressions in the M-SSA paper: 
+#   -Sample estimates of variances converge to expected values
 
 
 # We can now compute the true lag one ACFs of the classic MSE nowcast (look at the M-SSA paper for technical details)
@@ -570,30 +572,33 @@ for (i in 2:n)
 ht_comp<-apply(matrix(rho_ssa,nrow=1),1,compute_holding_time_from_rho_func)[[1]]$ht
 ht_comp
 # We have verified in the above simulation experiment that sample HTs match these `true' numbers`
+
 # We can once again check if optimization was successful 
-#  If successful, then the above HTs based on optimal nowcasts must match the imposed HTs
-#  Increasing the number of iterations specified by split_grid tightens the fit
+#  -If successful, then the above HTs (based on optimized filters) should match the imposed HTs
+#  -Increasing the size of split_grid (the number of iterations) tightens the fit between ht_comp above and ht_mssa_vec below
 ht_mssa_vec
-# We can also compute HTs of classic MSE benchmark predictor: 
+# We can also compute HTs of the classic M-MSE benchmark: 
 #   -In general M-SSA is designed to be smoother (stronger noise suppression), i.e., ht_mssa_vec is larger than the below HTs of MSE design
 #   -We can of course change the HT in the constraint as specified in the call to M-SSA
 apply(matrix(rho_mse,nrow=1),1,compute_holding_time_from_rho_func)[[1]]$ht
 
 # Next we can compute the target correlations
-#   -More precisely we here compute the correlation of M-SSA with MSE benchmark (instead of two-sided target)
-#     -Targeting the two-sided filter is formally equivalent to targeting the classic MSE-predictor
-#   -If HT of M-SSA matches HT of MSE-benchmark, then M-SSA replicates the latter (correlation between M-SSA and MSE is maxed-out at one)
-#   -If imposed HT of M-SSA is larger than HT of MSE-benchmark, then correlation is smaller one: but M-SSA maximizes this correlation subject to the HT constraint
+#   -As explained above, we here compute the correlation of M-SSA with M-MSE benchmark (instead of acausal target) 
+#     -Targeting the two-sided filter is formally equivalent to targeting the classic M-MSE
+#   -If HT of M-SSA matches HT of M-MSE, then M-SSA replicates the latter (in this case, the `target correlation' would be one)
+#   -If the imposed HT of M-SSA is larger than HT of M-MSE, then the target correlation is smaller one 
+#     -M-SSA maximizes this correlation subject to the HT constraint
+# -See formula in M-SSA paper. In R-code we obtain:
 crit_mse<-gammak_mse[,1]%*%I_tilde%*%gammak_mse[,1]/gammak_mse[,1]%*%I_tilde%*%gammak_mse[,1]
 for (i in 2:n)
   crit_mse<-c(crit_mse,gammak_mse[,i]%*%I_tilde%*%gammak_mse[,i]/gammak_mse[,i]%*%I_tilde%*%gammak_mse[,i])
 # The correlation of the MSE-benchmark with itself is trivially one
-# M-SSA tries to maximize this correlation  subject to the HT constraint
 crit_mse
+# M-SSA tries to maximize this correlation  subject to the HT constraint
 crit_ssa<-gammak_mse[,1]%*%I_tilde%*%bk_mat[,1]/(sqrt(bk_mat[,1]%*%I_tilde%*%bk_mat[,1])*sqrt(gammak_mse[,1]%*%I_tilde%*%gammak_mse[,1]))
 for (i in 2:n)
   crit_ssa<-c(crit_ssa,gammak_mse[,i]%*%I_tilde%*%bk_mat[,i]/(sqrt(bk_mat[,i]%*%I_tilde%*%bk_mat[,i])*sqrt(gammak_mse[,i]%*%I_tilde%*%gammak_mse[,i])))
-
+crit_ssa
 
 criterion_mat<-rbind(crit_mse,crit_ssa)
 colnames(criterion_mat)<-c(paste("Series ",1:n,paste=""))
@@ -604,30 +609,43 @@ criterion_mat
 # Compare the second row of this matrix with MSSA_obj$crit_rhoyz computed by M-SSA 
 MSSA_obj$crit_rhoyz
 #  crit_rhoyz is the objective function of the optimization criterion and is maximized by M-SSA
-# We verified in the previous simulation that sample estimates converge to these expected values
+
+# We verified convergence of sample estimates in exercise 1
+# We shall complete this experiment in exercise 3 below
+# In particular, we shall see that sample estimates of the (target-) correlations will converge 
+#   towards the above numbers when targeting either the acausal filter or the causal M-MSE
+
 
 
 ##########################################################################################
 # Summary:
-# -M-SSA has a rich output with additional filters (including the classic MSE signal extraction filter) and performance metrics
+# -M-SSA has a rich output with additional filters (including M-MSE) and additional performance metrics
 # -Theoretical expressions (expected values: see M-SSA paper) match sample estimates (for sufficiently long samples)
-# -M-SSA optimization concept: maximize target correlation (equivalently: minimize mean-square forecast error) subject to HT constraint
-# -M-SSA replicates classic MSE signal extraction filter by inserting the HT of the latter into the M-SSA optimization
+# -M-SSA optimization concept: 
+#   -We verified that M-SSA maximizes the target correlation consitional on the HT constraint
+#   -The target correlation can be defined with respect to the effective acausal target or M-MSE: the M-SSA solution will be the same
+#   -The target correlation ignores static level and scale adjustments but is otherwise equivalent to minimum MSE
+# -M-SSA replicates classic M-MSE signal extraction filters (up to static level adjustment)  by 
+#   inserting the HT of the latter into the M-SSA constraint
 # -M-SSA can address backcasting (delta<0), nowcasting (delta=0) and forecasting (delta>0)
 # -The target specification is generic: in the above experiment we relied on the two-sided HP
 #   -Classic h-step ahead forecasting can be obtained by replacing the HP-filter by the identity (see univariate SSA tutorials on the topic)
+#   -We could insert Hamilton or Baxter-King or Beveridge-Nelson specifications, see earlier tutorials
 # -The data generating process (DGP) is assumed to be stationary (could be generalized); otherwise the specification is completely general
 #   -M-SSA relies on the (reduced-form) MA-inversion of the DGP which is straightforward to obtain for VARMA processes (see above illustration)
 # -A convergence of sample performances towards expected numbers assumes the model to be `true'
-#   -However, we shall see that the above application to German macro data is remarkably robust 
+#   -We shall see that the application to German macro data (tutorials 7.2 and 7.3) is remarkably robust 
 #     -against singular Pandemic data (outliers)
 #     -against in-sample span for VAR: pre-financial crisis M-SSA (data up Jan-2007) performs nearly as well as full sample M-SSA
 #     -against VARMA specification (as long as heavy overfitting is avoided)   
+# -Tutorial 7.2 will demonstrate that the VAR(1) is (most likely) misspecified, as we might already suspect
+#   -We then provide a simple and effective trick to overcome the misspecification in the context of the 
+#     macro-application
 ###########################################################################################
-########################################################################################
-# Exercise 3
+# Exercise 3: to conclude this tutorial we wrap the above code into functions and we verify some additional 
+#   convergence of sample estimates to theoretical performance numbers
 
-# Densify code: let's pack the above code into functions with distinct tasks
+# Wrappers: let's pack the above code into functions with distinct tasks
 # 1. Target function
 HP_target_sym_T<-function(n,lambda_HP,L)
 {
@@ -734,14 +752,13 @@ filter_func<-function(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,
   len<-nrow(x_mat)
   n<-dim(bk_x_mat)[2]
   # Compute M-SSA filter output 
-  mssa_mat<-target_mat<-NULL
+  mssa_mat<-mmse_mat<-target_mat<-NULL
   for (m in 1:n)
   {
     bk<-NULL
     # Extract coefficients applied to m-th series    
     for (j in 1:n)#j<-2
       bk<-cbind(bk,bk_x_mat[((j-1)*L+1):(j*L),m])
-    ts.plot((bk))
     y<-rep(NA,len)
     for (j in L:len)#j<-L
     {
@@ -749,42 +766,52 @@ filter_func<-function(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,
     }
     mssa_mat<-cbind(mssa_mat,y)
   }  
-# Compute acausal target
+  # Compute M-MSE: classic MSE signal extraction design 
+  for (m in 1:n)
+  {
+    gamma_mse<-NULL
+    # Extract coefficients applied to m-th series    
+    for (j in 1:n)#j<-2
+      gamma_mse<-cbind(gamma_mse,gammak_x_mse[((j-1)*L+1):(j*L),m])
+    ymse<-rep(NA,len)
+    for (j in L:len)#j<-L
+    {
+      ymse[j]<-sum(apply(gamma_mse*(x_mat[j:(j-L+1),]),2,sum))
+    }
+    mmse_mat<-cbind(mmse_mat,ymse)
+  }  
+  # Apply target to m-th-series
   target_mat<-NULL
   for (m in 1:n)#
   {
-# In general, m-th target is based on j=1,...,n filters applied to explanatory variables j=1,...,n
+    # In general, m-th target is based on j=1,...,n filters applied to explanatory variables j=1,...,n
     gammak<-NULL
     for (j in 1:n)
     {
-# For m-th target: retrieve filter applied to j-th explanatory       
+      # Retrieve j-th filter for m-th target       
       gammak<-cbind(gammak,gamma_target[(j-1)*L+1:L,m])
     }
-# Apply filters to data x_mat
-# Distinguish the cases symmetric_target=T (right tail of filter is mirrored to the left at its peak)    
-# Shift the data by delta: delta>0 means that we're looking into the future (acausal design)
     z<-rep(NA,len)
     if (symmetric_target)
     {
-# Here the right half of the filter is mirrored to the left at its peak: 
-#   -this part is generally lurking into the future (acausal design)
-# Moreover, the data is shifted by delta
+      # Here the right half of the filter is mirrored to the left at its peak
+      # Moreover, the data is shifted by delta
       for (j in (L-delta):(len-L-delta+1))#j<-L-delta
         z[j]<-sum(apply(gammak*x_mat[delta+j:(j-L+1),],2,sum))+sum(apply(gammak[-1,]*x_mat[delta+(j+1):(j+L-1),],2,sum))
     } else
     {
-# Data shifted by delta: we do not mirror filter weights      
+      # Data shifted by delta: we do not mirror filter weights      
       for (j in (L-delta):(len-delta))
       {
         z[j]<-sum(apply(gammak*(x_mat[delta+j:(j-L+1),]),2,sum))
       }
     }
     
-    names(zdelta)<-names(y)<-rownames(x_mat)
+    names(z)<-names(y)<-rownames(x_mat)
     target_mat<-cbind(target_mat,z)
   } 
-  colnames(mssa_mat)<-colnames(target_mat)<-colnames(x_mat)
-  return(list(mssa_mat=mssa_mat,target_mat=target_mat))
+  colnames(mssa_mat)<-colnames(mmse_mat)<-colnames(target_mat)<-colnames(x_mat)
+  return(list(mssa_mat=mssa_mat,target_mat=target_mat,mmse_mat=mmse_mat))
 }
 
 #------------------------------------------------------------------------
@@ -830,12 +857,14 @@ MSSA_obj=MSSA_main_obj$MSSA_obj
 gammak_x_mse<-MSSA_obj$gammak_x_mse
 
 # 4. Filter function: apply M-SSA filter to data
-# For long samples the execution might take some time (because of the for-loops)
+# For long samples the execution may require some patience (because of the for-loops which take time to process in R)
 
 filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
 
+# retrieve M-SSA and acausal target
 mssa_mat=filt_obj$mssa_mat
 target_mat=filt_obj$target_mat
+mmse_mat<-filt_obj$mmse_mat
 
 #------------------------
 # Checks: the obtained output should be identical to previous y and zdelta for series m_check: differences should vanish
@@ -845,16 +874,28 @@ max(abs(zdelta-target_mat[,m_check]),na.rm=T)
 # Mean-square errors
 apply(na.exclude((target_mat-mssa_mat)^2),2,mean)
 
-# Sample correlations between target and M-SSA: sample estimates converge to criterion value for increasing sample size len
+# We can verify that the sample target correlations between effective acausal target and M-SSA converge towards 
+#   expectations for increasing sample length
 for (i in 1:n)
   print(cor(na.exclude(cbind(target_mat[,i],mssa_mat[,i])))[1,2])
-# Sample estimates should be close to true values (objective function of M-SSA):
+# Sample estimates should be close to true values:
 MSSA_obj$crit_rhoy_target
 
-# M-SSA optimizes target correlation under holding time constraint:
-# Compare empirical and theoretical (imposed) HTs: sample HT converges to imposed HT for increasing sample size len
+
+# Similarly, we can verify that the sample correlations between M-MSE and M-SSA converge to criterion values
+#   for increasing sample size len
+for (i in 1:n)
+  print(cor(na.exclude(cbind(mmse_mat[,i],mssa_mat[,i])))[1,2])
+# Sample estimates should be close to true values (objective function of M-SSA):
+MSSA_obj$crit_rhoyz
+
+
+
+# M-SSA optimizes the target correlation (between M-SSA and M-MSE) under the holding time constraint:
+# We can compare sample and expected (imposed) HTs:
 apply(mssa_mat,2,compute_empirical_ht_func)
 ht_mssa_vec
+
 
 
 # The above functions can also be sourced
