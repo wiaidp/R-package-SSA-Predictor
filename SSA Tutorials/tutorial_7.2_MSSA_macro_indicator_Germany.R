@@ -511,27 +511,29 @@ box()
 # Exercise 3: construction of (standardized) M-SSA BIP predictors
 
 # -M-SSA generates five outputs: for BIP, ip, ifo, ESI and spread
+# -We now propose a construction in three steps for the M-SSA BIP predictors
 # A. Equal-weighting
 # -We consider each of the five M-SSA outputs as an equally valid and informative predictor for future BIP
 # -Therefore we aggregate all five predictors equally, assuming that each one was previously standardized
 #   -Cross-sectional aggregation: equal weighting
 # B. Forecast excess
 # -BIP and ip tend to lag behind ESI and ifo (mainly because of publication lag) and spread is leading overall
-# -We select a larger delta for BIP and ip: forecast excess detailed above 
+# -We select a larger delta for BIP and ip: forecast excess detailed in exercise 2  
 # C. Forecast horizons:
 # -We compute M-SSA predictors based on A. and B. above, targeting BIP at horizons 0 (nowcast), 1, 2, 4 (one year) and 6 quarters ahead
-#   -This results in 1 nowcast and 4 forecasts 
-#   -We then compute performances of each of the 5 predictors relative to BIP shifted by 0,1,2,4,6 quarters: 
+#   -This results in one nowcast and four forecasts 
+#   -We then compute performances of each of the five predictors relative to BIP shifted by 0,1,2,4,6 quarters: 
 #       -We consider all 25 combinations
 #   -We also consider statistical significance, by relying on different statistics (relying on HAC estimates of variances)
 
-# Let's start
-# These are the interesting forecast horizons indicated above
+# Start with the interesting forecast horizons, as indicated above
 h_vec<-c(0,1,2,4,6)
 # Forecast excesses: 
 #   -The first number in f_excess is the excess applied to M-SSA-BIP and M-SSA-ip
-#   -The second number in f_excess is the excess applied to M-SSA-ifo, -ESI and -spread, see loop below
-# This design corresponds to a `mildly aggressive' design: predictors will be left-shifted but not too heavily
+#   -The second number in f_excess is the excess applied to M-SSA-ifo, -ESI and -spread, see subsequent code
+# This design corresponds to a `mildly aggressive' forward-looking design: 
+#   Predictors will be left-shifted but not too heavily
+# A stronger look-ahead could be obtained by imposing larger forecast excesses (at the detriment of noise)
 f_excess<-c(4,2)
 mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-NULL
 # Compute M-SSA predictors for each forecast horizon
@@ -559,8 +561,8 @@ for (i in 1:length(h_vec))#i<-1
   mssa_bip<-cbind(mssa_bip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[1])])
   mssa_ip<-cbind(mssa_ip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[2])])
   
-# Now compute M-SSA for the remaining ifo, ESI and spread  
-# These series require a smaller forecast excess f_excess[2] 
+# Now compute M-SSA for the remaining ifo, ESI and spread series  
+# These series can rely on a smaller forecast excess f_excess[2] (no publication lag)
   delta<-h_vec[i]+lag_vec[1]+f_excess[2]
   
   MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
@@ -592,7 +594,7 @@ rownames(indicator_mat)<-rownames(x_mat)
 # The five M-SSA predictors: one for each forecast horizon
 tail(indicator_mat)
 
-# Compute sample target correlations: compute all 5x5 combinations of forecast horizon and forward-shift
+# Plot target and predictors and compute sample target correlations: compute all 5x5 combinations of forecast horizon and forward-shift
 target_shifted_mat<-NULL
 cor_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
 
