@@ -1,34 +1,33 @@
 # Tutorial 71 is about an introduction to M-SSA: an extension of univariate SSA to a multivariate framework
-# This is work in progress: we shall link more closely the tutorial to the M-SSA paper in the `paper` 
-#   folder on github and replicate theoretical expressions to demonstrate the relevant empirical aspects of the method
+# This is work in progress: we shall link more closely the tutorial to the M-SSA paper in the `paper` folder 
+# (on github) and replicate theoretical expressions to demonstrate the relevant empirical aspects of the method
 
-# -This tutorial gravitates around a simulation exercise, whose model specification is derived from an 
+# -This tutorial is built around a simulation exercise: the model specification is derived from an 
 #       application of M-SSA to forecasting German GDP (BIP: Brutto Inland Produkt)
-#   -The data generating process (DGP) relies on a simple VAR(1) fitted to German data, see 
+#   -The data generating process (DGP) relies on a simple VAR(1) fitted to German macro-data, see 
 #     tutorials 7.2. and 7.3 for details
 
-# Purpose of this tutorial: we demonstrate that M-SSA is `doing the job' if the multivariate DGP is known 
-# -Exercise 1 demonstrates that sample performances are converging to theoretical expectations, illustrating 
-#     that abstract expressions (formula) derived in the M-SSA paper are pertinent and address dimensions
-#     of a generic forecast problem which are relevant in applications (AST trilemma) 
-# -Exercise 2 replicates formula in R-code and demonstrates their link to sample performances 
-# -Finally, Exercise 3 wraps the proposed code into more compact functions which will be used in tutorials 7.2 and 7.3
+# Purpose of this tutorial: demonstrate that M-SSA is `doing the job' when assuming the DGP to be known 
+# -Exercise 1 illustrates that sample performances are converging to theoretical expectations
+#   -Thereby, we can confirm that theory/formula as derived in the M-SSA paper are pertinent 
+# -Exercise 2 transcribes formula in R-code and links to sample performances (asymptotic convergence) 
+# -Exercise 3 wraps the proposed code into compact functions which will be used in tutorials 7.2 and 7.3
 
-# As discussed with colleagues at a recent (in 2025) conference (Conference on Real-Time Data Analysis, Methods, and Applications, Prague, 2025)
-#   SSA and thus M-SSA is about `empirical forecasting`: the method addresses problems which might be relevant 
-#   for practitioners by extending the classic mean-square error (MSE) paradigm to address smoothness and
+# As discussed at a 2025-conference (Conference on Real-Time Data Analysis, Methods, and Applications, Prague, 2025)
+#   SSA and M-SSA are about `empirical forecasting`: the method addresses problems which might be relevant 
+#   to practitioners by extending the classic mean-square error (MSE) paradigm to address smoothness and
 #   timeliness, in addition to MSE: 
-#     -Smoothness concerns the number/rate/frequency of zero-crossings of a predictor/nowcast/forecast
+#     -Smoothness concerns the number/rate/frequency of zero-crossings of a (centered) predictor/nowcast/forecast
 #     -Timeliness addresses retardation/lag/right-shift of a predictor
 # M-SSA extends these concepts to a multivariate design, wherein multiple series can be used for predicting
 #   a specific target
 # -In such a case, controlling zero-crossings of the predictor is more complex because multiple time series
-#   are aggregated into a single predictor one per series involved) where each individual series can 
+#   are aggregated into a single predictor, whereby each individual series can 
 #   contribute its `own' crossings
-# -However, the trick for addressing this `seemingly complex` problem is neat, simple and effective: 
-#   -We know how to derive the lag-one ACF for a multivariate design, see, e.g., the -SSA paper
+# -However, the mathematical trick for addressing this `seemingly complex` problem is neat, simple and effective: 
+#   -We know how to derive the lag-one ACF for a multivariate design, see, e.g., the M-SSA paper
 #   -The rate of zero-crossings can be related to the lag-one ACF
-#   -Exercise 1 verifies pertinence of this trick
+#   -Exercise 1 verifies pertinence of this mathematical trick
 
 #-----------------------
 # Start with a clean sheet
@@ -52,17 +51,19 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 # Exercise 1
 # Specify the data generating process (DGP): 
 # -The following model is obtained by fitting a simple VAR(1) to quarterly German macro data, see tutorials 7.2 and 7.3
-#   -Since the estimation span can be adjusted, the VAR may deviate from tutorials 7.2 and 7.3  
+#   -Since the estimation span can be adjusted, the particular VAR may deviate from tutorials 7.2 and 7.3  
 #   -But we can rely on any multivariate model to demonstrate M-SSA
 # -Tutorials 7.2 and 7.3 consider a 5-dimensional design comprising BIP (i.e. GDP), industrial production, economic sentiment, spread and an ifo indicator
-#   -All series are log-transformed (except spread) and differenced (no cointegration)
-# -The quarterly series start at the introduction of the EURO and the in-sample span selected in tutorials
-#     7.2 and 7.3 (just before the financial crisis) implies short spans 
-#   -Difficult to verify (asymptotic) results: convergence of sample estimates to expected numbers
-#   -Overfitting
-# -Therefore, we select a simple VAR(1) specification which is sparsely parametrized, on top
+#   -All series are log-transformed (except spread), differenced (no cointegration) and standardized (to account for grossly different scales)
+# -The quarterly series start at the introduction of the EURO and the in-sample span ends in Dec-2007, 
+#   leaving the financial crisis entirely out-of-sample
+#   -Therefore the data span is relatively short 
+#   -Consequently, a verification of (asymptotic) results remains challenging
+#   -Overfitting is of concern, too.
+# -For this purpose, we select a sparsely parametrized simple VAR(1) specification
+#   -Note, however, that M-SSA is fairly insensitive to overfitting and/or to the specification of the in-sample span
 
-# Specify dimension
+# Dimension of multivariate design
 n<-5
 # AR order: we do not add MA-terms because of invertibility issues (the VARMA(1,1) would not be invertible: good luck with that)
 p<-1
