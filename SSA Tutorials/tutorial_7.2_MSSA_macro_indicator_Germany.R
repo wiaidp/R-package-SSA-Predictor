@@ -1,12 +1,46 @@
-# Tutorial 7.2 about the multivariate extension M-SSA of SSA
+# Tutorial 7.2: application of the M-SSA to quarterly macro-data
 
-# Purposes of this tutorial
-# -Apply the M-SSA to quarterly (German) macro-data
-# -Apply the functions proposed in tutorial 7.1
+# The previous tutorial 7.1 demonstrates convergence of the relevant performance numbers to 
+#   expected values (as derived in the M-SSA paper), assuming knowledge of the data generating process (DGP)
+# -Tutorial 7.1 checks the theory
+
+# In contrast, we here (have to) allow for (and address) misspecification
+
+# Purposes of this tutorial:
+# -Apply the M-SSA to quarterly (German) macro-data during insecure times 
+#   -Tutorials 7.1-7.3 were written early 2025 and rely on data up to Jan-2025
+#   -Germany currently (2024-2025) endures a recession: we observe negative BIP-growth over several quarters
+#   -Can we use M-SSA to predict future GDP dynamics: what are the prospects for 2025 and 2026?
+# -Apply the M-SSA wrappers (functions) proposed in tutorial 7.1
 # -Analyze various designs for nowcasting and forecasting German GDP (BIP:=Brutto Inland Produkt)
 # -Analyze effects of model misspecifications: the VAR(1) cannot render recessions properly
 # -Infer possible solutions for eluding model misspecification issues and analyze their efficacity
 # -Provide an empirical background and basic insights to understand the various forecast designs proposed in tutorial 7.3 
+
+# Some background
+# -As discussed in tutorial 7.1 we do not deliver `GDP numbers' ("give me the number")
+#   -Such a `number' would be subject to a forecast interval whose width would invariably invalidate its 
+#     relevance. 
+#   -Forecasting GDP `numbers' is (almost surely, with probability one) a futile exercise
+# -We here focus on looking ahead (sensing) the future growth dynamics as contained (but masked/hidden) 
+#   in present-day data: we try to `extract the minute signal` and `skip the dominating noise'
+# -M-SSA in this application is about dynamic aspects of prediction: 
+#     -M-SSA emphasizes the target correlation, thereby ignoring `static' level and scale adjustments (calibration), needed to generate GDP `numbers' 
+#     -We derive predictors which do not emphasize unilaterally a mean-square error metric (we already know the outcome of doing so)
+#       -Instead, M-SSA emphasizes ALSO left-shift/lead/advancement and smoothness (few false alarms): AST trilemma
+# -We try to address questions like: 
+#   -Did we reach the bottom of the current recession in Germany (based on data up to Jan-2025)? 
+#   -Is the economy currently recovering (Jan 2025)?
+#   -Can we expect to reach above long-term growth in foreseeable time? 
+# -To be clear (or even more amibugous): don't ask "what is the `number' of long-term growth" in Germany?
+#   -By my own definition, it is the arithmetic mean of the differenced log-transformed BIP-series over the available time span
+#     -Accordingly, this number could be computed easily (but we don't do so)
+#     -Also, this `number' is a random variable
+#       -It is sensitive to singular events (COVID breakout)
+# -In any case, this `number' will correspond to the zero-line in (some of the) plots and figures
+#   -M-SSA will control the rate of zero-crossings, i.e., the rate of crossings of the predictors above or 
+#     below long-term average growth
+
 
 
 #----------------------
