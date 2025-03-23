@@ -17,11 +17,11 @@
 # -Infer possible solutions for eluding model misspecification issues and analyze their efficacity
 # -Provide an empirical background and basic insights to understand the various forecast designs proposed in tutorial 7.3 
 
-# Some background
+# Some background information:
 # -As discussed in tutorial 7.1 we do not deliver `GDP numbers' ("give me the number")
 #   -Such a `number' would be subject to a forecast interval whose width would invariably invalidate its 
 #     relevance. 
-#   -Forecasting GDP `numbers' is (almost surely, with probability one) a futile exercise
+#   -Forecasting GDP `numbers' is almost surely (with probability one) a futile exercise
 # -We here focus on looking ahead (sensing) the future growth dynamics as contained (but masked/hidden) 
 #   in present-day data: we try to `extract the minute signal` and `skip the dominating noise'
 # -M-SSA in this application is about dynamic aspects of prediction: 
