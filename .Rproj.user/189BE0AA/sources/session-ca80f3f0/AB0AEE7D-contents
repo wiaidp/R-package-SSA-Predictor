@@ -1,19 +1,40 @@
-# M-SSA: extension of univariate to multivariate SSA
-# Work in progress
+# Tutorial 71 is about an introduction to M-SSA: an extension of univariate SSA to a multivariate framework
+# This is work in progress: we shall link more closely the tutorial to the M-SSA paper in the `paper` 
+#   folder on github and replicate theoretical expressions to demonstrate the relevant empirical aspects of the method
 
-# -The first M-SSA tutorial, this one, is based on a simulation example derived from an application of M-SSA to 
-#   predicting German GDP (or BIP)
-# -The data generating process relies on the VAR fitted to German data, see turials 7.2. and 7.3
-# -We here show that M-SSA is optimal (if the data generating is the true process) and that the relevant 
-#   sample performances converge to their expected values for sufficiently long samples of (artificial) data
+# -This tutorial gravitates around a simulation exercise, whose model specification is derived from an 
+#       application of M-SSA to forecasting German GDP (BIP: Brutto Inland Produkt)
+#   -The data generating process (DGP) relies on a simple VAR(1) fitted to German data, see 
+#     tutorials 7.2. and 7.3 for details
 
-# Briefly, we illustrate that the theory proposed in the M-SSA paper works as intended and that it addresses 
-#   problems that may be of concern in applications (forecast trilemma)
+# Purpose of this tutorial: we demonstrate that M-SSA is `doing the job' if the multivariate DGP is known 
+# -Exercise 1 demonstrates that sample performances are converging to theoretical expectations, illustrating 
+#     that abstract expressions (formula) derived in the M-SSA paper are pertinent and address dimensions
+#     of a generic forecast problem which are relevant in applications (AST trilemma) 
+# -Exercise 2 replicates formula in R-code and demonstrates their link to sample performances 
+# -Finally, Exercise 3 wraps the proposed code into more compact functions which will be used in tutorials 7.2 and 7.3
 
-# Clean sheet
+# As discussed with colleagues at a recent (in 2025) conference (Conference on Real-Time Data Analysis, Methods, and Applications, Prague, 2025)
+#   SSA and thus M-SSA is about `empirical forecasting`: the method addresses problems which might be relevant 
+#   for practitioners by extending the classic mean-square error (MSE) paradigm to address smoothness and
+#   timeliness, in addition to MSE: 
+#     -Smoothness concerns the number/rate/frequency of zero-crossings of a predictor/nowcast/forecast
+#     -Timeliness addresses retardation/lag/right-shift of a predictor
+# M-SSA extends these concepts to a multivariate design, wherein multiple series can be used for predicting
+#   a specific target
+# -In such a case, controlling zero-crossings of the predictor is more complex because multiple time series
+#   are aggregated into a single predictor one per series involved) where each individual series can 
+#   contribute its `own' crossings
+# -However, the trick for addressing this `seemingly complex` problem is neat, simple and effective: 
+#   -We know how to derive the lag-one ACF for a multivariate design, see, e.g., the -SSA paper
+#   -The rate of zero-crossings can be related to the lag-one ACF
+#   -Exercise 1 verifies pertinence of this trick
+
+#-----------------------
+# Start with a clean sheet
 rm(list=ls())
 
-# Let's start by loading the required R-libraries
+# Load the required R-libraries
 
 # Standard filter package
 library(mFilter)
@@ -28,22 +49,32 @@ source(paste(getwd(),"/R/functions_MSSA.r",sep=""))
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 #-----------------------------------------------
-# Specify data generating process (DGP): this model is obtained by fitting a VAR(1) to quarterly German macro data
-# The VAR is based on data without Pandemic
-# It is a 5-dimensional design comprising BIP (i.e. GDP), industrial production, economic sentiment, spread and an ifo indicator
+# Exercise 1
+# Specify the data generating process (DGP): 
+# -The following model is obtained by fitting a simple VAR(1) to quarterly German macro data, see tutorials 7.2 and 7.3
+#   -Since the estimation span can be adjusted, the VAR may deviate from tutorials 7.2 and 7.3  
+#   -But we can rely on any multivariate model to demonstrate M-SSA
+# -Tutorials 7.2 and 7.3 consider a 5-dimensional design comprising BIP (i.e. GDP), industrial production, economic sentiment, spread and an ifo indicator
 #   -All series are log-transformed (except spread) and differenced (no cointegration)
-# Since the series are relatively short (starting at the introduction of EURO) the VAR is sparsely parametrized
+# -The quarterly series start at the introduction of the EURO and the in-sample span selected in tutorials
+#     7.2 and 7.3 (just before the financial crisis) implies short spans 
+#   -Difficult to verify (asymptotic) results: convergence of sample estimates to expected numbers
+#   -Overfitting
+# -Therefore, we select a simple VAR(1) specification which is sparsely parametrized, on top
+
+# Specify dimension
 n<-5
-# AR order
+# AR order: we do not add MA-terms because of invertibility issues (the VARMA(1,1) would not be invertible: good luck with that)
 p<-1
-# AR(1) coefficient
+# AR(1) coefficient (we could just plug in any numbers, assuming stationarity)
 Phi<-matrix(rbind(c( 0.0000000,  0.00000000, 0.4481816,    0, 0.0000000),
                c(0.2387036, -0.33015450, 0.5487510,    0, 0.0000000),
                c(0.0000000,  0.00000000, 0.4546929,    0, 0.3371898),
                c(0.0000000,  0.07804158, 0.4470288,    0, 0.3276132),
                c(0.0000000,  0.00000000, 0.0000000,    0, 0.3583553)),nrow=n)
 
-# covariance matrix
+# Covariance matrix (of noise terms)
+# Note: if Phi and Sigma are diagonal, then the VAR reduces to n univariate designs running in parallel
 Sigma<-matrix(rbind(c(0.755535544,  0.49500481, 0.11051024, 0.007546104, -0.16687913),
   c(0.495004806,  0.65832962, 0.07810020, 0.025101191, -0.25578971),
   c(0.110510236,  0.07810020, 0.66385111, 0.502140497,  0.08539719),
@@ -59,10 +90,10 @@ x_mat=VARMAsim(len,arlags=c(p),phi=Phi,sigma=Sigma)$series
 colnames(x_mat)<-c("BIP", "ip", "ifo_c","ESI", "spr_10y_3m") 
 # Have a look at the data
 # We expect to see mutually (cross-section) correlated and (longitudinal) autocorrelated series
-# Can you glimpse `crises`, i.e., phases with strong negative growth?
+# Can you glimpse `crises`, i.e., phases characterized by `striking' negative growth?
 ts.plot(x_mat[(len-99):len,])
 
-# Generate a very long series for our simulation experiment    
+# Generate a very long series for our simulation experiment: to verify convergence of sample estimates to expectations    
 len<-100000
 set.seed(871)
 x_mat=VARMAsim(len,arlags=c(p),phi=Phi,sigma=Sigma)$series
@@ -71,12 +102,19 @@ x_mat=VARMAsim(len,arlags=c(p),phi=Phi,sigma=Sigma)$series
 colnames(x_mat)<-c("BIP", "ip", "ifo_c","ESI", "spr_10y_3m") 
 
 #-------------------------------------------------------------------
-# Specify target: we want to nowcast and to predict a two-sided Hodrick Prescott filter
-# The sampling frequency is quarterly: we selected a smaller lambda=160 than the usual quarterly setting of 1600
-#   The classic 1600-setting leads to trends which are too smooth for the purpose of the analysis (predicting GDP-growth)
+# Specify the acausal target: 
+# -We want to nowcast and to predict the output of a (two-sided) Hodrick Prescott (HP) filter
+# -The sampling frequency of our data is quarterly and the classic specification would be lambda=1600 for HP
+# -However, we here select a smaller lambda=160, see detailed discussions in tutorials 7.2 and 7.3
+#   -Briefly: the classic HP(1600) is too smooth (it removes too much relevant information) for the purpose of 
+#     predicting BIP
+#   -See also a corresponding critic by Phillips and Jin (2021)
 lambda_HP<-160
-# Filter length: roughly 4 years. The length should be an odd number in order to have a symmetric HP 
-#   with a peak in the middle (for even numbers the peak is truncated)
+# Filter length: roughly 4 years. 
+# Technical side-note: 
+# -We provide only the right half of the two-sided filter to M-SSA: the left tail is obtained by `mirroring'
+# -Therefore, the length of the filter (L=31) should be an odd number to obtain an exact replication of the HP 
+#   after `mirroring' (i.e., a symmetric design with a single peak at its center) 
 L<-31
 # HP filter
 HP_obj<-HP_target_mse_modified_gap(L,lambda_HP)
@@ -85,22 +123,32 @@ hp_symmetric=HP_obj$target
 hp_classic_concurrent=HP_obj$hp_trend
 hp_one_sided<-HP_obj$hp_mse
 
-
-ts.plot(hp_symmetric)
+# We can see in the following plot that the truncation of the symmetric filter of length L=31 leaves room 
+#     for improvement (L is obviously too small)
+ts.plot(hp_symmetric,main=paste("Symmetric filter of length ",L,sep=""))
+# But we supply the right half of the two-sided filter to M-SSA: the two-sided filter is reconstructed internally by `mirroring'`
+#   -The right half is also of length L=31 and therefore the two-sided filter will be of 
+#     total length 2*L-1, after reconstruction (`mirroring`) 
+#   -Therefore, truncation is not a problem anymore (from a practical point of view at least)
+ts.plot(hp_one_sided,main=paste("Right tail of length ",L," of the two-sided filter of length ",2*L-1,sep=""))
 #-------------------------------------------------------------------
-# MA inversion of VAR
-# MA inversion is used because the M-SSA optimization criterion relies an white noise
-#   For autocorrelated data, we thus require the MA-inversion of the DGP
+# MA inversion of VAR(1)
+# -The M-SSA optimization criterion relies on the Wold-decomposition of a stationary process (see M-SSA paper)
+# -We thus compute the MA-inversion of the VAR
 xi_psi<-PSIwgt(Phi = Phi, Theta = NULL, lag = L, plot = F, output = F)
 xi_p<-xi_psi$psi.weight
-# Transform Xi_p into Xi: first L entries, from left to right, are weights of first WN, next L entries are weights of second WN 
+# We now transform the MA-inversion xi_p in a format readable by M-SSA
+# -The first L entries, from left to right, are the weights of the first white noise (WN) series
+# -The following L entries are the weights corresponding to the second WN series 
 xi<-matrix(nrow=n,ncol=n*L)
 for (i in 1:n)
 {
   for (j in 1:L)
     xi[,(i-1)*L+j]<-xi_p[,i+(j-1)*n]
 }
-# Plot MA inversions: the MA-inversion of spread relies only on lagged spread (spread is leading)
+# Plot MA inversions: the MA-inversion of spread relies only on lagged spread (spread is leading and the other series are not informative)
+# The MA-inversion can be useful for understanding the VAR (explainability) and for narrative purposes 
+# In general we see that lagging series rely on leading (in relative terms) series as explanatory variables
 par(mfrow=c(1,n))
 for (i in 1:n)#i<-1
 {
@@ -111,7 +159,14 @@ for (i in 1:n)#i<-1
     mplot<-cbind(mplot,xi[i,(j-1)*L+1:min(10,L)])
     
   }
-  ts.plot(mplot,col=rainbow(ncol(mplot)),main=paste("MA inversion ",colnames(x_mat)[i],sep=""))
+  colnames(mplot)<-colnames(x_mat)
+  
+  colo<-rainbow(ncol(mplot))
+  ts.plot(mplot,col=colo,main=paste("MA inversion ",colnames(x_mat)[i],sep=""))
+  for (i in 1:ncol(mplot))
+  {
+    mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  }
 }
 
 #-----------------------------------------------------------------
@@ -290,6 +345,7 @@ ht_mssa_vec[m]
 ############################################################################################################################## 
 
 #######################################################################################
+# Exercise 2
 # Advanced results (intended after a read of the M-SSA paper where expressions for expected performance measures are derived)
 #   We can now look in more detail at some of the additional outputs generated by M-SSA
 
@@ -493,7 +549,7 @@ MSSA_obj$crit_rhoyz
 #     -against VARMA specification (as long as heavy overfitting is avoided)   
 ###########################################################################################
 ########################################################################################
-
+# Exercise 3
 
 # Densify code: let's pack the above code into functions with distinct tasks
 # 1. Target function
