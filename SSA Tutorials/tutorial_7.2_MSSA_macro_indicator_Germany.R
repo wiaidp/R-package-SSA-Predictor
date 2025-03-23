@@ -32,7 +32,7 @@
 #   -Did we reach the bottom of the current recession in Germany (based on data up to Jan-2025)? 
 #   -Is the economy currently recovering (Jan 2025)?
 #   -Can we expect to reach above long-term growth in foreseeable time? 
-# -To be clear (or even more amibugous): don't ask "what is the `number' of long-term growth" in Germany?
+# -To be clear (or even more ambiguous): don't ask "what is the `number' of long-term growth" in Germany?
 #   -By my own definition, it is the arithmetic mean of the differenced log-transformed BIP-series over the available time span
 #     -Accordingly, this number could be computed easily (but we don't do so)
 #     -Also, this `number' is a random variable
