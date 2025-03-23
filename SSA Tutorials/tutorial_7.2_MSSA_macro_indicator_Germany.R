@@ -40,7 +40,7 @@
 #       -It is sensitive to singular events (COVID breakout)
 # -In any case, this `number' will correspond to the zero-line in (some of the) plots and figures
 #   -M-SSA will control the rate of zero-crossings, i.e., the rate of crossings of the predictors above or 
-#     below long-term average growth
+#     below long-term average growth as defined above
 
 
 
