@@ -170,19 +170,21 @@ for (i in 1:n)#i<-1
 }
 
 #-----------------------------------------------------------------
-# Target for M-SSA: two-sided acausal HP 
-# A target must be specified for each of the 5 series of the VAR
-#   The target for each of the five series is the two-sided HP applied to this series and possibly shifted forward (prediction)
-# M-SSA filters are structured/organized in vectors and matrices
-#   -The filter matrix has dimension nx(n*L)
+# Target for M-SSA: any acausal (prediction) or causal (smoothing) filter 
+# -A target must be specified for each one of the 5 series of the VAR
+#   -The target for each one of the five series is the two-sided HP applied to this series, 
+#       possibly shifted forward (prediction) or left unshifted (nowcast)
+# -M-SSA filters are structured/organized in vectors and matrices
+#   -The filter matrix has dimension n cross (n*L) (n rows, nL columns)
 #   -The i-th row of the filter matrix collects the filters for the i-th target
-#   -Each row consists of n filters: one filter assigned to each of the n explanatory variables
+#   -Each row consists of n filters: a series specific filter is assigned to each of the n explanatory variables
 #   -Therefore the number of columns is n*L (each sub-filter has length(L))
-# We now specify the target filter accordingly: dimension nx(n*L)
+# We now specify the target filter accordingly: dimension n cross (n*L)
 # We start by the target for the first series
 gamma_target<-c(hp_one_sided,rep(0,(n-1)*L))
 # For the first series, the target is HP applied to the first series and then zeroes
-#   The series delimitations are marked by vertical lines in the plot
+#   We delimit series by vertical lines in the plot
+#   Each series receives L filter coefficients
 ts.plot(gamma_target)
 abline(v=(1:n)*L)
 # Note that the filter is one-sided yet, see below for further details
@@ -192,12 +194,15 @@ for (i in 2:n)
 # The target of each series is just HP applied to this series (still one-sided yet)
 par(mfrow=c(1,1))
 ts.plot(t(gamma_target),col=rainbow(n))
+abline(v=(1:n)*L)
+
 # In the above plots, the target filters where one-sided
 # We now tell M-SSA that it has to mirror the above filters at their center points to obtain two-sided targets
 symmetric_target<-T
 # When symmetric_target==T, M-SSA is advised to compute a symmetric target by mirroring 
-#   the right tail to the left as follows
-ts.plot(c(hp_one_sided[L:2],hp_one_sided[1:L]))
+#   the right tail to the left 
+# This is obtained as illustrated in the following plot: the reconstructed filter is of length 2L-1
+ts.plot(c(hp_one_sided[L:2],hp_one_sided[1:L]),main=paste("Reconstructed two-sided filter of length ",2*L-1,sep=""))
 # Note that this procedure (mirroring) assumes L to be an odd number (see previous comments above)
 # Further down we will see another equivalent target specification based on supplying the two-sided filter directly
 
@@ -216,22 +221,23 @@ delta<-4
 
 # Holding times
 # We have to specify a HT for each series
-# The following numbers are derived from the Macro-tool: 
+# The following numbers are derived from the Macro-application: 
 #   -We impose mean durations between 1.5 and 2 years between consecutive zero-crossings of the predictor
-#   -Imposing larger numbers would render M-SSA smoother
+#   -Imposing larger numbers would render M-SSA smoother (less zero-crossings)
 ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
 # Compute corresponding lag-one ACF in HT constraint: see previous tutorials on the link between HT and lag-one ACF  
 rho0<-compute_rho_from_ht(ht_mssa_vec)$rho
 
 # The following are default settings for the numerical optimization
-# with_negative_lambda==T allows to extend the search to un-smoothing (generate more zero-crossings than benchmark): 
-#   Default value is FALSE (smoothing only)
+#   -with_negative_lambda==T allows to extend the search to un-smoothing (generate more zero-crossings than benchmark): 
+#   -Default value is FALSE (smoothing only)
 with_negative_lambda<-F
 # Default setting for numerical optimization
 lower_limit_nu<-"rhomax"
 # Optimization with half-way triangulation: effective resolution is 2^split_grid. Much faster than brute-force grid-search.
 # 20 is a good value: fast and strong convergence in most applications
+# WE can check if this number is large enough, see further down for details
 split_grid<-20
 
 # Now we can apply M-SSA
@@ -239,8 +245,8 @@ MSSA_obj<-MSSA_func(split_grid,L,delta,grid_size,gamma_target,rho0,with_negative
 
 # In principle we could retrieve filters, apply to data and check performances
 # But M-SSA delivers a much richer output, containing different filters and useful evaluation metrics
-# These will be analyzed further down
-# So let's pick out the real-time filter
+# These will be analyzed further down, see exercise 2
+# So let's pick out the M-SSA filter
 bk_x_mat<-MSSA_obj$bk_x_mat
 par(mfrow=c(1,n))
 for (i in 1:n)# i<-1
@@ -250,34 +256,42 @@ for (i in 1:n)# i<-1
   {
     mplot<-cbind(mplot,bk_x_mat[(j-1)*L+1:L,i])
   }
-  ts.plot(mplot,main=paste("MSSA applied to x ",colnames(x_mat)[i],sep=""),col=rainbow(n))
+  colnames(mplot)<-colnames(x_mat)
+  colo<-rainbow(n)
+  ts.plot(mplot,main=paste("MSSA applied to x ",colnames(x_mat)[i],sep=""),col=colo)
+  for (i in 1:n)
+    mtext(colnames(mplot)[i],col=colo[i],line=-i)
 }
 # The above outcome is intuitively appealing:
-#   -The M-SSA filters of oll five series rely on spread (leading indicator)
+#   -The M-SSA filters of all five series rely on spread (leading indicator)
 #   -The M-SSA filter of spread does not depend on other series
-#   -Other results reflect the dependencies as modeled by the VAR(1)
+#   -The weight distribution reflects the dependency as modeled by the VAR(1)
 #   -Increased smoothness (larger HTs) is reflected by (slower) decay of filter weights
 #----------------------------------------------
-# Apply M-SSA to data and check most important performance measures
-# Select any of the series: m=1,...,n
+# We now apply M-SSA to the simulated data and verify important performance measures
+# Select any of the series as your m-th target: m=1,...,n
 m<-m_check<-3
 bk<-NULL
 # Extract coefficients applied to m-th series    
 for (j in 1:n)#j<-2
   bk<-cbind(bk,bk_x_mat[((j-1)*L+1):(j*L),m])
+# Plot
+par(mfrow=c(1,1))
 ts.plot((bk))
+# Apply the j-th component of filter m to the j-th series and aggregate 
+#   -This is the predictor of the m-th target
 y<-rep(NA,len)
 for (j in L:len)#j<-L
 {
   y[j]<-sum(apply(bk*(x_mat[j:(j-L+1),]),2,sum))
 }
 
-# Apply target to m-th-series
+# Apply acausal target filter to the m-th-series
 gammak<-hp_one_sided[1:L]
 par(mfrow=c(1,1))
-ts.plot(gammak)
+ts.plot(gammak,main="Right tail of two-sided target")
 z<-rep(NA,len)
-# Here the filter is mirrored
+# Here the right tail of the filter is mirrored to obtain the acausal two-sided target filter
 for (j in L:(len-L))
   z[j]<-gammak%*%x_mat[j:(j-L+1),m]+gammak[-1]%*%x_mat[(j+1):(j+L-1),m]
 # Shift z by delta    
@@ -296,15 +310,20 @@ if (delta>0)
 }
 names(zdelta)<-names(y)<-rownames(x_mat)
 
-# Plot last 200 observations: recall that the experimental setting corresponds to quarterly economic data
+# Plot last 200 observations out of the long simulated span: 
+#   -Recall that the experimental design corresponds to quarterly economic data
 #   -We plot the last 200 observations of target and M-SSA predictor (delta>0), nowcast (delta=0) or backcast (delta<0)
 #   -200 observations correspond to 50 years of quarterly data 
-# Comments to following plot we see
-#   -We can see five 5 artificial `recessions' (local minima of target in black) over roughly 150 observations
-#     -In the mean, a recession all 150/(5*4)=7.5 years (lambda=160 is a bit short here)
-#     -In general recessions' durations are shorter than expansions: the VAR cannot render asymmetry (Hamilton regime-switching model can map asymmetry)
+# Some comments to the following plot:
+#   -We can recognize four artificial `recessions' (dips or local minima of target in black) over a time span 
+#     of roughly 150 observations
+#     -On average, a recession all 150/(4*4)~10 years (lambda=160 is quite right!)
+#     -In general, recession durations are shorter than expansions: 
+#       -The VAR cannot render this stylized fact properly (Hamilton regime-switching model can map asymmetry)
 #   -The two-sided filter cannot reach the sample end
-#   -We mark zero-crossings by M-SSA (blue) by vertical dashed lines: M-SSA controls the expected duration between consecutive zero-crossings
+#   -We mark zero-crossings by M-SSA (blue) by vertical dashed lines: M-SSA controls the expected duration 
+#     between consecutive zero-crossings, i.e. the holding time (HT)
+#   -As we shall see, the sample HT accords with the imposed constraint
 mplot<-cbind(zdelta,y)[(len-200):len,]
 ts.plot(mplot,col=c("black","blue"),main="Target (black) and M-SSA (blue): zero-crossings marked by blue vertical lines")
 abline(h=0)
@@ -318,64 +337,111 @@ ht_mssa_vec[m]
 
 
 # We now compute performance measures for the entire sample
-# 1. Mean-square error
+# 1. Mean-square forecast error
+# Technical note: 
+#   -M-SSA maximizes the target correlation between zdelta and y
+#   -This is equivalent to minimizing MSE up to static scale and level parameters (the latter are ignored by the correlation)
+#   -Ex post calibration of static level and scale parameters can be obtained easily by linear regression 
+#     -Fit y on zdelta
+#   -M-SSA also computes the best static scale adjustment internally, assuming the model is correctly specified
+#     -The blue line is optimally scaled
+#   -However, M-SSA does not provide any level adjustment, since the data is assumed to be zero-centered (zero-crossings)
+#   -The static level-adjustment must be provided explicitly, if desired
+# Background (philosophy): M-SSA emphasizes dynamic aspects of forecasting (zero-crossings, lead, growth).
+#   -Static (ex post) adjustments (level/scale) are deemed less relevant
+# Discussions at a recent (in 2025) conference (Conference on Real-Time Data Analysis, Methods, and Applications, Prague, 2025),
+#     where as follows: "Give me a number" (for future GDP). My answer was: "M-SSA provides a tendency"
+# Going a step further: M-SSA as implemented in tutorials 7.2 and 7.3 is designed to provide added (new) value
+#     in a multi quarters ahead forecast exercise. 
+#   -The design proposed in these tutorials is not explicitly optimized for nowcasting (though this could be done: tutorial 7.x)
+#   -In a multi-step ahead perspective, the tendency is more relevant than a single number (assorted with an uninformative ultra-wide forecast interval)
 mean((zdelta-y)^2,na.rm=T)
 
 # 2. Target correlation: correlation between target and M-SSA: 
-#   -Sample estimates of the target correlation converge to true target correlations for sufficiently long samples
-#   -The true target correlations correspond to the objective function of the M-SSA criterion value 
+#   -The sample estimate of the target correlation should converge to the true target correlation for 
+#       sufficiently long samples (assuming the model is not misspecified)
+#   -The true target correlation corresponds to the objective function of the M-SSA criterion
 #   -M-SSA maximizes the (true) target correlation under the HT constraint (noise suppression)
-#   -Maximizing the target correlation is equivalent to minimzing the mean square error between target and M-SSA output (up to arbitrary affine transformation)
-#   -M-SSA determines the optimal affine transformation, i.e., the above blue line is also the MSE-minimizer subject to the HT constraint
-#   -Sample correlation is (1,2) element of correlation matrix 
+#   -Maximizing the target correlation is equivalent to minimizing the mean square error between target and 
+#     M-SSA outputs, up to an affine transformation (static level and scale adjustments)
+#   -M-SSA determines the optimal scale of the affine transformation, i.e., the above blue line is 
+#     also the optimal MSE-estimate under the imposed HT constraint (assuming the true level of the data is zero)
+#   -The sample correlation is the (1,2) element of the following correlation matrix 
 cor(na.exclude(cbind(zdelta,y)))[1,2]
 # The following MSSA_obj$crit_rhoy_target is a vector of criterion values (true target correlations)
 #   -One criterion value per series
 # The above sample target correlation converges to the corresponding criterion value for sufficiently long samples (large len)
 MSSA_obj$crit_rhoy_target[m]
 
-# Optimization principle: M-SSA optimizes the target correlation under the holding time constraint
+# Smoothness (number of zero-crossings): 
+#   -M-SSA optimizes the target correlation under the holding time constraint
 # We now compare empirical and theoretical (imposed) HTs
 # The sample HT converges to the imposed HT for increasing sample size len
 compute_empirical_ht_func(y)
 ht_mssa_vec[m]
 
 #####################################################################################################################################
-# Summary: The above simulation confirms that M-SSA optimization maximizes the target correlation subject to the HT constraint
+# Summary: The above simulation experiment confirms that M-SSA maximizes the target correlation 
+#   subject to the HT constraint
+# -Both aspects, target correlation and HT, are deemed relevant in applications (`empirical' forecasting)
+# -Timeliness (lead/left-shift/advancement) could be obtained simply by increasing the forecast horizon, see
+#   e.g. tutorials 2.1 or 3 (AST trilemma)
 ############################################################################################################################## 
 
-#######################################################################################
 # Exercise 2
-# Advanced results (intended after a read of the M-SSA paper where expressions for expected performance measures are derived)
-#   We can now look in more detail at some of the additional outputs generated by M-SSA
+# -Advanced results (intended after a dive into the M-SSA paper, which derives expressions for expected performance measures)
+# -We can also look in more detail at some of the additional outputs generated by M-SSA
 
-# Some validation checks: compute  theoretical expected performances and check HT constraint  
-# Target correlation: with respect to classic MSE benchmark 
-# M-SSA replicates the classic MSE estimate when HT in the constraint matches HT of MSE
-#   In general the MSE benchmark is `noisy' and we want M-SSA to be smoother (stronger noise suppression)`
-#   Therefore the correlation with the MSE benchmark is generally smaller one
-#   But the correlation is always larger than the target correlation with the two-sided (acausal) HP 
+# Some validation checks: 
+# -compute  theoretical (expected) performances and check HT constraint  
+# -Target correlation: instead of maximizing the correlation with the acausal target, 
+#     the objective function of (M-)SSA considers the correlation with the causal (classic) MSE benchmark
+#   -Both `targets` (acausal and causal) are equivalent in the sense that the same (M-) SSA solution is obtained, see papers
+#   -When targeting the causal MSE-predictor (instead of the effective target), (M-)SSA attempts to replicate 
+#       the latter's optimal tracking (of the effective target) while being smoother
+#     -This is a proper smoothing problem, not a prediction problem (see papers)
+#   -However, when targeting the acausal target, for example the two-sided HP, (M-) SSA is addressing a 
+#     proper prediction problem, combined with a HT constraint imposing additional smoothness 
+#   -Both problems (targets) are qualitatively different, but the outcome (the M-SSA solution) is the same
+# M-SSA replicates the classic MSE estimate when the HT in the constraint matches the HT of the MSE benchmark
+#   -However, the MSE benchmark is often `noisy' and we want M-SSA to be smoother (stronger noise suppression)`
+#   -Therefore the correlation with the MSE benchmark is smaller one
+#   -But the correlation with the MSE-benchmark is almost surely larger than the target correlation with the 
+#     effective (acausal) target, because the latter assumes additional knowledge of future observations
+# Let's check these claims. First we caompute the correlation of M-SSA with the MSE predictor: we obtain a 
+#   number for each series
 MSSA_obj$crit_rhoyz
-# Target correlation: with respect to effective acausal target  
+# Next we compute the target correlation with the effective acausal target (here: two-sided HP) 
+#   These numbers are substantially smaller
 MSSA_obj$crit_rhoy_target
-# Lag one ACF: should match imposed lag-one ACF 
-# This is a quick check to verify successful numerical optimization
-# If the discrepancy is `too large', the number of iteration steps specified by split_grid can be increased
+# Below, we shall link these theoretical expressions with sample estimates, for a 
+#   better interpretation of their meaning
+
+# Next, have a look at the lag one ACF: it should match the imposed lag-one ACF (HT constraint)
+#   -This is a quick check to verify successful numerical optimization 
+#   -Convergence: the optimal solution should match the imposed constraint (sufficiently closely)
+# If the discrepancy is `too large', the number of iteration steps specified by the hyperparameter 
+#   split_grid (see above function call) should be increased
+# First: the lag-one ACF the M-SSA solution
 MSSA_obj$crit_rhoyy
+# Compare with imposed constraint (note that we can express the constraint either in terms of HT or lag-one ACF, see papers)
 rho0
+# We see that tThe solution matches the constraint: the optimization converged successfully
+
 # Equivalently, the HT of the optimized M-SSA should match the imposed HT
 compute_holding_time_from_rho_func(MSSA_obj$crit_rhoyy)
 compute_holding_time_from_rho_func(rho0)
 
 # Optimized nu in discrete difference equation, see paper for interpretation: values above 2 indicate smoothing (less zero-crossings than classic MSE-benchmark) 
 MSSA_obj$nu_opt
-# M-SSA also computes optimal filters when applied to residuals of the VAR
-#   This can be useful for visualization of the smoothing property (impulse response, for `expert' users)
-#   Applying these filters to VAR residuals replicates the ordinary M-SSA output (see time series y above)
-#   The approximation improves with larger L
-# M-SSA computes bk_mat: the filter as applied to the MA-inversion
-#   -The effective filter bk_x_mat (as applied to the data and as used in the above simulation exercise) is 
-#     obtained by deconvolution 
+# M-SSA also computes optimal filters when applied to residuals of the VAR (after MA-inversion)
+#   -This filter can be useful for visualization of the smoothing property (impulse response, for `expert' users)
+#   -Applying this filter to VAR residuals replicates the ordinary M-SSA output (time series y in 
+#     above simulation exercise) if L is sufficiently large (or MA-inversion of VAR decays rapidly to zero)
+#       -The approximation (MA-inversion) improves with increasing filter length L
+# In a first step, M-SSA computes bk_mat: the filter as applied to the residuals (MA-inversion)
+# In a second step, the `relevant' M-SSA filter (bk_x_mat, see the above simulation exercise) is 
+#     obtained from deconvolution, see below for details. We now look at bk_mat (as applied to MA-inversion)
 bk_mat<-MSSA_obj$bk_mat
 par(mfrow=c(1,n))
 for (i in 1:n)# i<-1
@@ -387,8 +453,7 @@ for (i in 1:n)# i<-1
   }
   ts.plot(mplot,main=paste("SSA applied to epsilon ",colnames(x_mat)[i],sep=""),col=rainbow(n))
 }
-# SSA as applied to original series x_mat, see above simulation exercise 
-#   Formally, bk_x_mat is obtained by deconvolution of MA-inversion xi from bk_mat above, see below
+# We can compare to bk_x_mat (the filter effectively applied to the data)
 bk_x_mat<-MSSA_obj$bk_x_mat
 par(mfrow=c(1,n))
 for (i in 1:n)# i<-1
@@ -400,18 +465,23 @@ for (i in 1:n)# i<-1
   }
   ts.plot(mplot,main=paste("MSSA applied to x ",colnames(x_mat)[i],sep=""),col=rainbow(n))
 }
+# The first one (bk_mat) is decaying more slowly in this example, because the white noise (WN) sequence of 
+#   the MA-inversion is noisier than the original VAR(1) data (requires stronger smoothing)
 
-# Check: deconvolute xi from bk_mat gives bk_x_mat  
+# We can now check the deconvolution claim: deconvolution of the MA-inversion xi from bk_mat gives bk_x_mat  
 deconv_M<-t(M_deconvolute_func(t(bk_mat),xi)$deconv)
 # Both filters match perfectly: absolute error is zero
 max(abs(deconv_M-bk_x_mat))
 # To summarize
-# -bk_x_mat is the relevant filter (the filter which is applied to the data)
-# -bk_mat (as applied to the MA-inversion) is the proper solution to the M-SSA criterion: bk_x_mat is derived from bk_mat 
-#   -bk_mat can provide some useful visual clues (impulse response)
+# -bk_x_mat is the relevant filter in applications (the filter which is applied to the data)
+# -bk_mat (as applied to the MA-inversion) is the proper solution to the M-SSA criterion: 
+#   -bk_x_mat is derived from bk_mat by deconvolution of the MA-inversion 
+# -bk_mat can provide some useful visual clues (impulse response) and helps when 
+#   trying to understand/interpret the M-SSA solution (explainability) 
 
-# M-SSA also computes the classic MSE filter: this is the design obtained by classic signal extraction algorithms
-# First we look at the MSE-filter as applied to the VAR residuals (MA-inversion)
+# M-SSA also computes the classic MSE filter called M-MSE: 
+#   -This is the design obtained by classic signal extraction (Wiener Kolmogorov)
+# First we look at the MSE-filter as applied to the VAR residuals (after MA-inversion of the VAR)
 gammak_mse<-MSSA_obj$gammak_mse
 par(mfrow=c(1,n))
 for (i in 1:n)# i<-1
@@ -424,7 +494,7 @@ for (i in 1:n)# i<-1
   ts.plot(mplot,main=paste("M-MSE applied to eps ",colnames(x_mat)[i],sep=""),col=rainbow(n))
 }
 # Second we look at the MSE filter as applied to the original data (x_mat)
-#   -If the HT constraint of M-SSA matches the HT of this filter, then M-SSA replicates MSE
+#   -If the HT constraint of M-SSA matches the HT of this filter, then M-SSA replicates M-MSE
 #   -M-SSA is a generalization of classic signal extraction algorithms, allowing for a control of the HT (smoothness or noise suppression)
 gammak_x_mse<-MSSA_obj$gammak_x_mse
 par(mfrow=c(1,n))
@@ -437,6 +507,8 @@ for (i in 1:n)# i<-1
   }
   ts.plot(mplot,main=paste("M-MSE applied to x ",colnames(x_mat)[i],sep=""),col=rainbow(n))
 }
+# If the imposed HT is larger than that of M-MSE, then the M-SSA filter will typically decay more slowly 
+#   towards zero than the M-MSE benchmark (stronger smoothing)
 
 
 
