@@ -512,22 +512,26 @@ for (i in 1:n)# i<-1
 
 
 
-# Target: two-sided HP filter convolved with MA-inversion xi
-#   This is the symmetric filter when applied to VAR residuals (MA-inversion)
-gamma_target_long<-MSSA_obj$gammak_target
-dim(gamma_target_long)
-# We plot the filters: vertical lines delimit the five series in our design
-#   -Note that for a particular series (say the first, i=1), the convolution of original target and MA-inversion xi 
-#       generally assigns weight to residuals of other series in the presence of cross-correlation (non-diagonal Sigma) 
-par(mfrow=c(1,1))
-ts.plot(gamma_target_long,col=rainbow(n),main=c("Targets as assigned to MA-inversion of original data","The originally symmetric two-sided target appears less symmetric after convolution with MA-inversion","Weight can be assigned to multiple series if Sigma is not diagonal"))
-abline(v=(1:n*(nrow(gamma_target_long)/n)))
-
+# We now look at the acausal target
 # In contrast, the original gamma_target (see also plot above) assigns weight only to the target series (all other series receive weight 0)
 # These issues can be confusing at first sight...
 par(mfrow=c(1,1))
 ts.plot(t(gamma_target),col=rainbow(n),main=c("Target as applied to original data", "Right tail is mirrored to the left to obtain two-sided filter","For each series, the target assigns weight to that series only"))
 abline(v=(1:n*(nrow(t(gamma_target))/n)))
+
+# But we can also look at the acausal target as applied to the MA-inversion of the VAR
+#   Warning: this topic might be subject to confusion...
+# The following plot displays the target (two-sided HP filter) as applied to VAR-residuals 
+#   (convolution of above target and MA-inversion xi)
+gamma_target_long<-MSSA_obj$gammak_target
+par(mfrow=c(1,1))
+ts.plot(gamma_target_long,col=rainbow(n),main=c("Targets as assigned to MA-inversion of original data","The originally symmetric two-sided target appears less symmetric after convolution with MA-inversion","Weight can be assigned to multiple series if VAR is not diagonal"))
+abline(v=(1:n*(nrow(gamma_target_long)/n)))
+# Notes 
+# 1. We show both sides of the filter (after `mirroring')
+# 2. For a particular series (say the first one, i=1), the convolution of the original target and 
+#     the MA-inversion xi may assign weight to (VAR-) residuals of other series in the presence of 
+#     cross-correlation (non-diagonal VAR) 
 
 
 # M-SSA also computes the (true) variance of the two-sided HP output
