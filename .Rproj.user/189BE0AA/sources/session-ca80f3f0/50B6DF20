@@ -3,7 +3,7 @@
     "path": "C:/Users/marca/OneDrive/2025/Projects/R-package-SSA-Predictor/SSA Tutorials/tutorial_7.2_MSSA_macro_indicator_Germany.R",
     "project_path": "SSA Tutorials/tutorial_7.2_MSSA_macro_indicator_Germany.R",
     "type": "r_source",
-    "hash": "3225026545",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1741763172329.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "163,0",
-        "scrollLine": "118"
+        "cursorPosition": "0,0",
+        "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1742736809,
+    "lastKnownWriteTime": 1742738938,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1742736809635,
+    "last_content_update": 1742738939015,
     "read_only": false,
     "read_only_alternatives": []
 }

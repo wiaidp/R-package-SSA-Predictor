@@ -158,18 +158,40 @@ len<-dim(x_mat)[1]
 #   -In our comparisons we will simply shift the BIP-column upwards by lag_vec[1]+shift, where shift=0 (nowcast) or shift>0 (forecast)
 tail(x_mat)
 #------------------------------
-# 2. Target filter: the two-sided HP will be applied to the target column (BIP shifted upward by lag_vec[1] quarters)
-#   -The classic quarterly setting lambda_HP=1600 leads to a design which tends to smooth out recessions
-#     -See a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
-#     -Dynamics are too weak to be `useful' in our forecast context (dynamic changes of HP(1600) over a one-year horizon are weak)
-#     -As a result: a left-shift of the M-SSA predictor as a function of the forecast horizon 
-#        cannot obtained (when targeting HP(1600)) 
-#   -Finally, the classic HP(1600) seems to be (more) sensitive to the Pandemic: the finite-length truncated filter looks `aweful'
-# To summarize
-# -HP(160) is more adaptive and is able to track dynamic shifts within a one-year horizon: it is a `better' target for M-SSA
-#   -Accordingly, M-SSA predictors are reactive to the forecast horizon
-#   -Predictors are increasingly left-shifted (anticipative) as a function of the forecast horizon
-# In tutorial 7.3, exercise 3, we shall consider an even more adaptive design, which tracks future BIP slightly better 
+# 2. Target filter: 
+# -We apply a filter to the target series (BIP shifted upward by lag_vec[1]+shift quarters) in order to
+#   down-size the importance of the (obnoxious) unpredictable high-frequency noise of BIP
+# -Main idea (forecast `philosophy'):  damping the unpredictable part (noise) helps in 
+#   predicting the predictable portion (signal) of BIP 
+#   -As we shall see in tutorial 7.3, statistical significance of predictors can be verified multiple 
+#     quarters ahead in this framework
+# -Question: which target are we aiming for? 
+#   -This choice should support our prospect to forecast BIP multiple quarters ahead
+# -The target specification is a difficult problem that requires a comprehensive analysis of the prediction problem:
+#   -What is the data looking like?
+#   -What are the main purposes (priorities) of the forecast design?
+
+# Note: 
+# -The target specification is exogenous to M-SSA 
+# -M-SSA assumes that a target has been specified: once done, optimal predictors can be derived
+
+# Back to the selection of an appropriate target:
+# -The HP-filter has some interesting (not well-known) properties, see tutorial 2 
+# -The classic quarterly design assumes an HP(1600) with lambda=1600
+# -However HP(1600) alters relevant information: for example by smoothing out narrow recession dips
+#   -See a corresponding critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
+#   -Dynamic changes as obtained by HP(1600) are too weak (too smooth) to be `useful' in our forecast context (dynamic changes of HP(1600) over a one-year horizon are weak)
+#   -As a result, left-shifts (anticipations) of the M-SSA predictor as a function of the forecast horizon 
+#        cannot be obtained effectively 
+#   -Also, HP(1600) seems (more) sensitive to the Pandemic: the finite-length truncated filter looks `terrible'
+# -To summarize
+#   -We here select a more adaptive HP(160) design (tutorial 7.3 will explore even more adaptive settings)
+#   -HP(160) is able to track narrow recession dips `better' 
+#   -HP(160) is able to track dynamic shifts occurring within a one-year horizon better than HP(1600)
+# -Overall, we prefer HP(160) as a target specification for this application
+#   -M-SSA predictors will be more reactive to the forecast horizon, by tracking level-shifts more rapidly
+#   -Predictors will be increasingly left-shifted (anticipative) as a function of the forecast horizon
+# -In tutorial 7.3, exercise 3, we shall consider an even more adaptive design, which tracks future BIP slightly better
 
 lambda_HP<-160
 # Filter length: roughly 4 years. 
