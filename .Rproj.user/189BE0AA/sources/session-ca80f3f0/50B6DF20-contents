@@ -212,7 +212,7 @@ lambda_HP<-160
 # Filter length: roughly 4 years. 
 #   The length should be an odd number, see tutorial 7.1 for background (mirroring of right tail to obtain two-sided target in M-SSA)
 L<-31
-# Compute the filter: we rely on the mFilter R-package within the wrapper
+# Compute the filter: we rely on the mFilter R-package in the following wrapper
 target_obj<-HP_target_sym_T(n,lambda_HP,L)
 
 gamma_target=t(target_obj$gamma_target)
@@ -221,11 +221,13 @@ colnames(gamma_target)<-select_vec_multi
 
 
 # We plot the right tails of the target filter (the left tails will be obtained by `mirroring', see tutorial 7.1)
+#   -To each series of the multivariate design, we assign a target, namely the two-sided HP applied to this series, see tutorial 7.1
 par(mfrow=c(1,1))
 ts.plot(gamma_target,col=rainbow(n),main="Target filters: the right tails will be mirrored to obtain the two-sided target")
-abline(v=(1:n)*L)
+abline(v=1+(1:n)*L)
 
-# We tell M-SSA to mirror the right tail at the center peak: symmetric_target==T (Boolean is true)
+# We tell M-SSA to mirror the right tail of the HP (as shown in the above figure) at the center peak: 
+#   symmetric_target==T (Boolean is true)
 symmetric_target
 # This means that the effective target will by the two-sided filter
 
@@ -255,7 +257,7 @@ V_obj<-VARMA(data_fit,p=p,q=q)
 threshold<-1.5
 V_obj<-refVARMA(V_obj, thres = threshold)
 
-# If interested, have a look at diagnostics
+# If interested, have a look at diagnostics (they should look fine for data prior the financial crisis)
 if (F)
   MTSdiag(V_obj)
 # Sigma
@@ -271,6 +273,7 @@ Theta<-V_obj$Theta
 # -The MA-inversion can be used to interpret the VAR: 
 #   -Large weights of series j for series i mean that series j is an important explanatory variable for series i 
 #   -The rate of decay of the weights is indicative about the memory of the data generating process
+#   -The plot also discloses leads or lags (the peak of spread is generally right-shifted)
 #   -In principle, the MA-weights should reflect the previous acf-plot `somehow'
 MA_inv_obj<-MA_inv_VAR_func(Phi,Theta,L,n,T)
 
@@ -286,11 +289,12 @@ ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
 
 # We can now apply the wrapper to M-SSA proposed in tutorial 7.1
-# -The wrapper requires the following information
+# -The wrapper requires the following information/instructions
 #   -Forecast horizon delta
 #   -HT constraint ht_mssa_vec
 #   -The data-generating process: MA-inversion xi and Sigma
 #   -The target: gamma_target together with the Boolean symmetric_target signifying mirroring (of the right tail of the one-sided target) 
+#   -The last boolean T triggers a plot of the filter coefficients (in the plot panel)
 MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
 
 # Extract M-SSA filter
@@ -305,7 +309,7 @@ for (i in 1:ncol(gammak_x_mse))
   print(paste("HT M-MSE of series ",select_vec_multi[i],": ",compute_holding_time_func(gammak_x_mse[,i])$ht, " vs. imposed HT of ",ht_mssa_vec[i]," by M-SSA",sep=""))
 
 # Typically, the M-MSE benchmark tends to be noisy (many crossings) and M-SSA allows for an explicit control
-#   of this practically relevant prperty of a predcitor
+#   of this practically relevant property of a predictor
 
 colnames(bk_x_mat)<-colnames(gammak_x_mse)<-select_vec_multi
 
