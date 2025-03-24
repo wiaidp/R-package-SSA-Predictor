@@ -81,7 +81,7 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 # Exercise 1: apply M-SSA to quarterly German Macro-data
 
 # 1. Load data and select indicators
-# 1.1 We first look at the original files: `numbers` refer to this data
+# 1.1 We first look at the original files: BIP `numbers` refer to this data
 data_file_name<-c("Data_HWI_2025_02.csv","gdp_2025_02.csv")
 # Monthly data
 data_monthly<-read.csv(paste(getwd(),"/Data/",data_file_name[1],sep=""))
@@ -90,45 +90,45 @@ tail(data_monthly)
 data_quarterly<-read.csv(paste(getwd(),"/Data/",data_file_name[2],sep=""))
 tail(data_quarterly)
 
-# 1.2 We do not work with original data
-# Instead we apply the following transformations
+# 1.2 We do not work with original (unprocessed) data
+# -Instead we apply the following transformation steps
 #   -Log-transform (to positive series) 
 #   -Quarterly differences (to emphasize growth)
-#     -Log-differences are:
-#       a. easily interpretable (relative growth) 
-#       b. additive (a drop of 10% followed by a win of 10% brings you back to original levels)
-#       c. a breeze to work with (cumbersome multiplications transform into tractable additions)
-#   -Standardization: series are zero-centered and scaled to unit variance (going back to the log-transformed differences `numbers` would require calibration of levels and scales)
+#   -Standardization: series are zero-centered and scaled to unit variance 
 #   -Trimming: the singular Covid-data is trimmed (we trim to 3 sigma, as can be observed in the following plot) 
-# In summary, the `numbers' that will be plotted in the following figure seemingly do not relate to the original data
+# -In summary, the `numbers' that will be plotted in the following figure seemingly do not relate to the original data
 #   -After transformation, the numbers are not interpretable in terms of GDP or industrial production
-# But the transformations help in extracting the minute signal from the overwhelming noise by M-SSA
-# And if explicitly needed, forecasts could be traced-back to original `numbers' by straightforward inverse transformations (which we don't do)
+# -But the transformations help in extracting the minute signal from the overwhelming noise by M-SSA
+# -If explicitly needed, forecasts could be traced-back to original `numbers' by straightforward inverse transformations
 
 # We proceeded to the above sequence of transformations and selected a couple of series deemed (very) important
+#   -The transformed data is provided in the following macro data-file
 load(file=paste(getwd(),"\\Data\\macro",sep=""))
 tail(data)
 # Remarks on the format of the data file:
+# -Series are standardized
 # -The target column (first one) in the above file refers to the series to which the target filter will be applied
+#   -BIP forward-shifted by the publication lag
 # -All subsequent columns correspond to the explanatory data available in January 2025 for nowcasting or 
-#   forecasting BIP
-#   -BIP in the second column is also an explanatory variable: but it is lagged by two quarters 
-#     relative to the target column (BIP is subject to a publication lag)
+#     forecasting the target
+#   -BIP in the second column is an explanatory variable: it is lagged by two quarters relative to the target 
+#     column (BIP is subject to a publication lag)
 # -A nowcast of BIP means that we compute an estimate of the output of the two-sided HP-filter when 
 #   applied to the first (target) column. 
-#   -Of course, we cannot compute the target towards the sample end, but M-SSA must be able to nowcast this `number'
-# -A forecast at horizon h=4 (one year) means that we shift forward by one year the target (when compared to the nowcast) 
-#   
+# -A forecast at horizon h=4 (one year) means that we shift forward by one additional year the target
+   
 
 # Remarks on the publication lag
 # -BIP has a publication lag of one quarter only 
 #   -But we shifted the data in the target column one additional quarter upwards (forward) to be on the 
 #     safe-side (for example to account for data revisions, which are ignored here)
-# -Keep in mind this feature of our design: performances at a forecast horizon (forward-shift) of three quarters 
+# -Keep in mind this feature of our design: performances at a forecast horizon of three quarters in our plots 
 #   might be indicative of performances a full year ahead 
 
 
 # Let's now specify the publication lag: 2 quarters for BIP in the target column
+#   -This lag will be used extensively when shifting the target forward
+#   -We shall always add lag_vec[1] to the forecast horizon to obtain the effective forward-shift
 lag_vec<-c(2,rep(0,ncol(data)-1))
 
 # Plot the data:
@@ -137,7 +137,11 @@ lag_vec<-c(2,rep(0,ncol(data)-1))
 #     anticipates peaks and dips of the other series by one quarter during crises (the target is left-shifted)
 # -This excessive shift gives us some safety-margin regarding data revisions (which are ignored here)
 # -The series are standardized to account for the different scales of the data
-# -Pandemic is trimmed to 3 sigma
+# -Pandemic is trimmed to 3 sigma (the trimming affects also the financial crisis but to a much lesser extent)
+# Remarks:
+# -We use trimming because classic approaches (HP, VAR-model) are sensitive to the singular COVID readings
+#   -M-SSA by itself (the optimization algorithm) would be quite robust against the singularity
+#   -But M-SSA could be affected indirectly, by the VAR-modeling which is sensitive to the Pandemic outliers 
 par(mfrow=c(1,1))
 mplot<-data
 colo<-c("black",rainbow(ncol(data)-1))
@@ -154,7 +158,8 @@ axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot
 axis(2)
 box()
 
-# Select the macro indicators for predicting the target by M-SSA
+# Select the macro indicators for predicting the target by M-SSA: 
+#   Five dimensional design in accordance with expert feedback
 select_vec_multi<-c("BIP","ip","ifo_c","ESI","spr_10y_3m")
 
 # Compute the relevant data matrix x_mat
@@ -170,7 +175,7 @@ tail(x_mat)
 #------------------------------
 # 2. Target filter: 
 # -We apply a filter to the target series (BIP shifted upward by lag_vec[1]+shift quarters) in order to
-#   down-size the importance of the (obnoxious) unpredictable high-frequency noise of BIP
+#   damp noise (the high-frequency components of BIP are likely unpredictable)
 # -Main idea (forecast `philosophy'):  damping the unpredictable part (noise) helps in 
 #   predicting the predictable portion (signal) of BIP 
 #   -As we shall see in tutorial 7.3, statistical significance of predictors can be verified multiple 
