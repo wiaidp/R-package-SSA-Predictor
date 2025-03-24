@@ -554,7 +554,7 @@ f_excess<-c(6,4)
 # 2. Less aggressive `OK'-setting
 f_excess<-c(4,2)
 mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-NULL
-# Compute M-SSA predictors for each forecast horizon
+# Compute M-SSA predictors according to steps A,B,C 
 for (i in 1:length(h_vec))#i<-1
 {
 # For each forecast horizon h_vec[i] we compute M-SSA for BIP and ip first, based on the proposed forecast excess
@@ -618,7 +618,7 @@ cor_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
 
 for (i in 1:length(h_vec))#i<-1
 {
-# Forward-shift  
+# Forward-shift: forecast horizon plus publication lag  
   shift<-h_vec[i]+lag_vec[1]
 # Compute target: two-sided HP applied to BIP and shifted forward by forecast horizon plus publication lag
   filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,shift)
@@ -626,9 +626,8 @@ for (i in 1:length(h_vec))#i<-1
 # Select BIP (first column)  
   target<-target_mat[,"BIP"]
 # Collect the forward shifted targets: 
-#   For the first loop-run, i=1 and shift=h_vec[1]+lag_vec[1]=2 corresponds to the publication lag of BIP (note that we selected a slightly larger publication lag, as discussed at the top of the this tutorial)  
   target_shifted_mat<-cbind(target_shifted_mat,target)
-# Plot indicators and shifting target
+# Plot indicators and shifted target
   mplot<-scale(cbind(target,indicator_mat))
   colnames(mplot)[1]<-paste("Target left-shifted by ",shift-lag_vec[1],sep="")
   par(mfrow=c(1,1))
@@ -647,8 +646,8 @@ for (i in 1:length(h_vec))#i<-1
   axis(2)
   box()
 
-# Compute sample target correlations of all M-SSA predictors with the shifted target: all combinations of 
-#   forecast horizon and forward-shift
+# Compute sample target correlations of all M-SSA predictors with the shifted target: 
+# tHE FINAL MATRIX WILL CONTAIN all 5*5 combinations of forecast horizon and forward-shift
   for (j in 1:ncol(indicator_mat))
     cor_mat[i,j]<-cor(na.exclude(cbind(target,indicator_mat[,j])))[1,2]
 
@@ -660,14 +659,15 @@ cbind(indicator_mat[,1],target_shifted_mat)[(L-10):(L+6),]
 # We can now have a look at the target correlations
 colnames(cor_mat)<-paste("M-SSA: h=",h_vec,sep="")
 rownames(cor_mat)<-paste("Shift of target: ",h_vec,sep="")
-# -We can see that M-SSA predictors optimized for larger forecast horizons (from left to right in cor_mat) 
-#     correlate more strongly with correspondingly forward-shifted target (from top to bottom in cor_mat)
-# -For a given forward-shift (row), the largest correlations tend to lie on (or to be close to) the diagonal element of that row in cor_mat
 cor_mat
+# -We can see that M-SSA predictors optimized for larger forecast horizons (from left to right in cor_mat) 
+#     correlate more strongly with correspondingly forward-shifted targetS (from top to bottom in cor_mat)
+# -For a given forward-shift (row), the largest correlations tend to lie on (or to be close to) the diagonal element of that row in cor_mat
+
 
 # -We infer from the observed systematic pattern, that the M-SSA predictors tend to be informative about future BIP trend growth
 # -Also, since future BIP trend growth tells something about the low-frequency part of future BIP, we may infer that 
-#   the M-SSA predictors are also informative about future BIP
+#   the M-SSA predictors are informative about future BIP
 # -However, (differenced) BIP is a very noisy series
 # -Therefore, it is difficult to assess statistical significance of forecast accuracy with respect to BIP (see tutorial 7.3 for a more refined analysis)
 # -But we can assess statistical significance of the effect observed in cor_mat, with respect to HP-BIP (low-frequency part of BIP)
@@ -677,18 +677,21 @@ for (i in 1:length(h_vec))# i<-1
 {
   for (j in 1:length(h_vec))# j<-1
   {
+# Regress j-th M-SSA predictor on i-th target    
     lm_obj<-lm(target_shifted_mat[,i]~indicator_mat[,j])
     summary(lm_obj)
-# This one replicates std in summary (classic OLS estimate of variance)
+# This estimate of the variance matrix replicates std in the above summary (classic OLS estimate of variance)
     sd<-sqrt(diag(vcov(lm_obj)))
-# Here we use HAC  
+# Here we use HAC: we rely on the R-package sandwich  
     sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
 # This is the same as
     sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
 # Compute HAC-adjusted t-statistic
     t_HAC_mat[i,j]<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-# Compute HAC-adjusted p-value
-    p_value_HAC_mat[i,j]<-2*pt(t_HAC_mat[i,j], len-length(select_vec_multi), lower=FALSE)
+# Compute HAC-adjusted p-value: 
+#   -We consider a one-sided test because we expect the regression coefficient (of predictor on target) 
+#     to be positive
+    p_value_HAC_mat[i,j]<-pt(t_HAC_mat[i,j], len-length(select_vec_multi), lower=FALSE)
   }
 }
 colnames(t_HAC_mat)<-colnames(p_value_HAC_mat)<-paste("M-SSA: h=",h_vec,sep="")
@@ -697,6 +700,10 @@ rownames(t_HAC_mat)<-rownames(p_value_HAC_mat)<-paste("Shift of target: ",h_vec,
 # Statistical significance (after HAC-adjustment) is achieved even towards larger forecast horizons
 # As expected, the Significance decreases (p-values increase) with increasing forward-shift
 p_value_HAC_mat
+# Note: 
+#   -We here consider the full sample, including the in-sample span.
+#   -We shall examine performances and statistical significance in more detail in tutorial 7.3,
+#     including out-of-sample results
 
 #--------------------------------------------------
 # The above result suggest predictability of M-SSA indicators with respect to future HP-BIP
@@ -709,7 +716,7 @@ for (i in 1:length(h_vec))# i<-4
   shift<-h_vec[i]+lag_vec[1]
   BIP_target<-c(x_mat[(1+shift):nrow(x_mat),"BIP"],rep(NA,shift))
   BIP_target_mat<-cbind(BIP_target_mat,BIP_target)
-# Rgress predictors on shifted BIP  
+# Regress predictors on shifted BIP  
   for (j in 1:length(h_vec))# j<-5
   {
     lm_obj<-lm(BIP_target~indicator_mat[,j])
@@ -738,11 +745,14 @@ rownames(t_HAC_mat_BIP)<-rownames(p_value_HAC_mat_BIP)<-paste("Shift of target: 
 #   -Selecting more aggressive designs (larger excesses) may lead to stronger significance at larger shifts, up to a point 
 #   -You may try f_excess<-c(6,4): a significant result at a 6 quarters ahead forecast horizon (plus publication lag) is achievable
 #   -But we wouldn't accord too much trust to this result (due to phase-reversal)
+#   -Besides (and in addition to) statistical tests, it is always good/imperative to understand what a 
+#     predictor is effectively `doing' (explainability)
 p_value_HAC_mat_BIP
 
-# Note: sometimes the HAC-adjustment seems to deliver inconsistent results (might be a problem in the R-package sandwich)
+# Technical Note: 
+# -Sometimes the HAC-adjustment seems to deliver inconsistent results (might be a problem in the R-package sandwich)
 #   -In particular, in some cases the adjusted variance is substantially smaller than the classic OLS estimate
-# In the next tutorial we account in a `pragmatic' way for this problem:
+# -In tutorial 7.3 we account in a `pragmatic' way for this problem:
 #   -We compute the HAC-adjusted variance as well as the standard/classic OLS variance
 #   -We select the larger of the two when computing t-statistics and p-values
 
@@ -776,11 +786,11 @@ cor(na.exclude(mplot))
 
 #--------------------------------------------------------------------------------
 # Exercise 4: consider the full-length HP
-# -In the above exercises we relied on the finite length (L=31) truncated version of the two-sided HP filter
-# -Instead, we could rely on the full-length HP filter and recompute HAC-adjusted t-statistics to verify 
+# -In the above exercises we relied on the truncated version of the two-sided HP filter: this filter cannot be obtained at the sample end
+# -Instead, we could rely on the common (full-length) HP filter and recompute HAC-adjusted t-statistics to verify 
 #   statistical significance (predictability) of M-SSA predictors
 
-# 1. Compute full-length HP
+# 4.1. Compute full-length HP
 len<-nrow(x_mat)
 hp_obj<-hpfilter(rnorm(len),type="lambda", freq=lambda_HP)
 # Specify trend filters: the above function returns HP-gap
@@ -788,7 +798,7 @@ fmatrix<-diag(rep(1,len))-hp_obj$fmatrix
 # Check: plot one-sided trend at start, two-sided in middle and one-sided at end
 ts.plot(fmatrix[,c(1,len/2,len)])
 
-# 2. Compute full-length HP trend output
+# Compute full-length HP trend output
 #   -Relies on full-length filter
 #   -Does not have NAs at start and end
 target_without_publication_lag<-t(fmatrix)%*%x_mat[,1]
@@ -799,8 +809,6 @@ target<-c(target_without_publication_lag[(1+lag_vec[1]):length(target_without_pu
 # Plot:
 #   -Note that full-length HP becomes increasingly asymmetric towards the sample boundaries
 #   -The quality towards the sample boundaries degrades
-# The HP expects an ongoing sharp decline while the M-SSA predictors envisage a recovery over 2025/2026
-
 mplot<-scale(cbind(target,indicator_mat))
 rownames(mplot)<-rownames(x_mat)
 colnames(mplot)<-c("Full-length HP",colnames(indicator_mat))
@@ -817,13 +825,17 @@ abline(h=0)
 axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
 axis(2)
 box()
+# Outcome:
+# -The HP is indicating an ongoing sharp decline while the M-SSA predictors envisage a recovery over 2025/2026
+# -M-SSA and HP are quite strongly conflicting in terms of short- and mid-term prospects
 
-# Compute correlations: 
+
+# Compute target correlations: 
 #  -Note that the target corresponds to a nowcast (shift=0)
-#   -Accordingly, the correlation is maximized by M-SSA optimized for horizon 0 (see first row in matrix) 
+#   -Accordingly, the correlation is maximized by M-SSA optimized for horizon 0 (see first row in the matrix) 
 cor(na.exclude(mplot))
 
-# 3. In addition to a nowcast we also analyze forward-shifts of the target
+# 4.2 In addition to a nowcast we also analyze forward-shifts of the target
 target_shifted_mat<-NULL
 for (i in 1:length(h_vec))
 {
@@ -831,7 +843,7 @@ for (i in 1:length(h_vec))
   target_shifted_mat<-cbind(target_shifted_mat,c(target[(1+shift):length(target)],rep(NA,shift)))
 }
 
-# 4. Recompute correlations and HAC-adjusted t-statistics of regression of M-SSA indicators on shifted full-sample HP trend
+# Recompute correlations and HAC-adjusted t-statistics of regression of M-SSA indicators on shifted full-sample HP trend
 cor_mat<-p_value_HAC_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
 for (i in 1:length(h_vec))# i<-1
 {
@@ -847,19 +859,22 @@ for (i in 1:length(h_vec))# i<-1
     # This is the same as
     sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
     t_HAC_mat<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-    p_value_HAC_mat[i,j]<-2*pt(t_HAC_mat, len-length(select_vec_multi), lower=FALSE)
+# One-sided test    
+    p_value_HAC_mat[i,j]<-pt(t_HAC_mat, len-length(select_vec_multi), lower=FALSE)
     
   }
 }
 colnames(cor_mat)<-colnames(p_value_HAC_mat)<-paste("M-SSA: h=",h_vec,sep="")
 rownames(cor_mat)<-rownames(p_value_HAC_mat)<-paste("Shift of target: ",h_vec,sep="")
+
+cor_mat
+p_value_HAC_mat
+
 # The full-length HP results confirm earlier findings
 #   -Confirmation of the systematic effect (left-right vs- top-bottom)
 #   -Correlations tend to larger
 #   -p-values tend to be smaller (stronger effect)
 
-cor_mat
-p_value_HAC_mat
 
 
 
@@ -884,7 +899,7 @@ p_value_HAC_mat
 #   -More aggressive settings for the forecast excess may reinforce these findings (up to a point)
 # -Finally, a predictor of the low-frequency component of (future) HP-BIP is intrinsically informative about 
 #     (future) BIP, even if statistical significance is obstructed by noise. 
-# -We shall explore more designs in tutorial 7.3
+# -We shall explore more designs in tutorial 7.3 and we shall compute more performance metrics and statistical tests
 #---------------------------------------------------------------------------------------------------
 
 
