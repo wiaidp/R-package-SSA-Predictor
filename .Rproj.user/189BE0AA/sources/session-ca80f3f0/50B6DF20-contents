@@ -315,9 +315,8 @@ colnames(bk_x_mat)<-colnames(gammak_x_mse)<-select_vec_multi
 
 #-----------------------
 # 6. Filter: apply M-SSA filter to the data
+# Note that delta accounts for the publication lag so that the output of the two-sided filter is left-shifted accordingly
 
-# Note that delta accounts for publication lag so that output of two-sided filter is left shifted accordingly
-#   4 quarters+lag_vec[1]
 filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
 
 
@@ -356,6 +355,7 @@ for (i in n:1)
 
 
 #------------------------
+# 7. Compute performance metrics
 # Sample mean-square errors of M-SSA
 apply(na.exclude((target_mat-mssa_mat)^2),2,mean)
 # Sample mean-square errors M-MSE: 
@@ -394,11 +394,11 @@ unlist(apply(mmse_mat,2,compute_empirical_ht_func))/unlist(apply(mssa_mat,2,comp
 # Exercise 2
 # We address the following questions:
 # -What are the (main) causes of model misspecification
-# -How can we improve performances and in particular the (sample) target correlations (which were terrible)?
+# -How can we improve performances and in particular the (sample) target correlations (which were terrible, see exercise 1 above)?
 
 # The following plot of BIP suggests that
 # 1. The forecast problem is rather difficult (due to noise)
-# 2. The predictors are too much right shifted (retarded): 
+# 2. The predictors are too much right-shifted (retarded): 
 #   Note: the target in this plot is left-shifted by lag_vec[1]+delta quarters
 par(mfrow=c(1,1))
 i<-1
@@ -446,7 +446,7 @@ mssa_excess_mat=filt_obj$mssa_mat
 
 # Compute the new sample target correlations: 
 # -Recall that the previous sample target correlations were negative
-# -But now they have turned positive! 
+# -But now they have turned positive! This looks good, indeed. 
 for (i in 1:n)
   print(cor(na.exclude(cbind(target_mat[,i],mssa_excess_mat[,i])))[1,2])
 
@@ -533,13 +533,13 @@ box()
 #   -Cross-sectional aggregation: equal weighting
 # B. Forecast excess
 # -BIP and ip tend to lag behind ESI and ifo (mainly because of publication lag) and spread is leading overall
-# -We select a larger delta for BIP and ip: forecast excess detailed in exercise 2  
+# -We select a larger delta for BIP and ip (forecast-excess, as explained and detailed in exercise 2)  
 # C. Forecast horizons:
 # -We compute M-SSA predictors based on A. and B. above, targeting BIP at horizons 0 (nowcast), 1, 2, 4 (one year) and 6 quarters ahead
 #   -This results in one nowcast and four forecasts 
 #   -We then compute performances of each of the five predictors relative to BIP shifted by 0,1,2,4,6 quarters: 
-#       -We consider all 25 combinations
-#   -We also consider statistical significance, by relying on different statistics (relying on HAC estimates of variances)
+#       -We consider all 5*5=25 combinations
+#   -We also consider statistical significance, by relying on different statistics (using HAC estimates of variances)
 
 # Start with the interesting forecast horizons, as indicated above
 h_vec<-c(0,1,2,4,6)
