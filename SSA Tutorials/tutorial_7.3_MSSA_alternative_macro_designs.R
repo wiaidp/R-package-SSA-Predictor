@@ -486,7 +486,7 @@ p_value_HAC_BIP_oos
 # Note: multiple test problem
 
 #######################################################################################
-# Exercise 3: increase adaptivity
+# Exercise 3: increasing adaptivity further
 # -The previous exercise 1 suggests that we might be able to predict HP-BIP several quarters ahead
 # -But predicting BIP is more challenging because the noisy high-frequency part of BIP is essentially unpredictable
 # However, it could be, in principle, that the target specification, HP(160), as specified in exercise 1 is too smooth

@@ -573,9 +573,11 @@ abline(v=(1:n*(nrow(gamma_target_long)/n)))
 
 # M-SSA also computes the (true) variance of the two-sided HP output (assuming no model misspecification)
 var_target<-MSSA_obj$var_target
-# We can compare variances on the diagonal of var_target with variances of the MSE (below): 
+# We can compare variances on the diagonal of the matrix var_target with variances of M-MSE (below): 
 #   -The latter are smaller (because the causal MSE predictor is missing future epsilons)
-# For this purpose, weed system matrices M_tilde and I_tilde, see M-SSA paper for background
+# For this purpose, we need the system matrices M_tilde and I_tilde, see M-SSA paper for background
+#   -The system matrices are defined as Kronecker-products of Sigma (the variance covariance matrix of VAR residuals) 
+#     with either the identity (giving I_tilde) or the lag-one autocovariance generating matrix M (giving M_tilde)
 M_obj<-M_func(L,Sigma)
 M_tilde<-M_obj$M_tilde
 I_tilde<-M_obj$I_tilde
@@ -610,10 +612,10 @@ ht_comp<-apply(matrix(rho_ssa,nrow=1),1,compute_holding_time_from_rho_func)[[1]]
 ht_comp
 # We have verified in the above simulation experiment that sample HTs match these `true' numbers`
 
-# We can once again check if optimization was successful 
-#  -If successful, then the above HTs (based on optimized filters) should match the imposed HTs
+# We can once again verify successful numerical optimization 
+#  -If successful, then ht_comp (based on optimized filters) should match the imposed HTs ht_mssa_vec
 #  -Increasing the size of split_grid (the number of iterations) tightens the fit between ht_comp above and ht_mssa_vec below
-ht_mssa_vec
+abs(ht_mssa_vec-ht_comp)
 # We can also compute HTs of the classic M-MSE benchmark: 
 #   -In general M-SSA is designed to be smoother (stronger noise suppression), i.e., ht_mssa_vec is larger than the below HTs of MSE design
 #   -We can of course change the HT in the constraint as specified in the call to M-SSA
@@ -647,10 +649,10 @@ criterion_mat
 MSSA_obj$crit_rhoyz
 #  crit_rhoyz is the objective function of the optimization criterion and is maximized by M-SSA
 
-# We verified convergence of sample estimates in exercise 1
-# We shall complete this experiment in exercise 3 below
-# In particular, we shall see that sample estimates of the (target-) correlations will converge 
-#   towards the above numbers when targeting either the acausal filter or the causal M-MSE
+# We verified convergence of sample estimates in exercise 1 and we cross-checked some of the expressions in the M-SSA paper
+#   -We shall complete this experiment in exercise 3 below
+#   -In particular, we shall see that sample estimates of the (target-) correlations will converge 
+#     towards the above numbers when targeting either the acausal filter or the causal M-MSE
 
 
 
@@ -659,7 +661,7 @@ MSSA_obj$crit_rhoyz
 # -M-SSA has a rich output with additional filters (including M-MSE) and additional performance metrics
 # -Theoretical expressions (expected values: see M-SSA paper) match sample estimates (for sufficiently long samples)
 # -M-SSA optimization concept: 
-#   -We verified that M-SSA maximizes the target correlation consitional on the HT constraint
+#   -We verified that M-SSA maximizes the target correlation conditional on the HT constraint
 #   -The target correlation can be defined with respect to the effective acausal target or M-MSE: the M-SSA solution will be the same
 #   -The target correlation ignores static level and scale adjustments but is otherwise equivalent to minimum MSE
 # -M-SSA replicates classic M-MSE signal extraction filters (up to static level adjustment)  by 
@@ -668,15 +670,16 @@ MSSA_obj$crit_rhoyz
 # -The target specification is generic: in the above experiment we relied on the two-sided HP
 #   -Classic h-step ahead forecasting can be obtained by replacing the HP-filter by the identity (see univariate SSA tutorials on the topic)
 #   -We could insert Hamilton or Baxter-King or Beveridge-Nelson specifications, see earlier tutorials
-# -The data generating process (DGP) is assumed to be stationary (could be generalized); otherwise the specification is completely general
-#   -M-SSA relies on the (reduced-form) MA-inversion of the DGP which is straightforward to obtain for VARMA processes (see above illustration)
+# -The data generating process (DGP) is assumed to be stationary (could be generalized); otherwise the specification is general
+#   -In our applications we typically consider growth-dynamics, i.e., data in first differences (differenced data is close to stationarity)
+#   -M-SSA relies on the Wold-decomposition of the (stationary) DGP which is straightforward to obtain for a VARMA process (MA-inversion)
 # -A convergence of sample performances towards expected numbers assumes the model to be `true'
 #   -We shall see that the application to German macro data (tutorials 7.2 and 7.3) is remarkably robust 
 #     -against singular Pandemic data (outliers)
 #     -against in-sample span for VAR: pre-financial crisis M-SSA (data up Jan-2007) performs nearly as well as full sample M-SSA
 #     -against VARMA specification (as long as heavy overfitting is avoided)   
 # -Tutorial 7.2 will demonstrate that the VAR(1) is (most likely) misspecified, as we might already suspect
-#   -We then provide a simple and effective trick to overcome the misspecification in the context of the 
+#   -We then provide a simple and effective trick to overcome the misspecification in the context of this 
 #     macro-application
 ###########################################################################################
 # Exercise 3: to conclude this tutorial we wrap the above code into functions and we verify some additional 
@@ -852,12 +855,11 @@ filter_func<-function(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,
 }
 
 #------------------------------------------------------------------------
-# Let's apply the above functions to the previous simulation experiment
+# Let's now apply the above functions to the previous simulation experiment
 
 # 1. Target
 lambda_HP<-160
-# Filter length: roughly 4 years. The length should be an odd number in order to have a symmetric HP 
-#   with a peak in the middle (for even numbers the peak is truncated)
+# Filter length: roughly 4 years. The length should be an odd number, see above comments (mirroring)
 L<-31
 
 target_obj<-HP_target_sym_T(n,lambda_HP,L)
@@ -868,10 +870,11 @@ symmetric_target=target_obj$symmetric_target
 # Target as applied to original data (not MA-inversion)
 # To obtain the two-sided filter, the right tail will be mirrored to the left, about the center point
 par(mfrow=c(1,1))
-ts.plot(gamma_target,col=rainbow(n),main="Target as applied to original data: right tail is mirrored to the left to obtain two-sided HP")
-abline(v=(1:n*(nrow((gamma_target))/n)))
+ts.plot(gamma_target,col=rainbow(n),main="Target as applied to original data: right tail will be mirrored to the left to obtain two-sided HP")
+abline(v=1+(1:n*(nrow((gamma_target))/n)))
 
-# Here we tell M-SSA to mirror the target filter at its center point (peak value)
+# If the boolean symmetric_target is true, the right tail of the (one-sided) target will be mirrored to 
+#   the left of the center point to obtain the two-sided design
 symmetric_target
 
 # 2. MA-inversion as based on VAR model

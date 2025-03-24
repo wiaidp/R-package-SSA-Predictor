@@ -1,24 +1,26 @@
 # Tutorial 7.2: application of the M-SSA to quarterly macro-data
 
-# The previous tutorial 7.1 demonstrates convergence of the relevant performance numbers to 
+# The previous tutorial 7.1 demonstrates asymptotic convergence of the relevant performance numbers to 
 #   expected values (as derived in the M-SSA paper), assuming knowledge of the data generating process (DGP)
 # -Tutorial 7.1 checks the theory
 
-# In contrast, we here (have to) allow for (and address) misspecification
+# In contrast, we here have relatively short (in-sample) spans and we (have to) allow for (and address) 
+#   model misspecification
 
 # Purposes of this tutorial:
 # -Apply the M-SSA to quarterly (German) macro-data during insecure times 
 #   -Tutorials 7.1-7.3 were written early 2025 and rely on data up to Jan-2025
-#   -Germany currently (2024-2025) endures a recession: we observe negative BIP-growth over several quarters
-#   -Can we use M-SSA to predict future GDP dynamics: what are the prospects for 2025 and 2026?
-# -Apply the M-SSA wrappers (functions) proposed in tutorial 7.1
+#   -The HP-filter signals a severe recession, see exercise 4 below
+#     -Germany endures a recession: we observe negative BIP-growth since several quarters
+#   -Can we use M-SSA to predict future BIP dynamics: what are the prospects for 2025 and 2026?
 # -Analyze various designs for nowcasting and forecasting German GDP (BIP:=Brutto Inland Produkt)
 # -Analyze effects of model misspecifications: the VAR(1) cannot render recessions properly
 # -Infer possible solutions for eluding model misspecification issues and analyze their efficacity
-# -Provide an empirical background and basic insights to understand the various forecast designs proposed in tutorial 7.3 
+# -Provide an empirical background and basic insights to understand the various forecast designs 
+#   proposed in tutorial 7.3 
 
 # Some background information:
-# -As discussed in tutorial 7.1 we do not deliver `GDP numbers' ("give me the number")
+# -As discussed in tutorial 7.1, we do not deliver `GDP numbers' ("give me the number")
 #   -Such a `number' would be subject to a forecast interval whose width would invariably invalidate its 
 #     relevance. 
 #   -Forecasting GDP `numbers' is almost surely (with probability one) a futile exercise
