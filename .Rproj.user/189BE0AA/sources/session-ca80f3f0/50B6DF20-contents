@@ -784,8 +784,7 @@ target<-c(target_without_publication_lag[(1+lag_vec[1]):length(target_without_pu
 # Plot:
 #   -Note that full-length HP becomes increasingly asymmetric towards the sample boundaries
 #   -The quality towards the sample boundaries degrades
-# We here discard the first and last year (to skip poor HP-readings)
-target[length(target):(length(target)-3)]<-target[1:4]<-NA
+# The HP expects an ongoing sharp decline while the M-SSA predictors envisage a recovery over 2025/2026
 
 mplot<-scale(cbind(target,indicator_mat))
 rownames(mplot)<-rownames(x_mat)
