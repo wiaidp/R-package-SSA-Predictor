@@ -1,4 +1,4 @@
-# Tutorial 7.3: we propose various M-SSA BIP (German GDP) predictor designs
+# Tutorial 7.3: we propose various M-SSA BIP (GDP Germany) predictor designs
 # The concept of M-SSA predictors for BIP was introduced in tutorial 7.2
 # We wrapped this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
 # We here present two predictor designs: a `fairly adaptive' in exercise 1 and a `more adaptive' in exercise 3

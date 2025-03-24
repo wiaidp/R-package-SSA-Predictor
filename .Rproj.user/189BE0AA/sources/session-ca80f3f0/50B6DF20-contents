@@ -33,7 +33,7 @@
 #       -Instead, M-SSA emphasizes ALSO left-shift/lead/advancement and smoothness (few false alarms): AST trilemma
 # -We try to address questions like: 
 #   -Did we reach the bottom of the current recession in Germany (based on data up to Jan-2025)? 
-#     -The HP filter suggests that we did not, see exercise 4
+#     -The HP filter suggests that we did not, see exercise 4 below
 #   -Is the economy currently recovering (Jan 2025)?
 #   -Can we expect to reach above long-term growth in foreseeable time? 
 # -To be clear: don't ask for a `number'
