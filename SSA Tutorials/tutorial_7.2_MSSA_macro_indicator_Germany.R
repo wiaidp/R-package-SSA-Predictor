@@ -201,7 +201,7 @@ tail(x_mat)
 #   -Also, HP(1600) seems (more) sensitive to the Pandemic: the finite-length truncated filter looks `terrible'
 # -To summarize
 #   -We here select a more adaptive HP(160) design (tutorial 7.3 will explore even more adaptive settings)
-#   -HP(160) is able to track narrow recession dips `better' 
+#   -HP(160) is able to track narrow recession dips `better': it is also able to track the Euro-Area (sovereign debt) crisis 
 #   -HP(160) is able to track dynamic shifts occurring within a one-year horizon better than HP(1600)
 # -Overall, we prefer HP(160) as a target specification for this application
 #   -M-SSA predictors will be more reactive to the forecast horizon, by tracking level-shifts more rapidly
