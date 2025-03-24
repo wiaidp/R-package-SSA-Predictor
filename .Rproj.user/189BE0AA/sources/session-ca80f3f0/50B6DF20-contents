@@ -23,7 +23,8 @@
 # -As discussed in tutorial 7.1, we do not deliver `GDP numbers' ("give me the number")
 #   -Such a `number' would be subject to a forecast interval whose width would invariably invalidate its 
 #     relevance. 
-#   -Forecasting GDP `numbers' is almost surely (with probability one) a futile exercise
+#   -Forecasting GDP `numbers' is almost surely (with probability one) a futile exercise, 
+#     at least in a multi-step  ahead perspective (several quarters ahead)
 # -We here focus on looking ahead (sensing) the future growth dynamics as contained (but masked/hidden) 
 #   in present-day data: we try to `extract the minute signal` and `skip the dominating noise'
 # -M-SSA in this application is about dynamic aspects of prediction: 
@@ -32,23 +33,26 @@
 #       -Instead, M-SSA emphasizes ALSO left-shift/lead/advancement and smoothness (few false alarms): AST trilemma
 # -We try to address questions like: 
 #   -Did we reach the bottom of the current recession in Germany (based on data up to Jan-2025)? 
+#     -The HP filter suggests that we did not, see exercise 4
 #   -Is the economy currently recovering (Jan 2025)?
 #   -Can we expect to reach above long-term growth in foreseeable time? 
-# -To be clear (and even more ambiguous): don't ask "what is the `number' of long-term growth" in Germany?
-#   -By our own definition, it is the arithmetic mean of the differenced log-transformed BIP-series over 
-#       the available time span
-#     -Accordingly, this number could be computed easily (but we don't do so)
-#     -Also, this `number' is a random variable
-#       -It is sensitive to singular events (COVID breakout)
-# -In any case, this `number' will correspond to the zero-line in (some of the) plots and figures
-#   -M-SSA will control the rate of zero-crossings, i.e., the rate of crossings of the predictors above or 
-#     below long-term average growth as defined above
+# -To be clear: don't ask for a `number'
+#   -In our plots, predictors are standardized and positive/negative readings suggest above/below 
+#     long-term growth
+#   -M-SSA controls the rate of zero-crossings, i.e., the rate of crossings of the predictors above or 
+#     below long-term average growth
+#   -Therefore we can control for the number of noisy (false) alarms (signaling below or above long-term growth)
+# -BIP `numbers' could be obtained by calibration of the standardized M-SSA predictors on BIP
+#   -Determine optimal static level and scale adjustments by linear regression
 
 # The tutorial is structured into exercises
 # -Exercise 1 discusses important design decisions (target specification) and applies M-SSA to the data
 #   -Unfortunately, the VAR(1) model is subject to misspecification resulting in poor performances
 # -Exercise 2 will analyze the (main) causes of misspecification and propose solutions to overcome undesirable consequences
-# -Exercise 3 relies on these findings to propose the construction of M-SSA BIP predictors 
+# -Exercise 3 combines all ingredients to propose a recipe for constructing the M-SSA BIP predictors
+# -Exercise 4 compares our results with the HP-filter
+#   -M-SSA will strongly contradict the HP (and the future will tell)
+
 
 #----------------------
 # Start with a clean sheet
