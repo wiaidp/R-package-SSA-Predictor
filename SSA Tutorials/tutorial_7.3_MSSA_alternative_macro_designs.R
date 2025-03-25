@@ -1,8 +1,8 @@
 # Tutorial 7.3: we propose various M-SSA BIP (GDP Germany) predictor designs
 # The concept of M-SSA predictors for BIP was introduced in tutorial 7.2
 # We wrapped this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
-# We here present two predictor designs: a `fairly adaptive' in exercise 1 and a `more adaptive' in exercise 3
-#   -You might be able to find even better hyperparameters yourself by fine-tuning adaptivity further
+# We here propose a `fairly adaptive' predictor in exercise 1 and a `more adaptive' one in exercise 3
+#   -One might be able to find better hyperparameters by fine-tuning adaptivity further
 
 # Main purposes of this tutorial
 # -Illustrate M-SSA as applied to real data (in contrast to tutorial 7.1, based on simulated data)
@@ -11,23 +11,26 @@
 #   -Performances of institutional forecasters (`big five' German forecast institutes) degrade steeply 
 #     beyond a one quarter forecast horizon, see up-coming publication by Heinisch and Neufing (currently working paper)
 #   -We here illustrate that BIP can possibly be predicted consistently beyond half a year ahead
-#    -We emphasize mid-term predictability: 2-6 quarters ahead
+#     -We emphasize mid-term predictability: 2-6 quarters ahead
 #   -Institutional forecasters are very good at nowcasting GDP: indeed, much better than M-SSA presented here
-#   -But M-SSA as proposed in this tutorial could possibly provide additional insights into the prospect of mid-term GDP/BIP forecasting
+#     -For this purpose they rely on a rich cross-section (many series) and mixed-frequency approaches, linking monthly and quarterly data
+#     -In contrast, M-SSA proposed in this tutorial considers few (important) indicators, within a purely quarterly scheme 
+#   -Tutorial 7.3 could eventually provide additional insights into the important prospect of mid-term GDP/BIP forecasting
 # -In addition to forecasting BIP, we also consider nowcasting and forecasting of the trend-growth of BIP
 #   -For this purpose we apply a HP-filter to the differenced (and log-transformed) BIP
-#   -This trend-growth component is termed HP-BIP
+#     -This trend-growth component is termed HP-BIP
 # -Forecast performance measures:
 #   -We shall consider forecast performances of M-SSA against forward-shifted HP-BIP and BIP based on
-#     -target correlations: correlations of predictors with forward-shifted BIP or HP-BIP
-#     -rRMSE: relative root mean-square error when benchmarked against classic direct predictors or mean(BIP) (simple benchmark)
-#     -HAC-adjusted p-values of t-statistics of regressions of predictors on target (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
+#     -The target correlations: correlations of predictors with forward-shifted BIP or HP-BIP
+#     -The rRMSE: relative root mean-square error when benchmarked against classic direct predictors or mean(BIP) (simple benchmark)
+#     -HAC-adjusted p-values of (t-statistics of) regressions of predictors on targets (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
 # To do: provide additional Diebold-Mariano (DM) and Giacomini-White (GW) tests of unequal predictability (benchmarked against mean(BIP))
 
 # The tutorial is structured into 3 exercises
 # Exercise 1: apply a fairly adaptive design based on targeting a HP(160) filter by M-SSA
 #   -HP(160) deviates from the standard HP(1600) specification typically recommended for quarterly data
 #     -See a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
+#     -See also the lengthy discussion in tutorial 7.2
 #   -We shall see that M-SSA can predict HP-BIP (for which it is explicitly optimized) consistently 
 #      multiple quarters ahead (statistical significance)
 #   -It is more difficult to predict BIP, though: the noisy high-frequency components of BIP are unpredictable 
@@ -67,19 +70,11 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 load(file=paste(getwd(),"\\Data\\macro",sep=""))
 tail(data)
 lag_vec<-c(2,rep(0,ncol(data)-1))
-# -We assume a publication lag of two quarters for BIP (the effective lag is smaller but we'd like to stay on the safe side, in particular since BIP is subject to revisions)
-#     -Therefore the target column (first column) in the above data file is up-shifted by two quarters as compared to the second column (BIP)
-# -In general, we shall apply a two-sided HP to the target column: this is called HP-BIP
-# -The challenge (and purpose of M-SSA) then consists in nowcasting or forecasting HP-BIP based on the 
-#     explanatory variables as listed in columns 2-8 (available data at each time point, ignoring revisions)
-#   -The two-quarter publication lag is too large (in practice it is one quarter). 
-#   -But GDP/BIP is subject to revisions
-#   -Since we ignore data revisions, we allow for a larger publication lag: in principle we discard the first (noisiest) release of GDP.
-
+# Note: we assume a publication lag of two quarters for BIP, see the discussion in tutorial 7.2
 
 
 # Plot the data
-# The real-time BIP (red) is lagging the target by lag_vec[1] quarters (publication lag)
+# The real-time BIP (red) is lagging the target (black) by lag_vec[1] quarters (publication lag)
 par(mfrow=c(1,1))
 mplot<-data
 colo<-c("black",rainbow(ncol(data)-1))
@@ -107,7 +102,7 @@ len<-dim(x_mat)[1]
 ###############################################################################################
 # Exercise 1: Compute forecasts for German GDP up to 6 quarters ahead, based on the above selection of 
 #   macro-indicators
-# -Rely on a more adaptive HP(160) as the target, based on lambda_HP=160, 
+# -Rely on a `fairly adaptive' HP(160) as the target, based on lambda_HP=160, 
 #   -The standard HP(1600) is too smooth (smooths out recessions)
 #   -But BIP (German GDP) is too noisy to be forecasted `directly'
 #   -Finding a target that emphasizes the relevant dynamics while damping the unpredictable 
@@ -118,22 +113,35 @@ len<-dim(x_mat)[1]
 # -In exercise 3 we shall rely on an even more adaptive design based on HP(16), for reference
 
 # 1.1 Apply M-SSA
-# Here's the head of the function derived from tutorial 7.2
+# Here's the wrapper summarizing findings derived in tutorial 7.2: 
 head(compute_mssa_BIP_predictors_func)
 
-# We can supply various hyperparameters (designs) and the function returns corresponding
-#   -M-SSA predictors
+# The head of the function needs the following specifications:
+# -x_mat: data 
+# -lambda_HP: HP parameter
+# -L: filter length
+# -date_to_fit: in-sample span for the VAR
+# -p,q: model orders of the VAR
+# -ht_mssa_vec: HT constraints (larger means less zero-crossings)
+# -h_vec: (vector of) forecast horizon(s) for M-SSA
+# -f_excess: forecast excesses, see exercises 2 and 3 above
+# -lag_vec: publication lag (target is forward shifted by forecast horizon plus publication lag)
 
-# In order to use the function, we need to specify hyperparameters, see tutorial 7.2 for background
-# We here first replicate tutorial 7.2
+# We can supply various hyperparameters (designs) and the function returns M-SSA predictors as 
+#     specified in tutorial 7.2
+# -The main hyperparameter is lambda_HP: a smaller lambda_HP means increased adaptivity 
+
+# We now first replicate tutorial 7.2 with the above wrapper
 
 # Target filter: lambda_HP is the single most important hyperparameter, see tutorial 7.1 for a discussion
 # Briefly: we avoid the classic quarterly setting lambda_HP=1600 because the resulting filter would be too smooth
 # Too smooth means: the forecast horizon would have nearly no effect on the M-SSA predictor (almost no left-shift, no anticipation)
 lambda_HP<-160
 # Filter length: nearly 8 years is fine for the selected lambda_HP (filter weights decay sufficiently fast)
+#   Should be an odd number (see tutorial 7.1)
 L<-31
 # In-sample span for VAR, i.e., M-SSA (the proposed design is quite insensitive to this specification because the VAR is parsimoniously parameterized)
+#  -selecting date_to_fit<-"2008" means that the entire financial crisis is out-of-sample 
 date_to_fit<-"2008"
 # VARMA model orders: keep the model simple in particular for short/tight in-sample spans
 p<-1
@@ -144,21 +152,21 @@ ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
 # Forecast horizons: M-SSA is optimized for each forecast horizon in h_vec 
 h_vec<-0:6
-# Forecast excesses: see tutorial 7.1 for background
+# Forecast excesses: see tutorial 7.2, exercise 2 for background
 f_excess<-c(4,2)
 
-# Run the function packing and implementing our previous findings (tutorial 7.2) 
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess)
+# Run the wrapper  
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec)
 
 # Retrieve predictors and targets from the above function-call
 # Forward-shifted HP-BIP
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
-# M-SSA indicators
+# M-SSA predictors
 predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
-# M-MSE
+# M-MSE predictors
 predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 
-# Plot M-SSA 
+# Plot M-SSA: the vertical line indicates the end of the in-sample span
 mplot<-predictor_mssa_mat
 colnames(mplot)<-colnames(predictor_mssa_mat)
 par(mfrow=c(1,1))
@@ -176,6 +184,14 @@ abline(v=which(rownames(mplot)>date_to_fit)[1]-1,lty=2)
 axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
 axis(2)
 box()
+
+# How can we relate the above plot to the AST forecast trilemma?
+# -We can see that M-SSA predictors are increasingly left-shifted with increasing forecast horizon, 
+#     both in- as well as out-of-sample
+#   -Timeliness aspect of the AST trilemma
+# -Also, the number of zero-crossings is controlled by the holding-time (HT constraint)
+#   -Smoothness aspect of the AST trilemma
+# -The remaining A (for Accuracy) is examined below 
 
 #----------------------------------------------------------
 # 1.2. Compute performances
@@ -457,7 +473,7 @@ h_vec<-0:6
 f_excess<-c(4,2)
 
 # Run the function packing and implementing our previous findings (tutorial 7.2) 
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat_white_noise,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess)
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat_white_noise,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec)
 
 
 # Forward-shifted HP-BIP
@@ -504,7 +520,7 @@ f_excess_adaptive<-c(0,0)
 h_vec_adaptive<-0:4
 
 # Run the M-SSA predictor function
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec_adaptive,f_excess_adaptive)
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec_adaptive,f_excess_adaptive,lag_vec)
 
 # Forward-shifted HP-BIP
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat

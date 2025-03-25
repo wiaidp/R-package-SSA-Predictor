@@ -81,7 +81,7 @@ library(sandwich)
 source(paste(getwd(),"/R/functions_MSSA.r",sep=""))
 # Load signal extraction functions used for JBCY paper (relies on mFilter)
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
-# Utility functions for M-SSA, see tutorial 
+# Useful M-SSA wrappers 
 source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 
 
@@ -127,11 +127,11 @@ tail(data)
    
 
 # Remarks on the publication lag
-# -BIP has a publication lag of one quarter only 
+# -BIP has a publication lag of one quarter actually 
 #   -But we shifted the data in the target column one additional quarter upwards (forward) to be on the 
 #     safe-side (for example to account for data revisions, which are ignored here)
 # -Keep in mind this feature of our design: performances at a forecast horizon of three quarters in our plots 
-#   might be indicative of performances a full year ahead 
+#   might be indicative of performances a full year ahead, as well
 
 
 # Let's now specify the publication lag: 2 quarters for BIP in the target column
@@ -197,6 +197,8 @@ tail(x_mat)
 # Note: 
 # -The target specification is exogenous to M-SSA 
 # -M-SSA assumes that a target has been specified: once done, optimal predictors can be derived
+# -The discussion here is not about M-SSA directly, but about an important guide-line, telling M-SSA 
+#   what signal to look for
 
 # Back to the selection of an appropriate target:
 # -The HP-filter has some interesting (not well-known) properties, see tutorial 2 
@@ -214,7 +216,6 @@ tail(x_mat)
 # -Overall, we prefer HP(160) as a target specification for this application
 #   -M-SSA predictors will be more reactive to the forecast horizon, by tracking level-shifts more rapidly
 #   -Predictors will be increasingly left-shifted (anticipative) as a function of the forecast horizon
-# -In tutorial 7.3, exercise 3, we shall consider an even more adaptive design, which tracks future BIP slightly better
 
 lambda_HP<-160
 # Filter length: roughly 4 years. 
@@ -429,7 +430,7 @@ axis(2)
 box()
 
 
-# Let's try a larger forecast horizon than strictly necessary: we call this a forecast excess
+# Let's try a larger forecast horizon than strictly necessary: we call this a `forecast excess'
 f_excess<-4
 # Increase artificially delta
 delta_excess<-delta+f_excess
@@ -883,8 +884,19 @@ p_value_HAC_mat
 #   -Correlations tend to larger
 #   -p-values tend to be smaller (stronger effect)
 
+# The above findings have been wrapped into a single function called compute_mssa_BIP_predictors_func
+head(compute_mssa_BIP_predictors_func)
 
-
+# The head of the function needs the following specifications:
+# x_mat: data 
+# lambda_HP: HP parameter
+# L: filter length
+# date_to_fit: in-sample span for the VAR
+# p,q: model orders of the VAR
+# ht_mssa_vec: HT constraints (larger means less zero-crossings)
+# h_vec: (vector of) forecast horizon(s) for M-SSA
+# f_excess: forecast excesses, see exercises 2 and 3 above
+# lag_vec: publication lag (target is forward shifted by forecast horizon plus publication lag)
 
 #################################################################
 # Findings
