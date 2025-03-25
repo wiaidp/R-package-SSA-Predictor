@@ -635,10 +635,13 @@ p_value_HAC_BIP_oos
 #       -Predicting the low-frequency part of BIP is (trivially) telling something about future BIP, too
 
 
-# Note about the publication lag
+# Final notes on the publication lag and data revisions
 #   -All results relate to forward-shifts augmented by the publication lag
-#   -According to feedback, our setting for the publication lag, i.e., lag_vec[1]=2, is too large (prudence)
-#     -The effective publication lag of BIP is one quarter
-#   -As a result, a forward-shift corresponding to 3 quarters in our evaluations is more likely to 
-#     represent a full year ahead forecast horizon 
+#   -According to feedback, our setting for the publication lag, i.e., lag_vec[1]=2, is too large (reflecting some prudence)
+#     -The official/effective publication lag of BIP is one quarter
+#     -But BIP is revised and we here ignore revisions
+#     -On the other hand, the weight M-SSA assigns to BIP is rather weak; and data revisions affect 
+#       mainly direct forecasts; in contrast, smoothing by HP mitigates the effect of data revisions
+# In summary: we expect that a forward-shift of three quarters in our evaluations is likely to 
+#     be representative of performances at a full year ahead forecast horizon 
 
