@@ -621,15 +621,19 @@ p_value_HAC_BIP_oos
 #       suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
 #     -This result suggest that M-SSA is informative about forward-shifted BIP, although corresponding 
 #       performance statistics are less conclusive (cluttered by noise)
-#   -HAC-adjustements (of test-statistics) seem unable to account fully for the observed data-idiosyncrasies
-#     -Strongly significant results (HP-BIP) appear convincing
-#     -But results on the verge of significance (targeting BIP multiple quarters ahead) should be considered 
-#       with some caution
-#     -However, the former stronger results (HP-BIP) provide additional evidence for the latter weaker (BIP) results  
-#       -Predicting the low-frequency part of BIP is (trivially) telling something about future BIP, too
 #   -More adaptive designs (lambda_HP=16) seem to be able to track forward-shifted BIP (more) consistently, 
 #     by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
 #     components of BIP
+
+# C. Statistical significance
+#   -HAC-adjustments (of test-statistics) seem unable to account fully for the observed data-idiosyncrasies
+#     -Exercise 2 suggests that strongly significant results (HP-BIP) are convincing, especially so when 
+#       considering the `logically consistent' pattern in the matrices (top/down and left/right))
+#     -But results on the verge of significance (targeting BIP multiple quarters ahead) should be considered 
+#       with caution
+#   -However, the former stronger results (HP-BIP) provide additional evidence for the latter weaker (BIP) results  
+#       -Predicting the low-frequency part of BIP is (trivially) telling something about future BIP, too
+
 
 # Note about the publication lag
 #   -All results relate to forward-shifts augmented by the publication lag
