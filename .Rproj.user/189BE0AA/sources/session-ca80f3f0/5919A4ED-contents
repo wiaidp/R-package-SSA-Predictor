@@ -196,7 +196,7 @@ box()
 #----------------------------------------------------------
 # 1.2. Compute performances
 # 1.2.1 Specify the benchmarks against which M-SSA will be compared
-#   -We compare M-SSA against the the simple mean (of BIP) and against a classic direct forecast
+#   -We compare M-SSA against the mean (of BIP) and against a classic direct forecast
 #   -The direct forecast is based on regressing a selection of macro indicators on forward-shifted BIP
 
 # We can specify the macro-indicators in the expanding-window regressions
