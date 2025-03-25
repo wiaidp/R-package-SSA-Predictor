@@ -199,7 +199,7 @@ box()
 #   -We compare M-SSA against the mean (of BIP) and against a classic direct forecast
 #   -The direct forecast is based on regressing a selection of macro indicators on forward-shifted BIP
 
-# We can specify the macro-indicators in the expanding-window regressions
+# We can specify the selection of macro-indicators 
 select_direct_indicator<-c("ifo_c","ESI")
 # Note: too complex designs (too many indicators) lead to overfitting and thus worse out-of-sample performances
 # To illustrate the direct predictor consider the following example of a h-step ahead direct forecast:
