@@ -210,30 +210,41 @@ forward_shifted_BIP<-c(x_mat[(1+lag_vec[1]+h):nrow(x_mat),"BIP"],rep(NA,h+lag_ve
 lm_obj<-lm(forward_shifted_BIP~x_mat[,select_direct_indicator])
 # You will probably not find statistically significant regressors for h>2: BIP is a very noisy series
 summary(lm_obj)
+# Technical note: 
+# -Residuals are subject to heteroscedasticity (crises) and autocorrelation
+# -Therefore classic OLS tests for statistical significance are biased
+# -We shall rely on HAC-adjusted p-values further down (R-package sandwich)
+
 # Compute the predictor: one can rely on the generic R-function predict or compute the predictor manually
 direct_forecast<-lm_obj$coef[1]+x_mat[,select_direct_indicator]%*%lm_obj$coef[2:(length(select_direct_indicator)+1)]
-# Note that this is full-sample predictor (no out-of-sample span)
+# Note that this is a full-sample predictor (no out-of-sample span)
 
-# We can now plot target and direct forecast: for h>2 the predictor comes close to a flat line corresponding to mean(BIP) 
+# We can now plot target and direct forecast: for h>2 the predictor comes close to a flat line centered at zero 
 ts.plot(cbind(forward_shifted_BIP,direct_forecast),main=paste("BIP shifted forward by ",h," quarters (black) vs. direct forecast (red)"),col=c("black","red"))
+abline(h=0)
+
 
 # The following function computes direct forecasts and evaluates M-SSA against mean(BIP) and direct forecasts
-# Performance measures:
-# -Target correlations (correlations of predictors with target)
-#   -Correlations emphasize the dynamic aspects of forecasts: they ignore static level and scale adjustments
-# -Relative root mean-square errors: potential gains of M-SSA over mean(BIP) and direct forecasts
-# -HAC-adjusted p-values: 
-#   -we regress the predictor on forward-shifted BIP and compute the t-statistic 
-#     of the regression coefficient
-#   -Small p-values indicate statistical significance of the predictor
-#   -Since target and predictor are subject to heteroscedasticity (COVID-outliers...) and autocorrelation
-#     we here rely on HAC-adjusted p-values (R-package sandwich)
-# -We compute full-sample and out-of-sample results: the out-of-sample span is data after date_to_fit specified above
-# -We consoder two targets
-#   a. Foreward-shifted HP applied to BIP: this is the target for which M-SSA has been optimized
-#   b. Forward-shifted BIP, i.e., we include the (unpredictable) noisy high-frequency part of BIP
+# -Performance measures:
+#   -Target correlations (correlations of predictors with targets)
+#     -Correlations emphasize the dynamic aspects of forecasts: they ignore static level and scale adjustments
+#   -Relative root mean-square errors: potential gains of M-SSA over mean(BIP) and direct forecasts
+#   -HAC-adjusted p-values: 
+#     -we regress the predictor on forward-shifted BIP and compute the t-statistic 
+#       of the regression coefficient
+#     -Small p-values indicate statistical significance of the predictor
+#     -Since target and predictor are subject to heteroscedasticity (COVID-outliers...) and autocorrelation
+#       we here rely on HAC-adjusted p-values (R-package sandwich)
+#   -We compute full-sample and out-of-sample results: the out-of-sample span is data after date_to_fit specified above
+#   -We consider two different targets
+#     a. Foreward-shifted HP applied to BIP: HP_BIP. This is the target for which M-SSA has been optimized
+#     b. Forward-shifted BIP, i.e., we include the (unpredictable) noisy high-frequency part of BIP
+# Note:
+#   -M-SSA does not target BIP directly, unless the target-filter is the identity (instead of HP)
+
 perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec) 
 
+# Retrieve all performance measures
 p_value_HAC_HP_BIP_full=perf_obj$p_value_HAC_HP_BIP_full
 t_HAC_HP_BIP_full=perf_obj$t_HAC_HP_BIP_full
 cor_mat_HP_BIP_full=perf_obj$cor_mat_HP_BIP_full
@@ -253,23 +264,28 @@ rRMSE_MSSA_BIP_mean=perf_obj$rRMSE_MSSA_BIP_mean
 target_BIP_mat=perf_obj$target_BIP_mat
 
 # Correlations between M-SSA predictors and forward-shifted HP-BIP (including the publication lag)
-#   -We see that for increasing forward-shift (from top to bottom) the predictors optimized for 
-#     larger forecast horizons (from left to right) tend to perform better
 # 1. Full sample
-# Systematic pattern: for increasing forward-shift (from top to bottom) M-SSA designs optimized for 
-#   larger forecast horizons h (from left to right) tend to perform better (larger correlations), 
-#   until h is too large
 cor_mat_HP_BIP_full
+# We can recognize a systematic pattern: 
+#   -For increasing forward-shift (from top to bottom in the above matrix) M-SSA designs optimized for 
+#     larger forecast horizons h (from left to right) tend to perform better (larger correlations), 
+#     until h is too large
+#   -For a given row (forward-shift of target) the maximum correlations stays at (or close to) the 
+#     diagonal element in this row
+
 # 2. Out-of-sample (period following estimation span for VAR-model of M-SSA)
 cor_mat_HP_BIP_oos
+# Similar to full-sample
 
-# Same but when targeting forward-shifted BIP: we still see evidence of a systematic pattern 
-#   which is now cluttered by noise
+# We now look at the target correlation when the target is forward-shifted BIP (instead of HP-BIP) 
 cor_mat_BIP_full
 cor_mat_BIP_oos
+# Target correlations tend to be smaller (due to noise) and the previous systematic pattern is still recognizable
+#   but attenuated (cluttered by noise) 
+
 
 # Note: 
-# -Out-of-sample correlations suggest that M-SSA predictors optimized for forecast horizons h>4 (the last three columns) 
+# -Out-of-sample correlations suggest that M-SSA predictors optimized for forecast horizons h>4 (the last two columns) 
 #     correlate positively with forward-shifted BIP up to shifts of 4 quarters 
 #   -Recall that we imposed a publication lag of 2 quarters to BIP, suggesting that a forward-shift of 3 quarters is close to a one-year ahead horizon
 # -Are these results, suggesting a systematic predictability?
