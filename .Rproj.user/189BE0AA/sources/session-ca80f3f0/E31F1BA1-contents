@@ -183,7 +183,7 @@ filter_func<-function(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,
 # This function operationalizes the M-SSA concept for predicting quarterly (German) GDP
 # It relies on hyperparameters specifying the design: lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess
 # It returns M-SSA and M-MSE predictors as well as forward-shifted HP-BIP (two-sided HP applied to BIP)
-compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec)
+compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
 {
 # 1. Compute target
   

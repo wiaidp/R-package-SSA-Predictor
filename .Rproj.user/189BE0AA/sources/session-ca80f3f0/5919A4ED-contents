@@ -126,6 +126,7 @@ head(compute_mssa_BIP_predictors_func)
 # -h_vec: (vector of) forecast horizon(s) for M-SSA
 # -f_excess: forecast excesses, see exercises 2 and 3 above
 # -lag_vec: publication lag (target is forward shifted by forecast horizon plus publication lag)
+# -select_vec_multi: names of selected indicators
 
 # We can supply various hyperparameters (designs) and the function returns M-SSA predictors as 
 #     specified in tutorial 7.2
@@ -156,7 +157,7 @@ h_vec<-0:6
 f_excess<-c(4,2)
 
 # Run the wrapper  
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec)
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
 
 # Retrieve predictors and targets from the above function-call
 # Forward-shifted HP-BIP
@@ -288,7 +289,7 @@ cor_mat_BIP_oos
 # -Out-of-sample correlations suggest that M-SSA predictors optimized for forecast horizons h>4 (the last two columns) 
 #     correlate positively with forward-shifted BIP up to shifts of 4 quarters 
 #   -Recall that we imposed a publication lag of 2 quarters to BIP, suggesting that a forward-shift of 3 quarters is close to a one-year ahead horizon
-# -Are these results, suggesting a systematic predictability?
+# -Are these results suggesting a systematic predictability of BIP one year ahead (plus the publication lag lag_vec[1])?
 # -For answering this question we may look at HAC-adjusted p-values of regressions of out-of-sample predictors on 
 #   forward-shifted BIP (see further down for details)
 p_value_HAC_BIP_oos
@@ -303,7 +304,7 @@ p_value_HAC_BIP_oos
 #   1. Since M-SSA predictors are standardized (equal-weighting cross-sectional aggregation), we need to 
 #         calibrate them by regression onto the target (to determine static level and scale parameters)
 #   2. As a result, rRMSE of M-SSA against mean(BIP) and the above target correlations are redundant statistics: 
-#         the information content is the same but it is presented in an alternative form 
+#         the information content is the same but it is presented in an alternative, slightly different form 
 #   3. Background:
 #       -The M-SSA objective function is the target correlation (not the mean-square error) 
 #       -Therefore, M-SSA ignores static level and scale adjustments
@@ -312,12 +313,13 @@ p_value_HAC_BIP_oos
 #       -Estimates based on short in-sample spans are unreliable (insignificant regression coefficients)
 #   6. The benchmark mean-predictor used in our comparisons is based on the mean of the target in the 
 #       out-of-sample span (it is looking ahead)
-#   7. The main purpose of these comparisons is to evaluate the dynamic capability of the M-SSA predictor
+#   7. The main purpose of these comparisons is to evaluate the dynamic capability of the M-SSA predictor out-of-sample
 #       -The (ex post) static level and scale adjustments are deemed less relevant
 
 # With these remarks in mind let's begin:
 # The first rRMSE emphasizes M-SSA vs. the mean benchmark (of BIP), both targeting HP-BIP: 
 #   -Numbers smaller one signify an outperformance of M-SSA against the mean-benchmark when targeting HP-BIP
+# All metrics are out-of-sample
 rRMSE_MSSA_HP_BIP_mean
 # We next look at M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting HP-BIP
 rRMSE_MSSA_HP_BIP_direct
@@ -325,13 +327,13 @@ rRMSE_MSSA_HP_BIP_direct
 rRMSE_MSSA_BIP_mean
 # Finally: M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting BIP
 rRMSE_MSSA_BIP_direct
-# We see similar systematic patterns as for the previous correlations
+# We see similar systematic patterns as for the previous target correlations
 #   -The systematic patterns are strong when targeting forward-shifted HP-BIP (for which M-SSA is explicitly optimized)
-#   -For forward-shifted BIP the results are weaker (clutterd by noise)
-# But we shall see below that a more adaptive design can improve performances, see exercise 3
+#   -For forward-shifted BIP the results are weaker (cluttered by noise)
+# But we shall see below that a more adaptive design can improve performances slightly, see exercise 3
 
 
-# The above performance metrics do not test for statistical significance (of predictability)
+# The above correlations and rRMSE do not test for statistical significance (of predictability)
 # The following HAC-adjusted p-values provide a way to infer statistical significance 
 # We look at HAC-adjusted p-values of regressions of M-SSA on forward-shifted targets
 # Remarks:
@@ -339,42 +341,41 @@ rRMSE_MSSA_BIP_direct
 #     -HAC estimate of standard error could be substantially smaller than the ordinary OLS/unadjusted estimate
 #   -We therefore compute both types of standard errors and we rely on the maximum for a derivation of p-values
 #   -In this sense our p-values may be claimed to be `conservative'
-# Looking at the matrix of p-values below, we can recognize a systematic pattern: 
-#   -For increasing forward-shifts (from top to bottom), M-SSA designs optimized for larger forecast 
-#       horizons h (from left to right) tend to perform better (smaller p-values), up to some point, 
-#       where p-values decrease again for h too large
-#   -In other words: when moving from left to right along a specific row, smaller p-values are on 
-#       (or close to) the main diagonal element of that row
-
 # We first consider forward-shifted HP-BIP and full sample p-values
 p_value_HAC_HP_BIP_full
-# Same but out-of-sample 
+# Out-of-sample: 
 p_value_HAC_HP_BIP_oos
-# We infer that the systematic patterns observed in correlations and rRMSE above are statistically significant
+# We infer that the systematic patterns observed in target correlations and rRMSEs above are statistically significant
 #   -M-SSA seems capable of predicting forward-shifted HP-BIP, i.e., the low-frequency (trend-growth) part of BIP
+
+
 
 
 # Same as above but now targeting BIP
 # Full sample
-# We still see a systematic pattern from top to bottom and left to right but the overall picture 
-#   is cluttered by noise (BIP is much noisier than HP-BIP) 
 p_value_HAC_BIP_full
-# Out-of-sample: weaker significance is due, in part, to the shorter length of the out-of-sample span
+# We still see a systematic pattern from top to bottom and left to right but the overall picture 
+#   is cluttered by noise 
+
+# Out-of-sample: 
 p_value_HAC_BIP_oos
+# Note that weaker significance can be imputed, at least in part, to the shorter out-of-sample span (less observations)
 
 #-------------------------------------------
 # 1.3 Visualize performances: link performance measures to plots of predictors against targets
 # Select a forward-shift of target (the k-th entry in h_vec)
 k<-5
-# This is the forward-shift (to which we add the publication lag of lag_vec[1])
+# This is the forecast horizon 
 h_vec[k]
+# To obtain the effective forward-shift we have to add the publication lag
+shift<-h_vec[k]+lag_vec[1]
+# Effective forward shift of BIP
+shift
 if (k>length(h_vec))
 {
   print(paste("k should be smaller equal ",length(h_vec),sep=""))
   k<-length(h_vec)
 }  
-# Forward shift of target in quarters
-h_vec[k]
 # Select a M-SSA predictor: optimized for forecast horizon h_vec[j]
 j<-k
 if (j>length(h_vec))
@@ -387,7 +388,7 @@ par(mfrow=c(1,1))
 # Scale the data for better visual interpretation of effect of excess forecast on M-SSA (red) vs. previous M-SSA (blue)
 mplot<-scale(cbind(target_BIP_mat[,k],target_shifted_mat[,k],predictor_mssa_mat[,j]))
 rownames(mplot)<-rownames(x_mat)
-colnames(mplot)<-c(paste("BIP left-shifted by ",h_vec[k]," quarters",sep=""),paste("HP-BIP left-shifted by ",h_vec[k]," quarters (plus publication lag)",sep=""),paste("M-SSA predictor optimized for h=",h_vec[j],sep=""))
+colnames(mplot)<-c(paste("BIP left-shifted by ",h_vec[k]," quarters (plus publication lag)",sep=""),paste("HP-BIP left-shifted by ",h_vec[k]," quarters (plus publication lag)",sep=""),paste("M-SSA predictor optimized for h=",h_vec[j],sep=""))
 colo<-c("black","violet","blue")
 main_title<-"Standardized forward-shifted BIP and HP-BIP vs. M-SSA predictor"
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(x_mat)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
@@ -418,19 +419,18 @@ mplot_without_two_sided<-scale(cbind(target_BIP_mat[,k],predictor_mssa_mat[,j]))
 # This number now matches cor_mat_BIP[k,j]
 cor(na.exclude(mplot_without_two_sided))[1,2]
 
-# Assume one selects k=j=5 (h_vec[5]=4: one-year ahead forecast) in the above plot (you might want to have a look at k=5 and j=7, too):
+# Assume one selects k=j=5 (h_vec[5]=4: one-year ahead forecast) in the above plot:
 # Then the (weak) positive correlation between M-SSA and shifted BIP might suggest a (weak) predictability one year ahead
-#    (including the publication lag) 
 # Is this (weak) effect statistically significant?
 # Let's have a look at the HAC-adjusted p-values
 # 1. Full sample 
 p_value_HAC_BIP_full[k,j]
 # 2. Out-of-sample
 p_value_HAC_BIP_oos[k,j]
-# Not significant at a one-year ahead horizon when targeting BIP (which is noisy series...)
+# Not significant at a one-year ahead horizon when targeting BIP (which is a very noisy series...)
 
 
-# Instead of BIP we might have a look at targeting HP-BIP instead (also shifted one year ahead)
+# Instead of BIP we might have a look at targeting HP-BIP (also shifted one year ahead)
 p_value_HAC_HP_BIP_full[k,j]
 p_value_HAC_HP_BIP_oos[k,j]
 
@@ -438,33 +438,46 @@ p_value_HAC_HP_BIP_oos[k,j]
 #--------------------------------
 # Findings: 
 #   -Statistical significance is stronger for shifted HP-BIP (than for BIP)
+# Questions:
 #   -Is it because mid- and short-term components of BIP are effectively unpredictable?
 #   -Or is it because lambda_HP=160 is not sufficiently adaptive to track mid/short-term dynamics (still too smooth)?
-# To find an answer you might try a more adaptive design (such as for example based on lambda_HP=16)
-#   -Then you can check whether BIP can be predicted more consistently (hint: it can)
+# To find an answer, we shall consider a more adaptive design based on targeting HP(16), see exercise 3 below
 
 
 ################################################################################################################
 # Exercise 2
-# Let's check what happens when we apply the aobve battery of tests and performance measures to white noise
-#   -Target correlations should be small, rRMSEs should be close to one and p-values shoule be above 5%
+# Let's check what happens when we apply the above battery of tests and performance measures to white noise
+#   -Target correlations should be small, rRMSEs should be close to one and p-values should be above 5%
+# Note: 
+# -We're looking into a multiple test problem, since we consider 5*5=25 tests (p-values)
+# -We do not account/adjust for this problem. 
+# -But one should expect to see randomly significant results in the simultaneous 25 tests 
+#   even if the data is noise
 
 
-# Generate artificial white data
-set.seed(345)
+# Generate artificial white noise data
+# One can try multiple set.seed
+# This one will generate multiple significant results for the out-of-sample span 
+set.seed(1)
+# This one will generate only one p-value below 5% in the full sample span
+set.seed(2)
+# This one will generate multiple significant results, too
+set.seed(3)
 
-a1<-0.0
-b1<-0.0
+# The outcome suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
+# Some care is required when evaluating results on the verge of statistical significance
 
 x_mat_white_noise<-NULL
 for (i in 1:ncol(x_mat))
   x_mat_white_noise<-cbind(x_mat_white_noise,rnorm(nrow(x_mat)))
 
-# Provide colnmaes and rwonames from x_dat: necessary because the function relies on true dates and column names
+# Provide colnames and rownames from x_mat: necessary because the function relies on dates and column names of selected indicators
 rownames(x_mat_white_noise)<-rownames(x_mat)
 colnames(x_mat_white_noise)<-colnames(x_mat)
 tail(x_mat_white_noise)
 
+# Check ACF
+acf(x_mat_white_noise)
 
 
 
@@ -489,7 +502,7 @@ h_vec<-0:6
 f_excess<-c(4,2)
 
 # Run the function packing and implementing our previous findings (tutorial 7.2) 
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat_white_noise,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec)
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat_white_noise,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
 
 
 # Forward-shifted HP-BIP
@@ -509,13 +522,16 @@ p_value_HAC_BIP_full=perf_obj$p_value_HAC_BIP_full
 p_value_HAC_BIP_oos=perf_obj$p_value_HAC_BIP_oos
 
 
-# We just need to check whether we can forecast the white noise data based on the predictors
+# We need to check whether we can forecast the white noise data (not HP applied to white noise) 
+#   based on the predictors
 # Full sample
 p_value_HAC_BIP_full
-# Out-of-sample: note that weaker significance is due, in part, to the shorter span
+# Out-of-sample: 
 p_value_HAC_BIP_oos
-# Findings: p-values are above 5%: cannot predict original (white noise) data
-# Note: multiple test problem
+
+# Findings:
+# -The above simulation experiment suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
+# -Therefore, some care is needed when evaluating results on the verge of statistical significance
 
 #######################################################################################
 # Exercise 3: increasing adaptivity further
@@ -536,7 +552,7 @@ f_excess_adaptive<-c(0,0)
 h_vec_adaptive<-0:4
 
 # Run the M-SSA predictor function
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec_adaptive,f_excess_adaptive,lag_vec)
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec_adaptive,f_excess_adaptive,lag_vec,select_vec_multi)
 
 # Forward-shifted HP-BIP
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
