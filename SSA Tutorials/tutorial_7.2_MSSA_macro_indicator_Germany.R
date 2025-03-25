@@ -26,7 +26,15 @@
 #   -Forecasting GDP `numbers' is almost surely (with probability one) a futile exercise, 
 #     at least in a multi-step  ahead perspective (several quarters ahead)
 # -We here focus on looking ahead (sensing) the future growth dynamics as contained (but masked/hidden) 
-#   in present-day data: we try to `extract the minute signal` and `skip the dominating noise'
+#     in present-day data: we try to `extract the minute signal` and `skip the dominating noise'
+#   -The reliance in a `signal' may be anchored in the concept of `business cycle'
+#   -In his talk at the University of Chicago’s Booth School of Business (March 07, 2025), FED-chair Jerome Powell 
+#       said: "As we parse the incoming information, we are focused on separating the signal from the noise 
+#       as the outlook evolves", suggesting that the FED should not react to noise.
+#   -Similarly, a forecast procedure should not be reactive to `noise'
+#   -However, when targeting BIP in its entirety, including its noisy part, classic direct forecasts are 
+#     subject to overfitting, mainly because the components that dominate the MSE (the erratic 
+#     high-frequency pulses) distract the OLS optimization from fitting the (much weaker) systematic dynamics  
 # -M-SSA in this application is about dynamic aspects of prediction: 
 #     -M-SSA emphasizes the target correlation, thereby ignoring `static' level and scale adjustments (calibration), needed to generate GDP `numbers' 
 #     -We derive predictors which do not emphasize unilaterally a mean-square error metric (we already know the outcome of doing so)

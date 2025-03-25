@@ -1,8 +1,8 @@
 # Tutorial 7.3: we propose various M-SSA BIP (GDP Germany) predictor designs
 # The concept of M-SSA predictors for BIP was introduced in tutorial 7.2
 # We wrapped this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
-# We here present two predictor designs: a `fairly adaptive' in exercise 1 and a `more adaptive' in exercise 3
-#   -You might be able to find even better hyperparameters yourself by fine-tuning adaptivity further
+# We here propose a `fairly adaptive' predictor in exercise 1 and a `more adaptive' one in exercise 3
+#   -One might be able to find better hyperparameters by fine-tuning adaptivity further
 
 # Main purposes of this tutorial
 # -Illustrate M-SSA as applied to real data (in contrast to tutorial 7.1, based on simulated data)
@@ -11,17 +11,19 @@
 #   -Performances of institutional forecasters (`big five' German forecast institutes) degrade steeply 
 #     beyond a one quarter forecast horizon, see up-coming publication by Heinisch and Neufing (currently working paper)
 #   -We here illustrate that BIP can possibly be predicted consistently beyond half a year ahead
-#    -We emphasize mid-term predictability: 2-6 quarters ahead
+#     -We emphasize mid-term predictability: 2-6 quarters ahead
 #   -Institutional forecasters are very good at nowcasting GDP: indeed, much better than M-SSA presented here
-#   -But M-SSA as proposed in this tutorial could possibly provide additional insights into the prospect of mid-term GDP/BIP forecasting
+#     -For this purpose they rely on a rich cross-section (many series) and mixed-frequency approaches, linking monthly and quarterly data
+#     -In contrast, M-SSA proposed in this tutorial considers few (important) indicators, within a purely quarterly scheme 
+#   -Tutorial 7.3 could eventually provide additional insights into the important prospect of mid-term GDP/BIP forecasting
 # -In addition to forecasting BIP, we also consider nowcasting and forecasting of the trend-growth of BIP
 #   -For this purpose we apply a HP-filter to the differenced (and log-transformed) BIP
-#   -This trend-growth component is termed HP-BIP
+#     -This trend-growth component is termed HP-BIP
 # -Forecast performance measures:
 #   -We shall consider forecast performances of M-SSA against forward-shifted HP-BIP and BIP based on
-#     -target correlations: correlations of predictors with forward-shifted BIP or HP-BIP
-#     -rRMSE: relative root mean-square error when benchmarked against classic direct predictors or mean(BIP) (simple benchmark)
-#     -HAC-adjusted p-values of t-statistics of regressions of predictors on target (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
+#     -The target correlations: correlations of predictors with forward-shifted BIP or HP-BIP
+#     -The rRMSE: relative root mean-square error when benchmarked against classic direct predictors or mean(BIP) (simple benchmark)
+#     -HAC-adjusted p-values of (t-statistics of) regressions of predictors on targets (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
 # To do: provide additional Diebold-Mariano (DM) and Giacomini-White (GW) tests of unequal predictability (benchmarked against mean(BIP))
 
 # The tutorial is structured into 3 exercises
