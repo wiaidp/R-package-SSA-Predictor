@@ -537,10 +537,11 @@ p_value_HAC_BIP_oos
 # Exercise 3: increasing adaptivity further
 # -The previous exercise 1 suggests that we might be able to predict HP-BIP several quarters ahead
 # -But predicting BIP is more challenging because the noisy high-frequency part of BIP is essentially unpredictable
-# However, it could be, in principle, that the target specification, HP(160), as specified in exercise 1 is too smooth
-#   -What if we suppressed relevant information for predicting BIP?
-# To verify this conjecture, we now analyze a more adaptive design by selecting lambda_HP=16 `small`
-# Question: does the more flexible design allow to predict BIP (not HP-BIP) more consistently, further ahead
+# -However, one cannot exclude a priori that the target specification, HP(160), as specified in exercise 1 is too smooth
+#   -Maybe we suppressed information relevant for predicting BIP?
+# -To verify this conjecture, we now analyze a more adaptive design by selecting lambda_HP=16 `small`
+
+# Question: does the more flexible design allow to predict BIP (not HP-BIP) more reliably?
 
 lambda_HP<-16
 # Notes: 
@@ -599,13 +600,19 @@ p_value_HAC_BIP_oos
 
 # We can see a slight improvement (smaller p-values) when using a more adaptive target HP(16) for M-SSA
 
+# Notes: 
+# -Slightly more adaptive (smaller lambda_HP) or more aggressive (forecast excess>0) designs can improve
+#   performances further
+# -Danger of data-snooping
+
+
 #---------------------------------------------
 # Findings overall:
 
 # A. Classic direct predictors:
 #   -Classic direct predictors often do not perform better (out-of-sample) than the simple mean benchmark at 
-#     forward-shifts exceeding 2 quarters
-#   -Classic direct predictors are more sensitive (than M-SSA) to episodes subject to unusual singular readings (Pandemic)
+#     forward-shifts of 2 quarters or more
+#   -Classic direct predictors are more sensitive (than M-SSA) to singular episodes (Pandemic)
 
 # B. M-SSA
 #   -Classic business-cycle designs (lambda_HP=1600) smooth out recessions and hide  
@@ -614,6 +621,12 @@ p_value_HAC_BIP_oos
 #       suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
 #     -This result suggest that M-SSA is informative about forward-shifted BIP, although corresponding 
 #       performance statistics are less conclusive (cluttered by noise)
+#   -HAC-adjustements (of test-statistics) seem unable to account fully for the observed data-idiosyncrasies
+#     -Strongly significant results (HP-BIP) appear convincing
+#     -But results on the verge of significance (targeting BIP multiple quarters ahead) should be considered 
+#       with some caution
+#     -However, the former stronger results (HP-BIP) provide additional evidence for the latter weaker (BIP) results  
+#       -Predicting the low-frequency part of BIP is (trivially) telling something about future BIP, too
 #   -More adaptive designs (lambda_HP=16) seem to be able to track forward-shifted BIP (more) consistently, 
 #     by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
 #     components of BIP
