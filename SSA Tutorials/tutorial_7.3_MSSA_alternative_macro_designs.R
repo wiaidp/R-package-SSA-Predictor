@@ -619,7 +619,7 @@ p_value_HAC_BIP_oos
 #     dynamics potentially relevant in a short- to mid-term forecast exercise (1-6 quarters ahead)
 #   -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent forecast pattern, 
 #       suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
-#     -This result suggest that M-SSA is informative about forward-shifted BIP, although corresponding 
+#     -This result suggests that M-SSA is informative about forward-shifted BIP, although corresponding 
 #       performance statistics are less conclusive (cluttered by noise)
 #   -More adaptive designs (lambda_HP=16) seem to be able to track forward-shifted BIP (more) consistently, 
 #     by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
