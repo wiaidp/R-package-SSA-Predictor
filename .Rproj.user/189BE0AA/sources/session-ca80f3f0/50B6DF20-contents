@@ -897,7 +897,7 @@ head(compute_mssa_BIP_predictors_func)
 # h_vec: (vector of) forecast horizon(s) for M-SSA
 # f_excess: forecast excesses, see exercises 2 and 3 above
 # lag_vec: publication lag (target is forward shifted by forecast horizon plus publication lag)
-# -select_vec_multi: names of selected indicators
+# select_vec_multi: names of selected indicators
 
 #################################################################
 # Findings
