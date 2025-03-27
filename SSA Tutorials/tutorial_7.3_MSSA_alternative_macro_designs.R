@@ -496,7 +496,7 @@ axis(2)
 box()
 # Discussion:
 # -All sub-series date the trough of the growth rate of the German economy in late 2023 
-# -The strongest positive dynamics are supported by the (leading) spread sub-series (violet dashed line)
+# -Currently (Jan-2025), the strongest positive dynamics are supported by the (leading) spread sub-series (violet dashed line)
 # Note:
 # -The trough (minimum) of the grow-rate anticipates the trough of BIP by up to several quarters
 # -In fact, the timing of the BIP-trough is sandwiched between the trough of the growth-rate (late 2023) and 
@@ -694,6 +694,7 @@ p_value_HAC_BIP_oos
 #   -More adaptive designs (lambda_HP=16) seem to be able to track forward-shifted BIP (more) consistently, 
 #     by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
 #     components of BIP
+#   -Sub-series of the M-SSA predictor are potentially useful when interpreting outcomes
 
 # C. Statistical significance
 #   -HAC-adjustments (of test-statistics) seem unable to account fully for the observed data-idiosyncrasies
