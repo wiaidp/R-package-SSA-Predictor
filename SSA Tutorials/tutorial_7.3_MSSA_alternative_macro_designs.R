@@ -372,6 +372,7 @@ p_value_HAC_BIP_oos
 
 #-------------------------------------------
 # 1.3 Visualize performances: link performance measures to plots of predictors against targets
+# 1.3.1 M-SSA predictors (without sub-series)
 # Select a forward-shift of target (the k-th entry in h_vec)
 k<-1
 # This is the forecast horizon 
@@ -415,9 +416,10 @@ box()
 
 
 
-# -For a given forecast h in h_vec, we can also look at the sub-series in the M-SSA predictor
-#   -This allows to examine which sub-series is more/less likely to trigger a dynamic change of the above predictor
-# -For discussion of the current state of the economy we now select the M-SSA nowcast, with its associated sub-series
+# 1.3.2 M-SSA nowcast and its sub-series
+# -For a given forecast h in h_vec, we can look at the sub-series in the M-SSA predictor
+#   -We can examine which sub-series is more/less likely to trigger a dynamic change of the predictor/nowcast
+# -For discussion, we now select the M-SSA nowcast, with its associated sub-series
 j<-1
 # This is the forecast horizon (nowcast)
 h_vec[j]
@@ -429,7 +431,7 @@ max(abs(apply(scale(t(mssa_array[,,j])),1,mean)-predictor_mssa_mat[,j]),na.rm=T)
 
 # Plot M-SSA nowcast and sub-series
 par(mfrow=c(1,1))
-# Scale the data for better visual interpretation of effect of excess forecast on M-SSA (red) vs. previous M-SSA (blue)
+# Scale the data 
 mplot<-scale(cbind(predictor_mssa_mat[,j],scale(t(mssa_array[,,j]))))
 rownames(mplot)<-rownames(x_mat)
 colnames(mplot)<-c(paste("M-SSA predictor optimized for h=",h_vec[j],sep=""),
@@ -448,7 +450,8 @@ abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_
 axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
 axis(2)
 box()
-# -All sub-series date the trough of the growth rate of the German economy in late 2023 (early 2024) 
+# Discussion:
+# -All sub-series date the trough of the growth rate of the German economy in late 2023 
 # -The strongest positive dynamics are supported by the (leading) spread sub-series (violet dashed line)
 # Note:
 # -The trough (minimum) of the grow-rate anticipates the trough of BIP by up to several quarters
@@ -460,6 +463,7 @@ box()
 #   -The faint zero-crossing of the nowcast is triggered by the (leading) spread, mainly
 #   -ifo and ESI are barely above the zero-line 
 #   -ip and BIP are `waiting' for further evidence
+# -Looking at the sub-series might help in interpreting and assessing the content supported by the predictor 
 
 
 # Sample correlation: 
