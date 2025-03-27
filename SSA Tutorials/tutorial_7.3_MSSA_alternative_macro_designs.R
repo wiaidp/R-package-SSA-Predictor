@@ -738,7 +738,7 @@ p_value_HAC_BIP_oos
 #     -The official/effective publication lag of BIP is one quarter
 #     -But BIP is revised and we here ignore revisions
 #     -On the other hand, the weight M-SSA assigns to BIP is rather weak; and data revisions affect 
-#       mainly direct forecasts; finally, smoothing by HP mitigates the effect of data revisions
+#       mainly the so-called `direct forecasts'; finally, smoothing by HP mitigates the effect of data revisions
 # In summary: we expect that performances at an indicated forward-shift of k quarters (in all the above evaluations) 
-#   is likely to be representative of performances at effectively k+1 quarters ahead. 
+#   are likely to be representative of performances at effectively k+1 quarters ahead. 
 
