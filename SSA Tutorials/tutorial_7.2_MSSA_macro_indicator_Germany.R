@@ -519,7 +519,12 @@ box()
 #   -Therefore, the obtained left-shift would not improve performances (quite the opposite in fact)
 #   -But in the presence of strong asymmetric down-turns, a `faster' filter can track the relevant dynamics better 
 
-# By the way: we see that both predictors bottomed-out somewhere in early 2024 and are now reverting to (even exceeding) average growth (zero-line)
+# By the way: we see that both predictors bottomed-out around late 2023 (early 2024) and are now reverting 
+#   towards average growth (zero-line)
+# Note:
+# -The trough (minimum) of the grow-rate anticipates the trough of BIP by up to several quarters
+# -In fact, the timing of the BIP-trough is sandwiched between the trough of the growth-rate and 
+#   the latter's zero-crossing
 
 # Findings:
 # -We can address misspecification of the VAR(1) (for data with marked recession episodes) by:

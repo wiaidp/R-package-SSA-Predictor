@@ -258,6 +258,8 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     predictor_mssa_mat<-predictor_mssa_mat+scale(mssa_array[i,,])
     predictor_mmse_mat<-predictor_mmse_mat+scale(mmse_array[i,,])
   }
+  predictor_mssa_mat<-predictor_mssa_mat/length(select_vec_multi)
+  predictor_mmse_mat<-predictor_mmse_mat/length(select_vec_multi)
   colnames(predictor_mssa_mat)<-colnames(predictor_mmse_mat)<-dimnames(mssa_array)[[3]]
   rownames(predictor_mssa_mat)<-rownames(predictor_mmse_mat)<-dimnames(mssa_array)[[2]]
 
