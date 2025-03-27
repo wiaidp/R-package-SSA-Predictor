@@ -463,14 +463,16 @@ p_value_HAC_HP_BIP_oos[k,j]
 # -For a given forecast horizon h in h_vec, we can look at the sub-series entering (equally-weighted into) the M-SSA predictor
 #   -The sub-series are potentially informative when interpreting the aggregate predictor
 #   -We can examine which sub-series is more/less likely to trigger a dynamic change of the predictor/nowcast
-# -For discussion, we now select the nowcast
+# -For discussion, we now select the M-SSA nowcast
 j_now<-1
 # This is the forecast horizon (nowcast)
 h_vec[j_now]
-# -For forecast horizon h_vec[j], the sub-series of the M-SSA predictor are:  
+# -For forecast horizon h_vec[j_now], the sub-series of the M-SSA predictor are:  
 tail(t(mssa_array[,,j_now]))
+# These sub-series correspond to the outputs of the multivariate M-SSA optimized for horizon h_vec[j_now]
+#   -One output for each series of the multivariate design
 # We can check that the M-SSA predictor is the cross-sectional mean of the standardized sub-series: 
-#   -The maximal error/deviation should be `small` (zero up to numerical precision)
+#   -The following maximal error/deviation should be `small` (zero up to numerical precision)
 max(abs(apply(scale(t(mssa_array[,,j_now])),1,mean)-predictor_mssa_mat[,j_now]),na.rm=T)
 
 # Plot M-SSA nowcast and sub-series
@@ -503,12 +505,12 @@ box()
 # -Given that the nowcast just passed the zero-line, we infer that the 
 #   trough of BIP might be behind, already
 # -However, not all sub-series would support this claim
-#   -The faint zero-crossing of the nowcast in the above plot is triggered by the (leading) spread, mainly
+#   -The faint/fragile zero-crossing of the nowcast in the above plot is triggered by the (leading) spread, mainly
 #   -ifo and ESI are barely above the zero-line 
-#   -ip and BIP are `waiting' for further evidence
+#   -ip and BIP are `waiting' for further evidence and confirmation
 # -Looking at the sub-series can help in interpreting and assessing the content supported by the predictor 
-# -Faint signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
-#   which are not `priced' into the data (as of Jan-2025).
+# -Faint/fragile signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
+#   which are not yet `priced' in the data (as of Jan-2025).
 
 ################################################################################################################
 # Exercise 2
@@ -529,9 +531,17 @@ set.seed(1)
 set.seed(2)
 # This one will generate multiple significant results, too
 set.seed(3)
+# This one will generate multiple significant results, too
+set.seed(4)
+# This one will generate multiple significant results, too
+set.seed(5)
+# This one will generate multiple significant results, too
+set.seed(6)
 
 # The outcome suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
-# Some care is required when evaluating results on the verge of statistical significance
+#   -Therefore, some care is needed when evaluating results on the verge of statistical significance
+# However, our results also suggest that p-values below 0.01 are `rare` 
+#   -Not a single p-value below 0.01 for the above set.seeds, out of 5*5*5=125 computed values
 
 x_mat_white_noise<-NULL
 for (i in 1:ncol(x_mat))
@@ -589,17 +599,18 @@ p_value_HAC_BIP_full=perf_obj$p_value_HAC_BIP_full
 p_value_HAC_BIP_oos=perf_obj$p_value_HAC_BIP_oos
 
 
-# We need to check whether we can forecast the white noise data (not HP applied to white noise) 
-#   based on the predictors
+# We need to check whether we can forecast the white noise data WN (not HP-WN)  based on the predictors
 # Full sample
 p_value_HAC_BIP_full
 # Out-of-sample: 
 p_value_HAC_BIP_oos
 
 # Findings:
+# -We did not account for the multiple test problem
 # -The above simulation experiment suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
 # -Therefore, some care is needed when evaluating results on the verge of statistical significance
-# -Strongly significant results, such as found for HP-BIP, seem convincing, in a statistical sense
+# -However, strongly significant results, such as found for HP-BIP, seem convincing, in a statistical sense, 
+#   since random seeds with p-values below 0.01 are `rare' (as based on the above experimental design)
 
 #######################################################################################
 # Exercise 3: increasing adaptivity further
