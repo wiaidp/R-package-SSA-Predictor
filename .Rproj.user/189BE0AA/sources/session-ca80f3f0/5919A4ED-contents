@@ -233,7 +233,8 @@ direct_forecast<-lm_obj$coef[1]+x_mat[,select_direct_indicator]%*%lm_obj$coef[2:
 ts.plot(cbind(forward_shifted_BIP,direct_forecast),main=paste("BIP shifted forward by ",h," quarters (black) vs. direct forecast (red)"),col=c("black","red"))
 abline(h=0)
 
-
+#------------
+# 1.2.2 Compute performances
 # The following function computes direct forecasts and evaluates M-SSA against mean(BIP) and direct forecasts
 # -Performance measures:
 #   -Target correlations (correlations of predictors with targets)
@@ -273,8 +274,10 @@ rRMSE_MSSA_BIP_direct=perf_obj$rRMSE_MSSA_BIP_direct
 rRMSE_MSSA_BIP_mean=perf_obj$rRMSE_MSSA_BIP_mean
 target_BIP_mat=perf_obj$target_BIP_mat
 
-# Correlations between M-SSA predictors and forward-shifted HP-BIP (including the publication lag)
-# 1. Full sample
+#------------
+# 1.2.3 Evaluation
+# We first look at the target correlations between M-SSA predictors and forward-shifted HP-BIP (including the publication lag)
+# a. Full sample
 cor_mat_HP_BIP_full
 # We can recognize a systematic pattern: 
 #   -For increasing forward-shift (from top to bottom in the above matrix) M-SSA designs optimized for 
@@ -283,7 +286,7 @@ cor_mat_HP_BIP_full
 #   -For a given row (forward-shift of target) the maximum correlations stays at (or close to) the 
 #     diagonal element in this row
 
-# 2. Out-of-sample (period following estimation span for VAR-model of M-SSA)
+# b. Out-of-sample (period following estimation span for VAR-model of M-SSA)
 cor_mat_HP_BIP_oos
 # Similar to full-sample
 
@@ -374,7 +377,7 @@ p_value_HAC_BIP_oos
 # 1.3 Visualize performances: link performance measures to plots of predictors against targets
 # 1.3.1 M-SSA predictors (without sub-series)
 # Select a forward-shift of target (the k-th entry in h_vec)
-k<-1
+k<-5
 # This is the forecast horizon 
 h_vec[k]
 # To obtain the effective forward-shift we have to add the publication lag
@@ -415,57 +418,8 @@ axis(2)
 box()
 
 
-
-# 1.3.2 M-SSA nowcast and its sub-series
-# -For a given forecast h in h_vec, we can look at the sub-series in the M-SSA predictor
-#   -We can examine which sub-series is more/less likely to trigger a dynamic change of the predictor/nowcast
-# -For discussion, we now select the M-SSA nowcast, with its associated sub-series
-j<-1
-# This is the forecast horizon (nowcast)
-h_vec[j]
-# -For forecast horizon h_vec[j], the sub-series of the M-SSA predictor are:  
-tail(t(mssa_array[,,j]))
-# We can check that the M-SSA predictor is the cross-sectional mean of the standardized sub-series: 
-#   -The maximal error/deviation should be `small` (zero up to numerical precision)
-max(abs(apply(scale(t(mssa_array[,,j])),1,mean)-predictor_mssa_mat[,j]),na.rm=T)
-
-# Plot M-SSA nowcast and sub-series
-par(mfrow=c(1,1))
-# Scale the data 
-mplot<-scale(cbind(predictor_mssa_mat[,j],scale(t(mssa_array[,,j]))))
-rownames(mplot)<-rownames(x_mat)
-colnames(mplot)<-c(paste("M-SSA predictor optimized for h=",h_vec[j],sep=""),
-                   paste("Subseries ",select_vec_multi,sep=""))
-colo<-c("blue",rainbow(length(select_vec_multi)))
-main_title<-paste("M-SSA predictor for h=",h_vec[j]," (solid blue) and sub-series (dashed lines)",sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo[i],lwd=1,lty=2)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
-}
-abline(h=0)
-abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
-axis(2)
-box()
-# Discussion:
-# -All sub-series date the trough of the growth rate of the German economy in late 2023 
-# -The strongest positive dynamics are supported by the (leading) spread sub-series (violet dashed line)
-# Note:
-# -The trough (minimum) of the grow-rate anticipates the trough of BIP by up to several quarters
-# -In fact, the timing of the BIP-trough is sandwiched between the trough of the growth-rate (late 2023) and 
-#   the zero-crossing of the growth-rate
-# -Given that the nowcast (select j=1 in the above plot) just passed the zero-line, we infer that the 
-#   trough of BIP might be behind, already
-# -However, not all sub-series would support this claim
-#   -The faint zero-crossing of the nowcast is triggered by the (leading) spread, mainly
-#   -ifo and ESI are barely above the zero-line 
-#   -ip and BIP are `waiting' for further evidence
-# -Looking at the sub-series might help in interpreting and assessing the content supported by the predictor 
-
-
+#------------------
+# 1.3.2 We now relate the above plot to the performance measures
 # Sample correlation: 
 cor(na.exclude(mplot))[2,ncol(mplot)]
 # This number corresponds to element (k,j) of the matrix cor_mat_HP_BIP_full computed by our function
@@ -497,13 +451,63 @@ p_value_HAC_HP_BIP_full[k,j]
 p_value_HAC_HP_BIP_oos[k,j]
 
 
-#--------------------------------
 # Findings: 
 #   -Statistical significance is stronger for shifted HP-BIP (than for BIP)
 # Questions:
 #   -Is it because mid- and short-term components of BIP are effectively unpredictable?
 #   -Or is it because lambda_HP=160 is not sufficiently adaptive to track mid/short-term dynamics (still too smooth)?
 # To find an answer, we shall consider a more adaptive design based on targeting HP(16), see exercise 3 below
+
+#-----------------
+# 1.3.3 Finally, we examine the M-SSA sub-series
+# -For a given forecast h in h_vec, we can look at the sub-series entering (equally-weighted into) the M-SSA predictor
+#   -The sub-series are potentially informative when interpreting the aggregate predictor
+#   -We can examine which sub-series is more/less likely to trigger a dynamic change of the predictor/nowcast
+# -For discussion, we now select the nowcast
+j_now<-1
+# This is the forecast horizon (nowcast)
+h_vec[j_now]
+# -For forecast horizon h_vec[j], the sub-series of the M-SSA predictor are:  
+tail(t(mssa_array[,,j_now]))
+# We can check that the M-SSA predictor is the cross-sectional mean of the standardized sub-series: 
+#   -The maximal error/deviation should be `small` (zero up to numerical precision)
+max(abs(apply(scale(t(mssa_array[,,j_now])),1,mean)-predictor_mssa_mat[,j_now]),na.rm=T)
+
+# Plot M-SSA nowcast and sub-series
+par(mfrow=c(1,1))
+# Scale the data 
+mplot<-scale(cbind(predictor_mssa_mat[,j_now],scale(t(mssa_array[,,j_now]))))
+rownames(mplot)<-rownames(x_mat)
+colnames(mplot)<-c(paste("M-SSA predictor optimized for h=",h_vec[j_now],sep=""),
+                   paste("Subseries ",select_vec_multi,sep=""))
+colo<-c("blue",rainbow(length(select_vec_multi)))
+main_title<-paste("M-SSA predictor for h=",h_vec[j_now]," (solid blue) and sub-series (dashed lines)",sep="")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i],col=colo[i],lwd=1,lty=2)
+  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+}
+abline(h=0)
+abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
+axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+axis(2)
+box()
+# Discussion:
+# -All sub-series date the trough of the growth rate of the German economy in late 2023 
+# -The strongest positive dynamics are supported by the (leading) spread sub-series (violet dashed line)
+# Note:
+# -The trough (minimum) of the grow-rate anticipates the trough of BIP by up to several quarters
+# -In fact, the timing of the BIP-trough is sandwiched between the trough of the growth-rate (late 2023) and 
+#   the zero-crossing of the growth-rate
+# -Given that the nowcast just passed the zero-line, we infer that the 
+#   trough of BIP might be behind, already
+# -However, not all sub-series would support this claim
+#   -The faint zero-crossing of the nowcast is triggered by the (leading) spread, mainly
+#   -ifo and ESI are barely above the zero-line 
+#   -ip and BIP are `waiting' for further evidence
+# -Looking at the sub-series might help in interpreting and assessing the content supported by the predictor 
 
 
 ################################################################################################################
