@@ -214,74 +214,53 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
 
 #-----------------------
 # 4. Compute M-SSA for the specified forecast horizons in h_vec
-  
-  mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-mmse_bip<-mmse_ip<-mmse_esi<-mmse_ifo<-mmse_spread<-NULL
-  for (i in 1:length(h_vec))#i<-1
+# Initialize array: first dimension=target series, second dimension=time, third dimension=forecast horizon  
+  mssa_array<-mmse_array<-array(dim=c(length(select_vec_multi),dim(x_mat)[1],length(h_vec)),
+                                dimnames=list(select_vec_multi,rownames(x_mat),paste("h=",h_vec,sep="")))
+# Loop over all explanatory variables 
+#   -We need to differenciate the series because lag_vec and or f_excess can vary depending of the series 
+#   -If lag_vec and f_excess were both fixed, then we compute the M-SSA predictors in a single run
+  for (ijk in 1:length(select_vec_multi))#ijk<-5
   {
-# For each forecast horizon h_vec[i] we compute M-SSA for BIP and ip first, based on the proposed forecast excess
-#   -BIP and ip require a larger forecast excess f_excess[1]. We also add the publication lag
-    delta<-h_vec[i]+lag_vec[1]+f_excess[1]
-    
+# Loop over forecast horizons    
+    for (i in 1:length(h_vec))#i<-1
+    {
+# For each series ijk, the forecast horizon delta applöied by M-SSA is the sum of h_vec[i], 
+#       publication lag and forecast excess
+      delta<-h_vec[i]+lag_vec[ijk]+f_excess[ijk]
+      
 # M-SSA  
-    MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
-    
-    bk_x_mat=MSSA_main_obj$bk_x_mat
-    MSSA_obj=MSSA_main_obj$MSSA_obj 
-    gammak_x_mse=MSSA_obj$gammak_x_mse
-    colnames(bk_x_mat)<-select_vec_multi
-    
-# Filter
-    filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
-    
-    mssa_mat=filt_obj$mssa_mat
-    target_mat=filt_obj$target_mat
-    mmse_mat<-filt_obj$mmse_mat
-    colnames(mssa_mat)<-select_vec_multi
-# Select M-SSA BIP and ip  
-    mssa_bip<-cbind(mssa_bip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[1])])
-    mssa_ip<-cbind(mssa_ip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[2])])
-# M-MSE
-    mmse_bip<-cbind(mmse_bip,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[1])])
-    mmse_ip<-cbind(mmse_ip,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[2])])
-    
-# Now compute M-SSA for the remaining ifo, ESI and spread  
-#   -These series require a smaller forecast excess f_excess[2] because of their smaller publication lag
-    delta<-h_vec[i]+lag_vec[1]+f_excess[2]
-    
-    MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
-    
-    bk_x_mat=MSSA_main_obj$bk_x_mat
-    MSSA_obj=MSSA_main_obj$MSSA_obj 
-    colnames(bk_x_mat)<-select_vec_multi
-    
-    filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
-    
-    mssa_mat=filt_obj$mssa_mat
-    target_mat=filt_obj$target_mat
-    mmse_mat<-filt_obj$mmse_mat
-    colnames(mssa_mat)<-select_vec_multi
-    
-# Select M-SSA-ifo, -ESI and -spread  
-    mssa_ifo<-cbind(mssa_ifo,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[3])])
-    mssa_esi<-cbind(mssa_esi,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[4])])
-    mssa_spread<-cbind(mssa_spread,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[5])])
-# Select M-MSE-ifo, -ESI and -spread  
-    mmse_ifo<-cbind(mmse_ifo,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[3])])
-    mmse_esi<-cbind(mmse_esi,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[4])])
-    mmse_spread<-cbind(mmse_spread,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[5])])
-    
+      MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
+      
+      bk_x_mat=MSSA_main_obj$bk_x_mat
+      MSSA_obj=MSSA_main_obj$MSSA_obj 
+      gammak_x_mse=MSSA_obj$gammak_x_mse
+      colnames(bk_x_mat)<-select_vec_multi
+      
+# Apply filters to data
+      filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
+# We extract series ijk only from the filter object and assign to element ijk,,i of the array
+#   ijk (first dimension) is the series and i (3-rd dimension) is the forecast horizon of the M-SSA predictor
+# The forecast horizon is h_vec[i] (looking for BIP h_vec[i] steps away) but we generally impose delta>h_vec[i], 
+#   because of publication lag and/or forecast excess (the latter is justified in exercise 2 of tutorial 7.2: VAR misspecification)  
+      mssa_array[ijk,,i]=filt_obj$mssa_mat[,ijk]
+      target_mat=filt_obj$target_mat
+      mmse_array[ijk,,i]<-filt_obj$mmse_mat[,ijk]
+    }
   }
-#------------------------  
+  
 # 5. Compute M-SSA predictors
-#   Standardize and aggregate: equal weighting
-  predictor_mssa_mat<-(scale(mssa_bip)+scale(mssa_ip)+scale(mssa_ifo)+scale(mssa_esi)+scale(mssa_spread))/length(select_vec_multi)
-  colnames(predictor_mssa_mat)<-colnames(mssa_bip)<-colnames(mssa_ip)<-colnames(mssa_ifo)<-colnames(mssa_esi)<-colnames(mssa_spread)<-paste("Horizon=",h_vec,sep="")
-  rownames(predictor_mssa_mat)<-rownames(x_mat)
   
-  predictor_mmse_mat<-(scale(mmse_bip)+scale(mmse_ip)+scale(mmse_ifo)+scale(mmse_esi)+scale(mmse_spread))/length(select_vec_multi)
-  colnames(predictor_mmse_mat)<-colnames(mmse_bip)<-colnames(mmse_ip)<-colnames(mmse_ifo)<-colnames(mmse_esi)<-colnames(mmse_spread)<-paste("Horizon=",h_vec,sep="")
-  rownames(predictor_mmse_mat)<-rownames(x_mat)
-  
+  predictor_mssa_mat<-predictor_mmse_mat<-0*mssa_array[1,,]
+  for (i in 1:length(select_vec_multi))#i<-1
+  {
+#   Standardize and aggregate (sum over all series): equal weighting
+    predictor_mssa_mat<-predictor_mssa_mat+scale(mssa_array[i,,])
+    predictor_mmse_mat<-predictor_mmse_mat+scale(mmse_array[i,,])
+  }
+  colnames(predictor_mssa_mat)<-colnames(predictor_mmse_mat)<-dimnames(mssa_array)[[3]]
+  rownames(predictor_mssa_mat)<-rownames(predictor_mmse_mat)<-dimnames(mssa_array)[[2]]
+
 #-----------------------------
 # 6. Compute plots
   target_shifted_mat<-NULL
@@ -317,7 +296,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     box()
     
   }
-  return(list(target_shifted_mat=target_shifted_mat,predictor_mssa_mat=predictor_mssa_mat,predictor_mmse_mat=predictor_mmse_mat))
+  return(list(target_shifted_mat=target_shifted_mat,predictor_mssa_mat=predictor_mssa_mat,predictor_mmse_mat=predictor_mmse_mat,mssa_array=mssa_array,mmse_array=mmse_array))
 }  
   
 
@@ -619,7 +598,7 @@ HAC_ajusted_p_value_func<-function(da)
 # In any case we here try to adopt a pragmatic proceeding by using sd_max, the larger of the two variance estimates 
   t_stat<-summary(lm_obj)$coef[2,1]/sd_max
 # One-sided test: if regressor is effective, then coefficient must be positive (we are not interested in testing negative readings)     
-  p_value<-pt(t_stat, df=nrow(da)-ncol(da), lower=FALSE)
+  p_value<-pt(t_stat, df=nrow(na.exclude(da))-ncol(da), lower=FALSE)
   return(list(p_value=p_value,t_stat=t_stat))
 }
 
@@ -678,6 +657,149 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
 }
 
 
+
+##################################################################################
+# Old code
+
+# This function operationalizes the M-SSA concept for predicting quarterly (German) GDP
+# It relies on hyperparameters specifying the design: lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess
+# It returns M-SSA and M-MSE predictors as well as forward-shifted HP-BIP (two-sided HP applied to BIP)
+compute_mssa_BIP_predictors_func_old<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
+{
+  # 1. Compute target
+  
+  target_obj<-HP_target_sym_T(n,lambda_HP,L)
+  
+  gamma_target=t(target_obj$gamma_target)
+  symmetric_target=target_obj$symmetric_target 
+  colnames(gamma_target)<-select_vec_multi
+  #-------------------------
+  # 2. Fit  VAR on specified in-sample span
+  data_fit<-na.exclude(x_mat[which(rownames(x_mat)<date_to_fit),])#date_to_fit<-"2019-01-01"
+  set.seed(12)
+  V_obj<-VARMA(data_fit,p=p,q=q)
+  # Apply regularization: see vignette MTS package
+  threshold<-1.5
+  V_obj<-refVARMA(V_obj, thres = threshold)
+  
+  Sigma<-V_obj$Sigma
+  Phi<-V_obj$Phi
+  Theta<-V_obj$Theta
+  
+  #---------------------------------------
+  # 3. MA inversion: M-SSA relies on MA-inversion of VAR
+  
+  MA_inv_obj<-MA_inv_VAR_func(Phi,Theta,L,n,T)
+  
+  xi<-MA_inv_obj$xi
+  
+  #-----------------------
+  # 4. Compute M-SSA for the specified forecast horizons in h_vec
+  
+  mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-mmse_bip<-mmse_ip<-mmse_esi<-mmse_ifo<-mmse_spread<-NULL
+  for (i in 1:length(h_vec))#i<-1
+  {
+    # For each forecast horizon h_vec[i] we compute M-SSA for BIP and ip first, based on the proposed forecast excess
+    #   -BIP and ip require a larger forecast excess f_excess[1]. We also add the publication lag
+    delta<-h_vec[i]+lag_vec[1]+f_excess[1]
+    
+    # M-SSA  
+    MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
+    
+    bk_x_mat=MSSA_main_obj$bk_x_mat
+    MSSA_obj=MSSA_main_obj$MSSA_obj 
+    gammak_x_mse=MSSA_obj$gammak_x_mse
+    colnames(bk_x_mat)<-select_vec_multi
+    
+    # Filter
+    filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
+    
+    mssa_mat=filt_obj$mssa_mat
+    target_mat=filt_obj$target_mat
+    mmse_mat<-filt_obj$mmse_mat
+    colnames(mssa_mat)<-select_vec_multi
+    # Select M-SSA BIP and ip  
+    mssa_bip<-cbind(mssa_bip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[1])])
+    mssa_ip<-cbind(mssa_ip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[2])])
+    # M-MSE
+    mmse_bip<-cbind(mmse_bip,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[1])])
+    mmse_ip<-cbind(mmse_ip,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[2])])
+    
+    # Now compute M-SSA for the remaining ifo, ESI and spread  
+    #   -These series require a smaller forecast excess f_excess[2] because of their smaller publication lag
+    delta<-h_vec[i]+lag_vec[1]+f_excess[2]
+    
+    MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
+    
+    bk_x_mat=MSSA_main_obj$bk_x_mat
+    MSSA_obj=MSSA_main_obj$MSSA_obj 
+    colnames(bk_x_mat)<-select_vec_multi
+    
+    filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
+    
+    mssa_mat=filt_obj$mssa_mat
+    target_mat=filt_obj$target_mat
+    mmse_mat<-filt_obj$mmse_mat
+    colnames(mssa_mat)<-select_vec_multi
+    
+    # Select M-SSA-ifo, -ESI and -spread  
+    mssa_ifo<-cbind(mssa_ifo,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[3])])
+    mssa_esi<-cbind(mssa_esi,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[4])])
+    mssa_spread<-cbind(mssa_spread,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[5])])
+    # Select M-MSE-ifo, -ESI and -spread  
+    mmse_ifo<-cbind(mmse_ifo,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[3])])
+    mmse_esi<-cbind(mmse_esi,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[4])])
+    mmse_spread<-cbind(mmse_spread,mmse_mat[,which(colnames(mmse_mat)==select_vec_multi[5])])
+    
+  }
+  #------------------------  
+  # 5. Compute M-SSA predictors
+  #   Standardize and aggregate: equal weighting
+  predictor_mssa_mat<-(scale(mssa_bip)+scale(mssa_ip)+scale(mssa_ifo)+scale(mssa_esi)+scale(mssa_spread))/length(select_vec_multi)
+  colnames(predictor_mssa_mat)<-colnames(mssa_bip)<-colnames(mssa_ip)<-colnames(mssa_ifo)<-colnames(mssa_esi)<-colnames(mssa_spread)<-paste("Horizon=",h_vec,sep="")
+  rownames(predictor_mssa_mat)<-rownames(x_mat)
+  
+  predictor_mmse_mat<-(scale(mmse_bip)+scale(mmse_ip)+scale(mmse_ifo)+scale(mmse_esi)+scale(mmse_spread))/length(select_vec_multi)
+  colnames(predictor_mmse_mat)<-colnames(mmse_bip)<-colnames(mmse_ip)<-colnames(mmse_ifo)<-colnames(mmse_esi)<-colnames(mmse_spread)<-paste("Horizon=",h_vec,sep="")
+  rownames(predictor_mmse_mat)<-rownames(x_mat)
+  
+  #-----------------------------
+  # 6. Compute plots
+  target_shifted_mat<-NULL
+  cor_mat_HP_BIP_full_sample<-cor_mat_HP_BIP_out_of_sample<-matrix(nrow=length(h_vec),ncol=length(h_vec))
+  for (i in 1:length(h_vec))#i<-1
+  {
+    shift<-h_vec[i]+lag_vec[1]
+    # Compute target: two-sided HP applied to BIP and shifted forward by forecast horizon plus publication lag
+    filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,shift)
+    target_mat=filt_obj$target_mat
+    # Select HP-BIP (first column)  
+    target<-target_mat[,"BIP"]
+    # Collect the forward shifted targets: 
+    target_shifted_mat<-cbind(target_shifted_mat,target)
+    
+    # Plot indicators and shifting target
+    mplot<-scale(cbind(target,predictor_mssa_mat))
+    colnames(mplot)[1]<-paste("Target left-shifted by ",shift-lag_vec[1],sep="")
+    par(mfrow=c(1,1))
+    colo<-c("black",rainbow(ncol(predictor_mssa_mat)))
+    main_title<-paste("Standardized M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep="")
+    plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+    mtext(colnames(mplot)[1],col=colo[1],line=-1)
+    for (j in 1:ncol(mplot))
+    {
+      lines(mplot[,j],col=colo[j],lwd=1,lty=1)
+      mtext(colnames(mplot)[j],col=colo[j],line=-j)
+    }
+    abline(h=0)
+    abline(v=which(rownames(mplot)==rownames(data_fit)[nrow(data_fit)]),lwd=2,lty=2)
+    axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+    axis(2)
+    box()
+    
+  }
+  return(list(target_shifted_mat=target_shifted_mat,predictor_mssa_mat=predictor_mssa_mat,predictor_mmse_mat=predictor_mmse_mat))
+}  
 
 
 

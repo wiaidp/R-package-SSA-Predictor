@@ -88,8 +88,8 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 #------------------------------------------------------------------------
 # Exercise 1: apply M-SSA to quarterly German Macro-data
 
-# 1. Load data and select indicators
-# 1.1 We first look at the original files: BIP `numbers` refer to this data
+# 1.1. Load data and select indicators
+# 1.1.1 We first look at the original files: BIP `numbers` refer to this data
 data_file_name<-c("Data_HWI_2025_02.csv","gdp_2025_02.csv")
 # Monthly data
 data_monthly<-read.csv(paste(getwd(),"/Data/",data_file_name[1],sep=""))
@@ -98,7 +98,7 @@ tail(data_monthly)
 data_quarterly<-read.csv(paste(getwd(),"/Data/",data_file_name[2],sep=""))
 tail(data_quarterly)
 
-# 1.2 We do not work with original (unprocessed) data
+# 1.1.2 We do not work with original (unprocessed) data
 # -Instead we apply the following transformation steps
 #   -Log-transform (to positive series) 
 #   -Quarterly differences (to emphasize growth)
@@ -181,10 +181,10 @@ len<-dim(x_mat)[1]
 #   -In our comparisons we will simply shift the BIP-column upwards by lag_vec[1]+shift, where shift=0 (nowcast) or shift>0 (forecast)
 tail(x_mat)
 #------------------------------
-# 2. Target filter: 
+# 1.2. Target filter: 
 # -We apply a filter to the target series (BIP shifted upward by lag_vec[1]+shift quarters) in order to
 #   damp noise (the high-frequency components of BIP are likely unpredictable)
-# -Main idea (forecast `philosophy'):  damping the unpredictable part (noise) helps in 
+# -Main idea (forecast `philosophy'):  removing/damping the unpredictable part (noise) helps in 
 #   predicting the predictable portion (signal) of BIP 
 #   -As we shall see in tutorial 7.3, statistical significance of predictors can be verified multiple 
 #     quarters ahead in this framework
@@ -242,7 +242,7 @@ symmetric_target
 
 
 #-------------------------
-# 3. Fit the VAR
+# 1.3. Fit the VAR
 # Select any in-sample span: the effect on the final M-SSA predictor is remarkably weak
 #   -The VAR is sparsely parametrized  (p=1 and regularization)
 # Set in-sample span: full set
@@ -262,7 +262,7 @@ p<-1
 q<-0
 set.seed(12)
 V_obj<-VARMA(data_fit,p=p,q=q)
-# Apply regularization: see vignette MTS package
+# Apply regularization: see vignette to MTS package
 threshold<-1.5
 V_obj<-refVARMA(V_obj, thres = threshold)
 
@@ -275,8 +275,8 @@ Phi<-V_obj$Phi
 Theta<-V_obj$Theta
 
 #---------------------------------------
-# 4. MA inversion: as in the (univariate) SSA, we need to specify the data generating process (DGP) to M-SSA 
-# -For this purpose we rely on the MA-inversion (Wold decomposition) of the DGP: here the VAR(1)
+# 1.4. MA inversion: as in the (univariate) SSA, we need to specify the data generating process (DGP) to M-SSA 
+# -For this purpose we rely on the Wold decomposition of the DGP: MA-inversion of VAR
 # -A plot should pop-up in the plot-panel, after running the next code line, illustrating the MA-inversion
 #   -An MA-inversion is obtained for each of the five series used in the multivariate design
 # -The MA-inversion can be used to interpret the VAR: 
@@ -289,7 +289,7 @@ MA_inv_obj<-MA_inv_VAR_func(Phi,Theta,L,n,T)
 xi<-MA_inv_obj$xi
 
 #-----------------------------------
-# 5. Call to M-SSA: specify the forecast horizon and the HT constraint(s)
+# 1.5. Call to M-SSA: specify the forecast horizon and the HT constraint(s)
 # One year ahead forecast: 4 quarters + publication lag
 delta<-4+lag_vec[1]
 delta
@@ -312,22 +312,21 @@ bk_x_mat=MSSA_main_obj$bk_x_mat
 MSSA_obj=MSSA_main_obj$MSSA_obj 
 # M-SSA also computes the classic M-MSE predictor: M-SSA tries to track M-MSE while being smoother (less noisy zero-crossings) 
 gammak_x_mse<-MSSA_obj$gammak_x_mse
+colnames(bk_x_mat)<-colnames(gammak_x_mse)<-select_vec_multi
+
 
 # Note that we can compute the HT of the MSE predictor and verify that our constraints impose larger HTs for M-SSA
 for (i in 1:ncol(gammak_x_mse))
   print(paste("HT M-MSE of series ",select_vec_multi[i],": ",compute_holding_time_func(gammak_x_mse[,i])$ht, " vs. imposed HT of ",ht_mssa_vec[i]," by M-SSA",sep=""))
-
 # Typically, the M-MSE benchmark tends to be noisy (many crossings) and M-SSA allows for an explicit control
 #   of this practically relevant property of a predictor
 
-colnames(bk_x_mat)<-colnames(gammak_x_mse)<-select_vec_multi
 
 #-----------------------
-# 6. Filter: apply M-SSA filter to the data
+# 1.6. Filter: apply the M-SSA filter to the data
 # Note that delta accounts for the publication lag so that the output of the two-sided filter is left-shifted accordingly
 
 filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
-
 
 mssa_mat=filt_obj$mssa_mat
 target_mat=filt_obj$target_mat
@@ -364,7 +363,7 @@ for (i in n:1)
 
 
 #------------------------
-# 7. Compute performance metrics
+# 1.7. Compute performance metrics
 # Sample mean-square errors of M-SSA
 apply(na.exclude((target_mat-mssa_mat)^2),2,mean)
 # Sample mean-square errors M-MSE: 
@@ -553,44 +552,46 @@ box()
 # Start with the interesting forecast horizons, as indicated above
 h_vec<-c(0,1,2,4,6)
 # Forecast excesses: 
-#   -The first number in f_excess is the excess applied to M-SSA-BIP and M-SSA-ip
-#   -The second number in f_excess is the excess applied to M-SSA-ifo, -ESI and -spread, see subsequent code
-# This design corresponds to a `mildly aggressive' forward-looking design: 
-#   Predictors will be left-shifted but not too heavily
-# A stronger look-ahead could be obtained by imposing larger forecast excesses (at the detriment of noise)
+#   A stronger look-ahead could be obtained by imposing larger forecast excesses (at the detriment of noise)
 # 1. Aggressive setting (with all drawbacks)
-f_excess<-c(6,4)
-# 2. Less aggressive `OK'-setting
-f_excess<-c(4,2)
+f_excess<-6
+# 2. Less aggressive `OK'-setting: try anyone
+f_excess<-4
 mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-NULL
 # Compute M-SSA predictors according to steps A,B,C 
 for (i in 1:length(h_vec))#i<-1
 {
-# For each forecast horizon h_vec[i] we compute M-SSA for BIP and ip first, based on the proposed forecast excess
-#   BIP and ip require a larger forecast excess f_excess[1]. We also add the publication lag
-  delta<-h_vec[i]+lag_vec[1]+f_excess[1]
+# -delta is the forecast horizon submitted to M-SSA: M-SSA optimizes filters for a forecast horizon of delta
+# -delta can deviate from the effective forecast horizon h_vec[i]: 
+#   -h_vec[i] (plus the publication lag) is the forward-shift we apply to the target series when computing 
+#       plots and performance measures
+#   -delta is just a parameter that conditions the optimization process  
+# -For each forecast horizon h_vec[i] we determine delta as the sum of h_vec[i], publication lag and forecast excess
+# -We now compute delta for BIP, based on the publication lag of BIP (lag_vec[1]) and the selected forecast excess  
+  delta<-h_vec[i]+lag_vec[1]+f_excess
+
+# Apply M-SSA
   
-# M-SSA  
   MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
   
   bk_x_mat=MSSA_main_obj$bk_x_mat
   MSSA_obj=MSSA_main_obj$MSSA_obj 
   colnames(bk_x_mat)<-select_vec_multi
   
-# Filter
+# Filter the data
   filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)
   
   mssa_mat=filt_obj$mssa_mat
   target_mat=filt_obj$target_mat
   mmse_mat<-filt_obj$mmse_mat
   colnames(mssa_mat)<-select_vec_multi
-# Select M-SSA BIP and ip  
+# Select M-SSA BIP (we retain the output for BIP only and skip all other M-SSA outputs)  
   mssa_bip<-cbind(mssa_bip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[1])])
-  mssa_ip<-cbind(mssa_ip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[2])])
   
-# Now compute M-SSA for the remaining ifo, ESI and spread series  
-# These series can rely on a smaller forecast excess f_excess[2] (no publication lag)
-  delta<-h_vec[i]+lag_vec[1]+f_excess[2]
+# Next, we compute M-SSA for the remaining ip, ifo, ESI and spread series  
+# These series are not subject to publication lags (or at least lags are smaller)
+# Therefore delta is smaller than for BIP above
+  delta<-h_vec[i]+f_excess
   
   MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
   
@@ -605,7 +606,8 @@ for (i in 1:length(h_vec))#i<-1
   mmse_mat<-filt_obj$mmse_mat
   colnames(mssa_mat)<-select_vec_multi
   
-# Select M-SSA-ifo, -ESI and -spread  
+# Select M-SSA-ip, -ifo, -ESI and -spread  
+  mssa_ip<-cbind(mssa_ip,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[2])])
   mssa_ifo<-cbind(mssa_ifo,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[3])])
   mssa_esi<-cbind(mssa_esi,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[4])])
   mssa_spread<-cbind(mssa_spread,mssa_mat[,which(colnames(mssa_mat)==select_vec_multi[5])])
@@ -750,12 +752,8 @@ rownames(t_HAC_mat_BIP)<-rownames(p_value_HAC_mat_BIP)<-paste("Shift of target: 
 # -However, we still find evidence of the previously observed systematic pattern in the new correlation matrix
 #   -For increasing forward-shift of BIP (from top to bottom), the M-SSA indicators optimized for 
 #     larger forecast horizon (from left to right) tend to perform better
-# -These results could be altered by modifying the forecast excesses: 
-#   -Selecting more aggressive designs (larger excesses) may lead to stronger significance at larger shifts, up to a point 
-#   -You may try f_excess<-c(6,4): a significant result at a 6 quarters ahead forecast horizon (plus publication lag) is achievable
-#   -But we wouldn't accord too much trust to this result (due to phase-reversal)
-#   -Besides (and in addition to) statistical tests, it is always good/imperative to understand what a 
-#     predictor is effectively `doing' (explainability)
+# -These results could be altered by modifying the forecast excess 
+#   -f_excess=6 is a more aggressive setting
 p_value_HAC_mat_BIP
 
 # Technical Note: 
@@ -805,7 +803,7 @@ hp_obj<-hpfilter(rnorm(len),type="lambda", freq=lambda_HP)
 # Specify trend filters: the above function returns HP-gap
 fmatrix<-diag(rep(1,len))-hp_obj$fmatrix
 # Check: plot one-sided trend at start, two-sided in middle and one-sided at end
-ts.plot(fmatrix[,c(1,len/2,len)])
+ts.plot(fmatrix[,c(1,len/2,len)],col=c("red","black","green"),main="One-sided at start (red), two-sided (black) and one-sided at end (green)")
 
 # Compute full-length HP trend output
 #   -Relies on full-length filter
@@ -835,19 +833,22 @@ axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot
 axis(2)
 box()
 # Outcome:
-# -The HP is indicating an ongoing sharp decline while the M-SSA predictors envisage a recovery over 2025/2026
-# -M-SSA and HP are quite strongly conflicting in terms of short- and mid-term prospects
+# -The HP is currently indicating an ongoing sharp decline towards the sample end
+# -In contrast, the M-SSA predictors envisage a possible recovery over 2025/2026
+# -M-SSA and HP are conflicting in terms of future outlooks
 
 
 # Compute target correlations: 
-#  -Note that the target corresponds to a nowcast (shift=0)
-#   -Accordingly, the correlation is maximized by M-SSA optimized for horizon 0 (see first row in the matrix) 
 cor(na.exclude(mplot))
+# -Note that the target (full-length HP applied to BIP) corresponds to a nowcast (shift=0)
+# -Accordingly, the correlation is maximized at horizon 0 by M-SSA (first row in the above matrix) 
 
-# 4.2 In addition to a nowcast we also analyze forward-shifts of the target
+
+# 4.2 In addition to a nowcast we can also analyze forward-shifts of the target
 target_shifted_mat<-NULL
 for (i in 1:length(h_vec))
 {
+# Forward shifts are specified by h_vec: up to 6 quarters ahead  
   shift<-h_vec[i]
   target_shifted_mat<-cbind(target_shifted_mat,c(target[(1+shift):length(target)],rep(NA,shift)))
 }
@@ -881,12 +882,13 @@ p_value_HAC_mat
 
 # The full-length HP results confirm earlier findings
 #   -Confirmation of the systematic effect (left-right vs- top-bottom)
-#   -Correlations tend to larger
+#   -Correlations tend to be larger
 #   -p-values tend to be smaller (stronger effect)
 
 # The above findings have been wrapped into a single function called compute_mssa_BIP_predictors_func
 head(compute_mssa_BIP_predictors_func)
 
+# This function will be used in tutorial 7.3
 # The head of the function needs the following specifications:
 # x_mat: data 
 # lambda_HP: HP parameter
@@ -899,28 +901,29 @@ head(compute_mssa_BIP_predictors_func)
 # lag_vec: publication lag (target is forward shifted by forecast horizon plus publication lag)
 # select_vec_multi: names of selected indicators
 
+
 #################################################################
-# Findings
+# Summary and main findings
 # A. When targeting forecast horizons of a year or less, we need to focus on signals (HP-trends) 
 #   which allow for sufficient adaptivity (sufficiently strong dynamics over such a time interval) 
 #   -For this purpose we selected lambda_HP=160 
 #   -The increased adaptivity forces predictors to react to the forecast horizon by a commensurate left-shift (anticipation)
-#   -In the next tutorial we shall look at even more adaptive designs
+#   -In tutorial 7.3 we shall look at even more adaptive designs
 # -Assuming a suitable choice for lambda_HP, the main construction principles behind M-SSA indicators leads to 
 #     forecast designs with predictive relevance
-#   -The left-shift can be controlled by the forecast horizon (excess forecast)
-#   -Smoothness (noise-suppression) can be controlled effectively by the HT constraint
+#   -Timeliness: The left-shift can be controlled by the forecast horizon
+#   -Smoothness: noise-suppression (zero-crossings)) can be controlled effectively by the HT constraint
+# -Model misspecification (of the VAR) can be addressed by imposing a forecast `excess' to M-SSA
 # -Predicting HP-BIP (the trend component) seems easier than predicting BIP
-#   -HP-BIP is mostly exempted from erratic (unpredictable) high-frequency components of BIP
-# -The effect of the forecast horizon (hyperparameter) in M-SSA is statistically (and logically) consistent: 
+#   -HP-BIP is fairly exempted from erratic (unpredictable) high-frequency components of BIP
+# -The effect of the forecast horizon (hyperparameter) is statistically (and logically) consistent: 
 #   -Increasing the forecast horizon leads to improved performances at larger forward-shifts
 #   -The forecast horizon is commensurate to the observed `physical' forward-shift of the target 
 # -Performances with respect to BIP (instead of HP-BIP) are less conclusive, due in part to unpredictable high-frequency noise
-#   -However, the link between forecast horizon and physical-shift is still recognizable
+#   -However, the link between the forecast horizon and the physical-shift is still recognizable
 #   -More aggressive settings for the forecast excess may reinforce these findings (up to a point)
 # -Finally, a predictor of the low-frequency component of (future) HP-BIP is intrinsically informative about 
-#     (future) BIP, even if statistical significance is obstructed by noise. 
-# -We shall explore more designs in tutorial 7.3 and we shall compute more performance metrics and statistical tests
+#     (future) BIP, even if statistical significance might be obstructed by noise. 
 #---------------------------------------------------------------------------------------------------
 
 

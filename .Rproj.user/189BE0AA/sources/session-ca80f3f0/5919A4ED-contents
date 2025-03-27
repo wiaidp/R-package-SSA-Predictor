@@ -154,7 +154,10 @@ names(ht_mssa_vec)<-colnames(x_mat)
 # Forecast horizons: M-SSA is optimized for each forecast horizon in h_vec 
 h_vec<-0:6
 # Forecast excesses: see tutorial 7.2, exercise 2 for background
-f_excess<-c(4,2)
+#   -We impose a forecast excess of 4 quarters for BIP and ip, and of 2 quarters for the other indicators
+#   -As illustrated in tutorial 7.2, exercise 2, increasing artificially the forecast horizon can account effectively for 
+#     model misspecification, given that the VAR-model is unable to render severe recessions (crises)
+f_excess<-rep(4,length(select_vec_multi))
 
 # Run the wrapper  
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
@@ -173,7 +176,7 @@ colnames(mplot)<-colnames(predictor_mssa_mat)
 par(mfrow=c(1,1))
 colo<-c(rainbow(ncol(predictor_mssa_mat)))
 main_title<-c(paste("Standardized M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep=""),"Vertical line delimites in-sample and out-of-sample span")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (j in 1:ncol(mplot))
 {
@@ -499,7 +502,7 @@ names(ht_mssa_vec)<-colnames(x_mat)
 # Forecast horizons: M-SSA is optimized for each forecast horizon in h_vec 
 h_vec<-0:6
 # Forecast excesses: see tutorial 7.1 for background
-f_excess<-c(4,2)
+f_excess<-rep(4,length(select_vec_multi))
 
 # Run the function packing and implementing our previous findings (tutorial 7.2) 
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat_white_noise,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
@@ -532,6 +535,7 @@ p_value_HAC_BIP_oos
 # Findings:
 # -The above simulation experiment suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
 # -Therefore, some care is needed when evaluating results on the verge of statistical significance
+# -Strongly significant results, such as found for HP-BIP, seem convincing, in a statistical sense
 
 #######################################################################################
 # Exercise 3: increasing adaptivity further
@@ -549,7 +553,7 @@ lambda_HP<-16
 # -Therefore we use forecast horizons up to 4 quarters (instead of 6) and no forecast excess
 #   -Phase-reversal would be fine (optimal) if the data were in agreement with the implicit assumptions 
 #     underlying the HP filter (which is not the case, see tutorial 2.0)
-f_excess_adaptive<-c(0,0)
+f_excess_adaptive<-rep(0,length(select_vec_multi))
 h_vec_adaptive<-0:4
 
 # Run the M-SSA predictor function
@@ -641,7 +645,7 @@ p_value_HAC_BIP_oos
 #     -The official/effective publication lag of BIP is one quarter
 #     -But BIP is revised and we here ignore revisions
 #     -On the other hand, the weight M-SSA assigns to BIP is rather weak; and data revisions affect 
-#       mainly direct forecasts; in contrast, smoothing by HP mitigates the effect of data revisions
-# In summary: we expect that a forward-shift of three quarters in our evaluations is likely to 
-#     be representative of performances at a full year ahead forecast horizon 
+#       mainly direct forecasts; finally, smoothing by HP mitigates the effect of data revisions
+# In summary: we expect that performances at an indicated forward-shift of k quarters (in all the above evaluations) 
+#   is likely to be representative of performances at effectively k+1 quarters ahead. 
 
