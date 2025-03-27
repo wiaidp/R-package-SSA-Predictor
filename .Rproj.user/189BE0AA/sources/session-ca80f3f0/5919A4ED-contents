@@ -457,7 +457,7 @@ p_value_HAC_HP_BIP_oos[k,j]
 # -But one should expect to see randomly significant results in the simultaneous 25 tests 
 #   even if the data is noise
 
-
+# 2.1
 # Generate artificial white noise data
 # One can try multiple set.seed
 # This one will generate multiple significant results for the out-of-sample span 
@@ -483,7 +483,7 @@ tail(x_mat_white_noise)
 acf(x_mat_white_noise)
 
 
-
+# 2.2 Apply M-SSA
 # Target filter: lambda_HP is the single most important hyperparameter, see tutorial 7.1 for a discussion
 # Briefly: we avoid the classic quarterly setting lambda_HP=1600 because the resulting filter would be too smooth
 # Too smooth means: the forecast horizon would have nearly no effect on the M-SSA predictor (almost no left-shift, no anticipation)
@@ -508,6 +508,7 @@ f_excess<-rep(4,length(select_vec_multi))
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat_white_noise,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
 
 
+# 3.3 Check performances: 
 # Forward-shifted HP-BIP
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 # M-SSA indicators
@@ -547,6 +548,7 @@ p_value_HAC_BIP_oos
 
 # Question: does the more flexible design allow to predict BIP (not HP-BIP) more reliably?
 
+# 3.1 Run more adaptive M-SSA design
 lambda_HP<-16
 # Notes: 
 # -For adaptive designs, a pronounced left-shift might lead to phase-reversal which is undesirable
@@ -566,6 +568,7 @@ predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
 # M-MSE
 predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 
+# 3.2 Compute performances
 # For the direct predictor we can specify the macro-indicators in the expanding-window regressions
 #   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
 select_direct_indicator<-c("ifo_c","ESI")
