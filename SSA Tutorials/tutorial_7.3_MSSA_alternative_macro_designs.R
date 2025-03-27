@@ -460,7 +460,7 @@ p_value_HAC_HP_BIP_oos[k,j]
 
 #-----------------
 # 1.3.3 Finally, we examine the M-SSA sub-series
-# -For a given forecast h in h_vec, we can look at the sub-series entering (equally-weighted into) the M-SSA predictor
+# -For a given forecast horizon h in h_vec, we can look at the sub-series entering (equally-weighted into) the M-SSA predictor
 #   -The sub-series are potentially informative when interpreting the aggregate predictor
 #   -We can examine which sub-series is more/less likely to trigger a dynamic change of the predictor/nowcast
 # -For discussion, we now select the nowcast
