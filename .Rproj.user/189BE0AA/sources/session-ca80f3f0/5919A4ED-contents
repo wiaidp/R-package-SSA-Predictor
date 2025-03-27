@@ -35,6 +35,8 @@
 #      multiple quarters ahead (statistical significance)
 #   -It is more difficult to predict BIP, though: the noisy high-frequency components of BIP are unpredictable 
 # Exercise 2: apply M-SSA to white noise data to verify that the proposed performance measures and tests confirm unpredictability
+#   -We shall see that the HAC-adjustment cannot fully account for all data idiosyncrasies
+#   -However, empirical significance levels do not appear to be strongly biased
 # Exercise 3: analyze a more adaptive M-SSA design based on targeting HP(16) by M-SSA
 
 
@@ -549,10 +551,11 @@ set.seed(9)
 set.seed(10)
 
 # The outcome suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
-#   -We observe more than 5% p-values below 5%
+#   -We observe p-values below 5% more often than in 5% of all cases
 #   -Therefore, some care is needed when evaluating results on the verge of statistical significance
 # However, our results also suggest that p-values below 1% are `rare` 
 #   -We found only a single p-value below 1% for the above set.seeds, out of 10*5*5*2=500 computed values
+#   -Therefore biases are likely to be weak
 
 x_mat_white_noise<-NULL
 for (i in 1:ncol(x_mat))
