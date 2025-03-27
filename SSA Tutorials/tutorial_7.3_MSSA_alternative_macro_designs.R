@@ -525,23 +525,34 @@ box()
 # 2.1
 # Generate artificial white noise data
 # One can try multiple set.seed
-# This one will generate multiple significant results for the out-of-sample span 
+# This one will generate multiple significant results (p<5%) for the out-of-sample span, but none below 1% 
 set.seed(1)
-# This one will generate only one p-value below 5% in the full sample span
+# This one will generate only one p-value below 5% in the full sample span and none below 1% 
 set.seed(2)
-# This one will generate multiple significant results, too
+# None below 1%
 set.seed(3)
-# This one will generate multiple significant results, too
+# None below 1%
 set.seed(4)
-# This one will generate multiple significant results, too
+# None below 1%
 set.seed(5)
-# This one will generate multiple significant results, too
+# None below 1%
+set.seed(9)
+# None below 1%
 set.seed(6)
+# One single p-value below 1%
+set.seed(7)
+# None below 1%
+set.seed(8)
+# None below 1%
+set.seed(9)
+# None below 1%
+set.seed(10)
 
 # The outcome suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
+#   -We observe more than 5% p-values below 5%
 #   -Therefore, some care is needed when evaluating results on the verge of statistical significance
-# However, our results also suggest that p-values below 0.01 are `rare` 
-#   -Not a single p-value below 0.01 for the above set.seeds, out of 5*5*5=125 computed values
+# However, our results also suggest that p-values below 1% are `rare` 
+#   -We found only a single p-value below 1% for the above set.seeds, out of 10*5*5*2=500 computed values
 
 x_mat_white_noise<-NULL
 for (i in 1:ncol(x_mat))
@@ -605,12 +616,16 @@ p_value_HAC_BIP_full
 # Out-of-sample: 
 p_value_HAC_BIP_oos
 
+# Check number of occurrences below 1%
+length(which(p_value_HAC_BIP_full<0.01))
+length(which(p_value_HAC_BIP_oos<0.01))
+
 # Findings:
 # -We did not account for the multiple test problem
 # -The above simulation experiment suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
-# -Therefore, some care is needed when evaluating results on the verge of statistical significance
+#   -Therefore, some care is needed when evaluating results on the verge of statistical significance
 # -However, strongly significant results, such as found for HP-BIP, seem convincing, in a statistical sense, 
-#   since random seeds with p-values below 0.01 are `rare' (as based on the above experimental design)
+#   since occurrences with p-values below 1% are `rare' (one out of 500 observations in the above experiment)
 
 #######################################################################################
 # Exercise 3: increasing adaptivity further
