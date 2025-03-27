@@ -508,19 +508,19 @@ box()
 #   -The faint/fragile zero-crossing of the nowcast in the above plot is triggered by the (leading) spread, mainly
 #   -ifo and ESI are barely above the zero-line 
 #   -ip and BIP are `waiting' for further evidence and confirmation
-# -Looking at the sub-series can help in interpreting and assessing the content supported by the predictor 
+# -Looking at the sub-series can help when interpreting the predictor (explainability) 
 # -Faint/fragile signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
-#   which are not yet `priced' in the data (as of Jan-2025).
+#   which are not yet `priced-in' (as of Jan-2025).
 
 ################################################################################################################
 # Exercise 2
 # Let's check what happens when we apply the above battery of tests and performance measures to white noise
 #   -Target correlations should be small, rRMSEs should be close to one and p-values should be above 5%
 # Note: 
-# -We're looking into a multiple test problem, since we consider 5*5=25 tests (p-values)
-# -We do not account/adjust for this problem. 
-# -But one should expect to see randomly significant results in the simultaneous 25 tests 
-#   even if the data is noise
+# -We're looking into a multiple-test problem, since we consider 5*5=25 tests (p-values)
+#   -We do not account/adjust for this problem. 
+#   -But one should expect to see randomly significant results in the simultaneous 25 tests 
+#     even if the data is white noise
 
 # 2.1
 # Generate artificial white noise data
@@ -621,14 +621,14 @@ length(which(p_value_HAC_BIP_full<0.01))
 length(which(p_value_HAC_BIP_oos<0.01))
 
 # Findings:
-# -We did not account for the multiple test problem
+# -We did not account for the multiple-test problem
 # -The above simulation experiment suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
 #   -Therefore, some care is needed when evaluating results on the verge of statistical significance
 # -However, strongly significant results, such as found for HP-BIP, seem convincing, in a statistical sense, 
-#   since occurrences with p-values below 1% are `rare' (one out of 500 observations in the above experiment)
+#   since occurrences with p-values below 1% are `rare' (one out of 500 observations) in the above experiment
 
 #######################################################################################
-# Exercise 3: increasingly adaptive design
+# Exercise 3: More adaptive design
 # -The previous exercise 1 suggests that we might be able to predict HP-BIP several quarters ahead
 # -But predicting BIP is more challenging because the noisy high-frequency part of BIP is essentially unpredictable
 # -However, one cannot exclude a priori that the target specification, HP(160), as specified in exercise 1 is too smooth
