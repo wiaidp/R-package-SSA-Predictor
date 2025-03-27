@@ -508,7 +508,7 @@ box()
 #   -ifo and ESI are barely above the zero-line 
 #   -ip and BIP are `waiting' for further evidence
 # -Looking at the sub-series might help in interpreting and assessing the content supported by the predictor 
-
+# -Faint signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
 
 ################################################################################################################
 # Exercise 2
