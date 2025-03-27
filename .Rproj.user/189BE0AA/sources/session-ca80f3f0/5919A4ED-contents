@@ -497,18 +497,18 @@ box()
 # Discussion:
 # -All sub-series date the trough of the growth rate of the German economy in late 2023 
 # -Currently (Jan-2025), the strongest positive dynamics are supported by the (leading) spread sub-series (violet dashed line)
-# Note:
-# -The trough (minimum) of the grow-rate anticipates the trough of BIP by up to several quarters
-# -In fact, the timing of the BIP-trough is sandwiched between the trough of the growth-rate (late 2023) and 
-#   the zero-crossing of the growth-rate
+# Notes:
+# -The trough (minimum) of the grow-rate (plotted above) anticipates the trough of BIP by up to several quarters
+# -The timing of the BIP-trough is sandwiched between the trough and the next zero-crossing of the growth-rate (recall that the zero-line corresponds to average growth)
 # -Given that the nowcast just passed the zero-line, we infer that the 
 #   trough of BIP might be behind, already
 # -However, not all sub-series would support this claim
-#   -The faint zero-crossing of the nowcast is triggered by the (leading) spread, mainly
+#   -The faint zero-crossing of the nowcast in the above plot is triggered by the (leading) spread, mainly
 #   -ifo and ESI are barely above the zero-line 
 #   -ip and BIP are `waiting' for further evidence
-# -Looking at the sub-series might help in interpreting and assessing the content supported by the predictor 
+# -Looking at the sub-series can help in interpreting and assessing the content supported by the predictor 
 # -Faint signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
+#   which are not `priced' into the data (as of Jan-2025).
 
 ################################################################################################################
 # Exercise 2
