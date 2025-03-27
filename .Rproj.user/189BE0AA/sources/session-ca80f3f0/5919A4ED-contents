@@ -481,7 +481,7 @@ rownames(mplot)<-rownames(x_mat)
 colnames(mplot)<-c(paste("M-SSA predictor optimized for h=",h_vec[j_now],sep=""),
                    paste("Subseries ",select_vec_multi,sep=""))
 colo<-c("blue",rainbow(length(select_vec_multi)))
-main_title<-paste("M-SSA predictor for h=",h_vec[j_now]," (solid blue) and sub-series (dashed lines)",sep="")
+main_title<-c(paste("M-SSA predictor for h=",h_vec[j_now]," (solid blue) and sub-series (dashed lines)",sep=""),"In-sample span up to black vertical (dashed) line")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (i in 1:ncol(mplot))
@@ -498,7 +498,7 @@ box()
 # -All sub-series date the trough of the growth rate of the German economy in late 2023 
 # -Currently (Jan-2025), the strongest positive dynamics are supported by the (leading) spread sub-series (violet dashed line)
 # Notes:
-# -The trough (minimum) of the grow-rate (plotted above) anticipates the trough of BIP by up to several quarters
+# -The trough (minimum) of the grow-rate in the previous figure anticipates the trough of BIP by up to several quarters
 # -The timing of the BIP-trough is sandwiched between the trough and the next zero-crossing of the growth-rate (recall that the zero-line corresponds to average growth)
 # -Given that the nowcast just passed the zero-line, we infer that the 
 #   trough of BIP might be behind, already
