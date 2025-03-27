@@ -628,7 +628,7 @@ length(which(p_value_HAC_BIP_oos<0.01))
 #   since occurrences with p-values below 1% are `rare' (one out of 500 observations in the above experiment)
 
 #######################################################################################
-# Exercise 3: increasing adaptivity further
+# Exercise 3: increasingly adaptive design
 # -The previous exercise 1 suggests that we might be able to predict HP-BIP several quarters ahead
 # -But predicting BIP is more challenging because the noisy high-frequency part of BIP is essentially unpredictable
 # -However, one cannot exclude a priori that the target specification, HP(160), as specified in exercise 1 is too smooth
@@ -729,7 +729,7 @@ p_value_HAC_BIP_oos
 #     -But results on the verge of significance (targeting BIP multiple quarters ahead) should be considered 
 #       with caution
 #   -However, the former stronger results (HP-BIP) provide additional evidence for the latter weaker (BIP) results  
-#       -Predicting the low-frequency part of BIP is (trivially) telling something about future BIP, too
+#       -Predicting the low-frequency part of BIP is telling something about future BIP, too
 
 
 # Final notes on the publication lag and data revisions
