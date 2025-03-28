@@ -10,11 +10,11 @@
 # Purposes of this tutorial:
 # -Apply the M-SSA to quarterly (German) macro-data during insecure times 
 #   -Tutorials 7.1-7.3 were written early 2025 and rely on data up to Jan-2025
-#   -The HP-filter signals a severe recession, see exercise 4 below
+#   -The HP-filter signals a severe on-going (and worsening) recession, see exercise 4 below
 #     -Germany endures a recession: we observe negative BIP-growth since several quarters
 #   -Can we use M-SSA to predict future BIP dynamics: what are the prospects for 2025 and 2026?
 # -Analyze various designs for nowcasting and forecasting German GDP (BIP:=Brutto Inland Produkt)
-# -Analyze effects of model misspecifications: the VAR(1) cannot render recessions properly
+# -Analyze effects of model misspecifications (the VAR(1) cannot render recessions properly)
 # -Infer possible solutions for eluding model misspecification issues and analyze their efficacity
 # -Provide an empirical background and basic insights to understand the various forecast designs 
 #   proposed in tutorial 7.3 
@@ -30,7 +30,7 @@
 #   -The reliance in a `signal' may be anchored in the concept of `business cycle'
 #   -In his talk at the University of Chicago’s Booth School of Business (March 07, 2025), FED-chair Jerome Powell 
 #       said: "As we parse the incoming information, we are focused on separating the signal from the noise 
-#       as the outlook evolves", suggesting that the FED should not react to noise.
+#       as the outlook evolves", suggesting in his talk that the FED should not (over)react to noise.
 #   -Similarly, a forecast procedure should not be reactive to `noise'
 #   -However, when targeting BIP in its entirety, including its noisy part, classic direct forecasts are 
 #     subject to overfitting, mainly because the components that dominate the MSE (the erratic 
@@ -59,7 +59,7 @@
 # -Exercise 2 will analyze the (main) causes of misspecification and propose solutions to overcome undesirable consequences
 # -Exercise 3 combines all ingredients to propose a recipe for constructing the M-SSA BIP predictors
 # -Exercise 4 compares our results with the HP-filter
-#   -M-SSA will strongly contradict the HP (and the future will tell)
+#   -M-SSA contradicts HP (and the future will tell)
 
 
 #----------------------
@@ -140,16 +140,6 @@ tail(data)
 lag_vec<-c(2,rep(0,ncol(data)-1))
 
 # Plot the data:
-# -The explanatory variable BIP (red) is lagging the target BIP (black) by lag_vec[1]=2 quarters 
-# -The figure suggests that our selection of the publication lag might be too large since the target column
-#     anticipates peaks and dips of the other series by one quarter during crises (the target is left-shifted)
-# -This excessive shift gives us some safety-margin regarding data revisions (which are ignored here)
-# -The series are standardized to account for the different scales of the data
-# -Pandemic is trimmed to 3 sigma (the trimming affects also the financial crisis but to a much lesser extent)
-# Remarks:
-# -We use trimming because classic approaches (HP, VAR-model) are sensitive to the singular COVID readings
-#   -M-SSA by itself (the optimization algorithm) would be quite robust against the singularity
-#   -But M-SSA could be affected indirectly, by the VAR-modeling which is sensitive to the Pandemic outliers 
 par(mfrow=c(1,1))
 mplot<-data
 colo<-c("black",rainbow(ncol(data)-1))
@@ -165,6 +155,19 @@ abline(h=0)
 axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
 axis(2)
 box()
+
+# Comments:
+# -The explanatory variable BIP (red) is lagging the target BIP (black) by lag_vec[1]=2 quarters 
+# -The figure suggests that our selection of the publication lag might be too large since the target column
+#     anticipates peaks and dips of the other series by one quarter during crises (the target is left-shifted)
+# -This excessive shift gives us some safety-margin regarding data revisions (which are ignored here)
+# -The series are standardized to account for the different scales of the data
+# -Pandemic is trimmed to 3 sigma (the trimming affects also the financial crisis but to a much lesser extent)
+# Remarks:
+# -We use trimming because classic approaches (HP, VAR-model) are sensitive to the singular COVID readings
+#   -M-SSA by itself (the optimization algorithm) would be quite robust against the singularity
+#   -But M-SSA could be affected indirectly, by the VAR-modeling which is sensitive to the Pandemic outliers 
+
 
 # Select the macro indicators for predicting the target by M-SSA: 
 #   Five dimensional design in accordance with expert feedback
@@ -183,9 +186,9 @@ tail(x_mat)
 #------------------------------
 # 1.2. Target filter: 
 # -We apply a filter to the target series (BIP shifted upward by lag_vec[1]+shift quarters) in order to
-#   damp noise (the high-frequency components of BIP are likely unpredictable)
+#   damp noise (the unpredictable high-frequency components of BIP)
 # -Main idea (forecast `philosophy'):  removing/damping the unpredictable part (noise) helps in 
-#   predicting the predictable portion (signal) of BIP 
+#   addressing the predictable portion (signal) of BIP 
 #   -As we shall see in tutorial 7.3, statistical significance of predictors can be verified multiple 
 #     quarters ahead in this framework
 # -Question: which target are we aiming for? 
@@ -214,8 +217,6 @@ tail(x_mat)
 #   -HP(160) is able to track narrow recession dips `better': it is also able to track the Euro-Area (sovereign debt) crisis 
 #   -HP(160) is able to track dynamic shifts occurring within a one-year horizon better than HP(1600)
 # -Overall, we prefer HP(160) as a target specification for this application
-#   -M-SSA predictors will be more reactive to the forecast horizon, by tracking level-shifts more rapidly
-#   -Predictors will be increasingly left-shifted (anticipative) as a function of the forecast horizon
 
 lambda_HP<-160
 # Filter length: roughly 4 years. 
@@ -243,18 +244,18 @@ symmetric_target
 
 #-------------------------
 # 1.3. Fit the VAR
-# Select any in-sample span: the effect on the final M-SSA predictor is remarkably weak
+# Select any in-sample span: the effect on the final M-SSA predictor is modest
 #   -The VAR is sparsely parametrized  (p=1 and regularization)
 # Set in-sample span: full set
 date_to_fit<-"2200"
 # Set in-sample span: prior Pandemic
 date_to_fit<-"2019"
-# Set in-sample span: prior financial crisis
+# Set in-sample span: prior financial crisis: this is the one we select here
 date_to_fit<-"2008"
 data_fit<-na.exclude(x_mat[which(rownames(x_mat)<date_to_fit),])#date_to_fit<-"2019-01-01"
-# Have a look at cross correlation: in-sample span
+# Have a look at cross correlations: in-sample span
 acf(data_fit)
-# Check span
+# Check in-sample specification
 tail(data_fit)
 
 # VARMA modelling
@@ -271,12 +272,13 @@ if (F)
   MTSdiag(V_obj)
 # Sigma
 Sigma<-V_obj$Sigma
+# AR(1)
 Phi<-V_obj$Phi
 Theta<-V_obj$Theta
 
 #---------------------------------------
 # 1.4. MA inversion: as in the (univariate) SSA, we need to specify the data generating process (DGP) to M-SSA 
-# -For this purpose we rely on the Wold decomposition of the DGP: MA-inversion of VAR
+# -For this purpose we rely on the Wold decomposition of the DGP: MA-inversion of the above VAR
 # -A plot should pop-up in the plot-panel, after running the next code line, illustrating the MA-inversion
 #   -An MA-inversion is obtained for each of the five series used in the multivariate design
 # -The MA-inversion can be used to interpret the VAR: 
@@ -371,7 +373,7 @@ apply(na.exclude((target_mat-mssa_mat)^2),2,mean)
 #     of M-MSE because we impose stronger smoothness (a larger HT) to M-SSA
 apply(na.exclude((target_mat-mmse_mat)^2),2,mean)
 
-# Correlations between target and M-SSA: sample estimates converge to criterion value for increasing 
+# Correlations between target and M-SSA: sample estimates converge to criterion values for increasing 
 #   sample size, assuming the VAR to be true, see tutorial 7.1
 # The following results look bad: we obtain negative sample correlations...
 for (i in 1:n)
@@ -431,7 +433,7 @@ box()
 
 # Let's try a larger forecast horizon than strictly necessary: we call this a `forecast excess'
 f_excess<-4
-# Increase artificially delta
+# Increase artificially delta in the call to M-SSA (delta is the forecast horizon)
 delta_excess<-delta+f_excess
 # All other settings remain the same: we now call M-SSA with that larger forecast horizon
 
@@ -444,7 +446,7 @@ gammak_x_mse<-MSSA_obj$gammak_x_mse
 
 colnames(bk_x_mat)<-colnames(gammak_x_mse)<-select_vec_multi
 
-# Filter: use the new bk_x_mat_excess but the previous delta (not delta_excess)
+# Filter: use the new bk_x_mat_excess but apply the original delta (not delta_excess) for shifting the target
 
 filt_obj<-filter_func(x_mat,bk_x_mat_excess,gammak_x_mse,gamma_target,symmetric_target,delta)
 
@@ -473,29 +475,10 @@ unlist(apply(mssa_mat,2,compute_empirical_ht_func))
 unlist(apply(mmse_mat,2,compute_empirical_ht_func))/unlist(apply(mssa_excess_mat,2,compute_empirical_ht_func))
 
 
-
+# Plot: 
+#   -Let us standardize all series for better visual inspection
 par(mfrow=c(1,1))
-mplot<-(cbind(target_mat[,1],mssa_excess_mat[,1],mssa_mat[,1]))
-colnames(mplot)<-c(paste("Target as above",""),"M-SSA excess","M-SSA")
-colo<-c("black","red","blue")
-main_title<-"M-SSA: without forecast excess (blue) and with forecast excess (red)"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
-}
-abline(h=0)
-abline(v=which(rownames(mplot)==rownames(data_fit)[nrow(data_fit)]),lwd=2,lty=2)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
-axis(2)
-box()
-
-# M-SSA-excess is subject to stronger zero-shrinkage since it is looking further into the future
-# Let us standardize all series for better visual inspection
-par(mfrow=c(1,1))
-# Scale the data for better visual interpretation of effect of excess forecast on M-SSA (red) vs. previous M-SSA (blue)
+# Scale the data 
 mplot<-scale(cbind(target_mat[,1],mssa_excess_mat[,1],mssa_mat[,1]))
 colnames(mplot)<-c(paste("Target: HP applied to ",select_vec_multi[1],", left-shifted by ",delta-lag_vec[1]," quarters",sep=""),"M-SSA excess","M-SSA")
 colo<-c("black","red","blue")
@@ -524,7 +507,6 @@ box()
 # Notes:
 # -The trough (minimum) of the grow-rate (plotted above) anticipates the trough of BIP by up to several quarters
 # -The timing of the BIP-trough is sandwiched between the trough and the next zero-crossing of the growth-rate 
-# -Finally, faint signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
 
 
 # Findings:
@@ -546,11 +528,9 @@ box()
 # -Therefore we aggregate all five predictors equally, assuming that each one was previously standardized
 #   -Cross-sectional aggregation: equal weighting
 # B. Forecast excess
-# -BIP and ip tend to lag behind ESI and ifo (mainly because of publication lag) and spread is leading overall
-# -We select a larger delta for BIP and ip (forecast-excess, as explained and detailed in exercise 2)  
+# -We select a larger delta than strictly necessary if the VAR were true (forecast-excess, see exercise 2)  
 # C. Forecast horizons:
 # -We compute M-SSA predictors based on A. and B. above, targeting BIP at horizons 0 (nowcast), 1, 2, 4 (one year) and 6 quarters ahead
-#   -This results in one nowcast and four forecasts 
 #   -We then compute performances of each of the five predictors relative to BIP shifted by 0,1,2,4,6 quarters: 
 #       -We consider all 5*5=25 combinations
 #   -We also consider statistical significance, by relying on different statistics (using HAC estimates of variances)
@@ -567,11 +547,8 @@ mssa_bip<-mssa_ip<-mssa_esi<-mssa_ifo<-mssa_spread<-NULL
 # Compute M-SSA predictors according to steps A,B,C 
 for (i in 1:length(h_vec))#i<-1
 {
-# -delta is the forecast horizon submitted to M-SSA: M-SSA optimizes filters for a forecast horizon of delta
-# -delta can deviate from the effective forecast horizon h_vec[i]: 
-#   -h_vec[i] (plus the publication lag) is the forward-shift we apply to the target series when computing 
-#       plots and performance measures
-#   -delta is just a parameter that conditions the optimization process  
+# -delta is the forecast horizon imposed to M-SSA: M-SSA optimizes filters for a forecast horizon of delta
+# -delta can deviate from the effective forecast horizon h_vec[i]: it is a hyperparameter that conditions the optimization process  
 # -For each forecast horizon h_vec[i] we determine delta as the sum of h_vec[i], publication lag and forecast excess
 # -We now compute delta for BIP, based on the publication lag of BIP (lag_vec[1]) and the selected forecast excess  
   delta<-h_vec[i]+lag_vec[1]+f_excess
@@ -664,7 +641,7 @@ for (i in 1:length(h_vec))#i<-1
   box()
 
 # Compute sample target correlations of all M-SSA predictors with the shifted target: 
-# tHE FINAL MATRIX WILL CONTAIN all 5*5 combinations of forecast horizon and forward-shift
+# The final matrix will contain all 5*5 combinations of forecast horizon and forward-shift
   for (j in 1:ncol(indicator_mat))
     cor_mat[i,j]<-cor(na.exclude(cbind(target,indicator_mat[,j])))[1,2]
 
@@ -684,8 +661,8 @@ cor_mat
 
 # -We infer from the observed systematic pattern, that the M-SSA predictors tend to be informative about future BIP trend growth
 # -Also, since future BIP trend growth tells something about the low-frequency part of future BIP, we may infer that 
-#   the M-SSA predictors are informative about future BIP
-# -However, (differenced) BIP is a very noisy series
+#   the M-SSA predictors are informative about future BIP (assuming the latter is not white noise)
+# -However, (differenced) BIP is a noisy series (the existence of recessions suggests that it is not white noise)
 # -Therefore, it is difficult to assess statistical significance of forecast accuracy with respect to BIP (see tutorial 7.3 for a more refined analysis)
 # -But we can assess statistical significance of the effect observed in cor_mat, with respect to HP-BIP (low-frequency part of BIP)
 # -For this purpose we regress the predictors on the shifted targets and compute HAC-adjusted p-values of the corresponding regression coefficients
@@ -910,7 +887,7 @@ head(compute_mssa_BIP_predictors_func)
 
 #################################################################
 # Summary and main findings
-# A. When targeting forecast horizons of a year or less, we need to focus on signals (HP-trends) 
+# -When targeting forecast horizons of a year or less, we need to focus on signals (HP-trends) 
 #   which allow for sufficient adaptivity (sufficiently strong dynamics over such a time interval) 
 #   -For this purpose we selected lambda_HP=160 
 #   -The increased adaptivity forces predictors to react to the forecast horizon by a commensurate left-shift (anticipation)
@@ -928,8 +905,8 @@ head(compute_mssa_BIP_predictors_func)
 # -Performances with respect to BIP (instead of HP-BIP) are less conclusive, due in part to unpredictable high-frequency noise
 #   -However, the link between the forecast horizon and the physical-shift is still recognizable
 #   -More aggressive settings for the forecast excess may reinforce these findings (up to a point)
-# -Finally, a predictor of the low-frequency component of (future) HP-BIP is intrinsically informative about 
-#     (future) BIP, even if statistical significance might be obstructed by noise. 
+# -Finally, a predictor of the low-frequency component of (future) HP-BIP is potentially informative about 
+#     future BIP (if the latter is not white noise).
 #---------------------------------------------------------------------------------------------------
 
 
