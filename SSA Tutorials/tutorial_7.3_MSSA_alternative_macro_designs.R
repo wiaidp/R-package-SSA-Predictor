@@ -112,10 +112,10 @@ len<-dim(x_mat)[1]
 #   -HP(160) is possibly a good compromise: it damps high-frequency noise sufficiently strongly 
 #     to let the `signal` (i.e. the predictable business-cycle part of BIP) appear more clearly to 
 #     the forecast fitting-tool: M-SSA
-# -In exercise 3 we shall rely on an even more adaptive design based on HP(16), for reference
+# -In exercise 3 we shall rely on an even more adaptive design based on HP(16)
 
 # 1.1 Apply M-SSA
-# Here's the wrapper summarizing findings derived in tutorial 7.2: 
+# Here's the wrapper proposed in tutorial 7.2: 
 head(compute_mssa_BIP_predictors_func)
 
 # The head of the function needs the following specifications:
@@ -126,7 +126,7 @@ head(compute_mssa_BIP_predictors_func)
 # -p,q: model orders of the VAR
 # -ht_mssa_vec: HT constraints (larger means less zero-crossings)
 # -h_vec: (vector of) forecast horizon(s) for M-SSA
-# -f_excess: forecast excesses, see exercises 2 and 3 above
+# -f_excess: forecast excesses, see tutorial 7.2, exercise 2 
 # -lag_vec: publication lag (target is forward shifted by forecast horizon plus publication lag)
 # -select_vec_multi: names of selected indicators
 
@@ -137,14 +137,11 @@ head(compute_mssa_BIP_predictors_func)
 # We now first replicate tutorial 7.2 with the above wrapper
 
 # Target filter: lambda_HP is the single most important hyperparameter, see tutorial 7.1 for a discussion
-# Briefly: we avoid the classic quarterly setting lambda_HP=1600 because the resulting filter would be too smooth
-# Too smooth means: the forecast horizon would have nearly no effect on the M-SSA predictor (almost no left-shift, no anticipation)
 lambda_HP<-160
 # Filter length: nearly 8 years is fine for the selected lambda_HP (filter weights decay sufficiently fast)
-#   Should be an odd number (see tutorial 7.1)
+#   The length should be an odd number (see tutorial 7.1)
 L<-31
-# In-sample span for VAR, i.e., M-SSA (the proposed design is quite insensitive to this specification because the VAR is parsimoniously parameterized)
-#  -selecting date_to_fit<-"2008" means that the entire financial crisis is out-of-sample 
+# In-sample span for VAR, i.e., M-SSA (the proposed design is quite insensitive to this specification because the VAR is parsimoniously parameterized
 date_to_fit<-"2008"
 # VARMA model orders: keep the model simple in particular for short/tight in-sample spans
 p<-1
@@ -156,9 +153,6 @@ names(ht_mssa_vec)<-colnames(x_mat)
 # Forecast horizons: M-SSA is optimized for each forecast horizon in h_vec 
 h_vec<-0:6
 # Forecast excesses: see tutorial 7.2, exercise 2 for background
-#   -We impose a forecast excess of 4 quarters for BIP and ip, and of 2 quarters for the other indicators
-#   -As illustrated in tutorial 7.2, exercise 2, increasing artificially the forecast horizon can account effectively for 
-#     model misspecification, given that the VAR-model is unable to render severe recessions (crises)
 f_excess<-rep(4,length(select_vec_multi))
 
 # Run the wrapper  
@@ -176,6 +170,7 @@ predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 #   average of all series outputs: BIP, ip,...
 # The components or sub-series of the aggregate predictor are contained in mssa_array 
 # This is a 3-dim array with dimensions: sub-series (BIP, ip,...), time, forecast horizon h in h_vec
+#   -We shall see below that the sub-series can be important when interpreting the M-SSA predictors 
 mssa_array<-mssa_indicator_obj$mssa_array
 
 # Plot M-SSA: the vertical line indicates the end of the in-sample span
@@ -220,7 +215,7 @@ h<-2
 forward_shifted_BIP<-c(x_mat[(1+lag_vec[1]+h):nrow(x_mat),"BIP"],rep(NA,h+lag_vec[1]))
 # Regress selected indicators on forward-shifted BIP
 lm_obj<-lm(forward_shifted_BIP~x_mat[,select_direct_indicator])
-# You will probably not find statistically significant regressors for h>2: BIP is a very noisy series
+# You will probably not find statistically significant regressors for h>2: BIP is a noisy series
 summary(lm_obj)
 # Technical note: 
 # -Residuals are subject to heteroscedasticity (crises) and autocorrelation
@@ -253,7 +248,7 @@ abline(h=0)
 #     a. Foreward-shifted HP applied to BIP: HP_BIP. This is the target for which M-SSA has been optimized
 #     b. Forward-shifted BIP, i.e., we include the (unpredictable) noisy high-frequency part of BIP
 # Note:
-#   -M-SSA does not target BIP directly, unless the target-filter is the identity (instead of HP)
+#   -M-SSA does not target BIP directly; overfitting is not (less) of concern
 
 perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec) 
 
@@ -308,6 +303,7 @@ cor_mat_BIP_oos
 #   forward-shifted BIP (see further down for details)
 p_value_HAC_BIP_oos
 # The last predictor, optimized for h=6, is on the edge of statistical significance up to a forward-shift=3 
+#   -Note that the out-of-sample span is quite short 
 
 # We now look at pairwise comparisons with established benchmarks in terms of relative root mean-square 
 #   errors: rRMSE
@@ -461,7 +457,7 @@ p_value_HAC_HP_BIP_oos[k,j]
 # To find an answer, we shall consider a more adaptive design based on targeting HP(16), see exercise 3 below
 
 #-----------------
-# 1.3.3 Finally, we examine the M-SSA sub-series
+# 1.3.3 To conclude exercise 1, we examine the M-SSA sub-series
 # -For a given forecast horizon h in h_vec, we can look at the sub-series entering (equally-weighted into) the M-SSA predictor
 #   -The sub-series are potentially informative when interpreting the aggregate predictor
 #   -We can examine which sub-series is more/less likely to trigger a dynamic change of the predictor/nowcast
@@ -550,12 +546,11 @@ set.seed(9)
 # None below 1%
 set.seed(10)
 
-# The outcome suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
+# The outcome suggests that HAC-adjustments are unable to correct fully for data-dependence
 #   -We observe p-values below 5% more often than in 5% of all cases
 #   -Therefore, some care is needed when evaluating results on the verge of statistical significance
 # However, our results also suggest that p-values below 1% are `rare` 
-#   -We found only a single p-value below 1% for the above set.seeds, out of 10*5*5*2=500 computed values
-#   -Therefore biases are likely to be weak
+#   -We found only one p-value below 1% for the above set.seeds, out of 10*5*5*2=500 computed values
 
 x_mat_white_noise<-NULL
 for (i in 1:ncol(x_mat))
@@ -625,10 +620,18 @@ length(which(p_value_HAC_BIP_oos<0.01))
 
 # Findings:
 # -We did not account for the multiple-test problem
-# -The above simulation experiment suggests that HAC-adjustments are unable to correct fully for the data-idiosyncrasies
+# -The above simulation experiment suggests that HAC-adjustments are unable to correct fully for the dependence
 #   -Therefore, some care is needed when evaluating results on the verge of statistical significance
 # -However, strongly significant results, such as found for HP-BIP, seem convincing, in a statistical sense, 
 #   since occurrences with p-values below 1% are `rare' (one out of 500 observations) in the above experiment
+
+# Discussion
+# -HP applied to white noise (HP-WN) leads to an autocorrelated series which can be predicted
+# -However, a predictor of HP-WN is not helpful in predicting WN
+# -In contrast, we expect HP-BIP to be informative about future BIP because the latter is not WN
+#   -the occurrence of recessions (business-cycle) contradicts the WN assumption
+#   -the acf and the VAR-model contradict the WN assumption
+#   -The systematic structure in the performance matrices (top-down/left-right) suggests predictability
 
 #######################################################################################
 # Exercise 3: More adaptive design
@@ -732,7 +735,7 @@ p_value_HAC_BIP_oos
 #     -But results on the verge of significance (targeting BIP multiple quarters ahead) should be considered 
 #       with caution
 #   -However, the former stronger results (HP-BIP) provide additional evidence for the latter weaker (BIP) results  
-#       -Predicting the low-frequency part of BIP is telling something about future BIP, too
+#       -Predicting the low-frequency part of BIP is likely to tell something about future BIP, assuming the latter is not white noise
 
 
 # Final notes on the publication lag and data revisions
