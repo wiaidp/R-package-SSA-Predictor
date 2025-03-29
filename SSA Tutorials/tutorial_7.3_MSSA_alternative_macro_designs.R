@@ -628,10 +628,14 @@ length(which(p_value_HAC_BIP_oos<0.01))
 # Discussion
 # -HP applied to white noise (HP-WN) leads to an autocorrelated series which can be predicted
 # -However, a predictor of HP-WN is not helpful in predicting WN
-# -In contrast, we expect HP-BIP to be informative about future BIP because the latter is not WN
-#   -the occurrence of recessions (business-cycle) contradicts the WN assumption
-#   -the acf and the VAR-model contradict the WN assumption
+# -In contrast, we expect HP-BIP in exercise 1 (and 3 below) to be informative about future BIP because the 
+#     latter is not WN:
+#   -The occurrence of recessions (business-cycle) contradicts the WN assumption
+#   -The acf and the VAR-model contradict the WN assumption
 #   -The systematic structure in the performance matrices (top-down/left-right) suggests predictability
+#   -The recent negative BIP-readings are not `random` events: they are due to exogenous shock-waves and 
+#     endogeneous decisions whose underlyings did not realize as wished (self-critical assessments by the former minister of economic affairs are telling)
+     
 
 #######################################################################################
 # Exercise 3: More adaptive design
