@@ -634,7 +634,7 @@ length(which(p_value_HAC_BIP_oos<0.01))
 #   -The acf and the VAR-model contradict the WN assumption
 #   -The systematic structure in the performance matrices (top-down/left-right) suggests predictability
 #   -The recent negative BIP-readings are not `random` events: they are due to exogenous shock-waves and 
-#     endogenous decisions whose underlyings did not realize as wished (self-critical assessments by the former minister of economic affairs are telling)
+#     endogenous decisions whose underlying(s) did not realize as wished (self-critical assessments by the former minister of economic affairs are telling)
      
 
 #######################################################################################
