@@ -760,7 +760,7 @@ p_value_HAC_BIP_oos
 ##################################################################################
 # Exercise 4
 # As a counterpoint to exercise 3 above, we now briefly analyze the rather inflexible classic
-#   quarterly HP(1600) design (target for M-SSA) 
+#   quarterly HP(1600) design as a target for M-SSA, to back-up our previous discussion with empirical facts
 
 lambda_HP<-1600
 # Given a slower decay (stronger smoothing), we here increase the filter length
@@ -798,8 +798,8 @@ box()
 # -The stronger smoothing by HP(1600) emphasizes long-term dynamics which are less relevant in a one-year forecast perspective
 #   -See a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
 # -As a result, increasing the forecast horizon has only marginal effects on the M-SSA predictor
-#   -The left-shift is less pronounced
-# -Stated otherwise: increasing the forecast horizon has only a marginal effect on the phase of the filter
+#   -The left-shift of the M-SSA predictors is less pronounced
+# -Stated otherwise: increasing the forecast horizon has only a marginal effect on the `phase' of the filter
 #   -the right tail of the HP(1600) corresponds to an AR(2) with a comparatively long periodicity
 #   -advancing the filter by a full year has only small/marginal effects on the phase (when compared to HP(160) or HP(16)) 
 
