@@ -456,12 +456,11 @@ p_value_HAC_HP_BIP_oos[k,j]
 #   -Or is it because lambda_HP=160 is not sufficiently adaptive to track mid/short-term dynamics (still too smooth)?
 # To find an answer, we shall consider a more adaptive design based on targeting HP(16), see exercise 3 below
 
+
 #-----------------
-# 1.3.3 To conclude exercise 1, we examine the M-SSA sub-series
-# -For a given forecast horizon h in h_vec, we can look at the sub-series entering (equally-weighted into) the M-SSA predictor
-#   -The sub-series are potentially informative when interpreting the aggregate predictor
-#   -We can examine which sub-series is more/less likely to trigger a dynamic change of the predictor/nowcast
-# -For discussion, we now select the M-SSA nowcast
+# 1.5 For a better interpretation of the M-SSA predictor, we propose to examine its sub-series
+#   -We can examine which sub-series is (are) more/less likely to trigger a dynamic change of the predictor/nowcast
+# -For illustration, we select the M-SSA nowcast
 j_now<-1
 # This is the forecast horizon (nowcast)
 h_vec[j_now]
@@ -509,6 +508,12 @@ box()
 # -Looking at the sub-series can help when interpreting the predictor (explainability) 
 # -Faint/fragile signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
 #   which are not yet `priced-in' (as of Jan-2025).
+#---------------
+# 1.6 Changing the HT
+# To be continued...
+
+
+
 
 ################################################################################################################
 # Exercise 2
