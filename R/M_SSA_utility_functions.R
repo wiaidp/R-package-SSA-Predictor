@@ -58,6 +58,7 @@ MA_inv_VAR_func<-function(Phi,Theta,L,n,Plot=F)
 # Compute M-SSA (and accessory M-MSE)
 MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Sigma,Plot=F)
 {
+  L<-dim(gamma_target)[1]/dim(Sigma)[1]
   # Compute lag-one ACF corresponding to HT in M-SSA constraint: see previous tutorials on the link between HT and lag-one ACF  
   rho0<-compute_rho_from_ht(ht_vec)$rho
   
@@ -94,6 +95,7 @@ MSSA_main_func<-function(delta,ht_vec,xi,symmetric_target,gamma_target,Sigma,Plo
       ts.plot(mplot,main=paste("MSSA applied to x ",colnames(x_mat)[i],sep=""),col=rainbow(n))
     }
   }
+
   # We return the M-SSA filter as well as the whole M-SSA object which hides additional useful objects  
   return(list(bk_x_mat=bk_x_mat,MSSA_obj=MSSA_obj))
 }
@@ -220,7 +222,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
 # Loop over all explanatory variables 
 #   -We need to differenciate the series because lag_vec and or f_excess can vary depending of the series 
 #   -If lag_vec and f_excess were both fixed, then we compute the M-SSA predictors in a single run
-  for (ijk in 1:length(select_vec_multi))#ijk<-5
+  for (ijk in 1:length(select_vec_multi))#ijk<-1
   {
 # Loop over forecast horizons    
     for (i in 1:length(h_vec))#i<-1
@@ -228,7 +230,6 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
 # For each series ijk, the forecast horizon delta applöied by M-SSA is the sum of h_vec[i], 
 #       publication lag and forecast excess
       delta<-h_vec[i]+lag_vec[ijk]+f_excess[ijk]
-      
 # M-SSA  
       MSSA_main_obj<-MSSA_main_func(delta,ht_mssa_vec,xi,symmetric_target,gamma_target,Sigma,T)
       
@@ -262,7 +263,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
   predictor_mmse_mat<-predictor_mmse_mat/length(select_vec_multi)
   colnames(predictor_mssa_mat)<-colnames(predictor_mmse_mat)<-dimnames(mssa_array)[[3]]
   rownames(predictor_mssa_mat)<-rownames(predictor_mmse_mat)<-dimnames(mssa_array)[[2]]
-
+  
 #-----------------------------
 # 6. Compute plots
   target_shifted_mat<-NULL
@@ -277,7 +278,6 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     target<-target_mat[,"BIP"]
 # Collect the forward shifted targets: 
     target_shifted_mat<-cbind(target_shifted_mat,target)
-    
 # Plot indicators and shifting target
     mplot<-scale(cbind(target,predictor_mssa_mat))
     colnames(mplot)[1]<-paste("Target left-shifted by ",shift-lag_vec[1],sep="")

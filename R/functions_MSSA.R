@@ -251,6 +251,9 @@ MSSA_func<-function(split_grid,L,forecast_horizon_vec,grid_size,gammak_generic,r
     }  
     if (dim(gammak_generic)[2]!=L*dim(Sigma)[1])
     {
+      print(dim(gammak_generic)[2])
+      print(L)
+      print(dim(Sigma))
       print("dim(gammak_generic)[2]!=L*dim(Sigma)[1]")
       return()
     }  

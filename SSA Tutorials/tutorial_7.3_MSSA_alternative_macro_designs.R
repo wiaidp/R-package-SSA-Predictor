@@ -26,11 +26,12 @@
 #     -HAC-adjusted p-values of (t-statistics of) regressions of predictors on targets (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
 # To do: provide additional Diebold-Mariano (DM) and Giacomini-White (GW) tests of unequal predictability (benchmarked against mean(BIP))
 
-# The tutorial is structured into 3 exercises
+# The tutorial is structured into 4 exercises
 # Exercise 1: apply a fairly adaptive design based on targeting a HP(160) filter by M-SSA
 #   -HP(160) deviates from the standard HP(1600) specification typically recommended for quarterly data
 #     -See a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
-#     -See also the lengthy discussion in tutorial 7.2
+#     -See also the lengthy discussion in tutorial 7.2 
+#     -See also exercise 4 below
 #   -We shall see that M-SSA can predict HP-BIP (for which it is explicitly optimized) consistently 
 #      multiple quarters ahead (statistical significance)
 #   -It is more difficult to predict BIP, though: the noisy high-frequency components of BIP are unpredictable 
@@ -38,8 +39,9 @@
 #   -We shall see that the HAC-adjustment cannot fully account for all data idiosyncrasies
 #   -However, empirical significance levels do not appear to be strongly biased
 # Exercise 3: analyze a more adaptive M-SSA design based on targeting HP(16) by M-SSA
+# Finally, exercise 4 briefly analyzes the classic HP(1600) as a target for M-SSA
 
-
+#-------------------------------------
 # Start with a clean sheet
 rm(list=ls())
 
@@ -178,7 +180,7 @@ mplot<-predictor_mssa_mat
 colnames(mplot)<-colnames(predictor_mssa_mat)
 par(mfrow=c(1,1))
 colo<-c(rainbow(ncol(predictor_mssa_mat)))
-main_title<-c(paste("Standardized M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep=""),"Vertical line delimites in-sample and out-of-sample span")
+main_title<-c(paste("Standardized M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep=""),"Vertical line delimites in-sample and out-of-sample spans")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (j in 1:ncol(mplot))
@@ -458,7 +460,7 @@ p_value_HAC_HP_BIP_oos[k,j]
 
 
 #-----------------
-# 1.5 For a better interpretation of the M-SSA predictor, we propose to examine its sub-series
+# 1.4 For a better interpretation of the M-SSA predictor, we propose to examine its sub-series
 #   -We can examine which sub-series is (are) more/less likely to trigger a dynamic change of the predictor/nowcast
 # -For illustration, we select the M-SSA nowcast
 j_now<-1
@@ -509,10 +511,49 @@ box()
 # -Faint/fragile signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
 #   which are not yet `priced-in' (as of Jan-2025).
 #---------------
-# 1.6 Changing the HT
-# To be continued...
+# 1.5 Changing the HT
+# -In the above exercises we addressed timeliness by the foecast horizon h_vec and the forecast excess f_excess
+# -Here we briefly address smoothness by increasing the HT in the HT-constraint
+# -This exercise can be viewed as a further validity or robustness check for the M-SSA predictor
 
+# We impose twice as large HTs
+ht_mssa_vec_long<-2*ht_mssa_vec
+names(ht_mssa_vec_long)<-colnames(x_mat)
+# Stronger smoothing might require longer filters 
+#   -We here ignore this effect and set L_long=L (main advantage: faster numerical computation)
+L_long<-L
 
+# Run the wrapper  
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L_long,date_to_fit,p,q,ht_mssa_vec_long,h_vec,f_excess,lag_vec,select_vec_multi)
+
+target_shifted_mat=mssa_indicator_obj$target_shifted_mat
+predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
+predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
+mssa_array<-mssa_indicator_obj$mssa_array
+
+# Plot 
+mplot<-predictor_mssa_mat
+colnames(mplot)<-colnames(predictor_mssa_mat)
+par(mfrow=c(1,1))
+colo<-c(rainbow(ncol(predictor_mssa_mat)))
+main_title<-c(paste("Standardized M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep=""),"Vertical line delimites in-sample and out-of-sample spans")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (j in 1:ncol(mplot))
+{
+  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
+  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+}
+abline(h=0)
+abline(v=which(rownames(mplot)>date_to_fit)[1]-1,lty=2)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+
+# -We can observe increased smoothness of the predictors, as expected 
+#   -The expected duration between consecutive zero-crossings should double on sufficiently long spans, assuming the VAR to be `true'
+# -Overall, the general pattern towards the sample end confirms earlier findings (based on smaller HTs)
+# -But nowcast and short-term forecasts are more prudent with respect to up-turn dynamics
 
 
 ################################################################################################################
@@ -716,6 +757,52 @@ p_value_HAC_BIP_oos
 #   performances further
 # -Danger of data-snooping
 
+##################################################################################
+# Exercise 4
+# As a counterpoint to exercise 3 above, we now briefly analyze the rather inflexible classic
+#   quarterly HP(1600) design (target for M-SSA) 
+
+lambda_HP<-1600
+# Given a slower decay (stronger smoothing), we here increase the filter length
+L_long<-2*L-1
+# We also use the larger HTs of exercise 1.5
+ht_mssa_vec_long<-ht_mssa_vec_long
+# Run the wrapper  
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L_long,date_to_fit,p,q,ht_mssa_vec_long,h_vec,f_excess,lag_vec,select_vec_multi)
+
+target_shifted_mat=mssa_indicator_obj$target_shifted_mat
+predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
+predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
+mssa_array<-mssa_indicator_obj$mssa_array
+
+# Plot 
+mplot<-predictor_mssa_mat
+colnames(mplot)<-colnames(predictor_mssa_mat)
+par(mfrow=c(1,1))
+colo<-c(rainbow(ncol(predictor_mssa_mat)))
+main_title<-c(paste("Standardized M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep=""),"Vertical line delimites in-sample and out-of-sample spans")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (j in 1:ncol(mplot))
+{
+  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
+  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+}
+abline(h=0)
+abline(v=which(rownames(mplot)>date_to_fit)[1]-1,lty=2)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+
+# Discussion:
+# -The stronger smoothing by HP(1600) emphasizes long-term dynamics which are less relevant in a one-year forecast perspective
+#   -See a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
+# -As a result, increasing the forecast horizon has only marginal effects on the M-SSA predictor
+#   -The left-shift is less pronounced
+# -Stated otherwise: increasing the forecast horizon has only a marginal effect on the phase of the filter
+#   -the right tail of the HP(1600) corresponds to an AR(2) with a comparatively long periodicity
+#   -advancing the filter by a full year has only small/marginal effects on the phase (when compared to HP(160) or HP(16)) 
+
 
 #---------------------------------------------
 # Findings overall:
@@ -744,7 +831,8 @@ p_value_HAC_BIP_oos
 #     -But results on the verge of significance (targeting BIP multiple quarters ahead) should be considered 
 #       with caution
 #   -However, the former stronger results (HP-BIP) provide additional evidence for the latter weaker (BIP) results  
-#       -Predicting the low-frequency part of BIP is likely to tell something about future BIP, assuming the latter is not white noise
+#       -Predicting the low-frequency part of BIP is likely to tell something about future BIP, assuming 
+#         the latter is not white noise 
 
 
 # Final notes on the publication lag and data revisions
@@ -752,8 +840,9 @@ p_value_HAC_BIP_oos
 #   -According to feedback, our setting for the publication lag, i.e., lag_vec[1]=2, is too large (reflecting some prudence)
 #     -The official/effective publication lag of BIP is one quarter
 #     -But BIP is revised and we here ignore revisions
-#     -On the other hand, the weight M-SSA assigns to BIP is rather weak; and data revisions affect 
-#       mainly the so-called `direct forecasts'; finally, smoothing by HP mitigates the effect of data revisions
+#     -On the other hand, the weight M-SSA assigns to BIP is rather weak (other, timely indicators are more important); 
+#       moreover, data revisions affect mainly the so-called `direct forecasts'; 
+#       finally, smoothing by HP mitigates the effect of data revisions
 # In summary: we expect that performances at an indicated forward-shift of k quarters (in all the above evaluations) 
 #   are likely to be representative of performances at effectively k+1 quarters ahead. 
 
