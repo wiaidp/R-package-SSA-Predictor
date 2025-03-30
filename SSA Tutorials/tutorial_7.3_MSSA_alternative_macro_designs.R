@@ -811,8 +811,10 @@ box()
 
 # Further comments:
 # -One can scroll back the plots generated in the plot-panel
-# -Doing so would show that the two-sided filter (black-line in previous plots) looks strange
-#   -HP(1600) is more sensitive to the singular pandemic data (than the previous more adaptive designs)
+# -Doing so would show that the two-sided filter (black-line in previous plots) behaves strangely after the 
+#     financial crisis
+#   -To a good extent, some of the anomalies are due to the singular Pandemic readings
+#   -HP(1600) is more sensitive to the Pandemic than the previous (more adaptive) designs
 
 #---------------------------------------------
 # Findings overall:
