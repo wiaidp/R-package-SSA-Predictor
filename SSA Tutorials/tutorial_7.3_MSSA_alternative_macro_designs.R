@@ -687,7 +687,7 @@ length(which(p_value_HAC_BIP_oos<0.01))
 
 #######################################################################################
 # Exercise 3: More adaptive design
-# -The previous exercise 1 suggests that we might be able to predict HP-BIP several quarters ahead
+# -The previous exercise 1 confirms that we can predict HP-BIP several quarters ahead
 # -But predicting BIP is more challenging because the noisy high-frequency part of BIP is essentially unpredictable
 # -However, one cannot exclude a priori that the target specification, HP(160), as specified in exercise 1 is too smooth
 #   -Maybe we suppressed information relevant for predicting BIP?
@@ -755,18 +755,22 @@ p_value_HAC_BIP_oos
 # We can see a slight improvement (smaller p-values) when using a more adaptive target HP(16) for M-SSA
 
 # Notes: 
-# -Slightly more adaptive (smaller lambda_HP) or more aggressive (forecast excess>0) designs can improve
-#   performances further
+# -Slightly more adaptive designs (smaller lambda_HP) or more aggressive settings  (larger forecast excess) 
+#   can improve performances further
 # -Danger of data-snooping
+# -Danger of phase-reversal 
 
 ##################################################################################
 # Exercise 4
 # As a counterpoint to exercise 3 above, we now briefly analyze the rather inflexible classic
-#   quarterly HP(1600) design as a target for M-SSA, to back-up our previous discussion with empirical facts
+#   quarterly HP(1600) design as a target for M-SSA, to back-up our previous discussion 
+#   with some empirical facts
 
 lambda_HP<-1600
-# Given a slower decay (stronger smoothing), we here increase the filter length
+# Given a slower decay (stronger smoothing), we may consider longer filters
 L_long<-2*L-1
+# Or just keep it fixed (faster numerical optimization if filters are shorter)
+L_long<-L
 # We also use the larger HTs of exercise 1.5
 ht_mssa_vec_long<-ht_mssa_vec_long
 # Run the wrapper  
@@ -805,6 +809,10 @@ box()
 #   -the right tail of the HP(1600) corresponds to an AR(2) with a comparatively long periodicity
 #   -advancing the filter by a full year has only small/marginal effects on the phase (when compared to HP(160) or HP(16)) 
 
+# Further comments:
+# -One can scroll back the plots generated in the plot-panel
+# -Doing so would show that the two-sided filter (black-line in previous plots) looks strange
+#   -HP(1600) is more sensitive to the singular pandemic data (than the previous more adaptive designs)
 
 #---------------------------------------------
 # Findings overall:
