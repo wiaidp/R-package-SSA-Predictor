@@ -21,7 +21,7 @@
 #     -This trend-growth component is termed HP-BIP
 # -Forecast performance measures:
 #   -We shall consider forecast performances of M-SSA against forward-shifted HP-BIP and BIP based on
-#     -The target correlations: correlations of predictors with forward-shifted BIP or HP-BIP
+#     -The target correlation: correlation of predictor with forward-shifted BIP or HP-BIP
 #     -The rRMSE: relative root mean-square error when benchmarked against classic direct predictors or mean(BIP) (simple benchmark)
 #     -HAC-adjusted p-values of (t-statistics of) regressions of predictors on targets (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
 # To do: provide additional Diebold-Mariano (DM) and Giacomini-White (GW) tests of unequal predictability (benchmarked against mean(BIP))
@@ -75,7 +75,6 @@ load(file=paste(getwd(),"\\Data\\macro",sep=""))
 tail(data)
 lag_vec<-c(2,rep(0,ncol(data)-1))
 # Note: we assume a publication lag of two quarters for BIP, see the discussion in tutorial 7.2
-
 
 # Plot the data
 # The real-time BIP (red) is lagging the target (black) by lag_vec[1] quarters (publication lag)
@@ -134,7 +133,8 @@ head(compute_mssa_BIP_predictors_func)
 
 # We can supply various hyperparameters (designs) and the function returns M-SSA predictors as 
 #     specified in tutorial 7.2
-# -The main hyperparameter is lambda_HP: a smaller lambda_HP means increased adaptivity 
+# -The main hyperparameter is lambda_HP: a smaller lambda_HP means increased adaptivity
+# -Below, we shall also consider various settings for the forecast horizon (Timeliness) and the HT (smoothness) 
 
 # We now first replicate tutorial 7.2 with the above wrapper
 
@@ -149,7 +149,7 @@ date_to_fit<-"2008"
 p<-1
 q<-0
 # Holding-times (HT): controls smoothness of M-SSA (the following numbers are pasted from the original predictor)
-# Increasing these numbers leads to predictors with less zero-crossings (smoother)
+# Increasing these numbers leads to predictors with less zero-crossings (smoother), see tutorial 7.1
 ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
 # Forecast horizons: M-SSA is optimized for each forecast horizon in h_vec 
@@ -208,7 +208,7 @@ box()
 #   -We compare M-SSA against the mean (of BIP) and against a classic direct forecast
 #   -The direct forecast is based on regressing a selection of macro indicators on forward-shifted BIP
 
-# We can specify the selection of macro-indicators 
+# We can specify the selection of macro-indicators for the direct forecast 
 select_direct_indicator<-c("ifo_c","ESI")
 # Note: too complex designs (too many indicators) lead to overfitting and thus worse out-of-sample performances
 # To illustrate the direct predictor consider the following example of a h-step ahead direct forecast:
@@ -305,7 +305,7 @@ cor_mat_BIP_oos
 #   forward-shifted BIP (see further down for details)
 p_value_HAC_BIP_oos
 # The last predictor, optimized for h=6, is on the edge of statistical significance up to a forward-shift=3 
-#   -Note that the out-of-sample span is quite short 
+#   -Note that the out-of-sample span is quite short here 
 
 # We now look at pairwise comparisons with established benchmarks in terms of relative root mean-square 
 #   errors: rRMSE
@@ -462,7 +462,7 @@ p_value_HAC_HP_BIP_oos[k,j]
 #-----------------
 # 1.4 For a better interpretation of the M-SSA predictor, we propose to examine its sub-series
 #   -We can examine which sub-series is (are) more/less likely to trigger a dynamic change of the predictor/nowcast
-# -For illustration, we select the M-SSA nowcast
+#   -For illustration, we select the M-SSA nowcast
 j_now<-1
 # This is the forecast horizon (nowcast)
 h_vec[j_now]
@@ -512,7 +512,7 @@ box()
 #   which are not yet `priced-in' (as of Jan-2025).
 #---------------
 # 1.5 Changing the HT
-# -In the above exercises we addressed timeliness by the foecast horizon h_vec and the forecast excess f_excess
+# -In the above exercises we addressed timeliness by the forecast horizon h_vec and the forecast excess f_excess
 # -Here we briefly address smoothness by increasing the HT in the HT-constraint
 # -This exercise can be viewed as a further validity or robustness check for the M-SSA predictor
 
@@ -520,7 +520,7 @@ box()
 ht_mssa_vec_long<-2*ht_mssa_vec
 names(ht_mssa_vec_long)<-colnames(x_mat)
 # Stronger smoothing might require longer filters 
-#   -We here ignore this effect and set L_long=L (main advantage: faster numerical computation)
+#   -We here ignore this effect and set L_long=L (advantage of shorter filters: faster numerical computation)
 L_long<-L
 
 # Run the wrapper  
@@ -551,8 +551,9 @@ axis(2)
 box()
 
 # -We can observe increased smoothness of the predictors, as expected 
-#   -The expected duration between consecutive zero-crossings should double on sufficiently long spans, assuming the VAR to be `true'
-# -Overall, the general pattern towards the sample end confirms earlier findings (based on smaller HTs)
+#   -The expected duration between consecutive zero-crossings should double (when compared to the previous results) 
+#     on sufficiently long spans, assuming the VAR to be `true', see tutorial 7.1 for background
+# -Overall, the general pattern of the predictors towards the sample end confirms earlier findings (based on smaller HTs)
 # -But nowcast and short-term forecasts are more prudent with respect to up-turn dynamics
 
 
@@ -680,8 +681,9 @@ length(which(p_value_HAC_BIP_oos<0.01))
 #   -The acf and the VAR-model contradict the WN assumption
 #   -The systematic structure in the performance matrices (top-down/left-right) suggests predictability
 #   -The recent negative BIP-readings are not `random` events: they are due in part to exogenous shock-waves and 
-#     also to endogenous decisions whose underlying(s) did not realize as wished for (remarked self-critical assessments by the former `Ampel' minister of economic affairs are telling)
-#   -These deviations of BIP from WN concern lower frequencies in the spectral decomposition     
+#     also to endogenous decisions whose underlying(s) did not realize as wished for (self-critical assessments by the former `Ampel' minister of economic affairs are telling)
+#   -These deviations of BIP from WN concern lower frequency components of the spectral decomposition, as 
+#     emphasized by HP-BIP
 
 #######################################################################################
 # Exercise 3: More adaptive design
