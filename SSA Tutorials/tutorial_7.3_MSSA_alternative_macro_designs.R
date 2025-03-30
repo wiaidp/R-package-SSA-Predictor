@@ -635,7 +635,7 @@ length(which(p_value_HAC_BIP_oos<0.01))
 #   -The systematic structure in the performance matrices (top-down/left-right) suggests predictability
 #   -The recent negative BIP-readings are not `random` events: they are due in part to exogenous shock-waves and 
 #     also to endogenous decisions whose underlying(s) did not realize as wished for (remarked self-critical assessments by the former `Ampel' minister of economic affairs are telling)
-     
+#   -These deviations of BIP from WN concern lower frequencies in the spectral decomposition     
 
 #######################################################################################
 # Exercise 3: More adaptive design
