@@ -1,5 +1,5 @@
 
-compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
+compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit,use_garch)
 {
   
   len<-dim(dat)[1]
@@ -11,10 +11,16 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
   cal_oos_pred<-rep(NA,len)
   for (i in (n+2):(len-1)) #i<-n+2
   {
-    y.garch_11<-garchFit(~garch(1,1),data=dat[1:i,1],delta=2,include.delta=F,include.mean=T,trace=F)
-    sigma<-y.garch_11@sigma.t
-    weight<-1/sigma
-    # Fit model with data up to time point i    
+    if (use_garch)
+    {
+      y.garch_11<-garchFit(~garch(1,1),data=dat[1:i,1],include.mean=T,trace=F)
+      sigma<-y.garch_11@sigma.t
+      weight<-1/sigma^2
+    } else
+    {
+      weight<-rep(1,i)
+    }
+    # Fit model with data up to time point i; weighted least-squares using GARCH vola   
     lm_obj<-lm(dat[1:i,1]~dat[1:i,2:(n+1)],weight=weight)
     # Compute out-of-sample prediction for i+1
     # Distinguish only one from multiple explanatory variables (R-code different...)    
@@ -60,7 +66,8 @@ library(fGarch)
 
 
 
-date_to_fit<-"2008"
+date_to_fit<-"2007"
+use_garch<-T
 
 p_mat<-matrix(ncol=3,nrow=6)
 for (shift in 1:6)
@@ -73,7 +80,7 @@ for (shift in 1:6)
   rownames(dat)<-rownames(x_mat)
   dat<-na.exclude(dat)
   
-  perf_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit)
+  perf_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit,use_garch)
   
   p_mat[shift,1]<-perf_obj$p_value 
   
@@ -82,7 +89,7 @@ for (shift in 1:6)
   rownames(dat)<-rownames(x_mat)
   dat<-na.exclude(dat)
   
-  perf_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit)
+  perf_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit,use_garch)
   
   p_mat[shift,2]<-perf_obj$p_value 
   
@@ -92,7 +99,7 @@ for (shift in 1:6)
   rownames(dat)<-rownames(x_mat)
   dat<-na.exclude(dat)
   
-  perf_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit)
+  perf_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit,use_garch)
   
   p_mat[shift,3]<-perf_obj$p_value 
 }
