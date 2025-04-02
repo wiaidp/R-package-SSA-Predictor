@@ -28,11 +28,11 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit,use_g
     if (n==1)
     {
       # Classic regression prediction        
-      cal_oos_pred[i+shift]<-lm_obj$coef[1]+lm_obj$coef[2]*dat[i+shift,2] 
+      cal_oos_pred[i+shift]<-(lm_obj$coef[1]+lm_obj$coef[2]*dat[i+shift,2])
     } else
     {
       # Classic regression prediction though we use %*% instead of * above      
-      cal_oos_pred[i+shift]<-lm_obj$coef[1]+lm_obj$coef[2:(n+1)]%*%dat[i+shift,2:(n+1)] 
+      cal_oos_pred[i+shift]<-(lm_obj$coef[1]+lm_obj$coef[2:(n+1)]%*%dat[i+shift,2:(n+1)]) 
     }
   }
   # Once the predictors are computed we can obtain the out-of-sample prediction errors
@@ -62,17 +62,19 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit,use_g
   return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value,MSE_oos=MSE_oos))
 }
 
+
 library(fGarch)
 
 select_vec_multi
+sel_vec_pred<-select_vec_multi[2]
 sel_vec_pred<-select_vec_multi[1:5]
 sel_vec_pred<-select_vec_multi[c(1,2)]
 date_to_fit<-"2007"
 use_garch<-T
 
 rRMSE_vec<-NULL
-p_mat<-matrix(ncol=3,nrow=6)
-for (shift in 1:6)#shift<-4
+p_mat<-matrix(ncol=3,nrow=7)
+for (shift in 0:6)#shift<-3
 {
   print(shift)
   k<-shift+1
@@ -84,17 +86,24 @@ for (shift in 1:6)#shift<-4
   
   perf_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit,use_garch,shift)
   
-  p_mat[shift,1]<-perf_obj$p_value 
+  p_mat[shift+1,1]<-perf_obj$p_value 
   MSE_oos_mssa<-perf_obj$MSE_oos
   
 # M-SSA components
-  dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mssa_array[sel_vec_pred,,k]))
+  if (length(sel_vec_pred)>1)
+  {
+    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mssa_array[sel_vec_pred,,k]))
+  } else
+  {
+    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mssa_array[sel_vec_pred,,k]))
+  }
+  
   rownames(dat)<-rownames(x_mat)
   dat<-na.exclude(dat)
   
   perf_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit,use_garch,shift)
   
-  p_mat[shift,2]<-perf_obj$p_value 
+  p_mat[shift+1,2]<-perf_obj$p_value 
   MSE_oos_mssa_comp<-perf_obj$MSE_oos
   
   
@@ -105,16 +114,19 @@ for (shift in 1:6)#shift<-4
   
   perf_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit,use_garch,shift)
   
-  p_mat[shift,3]<-perf_obj$p_value 
+  p_mat[shift+1,3]<-perf_obj$p_value 
   MSE_oos_direct<-perf_obj$MSE_oos
   
   rRMSE_vec<-c(rRMSE_vec,sqrt(MSE_oos_mssa_comp/MSE_oos_direct))
 }
 
 colnames(p_mat)<-c("M-SSA","M-SSA components","Direct")
-rownames(p_mat)<-paste("shift=",1:6,sep="")
+rownames(p_mat)<-names(rRMSE_vec)<-paste("shift=",0:6,sep="")
 
 p_mat
 rRMSE_vec
+
+
+ts.plot(scale(dat),col=c("black",rainbow(ncol(dat)-1)))
 
 
