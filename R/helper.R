@@ -71,7 +71,7 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit,use_g
 library(fGarch)
 
 select_vec_multi
-sel_vec_pred<-select_vec_multi[2]
+sel_vec_pred<-select_vec_multi[3:5]
 sel_vec_pred<-select_vec_multi
 sel_vec_pred<-select_vec_multi[c(1,2)]
 date_to_fit<-"2007"

@@ -315,18 +315,16 @@ p_value_HAC_BIP_oos
 # Remarks:
 #   1. Since M-SSA predictors are standardized (equal-weighting cross-sectional aggregation), we need to 
 #         calibrate them by regression onto the target (to determine static level and scale parameters)
-#   2. As a result, rRMSE of M-SSA against mean(BIP) and the above target correlations are redundant statistics: 
-#         the information content is the same but it is presented in an alternative, slightly different form 
-#   3. Background:
+#   2. Background:
 #       -The M-SSA objective function is the target correlation (not the mean-square error) 
 #       -Therefore, M-SSA ignores static level and scale adjustments
-#   4. Root mean-square errors are evaluated on the out-of-sample span only (specified by date_to_fit)
+#   3. Root mean-square errors are evaluated on the out-of-sample span only (specified by date_to_fit)
 #   5. The benchmark direct predictors are full-sample estimates 
 #       -Estimates based on short in-sample spans are unreliable (insignificant regression coefficients)
 #   6. The benchmark mean-predictor used in our comparisons is based on the mean of the target in the 
 #       out-of-sample span (it is looking ahead)
 #   7. The main purpose of these comparisons is to evaluate the dynamic capability of the M-SSA predictor out-of-sample
-#       -The (ex post) static level and scale adjustments are deemed less relevant
+#       -Static level and scale adjustments are deemed less relevant
 
 # With these remarks in mind let's begin:
 # The first rRMSE emphasizes M-SSA vs. the mean benchmark (of BIP), both targeting HP-BIP: 
