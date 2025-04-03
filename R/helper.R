@@ -3,12 +3,12 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit,use_g
 {
   
   len<-dim(dat)[1]
-  # First column is target, i.e. dimension is dim(dat)[2]-1
+# First column is target, i.e. dimension is dim(dat)[2]-1
   n<-dim(dat)[2]-1
-  # Compute calibrated out-of-sample predictor, based on expanding window
-  #   -Use data up i for fitting the regression
-  #   -Compute a prediction with explanatory data in i+1
-  cal_oos_pred<-rep(NA,len)
+# Compute calibrated out-of-sample predictor, based on expanding window
+#   -Use data up i for fitting the regression
+#   -Compute a prediction with explanatory data in i+1
+  cal_oos_pred<-cal_oos_mean_pred<-rep(NA,len)
   for (i in (n+2):(len-shift)) #i<-n+2
   {
     if (use_garch)
@@ -20,46 +20,56 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit,use_g
     {
       weight<-rep(1,i)
     }
-    # Fit model with data up to time point i; weighted least-squares using GARCH vola   
+# 1. Predictors in dat    
+# Fit model with data up to time point i; weighted least-squares using GARCH vola   
     lm_obj<-lm(dat[1:i,1]~dat[1:i,2:(n+1)],weight=weight)
     summary(lm_obj)
-    # Compute out-of-sample prediction for i+1
-    # Distinguish only one from multiple explanatory variables (R-code different...)    
+# Compute out-of-sample prediction for i+1
+# Distinguish only one from multiple explanatory variables (R-code different...)    
     if (n==1)
     {
-      # Classic regression prediction        
+# Classic regression prediction        
       cal_oos_pred[i+shift]<-(lm_obj$coef[1]+lm_obj$coef[2]*dat[i+shift,2])
     } else
     {
-      # Classic regression prediction though we use %*% instead of * above      
+# Classic regression prediction though we use %*% instead of * above      
       cal_oos_pred[i+shift]<-(lm_obj$coef[1]+lm_obj$coef[2:(n+1)]%*%dat[i+shift,2:(n+1)]) 
     }
+# 2. Mean
+    lm_obj<-lm(dat[1:i,1]~rep(1,i)-1,weight=weight)
+    summary(lm_obj)
+# Compute out-of-sample prediction for i+1
+    cal_oos_mean_pred[i+shift]<-lm_obj$coef[1]
   }
-  # Once the predictors are computed we can obtain the out-of-sample prediction errors
+# Once the predictors are computed we can obtain the out-of-sample prediction errors
   epsilon_oos<-dat[,1]-cal_oos_pred
   index_oos<-which(rownames(dat)>date_to_fit)
-  # And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
+# And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
   lm_oos<-lm(dat[index_oos,1]~cal_oos_pred[index_oos])
   ts.plot(cbind(dat[index_oos,1],cal_oos_pred[index_oos]),main=paste("shift=",shift,sep=""))
   summary(lm_oos)
   sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
   sd_ols<-sqrt(diag(vcov(lm_oos)))
-  # Compute max of both vola estimates: HAC-adjustment is not 100% reliable (maybe issue with R-package sandwich)  
+# Compute max of both vola estimates: HAC-adjustment is not 100% reliable (maybe issue with R-package sandwich)  
   sd_max<-max(sd_ols[2],sd_HAC[2])
   sd_max<-sd_HAC[2]
   t_HAC<-summary(lm_oos)$coef[2,1]/sd_max
-  # One-sided test: if predictor is effective, then the sign of the coefficient must be positive (ngetaive signs can be ignored) 
+# One-sided test: if predictor is effective, then the sign of the coefficient must be positive (ngetaive signs can be ignored) 
   p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
   if (F)
   {
-    # Classic OLS p-values
+# Classic OLS p-values
     sd_ols<-sqrt(diag(vcov(lm_oos)))
     t_ols<-summary(lm_oos)$coef[2,1]/sd_ols[2]
     OLS_p_value<-pt(t_ols, nrow(dat)-2, lower=FALSE)
   }
+# Out-of-sample MSE of predictor  
   MSE_oos<-mean(epsilon_oos[index_oos]^2)
+# Same but for mean predictor  
+  epsilon_mean_oos<-dat[,1]-cal_oos_mean_pred
+  MSE_mean_oos<-mean(epsilon_mean_oos[index_oos]^2)
   
-  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value,MSE_oos=MSE_oos))
+  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value,MSE_oos=MSE_oos,MSE_mean_oos=MSE_mean_oos))
 }
 
 
@@ -72,7 +82,7 @@ sel_vec_pred<-select_vec_multi[c(1,2)]
 date_to_fit<-"2007"
 use_garch<-T
 
-rRMSE_vec<-NULL
+rRMSE_mat<-NULL
 p_mat<-matrix(ncol=3,nrow=7)
 for (shift in 0:6)#shift<-3
 {
@@ -105,7 +115,7 @@ for (shift in 0:6)#shift<-3
   
   p_mat[shift+1,2]<-perf_obj$p_value 
   MSE_oos_mssa_comp<-perf_obj$MSE_oos
-  
+  MSE_mean_oos<-perf_obj$MSE_mean_oos
   
 # Direct
   dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),x_mat[,sel_vec_pred])
@@ -117,14 +127,15 @@ for (shift in 0:6)#shift<-3
   p_mat[shift+1,3]<-perf_obj$p_value 
   MSE_oos_direct<-perf_obj$MSE_oos
   
-  rRMSE_vec<-c(rRMSE_vec,sqrt(MSE_oos_mssa_comp/MSE_oos_direct))
+  rRMSE_mat<-rbind(rRMSE_mat,c(sqrt(MSE_oos_mssa_comp/MSE_oos_direct),sqrt(MSE_oos_mssa_comp/MSE_mean_oos)))
 }
 
 colnames(p_mat)<-c("M-SSA","M-SSA components","Direct")
-rownames(p_mat)<-names(rRMSE_vec)<-paste("shift=",0:6,sep="")
+colnames(rRMSE_mat)<-c("M-SSA components vs. Direct", "M-SSA components vs. mean")
+rownames(p_mat)<-rownames(rRMSE_mat)<-paste("shift=",0:6,sep="")
 
 p_mat
-rRMSE_vec
+rRMSE_mat
 
 
 ts.plot(scale(dat),col=c("black",rainbow(ncol(dat)-1)))
