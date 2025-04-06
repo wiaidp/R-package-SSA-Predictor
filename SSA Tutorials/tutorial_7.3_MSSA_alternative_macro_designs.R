@@ -513,9 +513,9 @@ box()
 # Let's check what happens when we apply the above battery of tests and performance measures to white noise
 #   -Target correlations should be small, rRMSEs should be close to one and p-values should be above 5%
 # Note: 
-# -We're looking into a multiple-test problem, since we consider 5*5=25 tests (p-values)
+# -We're looking into a multiple-test problem, since we consider 7*7=49 tests (p-values)
 #   -We do not account/adjust for this problem. 
-#   -But one should expect to see randomly significant results in the simultaneous 25 tests 
+#   -But one should expect to see randomly significant results in the simultaneous 49 tests 
 #     even if the data is white noise
 
 # 2.1
@@ -548,7 +548,7 @@ set.seed(10)
 #   -We observe p-values below 5% more often than in 5% of all cases
 #   -Therefore, some care is needed when evaluating results on the verge of statistical significance
 # However, our results also suggest that p-values below 1% are `rare` 
-#   -We found only one p-value below 1% for the above set.seeds, out of 10*5*5*2=500 computed values
+#   -We found only one p-value below 1% for the above set.seeds, out of 10*7*7*2~1000 computed values
 
 x_mat_white_noise<-NULL
 for (i in 1:ncol(x_mat))
@@ -874,7 +874,7 @@ perf_obj$MSE_mean_oos_without_covid
 #   -Specifically, we compute HAC-adjusted p-values and rRMSEs when comparing M-SSA component predictors with 
 #       the simple expanding mean as well as with the direct forecasts
 #     -Direct forecasts are based on the more effective WLS-regression (in contrast to OLS regression in exercise 1 above)
-# -We compute all combinations of forward-shift and forecast horizon (6*6 matrix of performance metrics)
+# -We compute all combinations of forward-shift and forecast horizon (7*7 matrix of performance metrics)
 # -All regressions rely on WLS, as based on the (inverse of the squared) GARCH(1,1)-vola
 # -Computations may take several minutes (regressions and GARCH-models are recomputed anew for each time point)
 
@@ -952,7 +952,7 @@ rRMSE_mSSA_comp_direct_without_covid
 rRMSE_mSSA_comp_mean_without_covid
 
 # Summary (main findings)
-# -The original M-SSA predictor does not emphasize MSE-performances
+# -The original M-SSA predictor (exercise 1) does not emphasize MSE-performances explicitly
 # -For that purpose we can rely on the M-SSA components, underlying the construction of the M-SSA predictor
 #   -The link between the M-SSA predictor and the components is illustrated in exercise 3.1, see also tutorial 7.2 (exercise 3)
 #   -The components can be used for assessing and interpreting the M-SSA predictor, see exercise 3.2
@@ -960,11 +960,11 @@ rRMSE_mSSA_comp_mean_without_covid
 #     -Technical note: our results suggest that WLS regression dominates OLS, out-of-sample
 # -Outcome (MSE performance gains): 
 #   -The M-SSA components predictor outperforms significantly the simple mean as well as the direct forecasts 
-#      (the latter also based on WLS regression) in terms of MSE-performances at forward-shifts of up to one year
+#      (the latter also based on WLS regression) in terms of MSE-performances at forward-shifts of up to one year ahead
 #     -At shifts larger than 4 quarters, p-values and rRMSEs seem to take a hit (in particular when excluding the Pandemic)
 #   -These results hold irrespective of the singular Pandemic readings
 #     -The Pandemic weakens efficiency gains and statistical significance but the overall picture remains roughly the same
-#   -M-SSA designs optimized for larger forecast horizons tend to outperform systematically
+#   -M-SSA designs optimized for larger forecast horizons tend to perform better 
 #     -Possible explanation: the selected BIP- and ip- (M-SSA) components are targeting (slightly) lagging series
 #     -The lags of the targets can be compensated by larger forecast horizons
 
