@@ -685,8 +685,11 @@ h_vec[j_now]
 tail(t(mssa_array[,,j_now]))
 # These sub-series correspond to the outputs of the multivariate M-SSA optimized for horizon h_vec[j_now]
 #   -One output for each series of the multivariate design
+#   -For each series, the target is the two-sided HP applied to this series and shifted forward by the forecast horizon
+#   -For each of these targets, the explanatory variables are the series of the multivariate design (BIP, ip, ifo, ESI and spread) 
 # We can check that the M-SSA predictor is the cross-sectional mean of the standardized sub-series: 
 agg_std_comp<-apply(scale(t(mssa_array[,,j_now])),1,mean)
+
 
 mplot<-cbind(agg_std_comp, predictor_mssa_mat[,j_now])
 rownames(mplot)<-rownames(x_mat)
@@ -710,14 +713,19 @@ box()
 # Alternative check: the maximal error/deviation should be `small' (zero up to numerical precision)
 max(abs(apply(scale(t(mssa_array[,,j_now])),1,mean)-predictor_mssa_mat[,j_now]),na.rm=T)
 
-
-
+# Remarks:
+# -Equal-weighting of the M-SSA components, as done above, indicates that we assume each M-SSA series to be equally
+#   important for tracking dynamic changes of the BIP growth-rate by the resulting M-SSA predictor.
+# -But we could think about a more sophisticated weighting scheme: for example, regressing the components on forward-shifted BIP
+#   -This way, we'd explicitly emphasize MSE forecast performances by the resulting (new) M-SSA `components` predictor
+# -The corresponding `component predictor' will be derived and analyzed in exercise 3.3 below.
+  
 #---------------
-# 3.2 We now exploit the components for a better interpretation of the M-SSA predictor.
-#   -We can examine which sub-series is (are) more/less likely to trigger a dynamic change of the predictor/nowcast
+# 3.2 We now exploit the M-SSA components in view of a better interpretation (explanation/understanding) of the M-SSA predictor.
+#   -We can examine which sub-series is (are) more/less likely to trigger a dynamic change of the M-SSA predictor
 #   -For illustration, we select the M-SSA nowcast
 
-# Plot M-SSA nowcast and sub-series
+# Plot M-SSA nowcast and components
 par(mfrow=c(1,1))
 # Scale the data 
 mplot<-scale(cbind(predictor_mssa_mat[,j_now],scale(t(mssa_array[,,j_now]))))
@@ -742,15 +750,19 @@ box()
 # -All sub-series date the trough of the growth rate of the German economy in late 2023 
 # -Currently (Jan-2025), the strongest positive dynamics are supported by the (leading) spread sub-series (violet dashed line)
 # Notes:
-# -The trough (minimum) of the grow-rate in the previous figure anticipates the trough of BIP by up to several quarters
-# -The timing of the BIP-trough is sandwiched between the trough and the next zero-crossing of the growth-rate (recall that the zero-line corresponds to average growth)
+# -The trough (minimum) of the grow-rate in the previous figure anticipates the effective trough of BIP (in levels) 
+#     by up to several quarters
+# -The timing of the BIP-trough (in level) is sandwiched between the trough of the growth-rate and the next 
+#     zero-crossing (of the growth-rate). 
+#   -Recall, in this context, that the zero-line in the above plot corresponds to (long-term) average growth 
+#     which is of course a (strictly) positive number. 
 # -Given that the nowcast just passed the zero-line, we infer that the 
-#   trough of BIP might be behind, already (based on Jan-2025 data)
+#     trough of BIP might be behind, based on Jan-2025 data.
 # -However, not all sub-series would support this claim
 #   -The zero-crossing of the nowcast (solid line in the above plot) is triggered by the (leading) spread, mainly
 #   -ifo and ESI are barely above the zero-line 
-#   -ip and BIP are `waiting' for further evidence and confirmation
-# -Looking at the sub-series can help when interpreting the predictor (explainability) 
+#   -ip and BIP are `waiting' for further evidence and confirmation. 
+# -Looking at the M-SSA components (sub-series) can help when interpreting the predictor (explainability) 
 # -Faint/fragile signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
 #   which are not yet `priced-in' (as of Jan-2025).
 
