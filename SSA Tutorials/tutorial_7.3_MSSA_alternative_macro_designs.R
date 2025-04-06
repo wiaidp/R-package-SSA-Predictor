@@ -1161,16 +1161,13 @@ box()
 #     components of BIP
 #   -Sub-components of the M-SSA predictor are potentially useful for interpretation purposes (see exercise 3.2) 
 #     and for addressing MSE performances explicitly, see exercise 3.3
+#     -`Smartly' weighted M-SSA components are able to predict BIP multiple quarters ahead, though performances 
+#       take a hit for horizons larger than a year.
 
 # C. Statistical significance
 #   -HAC-adjustments (of test-statistics) seem unable to account fully for the observed data-idiosyncrasies
-#     -Exercise 2 suggests that strongly significant results (HP-BIP) are convincing, especially so when 
-#       considering the `logically consistent' pattern in the matrices (top/down and left/right))
-#     -But results on the verge of significance (targeting BIP multiple quarters ahead) should be considered 
-#       with caution
-#   -However, the former stronger results (HP-BIP) provide additional evidence for the latter weaker (BIP) results  
-#       -Predicting the low-frequency part of BIP is likely to tell something about future BIP, assuming 
-#         the latter is not white noise 
+#   -However, exercise 2 suggests that biases are relatively small
+#     -p-values smaller than one percent are rare in the case of simulated white noise
 
 
 # Final notes on the publication lag and data revisions
