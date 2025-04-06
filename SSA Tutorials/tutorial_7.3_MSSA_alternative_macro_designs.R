@@ -891,7 +891,7 @@ perf_obj$p_value
 perf_obj$p_value_without_covid
 # We also obtain the out-of-sample MSE (the mean of oos_error_wls^2, where oos_error_wls were obtained in exercise 3.3.3 above)
 perf_obj$MSE_oos
-# The same but without Pandemic: we can size the impact of the crisis on the MSE metric!
+# The same but without Pandemic: we can s(e)ize the impact of the crisis on the MSE metric!
 perf_obj$MSE_oos_without_covid
 # The function also compute the out-of-sample MSE of the simple mean benchmark predictor (expanding window): 
 #   -we expect the mean (benchmark) to be a worse predictor with a larger out-of-sample MSE than the 
@@ -1000,7 +1000,7 @@ rRMSE_mSSA_comp_mean_without_covid
 #   -The M-SSA components predictor outperforms significantly the simple mean as well as the direct forecasts 
 #      (the latter also based on WLS regression) in terms of MSE-performances at forward-shifts of up to one year ahead
 #     -At shifts larger than four quarters, p-values and rRMSEs seem to take a hit (in particular when excluding the Pandemic)
-#       but M-SSA still performs (slightly) better
+#       but M-SSA still tends to perform (slightly) better
 #   -These results hold irrespective of the singular Pandemic readings
 #     -The Pandemic outliers weaken efficiency gains and statistical significance but the overall picture remains roughly the same
 #   -M-SSA designs optimized for larger forecast horizons tend to perform better 
