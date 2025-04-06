@@ -660,6 +660,90 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
 
 
 
+compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
+{
+  
+  len<-dim(dat)[1]
+  # First column is target, i.e. dimension is dim(dat)[2]-1
+  n<-dim(dat)[2]-1
+  # Compute calibrated out-of-sample predictor, based on expanding window
+  #   -Use data up i for fitting the regression
+  #   -Compute a prediction with explanatory data in i+1
+  cal_oos_pred<-cal_oos_mean_pred<-rep(NA,len)
+  for (i in (n+2):(len-shift)) #i<-n+2
+  {
+    # If use_garch==T then the regression relies on weighted least-squares, whereby the weights are based 
+    #   on volatility obtained from a GARCH(1,1) model fitted to target (first column of dat)
+    if (use_garch)
+    {
+      y.garch_11<-garchFit(~garch(1,1),data=dat[1:i,1],include.mean=T,trace=F)
+      sigmat<-y.garch_11@sigma.t
+      # Weights are proportional to 1/sigmat^2      
+      weight<-1/sigmat^2
+    } else
+    {
+      # Fixed weight      
+      weight<-rep(1,i)
+    }
+    # 1. Use predictors in columns 2,..., of dat    
+    # Fit model with data up to time point i; weighted least-squares relying on weight as defined above  
+    lm_obj<-lm(dat[1:i,1]~dat[1:i,2:(n+1)],weight=weight)
+    summary(lm_obj)
+    # Compute out-of-sample prediction for time point i+shift
+    if (n==1)
+    {
+      # Only one predictor      
+      #   Classic regression prediction        
+      cal_oos_pred[i+shift]<-(lm_obj$coef[1]+lm_obj$coef[2]*dat[i+shift,2])
+    } else
+    {
+      # Multiple predictors      
+      #  We use %*% instead of * above      
+      cal_oos_pred[i+shift]<-(lm_obj$coef[1]+lm_obj$coef[2:(n+1)]%*%dat[i+shift,2:(n+1)]) 
+    }
+    # 2. Use mean as predictor (simplest benchmark)
+    cal_oos_mean_pred[i+shift]<-mean(dat[1:i,1])
+  }
+  # Once the predictors are computed we can obtain the out-of-sample prediction errors
+  epsilon_oos<-dat[,1]-cal_oos_pred
+  index_oos<-which(rownames(dat)>start_fit)
+  # And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
+  lm_oos<-lm(dat[index_oos,1]~cal_oos_pred[index_oos])
+  ts.plot(cbind(dat[index_oos,1],cal_oos_pred[index_oos]),main=paste("shift=",shift,sep=""))
+  summary(lm_oos)
+  sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
+  t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
+  # One-sided test: if predictor is effective, then the sign of the coefficient must be positive (negative signs can be ignored) 
+  p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
+  # Out-of-sample MSE of predictor  
+  MSE_oos<-mean(epsilon_oos[index_oos]^2)
+  # Same but for benchmark mean predictor  
+  epsilon_mean_oos<-dat[,1]-cal_oos_mean_pred
+  MSE_mean_oos<-mean(epsilon_mean_oos[index_oos]^2)
+  # The same as above but without Pandemic: check that Pandemic is within data span
+  if ((sum(rownames(dat)>2019)>0)&(sum(rownames(dat)<2019)>0))
+  {
+    # Specify out-of-sample span without COVID    
+    index_oos_without_covid<-index_oos[rownames(dat)[index_oos]<2019]
+    # Check
+    rownames(dat)[index_oos_without_covid]
+    # Compute HAC adjusted p-value    
+    lm_oos<-lm(dat[index_oos_without_covid,1]~cal_oos_pred[index_oos_without_covid])
+    summary(lm_oos)
+    sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
+    t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
+    # One-sided test: if predictor is effective, then the sign of the coefficient must be positive (negtaive signs can be ignored) 
+    p_value_without_covid<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
+    # Compute MSE: predictor and mean   
+    MSE_oos_without_covid<-mean(epsilon_oos[index_oos_without_covid]^2)
+    MSE_mean_oos_without_covid<-mean(epsilon_mean_oos[index_oos_without_covid]^2)
+  }
+  
+  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value,MSE_oos=MSE_oos,MSE_mean_oos=MSE_mean_oos,MSE_mean_oos_without_covid=MSE_mean_oos_without_covid,MSE_oos_without_covid=MSE_oos_without_covid,p_value_without_covid=p_value_without_covid))
+}
+
+
+
 ##################################################################################
 # Old code
 

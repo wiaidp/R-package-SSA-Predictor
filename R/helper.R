@@ -1,5 +1,5 @@
 
-compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit,use_garch,shift)
+compute_calibrated_out_of_sample_predictors_func<-function(dat,start_fit,use_garch,shift)
 {
   
   len<-dim(dat)[1]
@@ -45,7 +45,7 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit,use_g
   }
 # Once the predictors are computed we can obtain the out-of-sample prediction errors
   epsilon_oos<-dat[,1]-cal_oos_pred
-  index_oos<-which(rownames(dat)>date_to_fit)
+  index_oos<-which(rownames(dat)>start_fit)
 # And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
   lm_oos<-lm(dat[index_oos,1]~cal_oos_pred[index_oos])
   ts.plot(cbind(dat[index_oos,1],cal_oos_pred[index_oos]),main=paste("shift=",shift,sep=""))
