@@ -771,18 +771,21 @@ box()
 # -As stated above, the M-SSA predictor emphasizes dynamic changes (recessions/expansions); MSE performances are deemed less relevant
 #   -In particular, the predictor is standardized: neither its level nor its scale are calibrated to BIP
 # -In order to track BIP more explicitly, we may rely on the predictor (sub-)components in the previous figure
-# -For this purpose, we regress the components on forward-shifted BIP
-# -This is the same proceeding as for the direct forecasts, as illustrated in exercise 1.2.1, except that we rely on 
-#   the M-SSA components as regressors (instead of the original indicators)
+# -For this purpose, we regress the components on forward-shifted BIP (instead of applying an equal-weighting scheme)
+# -This is the same proceeding as for the direct forecasts, as illustrated in exercise 1.2.1, except that we rely  
+#   on the M-SSA components as regressors (instead of the original indicators)
 
 # 3.3.1 Selection
-# -We can select the components which are deemed relevant for MSE performances
+# -We can select the M-SSA components which are deemed relevant for MSE performances
 #   -ESI, ifo and spread are mainly relevant in a dynamic context (for the M-SSA predictor)
-#   -In contrast, BIP and ip sub-components are more relevant in a MSE perspective that we here emphasize
-#   -Note that ESI, ifo and spread are important in the determination of these two (BIP- and ip-) M-SSA components
+#   -In contrast, BIP and ip M-SSA components are natural candidates in a MSE perspective (which is emphasized here).
+#   -Note, however, that ESI, ifo and spread are important determinants of the two (BIP- and ip-) M-SSA components
+#     -Overall, ESI, ifo and spread are more important than ip or BIP  
 sel_vec_pred<-select_vec_multi[c(1,2)]
+# Selected M-SSA components
 sel_vec_pred
-# We can select the forward shift of BIP: for illustration we assume a 2 quarters ahead forward-shift
+# We can select the forward shift of BIP: for illustration we assume a 2 quarters ahead forward-shift 
+#   (below we analyze all shifts, from zero to six quarters ahead)
 shift<-2
 # We can select the forecast horizon of the M-SSA components: we select a 4 quarters ahead horizon 
 #   (below, we shall look all all combinations of shift and forecast horizon)
@@ -795,28 +798,33 @@ rownames(dat)<-rownames(x_mat)
 colnames(dat)<-c(paste("BIP shifted forward by lag_vec+shift=",shift+lag_vec[1],sep=""),
                     paste("Predictor component ",colnames(t(mssa_array[sel_vec_pred,,k])),": h=",h_vec[k],sep=""))
 tail(dat)
-# Remove NAs
+# We target BIP shifted forward by shift+publication lag (first column) based on M-SSA components BIP and ip
+
+# For estimation purposes we can remove all NAs
 dat<-na.exclude(dat)
 
 #-----------------
 # 3.3.2 Regression
 # We now regress forward-shifted BIP (first column) on the components
-#   For illustration we use data up to Q1-2017
+#   Specify in-sample span (below we shall use an expanding window starting in Q1-2007)
 i_time<-which(rownames(dat)>2017)[1]
+# In-sample span: 
 tail(dat[1:i_time,])
 # Regression
 lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)])
 summary(lm_obj)
-# Compute out-of-sample prediction for time point i+shift
+# The M-SSA components seem to be significant (HAC-adjustment doesn't contradict this statement)
+
+# Compute an out-of-sample prediction for time point i+shift
 oos_pred<-(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift,2:ncol(dat)]) 
-# Compute out-of-sample MSE
+# Compute the out-of-sample forecast error
 oos_error<-dat[i_time+shift,1]-oos_pred
 # This is the out-of-sample error we observe shift=2 quarters ahead
 oos_error
 
 #---------------
-# 3.3.3 Better regression
-# Given that BIP is subject to heteroscedasticity we may apply a GARCH(1,1) to obtain an estimate of its variance
+# 3.3.3 Better regression: we can improve the weighting of the M-SSA components further.
+# -Given that BIP is subject to heteroscedasticity we may apply a GARCH(1,1) to obtain an estimate of its variance
 y.garch_11<-garchFit(~garch(1,1),data=dat[1:i_time,1],include.mean=T,trace=F)
 summary(y.garch_11)
 sigmat<-y.garch_11@sigma.t
@@ -842,61 +850,69 @@ axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4
 axis(2)
 box()
 
-# We can now apply weighted least-squares instead of OLS, using the (inverse of the) GARCH-vola for the weights 
+# We can now apply weighted least-squares (WLS) instead of OLS, using the (inverse of the) GARCH-vola for the weights 
 weight<-1/sigmat^2
 # Apply WLS instead of OLS
 lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)],weight=weight)
 summary(lm_obj)
-# Compute out-of-sample prediction for time point i+shift
+# The weights are different (as compared to OLS above)
+
+# Compute out-of-sample prediction for time point i+shift: note that the GARCH is irrelevant when computing the predictor
 oos_pred_wls<-(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift,2:ncol(dat)]) 
-# Compute out-of-sample MSE
+# Compute out-of-sample forecast error
 oos_error_wls<-dat[i_time+shift,1]-oos_pred_wls
 # This is the out-of-sample error we observe in shift=2 quarters later
 oos_error_wls
 # Compare to out-of-sample error based on OLS: 
 oos_error
-# WLS outperforms OLS out-of-sample. A more extensive analysis would show that WLS is better on average, 
-#   i.e., over multiple time points
+# WLS outperforms OLS out-of-sample, at least for time point i_time+shift. 
+#   -A more extensive analysis would show that WLS is better on average (over many more time points)
+#   -Therefore we now apply WLS when deriving weights of M-SSA components
+#   -For comparison and benchmarking, we also derive a new direct forecast based on WLS (in contrast to 
+#     exercise 1.2.1 above which is based on classic OLS)
 
 #------------
-# 3.3.4 Apply the above findings to all data points after 2007 (entire financial crisis is out-of-sample)
+# 3.3.4 Apply the above findings to all data points after 2007: expanding window including the entire financial 
+#   crisis for out-of-sample evaluation
 
 start_fit<-"2007"
-# Use WLS based on GARCH model when regressing explanatory on forward-shifted BIP
+# Use WLS based on GARCH model when regressing explanatory on forward-shifted BIP (setting the Boolean to F amounts to OLS)
 use_garch<-T
-# The following function compute_component_predictors_func applies the above WLS-regression for all time points
-#     after start_fit, based on an expanding window
-#   -For each time point, a GARCH is fitted and the WLS-regression is re-computed based on the new GARCH-weights
-# Note: we can ignore warnings which are generated by the GARCH estimation routine
+# The following function applies the above WLS-regression for all time points larger/later than start_fit
+#     (expanding window).
+#   -For each time point, a GARCH is fitted and the WLS-regression is computed based on the up-dated GARCH-weights
+# Note: we can ignore `warnings' which are generated by the GARCH estimation routine
 perf_obj<-compute_component_predictors_func(dat,start_fit,use_garch,shift)
 
 # The function computes HAC-adjusted p-values of the regression of the out-of-sample predictor (oos_pred_wls obtained in exercise 3.3.3 above)
-#   on forward.shifted BIP
+#   on forward-shifted BIP
 perf_obj$p_value
 # The same but without singular Pandemic readings
 perf_obj$p_value_without_covid
-# We also obtain the out-of-sample MSE (mean of oos_error_wls^2, where oos_error_wls were obtained in exercise 3.3.3 above)
+# We also obtain the out-of-sample MSE (the mean of oos_error_wls^2, where oos_error_wls were obtained in exercise 3.3.3 above)
 perf_obj$MSE_oos
-# The same but without Pandemic
+# The same but without Pandemic: we can size the impact of the crisis on the MSE metric!
 perf_obj$MSE_oos_without_covid
-# The function also compute the out-of-sample MSE of the simple mean benchmark predictor: we expect the latter to 
-#   be larger than for the M-SSA components above (at least for smaller forward-shifts of BIP)
+# The function also compute the out-of-sample MSE of the simple mean benchmark predictor (expanding window): 
+#   -we expect the mean (benchmark) to be a worse predictor with a larger out-of-sample MSE than the 
+#     M-SSA components, at least for smaller forward-shifts of BIP
 perf_obj$MSE_mean_oos
 perf_obj$MSE_mean_oos_without_covid
 
 #----------------
 # 3.3.5 Compute performances of M-SSA components as predictors for forward-shifted BIP
 # -Performance metrics:
-#   -In contrast to the M-SSA predictor in exercise 1, we here explicitly emphasize (out-of-sample) MSE performances
+#   -In contrast to the M-SSA predictor in exercise 1, we here explicitly emphasize MSE performances
 #   -Specifically, we compute HAC-adjusted p-values and rRMSEs when comparing M-SSA component predictors with 
 #       the simple expanding mean as well as with the direct forecasts
 #     -Direct forecasts are based on the more effective WLS-regression (in contrast to OLS regression in exercise 1 above)
 # -We compute all combinations of forward-shift and forecast horizon (7*7 matrix of performance metrics)
 # -All regressions rely on WLS, as based on the (inverse of the squared) GARCH(1,1)-vola
-# -Computations may take several minutes (regressions and GARCH-models are recomputed anew for each time point)
+# -Computations may take several minutes (regressions and GARCH-models are recomputed for each time point and all combinations of shift/horizon))
 
+# Initialize performance matrices
 p_mat_mssa<-p_mat_mssa_components<-p_mat_mssa_components_without_covid<-p_mat_direct<-rRMSE_mSSA_comp_direct<-rRMSE_mSSA_comp_mean<-rRMSE_mSSA_comp_direct_without_covid<-rRMSE_mSSA_comp_mean_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec))
-# The double loop computes all combinations of forard-shifts (of BIP) and forecast horizons (of M-SSA)
+# The double loop computes all combinations of forward-shifts (of BIP) and forecast horizons (of M-SSA)
 for (shift in h_vec)#shift<-1
 {
 # We can see the progress in the R console: shift starts at 0 and ends at a value of 6 (quarters ahead)
@@ -921,7 +937,7 @@ for (shift in h_vec)#shift<-1
     dat<-na.exclude(dat)
 # Apply the previous function    
     perf_obj<-compute_component_predictors_func(dat,start_fit,use_garch,shift)
-    
+# Retrieve out-of-sample performances    
     p_mat_mssa_components[shift+1,k]<-perf_obj$p_value
     p_mat_mssa_components_without_covid[shift+1,k]<-perf_obj$p_value_without_covid
     MSE_oos_mssa_comp<-perf_obj$MSE_oos
@@ -930,8 +946,9 @@ for (shift in h_vec)#shift<-1
     MSE_mean_oos_without_covid<-perf_obj$MSE_mean_oos_without_covid
     
 # B. Direct forecasts
-# The main difference to M-SSA above is the specification of the explanatory variables, i.e., x_mat
-    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),x_mat[,sel_vec_pred])
+# -The main difference to M-SSA above is the specification of the explanatory variables: here x_mat 
+#   -We here select all series (but one could easily change this setting)
+    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),x_mat)
     rownames(dat)<-rownames(x_mat)
     dat<-na.exclude(dat)
     
