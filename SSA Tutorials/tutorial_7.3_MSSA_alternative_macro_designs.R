@@ -994,26 +994,28 @@ rRMSE_mSSA_comp_mean_without_covid
 # -For that purpose we can rely on the M-SSA components, underlying the construction of the M-SSA predictor
 #   -The link between the M-SSA predictor and the components is illustrated in exercise 3.1, see also tutorial 7.2 (exercise 3)
 #   -The components can be used for assessing and interpreting the M-SSA predictor, see exercise 3.2
-#   -Addressing out-of-sample MSE performances is proposed in exercise 3.3
-#     -Technical note: our results suggest that WLS regression dominates OLS, out-of-sample
-# -Outcome (MSE performance gains): 
+#   -Out-of-sample MSE performances are addressed in exercise 3.3
+#     -Technical note: our results suggest that WLS regression (based on GARCH-vola) dominates OLS, out-of-sample
+# -Outcome (out-of-sample MSE performance gains): 
 #   -The M-SSA components predictor outperforms significantly the simple mean as well as the direct forecasts 
 #      (the latter also based on WLS regression) in terms of MSE-performances at forward-shifts of up to one year ahead
-#     -At shifts larger than 4 quarters, p-values and rRMSEs seem to take a hit (in particular when excluding the Pandemic)
+#     -At shifts larger than four quarters, p-values and rRMSEs seem to take a hit (in particular when excluding the Pandemic)
+#       but M-SSA still performs (slightly) better
 #   -These results hold irrespective of the singular Pandemic readings
-#     -The Pandemic weakens efficiency gains and statistical significance but the overall picture remains roughly the same
+#     -The Pandemic outliers weaken efficiency gains and statistical significance but the overall picture remains roughly the same
 #   -M-SSA designs optimized for larger forecast horizons tend to perform better 
 #     -Possible explanation: the selected BIP- and ip- (M-SSA) components are targeting (slightly) lagging series
-#     -The lags of the targets can be compensated by larger forecast horizons
+#     -The lags of the targets can be compensated for by larger forecast horizons
 
 
 #######################################################################################
 # Exercise 4: More adaptive design
 # -Exercise 1 above confirms that we can predict HP-BIP several quarters ahead by the M-SSA predictor
-# -But predicting BIP is more challenging: for this purpose exercise 3 proposed an analysis of M-SSA components
+# -But predicting BIP is more challenging
+#   -For this purpose exercise 3 proposed an analysis of M-SSA components (a more sophisticated weighting scheme than equally-weighted)
 # -However, we cannot exclude (a priori) that the target specification, HP(160), as specified in the previous 
 #     exercises, is `too smooth'
-#   -Maybe (too much) relevant information has been suppressed?
+#   -Maybe relevant information has been suppressed...
 # -To verify this conjecture, we now analyze a more adaptive design by selecting lambda_HP=16 `small`
 
 # Question: does the more flexible design allow to predict BIP (not HP-BIP) more reliably?
