@@ -26,7 +26,7 @@
 #     -HAC-adjusted p-values of (t-statistics of) regressions of predictors on targets (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
 # To do: provide additional Diebold-Mariano (DM) and Giacomini-White (GW) tests of unequal predictability (benchmarked against mean(BIP))
 
-# The tutorial is structured into 4 exercises
+# The tutorial is structured into 5 exercises
 # Exercise 1: apply a fairly adaptive design based on targeting a HP(160) filter by M-SSA
 #   -HP(160) deviates from the standard HP(1600) specification typically recommended for quarterly data
 #     -See a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
@@ -38,8 +38,13 @@
 # Exercise 2: apply M-SSA to white noise data to verify that the proposed performance measures and tests confirm unpredictability
 #   -We shall see that the HAC-adjustment cannot fully account for all data idiosyncrasies
 #   -However, empirical significance levels do not appear to be strongly biased
-# Exercise 3: analyze a more adaptive M-SSA design based on targeting HP(16) by M-SSA
-# Finally, exercise 4 briefly analyzes the classic HP(1600) as a target for M-SSA
+# Exercise 3: the proposed M-SSA predictor emphasizes dynamic changes of the trend growth-rate of BIP. It is 
+#   not designed explicitly for mean-square forecast performances when targeting BIP. Therefore, exercise 3 proposes
+#   to rely on the (sub-) components of the M-SSA predictor when targeting BIP explicitly. We shall see that the 
+#   corresponding predictor is able to outperform the classic mean-benchmark as well as the direct forecasts in 
+#   terms of out-sample MSE performances up to multiple quarters ahead.
+# Exercise 4: analyze a more adaptive M-SSA design based on targeting HP(16) by M-SSA
+# Finally, exercise 5 briefly analyzes the classic HP(1600) as a target for M-SSA (negative example to corroborate earlier results)
 
 #-------------------------------------
 # Start with a clean sheet
