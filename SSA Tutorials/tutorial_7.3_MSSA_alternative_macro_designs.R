@@ -884,8 +884,10 @@ perf_obj$MSE_mean_oos_without_covid
 # -Computations may take several minutes (regressions and GARCH-models are recomputed anew for each time point)
 
 p_mat_mssa<-p_mat_mssa_components<-p_mat_mssa_components_without_covid<-p_mat_direct<-rRMSE_mSSA_comp_direct<-rRMSE_mSSA_comp_mean<-rRMSE_mSSA_comp_direct_without_covid<-rRMSE_mSSA_comp_mean_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec))
+# The double loop computes all combinations of forard-shifts (of BIP) and forecast horizons (of M-SSA)
 for (shift in h_vec)#shift<-1
 {
+# We can see the progress in the R console: shift starts at 0 and ends at a value of 6 (quarters ahead)
   print(shift)
   
   for (j in h_vec)#j<-1
@@ -893,7 +895,7 @@ for (shift in h_vec)#shift<-1
     
     k<-j+1
     
-# M-SSA components
+# A. M-SSA components
 # For a single predictor (vector) one does not have to rely on the transposition t(mssa_array[sel_vec_pred,,k])   
     if (length(sel_vec_pred)>1)
     {
@@ -905,7 +907,7 @@ for (shift in h_vec)#shift<-1
     
     rownames(dat)<-rownames(x_mat)
     dat<-na.exclude(dat)
-    
+# Apply the previous function    
     perf_obj<-compute_component_predictors_func(dat,start_fit,use_garch,shift)
     
     p_mat_mssa_components[shift+1,k]<-perf_obj$p_value
@@ -915,7 +917,8 @@ for (shift in h_vec)#shift<-1
     MSE_mean_oos<-perf_obj$MSE_mean_oos
     MSE_mean_oos_without_covid<-perf_obj$MSE_mean_oos_without_covid
     
-# Direct forecasts
+# B. Direct forecasts
+# The main difference to M-SSA above is the specification of the explanatory variables, i.e., x_mat
     dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),x_mat[,sel_vec_pred])
     rownames(dat)<-rownames(x_mat)
     dat<-na.exclude(dat)
@@ -933,7 +936,8 @@ for (shift in h_vec)#shift<-1
   }
 }
 
-# Note: warnings are issued by GARCH estimation routine and can be ignored
+# Note: possible warnings issued by the GARCH estimation routine can be ignored
+
 # Assign column and rownames
 colnames(p_mat_mssa_components)<-colnames(p_mat_direct)<-colnames(p_mat_mssa_components_without_covid)<-
   colnames(rRMSE_mSSA_comp_direct)<-colnames(rRMSE_mSSA_comp_mean)<-
@@ -942,7 +946,7 @@ rownames(p_mat_mssa_components)<-rownames(p_mat_direct)<-rownames(p_mat_mssa_com
   rownames(rRMSE_mSSA_comp_direct)<-rownames(rRMSE_mSSA_comp_mean)<-
   rownames(rRMSE_mSSA_comp_direct_without_covid)<-rownames(rRMSE_mSSA_comp_mean_without_covid)<-paste("Shift=",h_vec,sep="")
 
-# HAC-adjusted p-values of out-of-sample M-SSA components starting in start_fit=2007
+# HAC-adjusted p-values of out-of-sample M-SSA starting in start_fit=2007
 p_mat_mssa_components
 # Same but without Pandemic
 p_mat_mssa_components_without_covid
