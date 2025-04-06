@@ -26,7 +26,7 @@
 #     -HAC-adjusted p-values of (t-statistics of) regressions of predictors on targets (HAC adjustment can account for autocorrelation and heteroscedasticity of regression residuals)
 # To do: provide additional Diebold-Mariano (DM) and Giacomini-White (GW) tests of unequal predictability (benchmarked against mean(BIP))
 
-# The tutorial is structured into 5 exercises
+# The tutorial is structured into five exercises
 # Exercise 1: apply a fairly adaptive design based on targeting a HP(160) filter by M-SSA
 #   -HP(160) deviates from the standard HP(1600) specification typically recommended for quarterly data
 #     -See a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
