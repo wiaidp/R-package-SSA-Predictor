@@ -902,8 +902,9 @@ perf_obj$MSE_mean_oos_without_covid
 #----------------
 # 3.3.5 Compute performances of M-SSA components as predictors for forward-shifted BIP
 # -Performance metrics:
-#   -In contrast to the M-SSA predictor in exercise 1, we here explicitly emphasize MSE performances
-#   -Specifically, we compute HAC-adjusted p-values and rRMSEs when comparing M-SSA component predictors with 
+#   -In contrast to the M-SSA predictor in exercise 1, we here explicitly emphasize MSE performances when 
+#     targeting forward-shifted BIP (instead of HP-BIP)
+#   -We compute HAC-adjusted p-values and rRMSEs when comparing M-SSA component predictors with 
 #       the simple expanding mean as well as with the direct forecasts
 #     -Direct forecasts are based on the more effective WLS-regression (in contrast to OLS regression in exercise 1 above)
 # -We compute all combinations of forward-shift and forecast horizon (7*7 matrix of performance metrics)
