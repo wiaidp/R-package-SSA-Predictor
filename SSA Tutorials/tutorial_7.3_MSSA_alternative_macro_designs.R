@@ -643,15 +643,22 @@ length(which(p_value_HAC_BIP_oos<0.01))
 
 ##################################################################################
 # Exercise 3 Working with (M-SSA) BIP predictor (sub-)components
-# -Background: the M-SSA predictor (the matrix predictor_mssa_mat) is constructed from components (the array mssa_array)
-# -We here briefly illustrate the construction principle: see exercise 3.1. 
+# Purposes: 
+# 1. Interpretability
+# 2. Address explicitly MSE-forecast performances when targeting forward-shifted BIP
+#   -Explanation to 2: the M-SSA predictor in exercise 1 is designed to track HP-BIP; in doing so, it also 
+#     tracks BIP `somehow`; but it is not designed to track future BIP explicitly
+
+# Technical background: 
+# -The M-SSA predictor (the matrix predictor_mssa_mat) is constructed from components (array mssa_array)
+#   -We here briefly review, illustrate and confirm the construction principle: see exercise 3.1. 
 # -Subsequently, we suggest that predictor components support additional information that can be exploited.
 # -Specifically, we address interpretability, see exercise 3.2, and MSE forecast performances, see exercise 3.3
 #   -Recall that the M-SSA predictor is designed to address dynamic changes (up-/downturns, target correlation, smoothness)
 #   -Therefore, MSE performances are deemed less relevant, in particular when targeting BIP (instead of HP-BIP)
-#   -We shall see that BIP predictor components can be used to address more explicitly MSE performances
+#   -We shall see that BIP predictor components can be used to this effect: address BIP-MSE performances more explicitly
 
-# To start, let us intialize all settings as in exercise 1 above
+# To start, let us initialize all settings as in exercise 1 above
 lambda_HP<-160
 L<-31
 date_to_fit<-"2008"
@@ -671,8 +678,6 @@ predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 mssa_array<-mssa_indicator_obj$mssa_array
 
 
-
-
 # 3.1 What are BIP predictor (sub-)components?
 # -The M-SSA BIP predictor was introduced in tutorial 7.2, exercise 3
 #   -The BIP predictor is obtained as the equally-weighted aggregate of standardized M-SSA outputs of all indicators (BIP, ip, ifo, ESI, spread)
@@ -689,8 +694,7 @@ tail(t(mssa_array[,,j_now]))
 #   -For each of these targets, the explanatory variables are the series of the multivariate design (BIP, ip, ifo, ESI and spread) 
 # We can check that the M-SSA predictor is the cross-sectional mean of the standardized sub-series: 
 agg_std_comp<-apply(scale(t(mssa_array[,,j_now])),1,mean)
-
-
+# Plot the above aggregate and the M-SSA predictor
 mplot<-cbind(agg_std_comp, predictor_mssa_mat[,j_now])
 rownames(mplot)<-rownames(x_mat)
 colnames(mplot)<-c("Cross-sectional mean of standardized predictor components","M-SSA predictor")
@@ -708,18 +712,19 @@ abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_
 axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
 axis(2)
 box()
-
-# Both series are identical
+# Both series are identical (overlap)
 # Alternative check: the maximal error/deviation should be `small' (zero up to numerical precision)
 max(abs(apply(scale(t(mssa_array[,,j_now])),1,mean)-predictor_mssa_mat[,j_now]),na.rm=T)
 
 # Remarks:
 # -Equal-weighting of the M-SSA components, as done above, indicates that we assume each M-SSA series to be equally
-#   important for tracking dynamic changes of the BIP growth-rate by the resulting M-SSA predictor.
-# -But we could think about a more sophisticated weighting scheme: for example, regressing the components on forward-shifted BIP
-#   -This way, we'd explicitly emphasize MSE forecast performances by the resulting (new) M-SSA `components` predictor
+#   important for tracking dynamic changes of the BIP growth-rate by the resulting M-SSA predictor. This 
+#   `naive' assumption may be questioned. But at least the rule (equal-weighting) is robust and simple.
+# -Instead, we could think about a more sophisticated weighting scheme: for example, regressing the components 
+#     on forward-shifted BIP. 
+#   -This way, we'd explicitly emphasize BIP-MSE forecast performances by the resulting (new) M-SSA `components` predictor
 # -The corresponding `component predictor' will be derived and analyzed in exercise 3.3 below.
-  
+# -But first we now consider an another application of the components, namely interpretability (of the M-SSA predictor)  
 #---------------
 # 3.2 We now exploit the M-SSA components in view of a better interpretation (explanation/understanding) of the M-SSA predictor.
 #   -We can examine which sub-series is (are) more/less likely to trigger a dynamic change of the M-SSA predictor
@@ -752,22 +757,22 @@ box()
 # Notes:
 # -The trough (minimum) of the grow-rate in the previous figure anticipates the effective trough of BIP (in levels) 
 #     by up to several quarters
-# -The timing of the BIP-trough (in level) is sandwiched between the trough of the growth-rate and the next 
+# -The timing of the BIP-trough (in levels) is sandwiched between the trough of the growth-rate and the next 
 #     zero-crossing (of the growth-rate). 
 #   -Recall, in this context, that the zero-line in the above plot corresponds to (long-term) average growth 
-#     which is of course a (strictly) positive number. 
-# -Given that the nowcast just passed the zero-line, we infer that the 
+#     (crossing `average growth' signifies positive growth). 
+# -Given that the nowcast just passed the zero-line in the above plot, we infer that the 
 #     trough of BIP might be behind, based on Jan-2025 data.
-# -However, not all sub-series would support this claim
-#   -The zero-crossing of the nowcast (solid line in the above plot) is triggered by the (leading) spread, mainly
+# -However, not all components (sub-series) would support this claim
+#   -The strongest up-turn signal is supported by the (leading) spread (which has been subjected to critic as a leading indicator)
 #   -ifo and ESI are barely above the zero-line 
 #   -ip and BIP are `waiting' for further evidence and confirmation. 
-# -Looking at the M-SSA components (sub-series) can help when interpreting the predictor (explainability) 
+# -Looking at the M-SSA components (sub-series) can assist when interpreting the predictor (explainability) 
 # -Faint/fragile signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
 #   which are not yet `priced-in' (as of Jan-2025).
 
 #-------------------------------------
-# Exercise 3.3 Addressing MSE-performances
+# Exercise 3.3 Addressing BIP-MSE performances
 # -As stated above, the M-SSA predictor emphasizes dynamic changes (recessions/expansions); MSE performances are deemed less relevant
 #   -In particular, the predictor is standardized: neither its level nor its scale are calibrated to BIP
 # -In order to track BIP more explicitly, we may rely on the predictor (sub-)components in the previous figure
@@ -776,11 +781,10 @@ box()
 #   on the M-SSA components as regressors (instead of the original indicators)
 
 # 3.3.1 Selection
-# -We can select the M-SSA components which are deemed relevant for MSE performances
+# -We can select the M-SSA components which are deemed relevant for MSE performances when targeting BIP
 #   -ESI, ifo and spread are mainly relevant in a dynamic context (for the M-SSA predictor)
 #   -In contrast, BIP and ip M-SSA components are natural candidates in a MSE perspective (which is emphasized here).
 #   -Note, however, that ESI, ifo and spread are important determinants of the two (BIP- and ip-) M-SSA components
-#     -Overall, ESI, ifo and spread are more important than ip or BIP  
 sel_vec_pred<-select_vec_multi[c(1,2)]
 # Selected M-SSA components
 sel_vec_pred
@@ -806,20 +810,20 @@ dat<-na.exclude(dat)
 #-----------------
 # 3.3.2 Regression
 # We now regress forward-shifted BIP (first column) on the components
-#   Specify in-sample span (below we shall use an expanding window starting in Q1-2007)
-i_time<-which(rownames(dat)>2017)[1]
+#   -Specify an arbitrary in-sample span for illustration (below we shall use an expanding window starting in Q1-2007)
+i_time<-which(rownames(dat)>2011)[1]
 # In-sample span: 
 tail(dat[1:i_time,])
 # Regression
 lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)])
 summary(lm_obj)
-# The M-SSA components seem to be significant (HAC-adjustment doesn't contradict this statement)
+# The M-SSA components seem to be significant (HAC-adjustment wouldn't contradict this statement)
 
 # Compute an out-of-sample prediction for time point i+shift
 oos_pred<-(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift,2:ncol(dat)]) 
 # Compute the out-of-sample forecast error
 oos_error<-dat[i_time+shift,1]-oos_pred
-# This is the out-of-sample error we observe shift=2 quarters ahead
+# This is the out-of-sample error that will be observed shift=2 quarters ahead
 oos_error
 
 #---------------
@@ -855,7 +859,7 @@ weight<-1/sigmat^2
 # Apply WLS instead of OLS
 lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)],weight=weight)
 summary(lm_obj)
-# The weights are different (as compared to OLS above)
+# The regression coefficients are slightly different (when compared to OLS above)
 
 # Compute out-of-sample prediction for time point i+shift: note that the GARCH is irrelevant when computing the predictor
 oos_pred_wls<-(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift,2:ncol(dat)]) 
@@ -870,11 +874,21 @@ oos_error
 #   -Therefore we now apply WLS when deriving weights of M-SSA components
 #   -For comparison and benchmarking, we also derive a new direct forecast based on WLS (in contrast to 
 #     exercise 1.2.1 above which is based on classic OLS)
+# We can also compute the simple mean-benchmark
+mean_bench<-mean(dat[1:i_time,1])
+# It's out-of-sample forecast error is
+oos_error_mean<-dat[i_time+shift,1]-mean_bench
+# The rRMSE of the WLS (M-SSA) component predictor referenced against the mean is
+rRMSE_mSSA_comp_mean<-sqrt(mean(oos_error_wls^2)/mean(oos_error_mean^2))
+rRMSE_mSSA_comp_mean
+# Next, we shall average rRMSE over a longer out-of-sample span, starting in 2007 and ending on Jan-2025
 
 #------------
 # 3.3.4 Apply the above findings to all data points after 2007: expanding window including the entire financial 
 #   crisis for out-of-sample evaluation
 
+# Start with fitting the WLS regression in 2007 (the entire financial crisis will be out-of-sample, even for larger forecast horizons)
+#   -Note that the available estimation span is rather short at the start (due to filter initialization)
 start_fit<-"2007"
 # Use WLS based on GARCH model when regressing explanatory on forward-shifted BIP (setting the Boolean to F amounts to OLS)
 use_garch<-T
