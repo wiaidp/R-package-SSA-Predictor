@@ -1,7 +1,7 @@
 # Tutorial 7.3: we propose various M-SSA BIP (GDP Germany) predictor designs
-# The concept of M-SSA predictors for BIP was introduced in tutorial 7.2
-# We wrapped this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
-# We here propose a `fairly adaptive' predictor in exercise 1 and a `more adaptive' one in exercise 3
+# -The concept of M-SSA predictors for BIP was introduced in tutorial 7.2
+# -We wrapped this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
+# -We here propose a `fairly adaptive' predictor in exercise 1 and a `more adaptive' one in exercise 4
 #   -One might be able to find better hyperparameters by fine-tuning adaptivity further
 
 # Main purposes of this tutorial
@@ -12,7 +12,7 @@
 #     beyond a one quarter forecast horizon, see up-coming publication by Heinisch and Neufing (currently working paper)
 #   -We here illustrate that BIP can possibly be predicted consistently beyond half a year ahead
 #     -We emphasize mid-term predictability: 2-6 quarters ahead
-#   -Institutional forecasters are very good at nowcasting GDP: indeed, much better than M-SSA presented here
+#   -Institutional forecasters are very good at nowcasting GDP: indeed, quite better than M-SSA presented here
 #     -For this purpose they rely on a rich cross-section (many series) and mixed-frequency approaches, linking monthly and quarterly data
 #     -In contrast, M-SSA proposed in this tutorial considers few (important) indicators, within a purely quarterly scheme 
 #   -Tutorial 7.3 could eventually provide additional insights into the important prospect of mid-term GDP/BIP forecasting
@@ -31,16 +31,16 @@
 #   -HP(160) deviates from the standard HP(1600) specification typically recommended for quarterly data
 #     -See a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
 #     -See also the lengthy discussion in tutorial 7.2 
-#     -See also exercise 4 below
+#     -See also exercise 5 below
 #   -We shall see that M-SSA can predict HP-BIP (for which it is explicitly optimized) consistently 
 #      multiple quarters ahead (statistical significance)
 #   -It is more difficult to predict BIP, though: the noisy high-frequency components of BIP are unpredictable 
-# Exercise 2: apply M-SSA to white noise data to verify that the proposed performance measures and tests confirm unpredictability
-#   -We shall see that the HAC-adjustment cannot fully account for all data idiosyncrasies
+# Exercise 2: apply M-SSA to white noise data to verify that the proposed performance measures (and tests) confirm unpredictability
+#   -We shall see that the proposed HAC-adjustment cannot fully account for all data idiosyncrasies
 #   -However, empirical significance levels do not appear to be strongly biased
 # Exercise 3: the proposed M-SSA predictor emphasizes dynamic changes of the trend growth-rate of BIP. It is 
 #   not designed explicitly for mean-square forecast performances when targeting BIP. Therefore, exercise 3 proposes
-#   to rely on the (sub-) components of the M-SSA predictor when targeting BIP explicitly. We shall see that the 
+#   to rely on the (sub-) components of the M-SSA predictor when targeting BIP (instead of HP-BIP). We shall see that the 
 #   corresponding predictor is able to outperform the classic mean-benchmark as well as the direct forecasts in 
 #   terms of out-sample MSE performances up to multiple quarters ahead.
 # Exercise 4: analyze a more adaptive M-SSA design based on targeting HP(16) by M-SSA
