@@ -1,7 +1,7 @@
 # Tutorial 7.3: we propose various M-SSA BIP (GDP Germany) predictor designs
 # -The concept of M-SSA predictors for BIP was introduced in tutorial 7.2
 # -We wrapped this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
-# -We here propose a `fairly adaptive' predictor in exercise 1 and a `more adaptive' one in exercise 4
+# -In exercise 1, we propose a `fairly adaptive' predictor. A `more adaptive' one is analyzed in exercise 4 and a more inflexible one in exercise 5
 #   -One might be able to find better hyperparameters by fine-tuning adaptivity further
 
 # Main purposes of this tutorial
@@ -44,7 +44,7 @@
 #   corresponding predictor is able to outperform the classic mean-benchmark as well as the direct forecasts in 
 #   terms of out-sample MSE performances up to multiple quarters ahead.
 # Exercise 4: analyze a more adaptive M-SSA design based on targeting HP(16) by M-SSA
-# Finally, exercise 5 briefly analyzes the classic HP(1600) as a target for M-SSA (negative example to corroborate earlier results)
+# Finally, exercise 5 briefly analyzes the classic HP(1600) as a target for M-SSA
 
 #-------------------------------------
 # Start with a clean sheet
