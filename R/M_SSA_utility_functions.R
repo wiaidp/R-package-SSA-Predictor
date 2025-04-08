@@ -710,9 +710,11 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
 # Plot target and out-of-sample predictor  
   ts.plot(cbind(dat[index_oos,1],cal_oos_pred[index_oos]),main=paste("shift=",shift,sep=""))
   summary(lm_oos)
+# OLS standard error  
+  sd_OLS<-sqrt(diag(vcov(lm_oos)))
 # HAC adjustment (R-package sandwich)  
   sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
-  t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
+  t_HAC<-summary(lm_oos)$coef[2,1]/max(sd_HAC[2],sd_OLS[2])
 # One-sided test: if predictor is effective, then the sign of the coefficient must be positive (negative signs can be ignored) 
   p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
 # Out-of-sample MSE of predictor  
@@ -739,7 +741,7 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
     MSE_mean_oos_without_covid<-mean(epsilon_mean_oos[index_oos_without_covid]^2)
   }
   
-  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value,MSE_oos=MSE_oos,MSE_mean_oos=MSE_mean_oos,MSE_mean_oos_without_covid=MSE_mean_oos_without_covid,MSE_oos_without_covid=MSE_oos_without_covid,p_value_without_covid=p_value_without_covid))
+  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,epsilon_mean_oos=epsilon_mean_oos,p_value=p_value,MSE_oos=MSE_oos,MSE_mean_oos=MSE_mean_oos,MSE_mean_oos_without_covid=MSE_mean_oos_without_covid,MSE_oos_without_covid=MSE_oos_without_covid,p_value_without_covid=p_value_without_covid))
 }
 
 
@@ -760,8 +762,8 @@ compute_mssa_BIP_predictors_func_old<-function(x_mat,lambda_HP,L,date_to_fit,p,q
   symmetric_target=target_obj$symmetric_target 
   colnames(gamma_target)<-select_vec_multi
   #-------------------------
-  # 2. Fit  VAR on specified in-sample span
-  data_fit<-na.exclude(x_mat[which(rownames(x_mat)<date_to_fit),])#date_to_fit<-"2019-01-01"
+  # 2. Fit  VAR on specified in-sample span   date_to_fit<-"2007-12-01"
+  data_fit<-na.exclude(x_mat[which(rownames(x_mat)<=date_to_fit),])#date_to_fit<-"2019-01-01"
   set.seed(12)
   V_obj<-VARMA(data_fit,p=p,q=q)
   # Apply regularization: see vignette MTS package

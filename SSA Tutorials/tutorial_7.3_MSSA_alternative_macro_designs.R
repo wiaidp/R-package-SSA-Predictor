@@ -254,14 +254,22 @@ abline(h=0)
 #     -Small p-values indicate statistical significance of the predictor
 #     -Since target and predictor are subject to heteroscedasticity (COVID-outliers...) and autocorrelation
 #       we here rely on HAC-adjusted p-values (R-package sandwich)
-#   -We compute full-sample and out-of-sample results: the out-of-sample span is data after date_to_fit specified above
+#   -We compute full-sample and out-of-sample results: the entire financial crisis is out-of-sample
 #   -We consider two different targets
 #     a. Foreward-shifted HP applied to BIP: HP_BIP. This is the target for which M-SSA has been optimized
 #     b. Forward-shifted BIP, i.e., we include the (unpredictable) noisy high-frequency part of BIP
 # Note:
 #   -M-SSA does not target BIP directly; overfitting is not (less) of concern
 
-perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec) 
+# We select the out-of-sample span so that the entire financial crisis remains out-of-sample for all forecast horizons. 
+# Technical note: 
+#   -In principle date_to_fit and in_out_separator should be the same. 
+#   -But the MTS package stubbornly refuses to fit the VAR when date_to_fit=2007 (error message). 
+#   -In any case, the VAR does not `see` the financial crisis, which is effectively out-of-sample. 
+#   -Setting in_out_separator<-"2007" ensures that the financial crisis remains in the out-of-sample evaluation 
+#     span even for larger forecast horizons (so that comparisons remain meaningful for all forecast horizons)
+in_out_separator<-"2007"
+perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,in_out_separator,select_direct_indicator,h_vec) 
 
 # Retrieve all performance measures
 p_value_HAC_HP_BIP_full=perf_obj$p_value_HAC_HP_BIP_full
@@ -294,21 +302,20 @@ cor_mat_HP_BIP_full
 #   -For a given row (forward-shift of target) the maximum correlations stays at (or close to) the 
 #     diagonal element in this row
 
-# b. Out-of-sample (period following estimation span for VAR-model of M-SSA)
+# b. Out-of-sample 
 cor_mat_HP_BIP_oos
 # Similar to full-sample
 
 # We now look at the target correlation when the target is forward-shifted BIP (instead of HP-BIP) 
 cor_mat_BIP_full
 cor_mat_BIP_oos
-# Target correlations tend to be smaller (due to noise) and the previous systematic pattern is still recognizable
+# Target correlations tend to be smaller (due to noise), but the previous systematic pattern is still recognizable
 #   but attenuated (cluttered by noise) 
 
 
 # Note: 
 # -Out-of-sample correlations suggest that M-SSA predictors optimized for forecast horizons h>4 (the last two columns) 
 #     correlate positively with forward-shifted BIP up to shifts of 4 quarters 
-#   -Recall that we imposed a publication lag of 2 quarters to BIP, suggesting that a forward-shift of 3 quarters is close to a one-year ahead horizon
 # -Are these results suggesting a systematic predictability of BIP one year ahead (plus the publication lag lag_vec[1])?
 # -For answering this question we may look at HAC-adjusted p-values of regressions of out-of-sample predictors on 
 #   forward-shifted BIP (see further down for details)
@@ -316,29 +323,27 @@ p_value_HAC_BIP_oos
 # The last predictor, optimized for h=6, is on the edge of statistical significance up to a forward-shift=3 
 #   -Note that the out-of-sample span is quite short here 
 
-# We now look at pairwise comparisons with established benchmarks in terms of relative root mean-square 
-#   errors: rRMSE
-# rRMSE is the ratio of the root mean-Square forecast error (RMSE) of M-SSA over the RMSE of 
-#   a. the mean of BIP or
-#   b. the direct predictor obtained by simple regressions of the data (indicators) on forward-shifted BIP
-# Remarks:
-#   1. Since M-SSA predictors are standardized (equal-weighting cross-sectional aggregation), we need to 
-#         calibrate them by regression onto the target (to determine static level and scale parameters)
-#   2. Background:
-#       -The M-SSA objective function is the target correlation (not the mean-square error) 
-#       -Therefore, M-SSA ignores static level and scale adjustments
-#   3. Root mean-square errors are evaluated on the out-of-sample span only (specified by date_to_fit)
-#   5. The benchmark direct predictors are full-sample estimates 
-#       -Estimates based on short in-sample spans are unreliable (insignificant regression coefficients)
-#   6. The benchmark mean-predictor used in our comparisons is based on the mean of the target in the 
-#       out-of-sample span (it is looking ahead)
-#   7. The main purpose of these comparisons is to evaluate the dynamic capability of the M-SSA predictor out-of-sample
-#       -Static level and scale adjustments are deemed less relevant
 
-# With these remarks in mind let's begin:
+# We may also look at mean-square (MSE) forecast performances.
+# However, the M-SSA predictor is not explicitly designed for this purpose:
+#   -It is standardized (neither level nor scale are calibrated to match BIP).
+#   -The optimization criterion (the target correlation) ignores static level and scale parameters.
+# Therefore, we shall propose an alternative predictor in exercise 3 below 
+#   -An extension based on explicit calibration of level and scale to match future BIP
+
+# However, for the sake of curiosity, we here compute relative root MSE (rRMSE) of the M-SSA 
+#   predictor against the simple mean benchmark as well as against the classic direct forecast (the latter as described in exercise 1.2.1 above
+# Note that we are willingly cheating at this stage: 
+# 1. We calibrate level and scale of the M-SSA predictor based on out-of-sample data
+# 2. Direct forecasts are based on the full sample (including the out-of-sample span)
+# 3. The mean benchmark (mean of BIP) is based on out-of-sample BIP data
+# These shortcomings will be addressed in exercise 3 below. 
+# For now, our `cheating' rRMSE metrics reflect dynamic aspects of the forecast problem, 
+#   wherein static level and scale parameters are deemed less relevant 
+
 # The first rRMSE emphasizes M-SSA vs. the mean benchmark (of BIP), both targeting HP-BIP: 
 #   -Numbers smaller one signify an outperformance of M-SSA against the mean-benchmark when targeting HP-BIP
-# All metrics are out-of-sample
+# The evaluation sample is to the right (after) in_out_separator 
 rRMSE_MSSA_HP_BIP_mean
 # We next look at M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting HP-BIP
 rRMSE_MSSA_HP_BIP_direct
@@ -346,10 +351,11 @@ rRMSE_MSSA_HP_BIP_direct
 rRMSE_MSSA_BIP_mean
 # Finally: M-SSA vs. direct predictors based on indicators selected  in select_direct_indicator: targeting BIP
 rRMSE_MSSA_BIP_direct
-# We see similar systematic patterns as for the previous target correlations
+# We see similar systematic patterns as for the previous target correlations: 
+#   -Designs optimized for larger forecast horizons (from left to right) tend to outperform at larger forward-shifts (from top to bottom) 
 #   -The systematic patterns are strong when targeting forward-shifted HP-BIP (for which M-SSA is explicitly optimized)
-#   -For forward-shifted BIP the results are weaker (cluttered by noise)
-# But we shall see below that a more adaptive design can improve performances slightly, see exercise 3
+#   -For forward-shifted BIP the results are less conclusive (cluttered by noise)
+# But we shall see below that a more adaptive design can improve performances slightly, see exercise 4
 
 
 # The above correlations and rRMSE do not test for statistical significance (of predictability)
@@ -357,7 +363,7 @@ rRMSE_MSSA_BIP_direct
 # We look at HAC-adjusted p-values of regressions of M-SSA on forward-shifted targets
 # Remarks:
 #   -In some cases the HAC standard error (of the regression coefficient) seems `suspicious' 
-#     -HAC estimate of standard error could be substantially smaller than the ordinary OLS/unadjusted estimate
+#     -Sometimes, the HAC estimate of the variance is substantially smaller than the ordinary OLS (unadjusted) estimate
 #   -We therefore compute both types of standard errors and we rely on the maximum for a derivation of p-values
 #   -In this sense our p-values may be claimed to be `conservative'
 # We first consider forward-shifted HP-BIP and full sample p-values
@@ -365,20 +371,29 @@ p_value_HAC_HP_BIP_full
 # Out-of-sample: 
 p_value_HAC_HP_BIP_oos
 # We infer that the systematic patterns observed in target correlations and rRMSEs above are statistically significant
-#   -M-SSA seems capable of predicting forward-shifted HP-BIP, i.e., the low-frequency (trend-growth) part of BIP
+#   -M-SSA seems capable of predicting forward-shifted HP-BIP several quarters ahead
+# Remark:
+# -Applying HP to BIP results in an autocorrelated time series
+# -Therefore, HP-BIP must be `predictable', as confirmed by the above metrics
+# -Exercise 3 below then analyzes predictability when targeting BIP explicitly    
 
 
 
 
 # Same as above but now targeting BIP
-# Full sample
+# -Full sample
 p_value_HAC_BIP_full
 # We still see a systematic pattern from top to bottom and left to right but the overall picture 
 #   is cluttered by noise 
 
-# Out-of-sample: 
+# -Out-of-sample: 
 p_value_HAC_BIP_oos
-# Note that weaker significance can be imputed, at least in part, to the shorter out-of-sample span (less observations)
+
+# Note: 
+# -The M-SSA predictor is designed to track dynamic changes of the growth rate (HP-BIP)
+# -Part of the outperformance of M-SSA is due to inclusion of the financial crisis in the 
+#   evaluation span.
+# -In the absence of crises (business-cycle), gains should be null (or negative)  
 
 #-------------------------------------------
 # 1.3 Visualize performances: link performance measures to plots of predictors against targets
@@ -426,7 +441,7 @@ box()
 
 
 #------------------
-# 1.3.2 We now relate the above plot to the performance measures
+# 1.3.2 We can now relate the above plot to the performance measures
 # Sample correlation: 
 cor(na.exclude(mplot))[2,ncol(mplot)]
 # This number corresponds to element (k,j) of the matrix cor_mat_HP_BIP_full computed by our function
@@ -451,19 +466,12 @@ p_value_HAC_BIP_full[k,j]
 # 2. Out-of-sample
 p_value_HAC_BIP_oos[k,j]
 # Not significant at a one-year ahead horizon when targeting BIP (which is a very noisy series...)
-
+#   -See exercise 3 for further results
 
 # Instead of BIP we might have a look at targeting HP-BIP (also shifted one year ahead)
 p_value_HAC_HP_BIP_full[k,j]
 p_value_HAC_HP_BIP_oos[k,j]
 
-
-# Findings: 
-#   -Statistical significance is stronger for shifted HP-BIP (than for BIP)
-# Questions:
-#   -Is it because mid- and short-term components of BIP are effectively unpredictable?
-#   -Or is it because lambda_HP=160 is not sufficiently adaptive to track mid/short-term dynamics (still too smooth)?
-# To find an answer, we shall consider a more adaptive design based on targeting HP(16), see exercise 3 below
 
 
 #---------------
@@ -526,18 +534,16 @@ box()
 # 2.1
 # Generate artificial white noise data
 # One can try multiple set.seed
-# This one will generate multiple significant results (p<5%) for the out-of-sample span, but none below 1% 
+# This selection does not generate p-values below 5%
 set.seed(1)
-# This one will generate only one p-value below 5% in the full sample span and none below 1% 
+# This one will generate several p-values below 5% in the full sample span but none below 1% 
 set.seed(2)
-# None below 1%
+# Multiple below 5% but none below 1%, 
 set.seed(3)
 # None below 1%
 set.seed(4)
 # None below 1%
 set.seed(5)
-# None below 1%
-set.seed(9)
 # None below 1%
 set.seed(6)
 # One single p-value below 1%
@@ -576,7 +582,7 @@ lambda_HP<-160
 # Filter length: nearly 8 years is fine for the selected lambda_HP (filter weights decay sufficiently fast)
 L<-31
 # In-sample span for VAR, i.e., M-SSA (the proposed design is quite insensitive to this specification because the VAR is parsimoniously parameterized)
-date_to_fit<-"2008"
+date_to_fit<-date_to_fit
 # VARMA model orders: keep the model simple in particular for short/tight in-sample spans
 p<-0
 q<-0
@@ -593,7 +599,7 @@ f_excess<-rep(4,length(select_vec_multi))
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat_white_noise,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
 
 
-# 3.3 Check performances: 
+# 2.3 Check performances: 
 # Forward-shifted HP-BIP
 target_shifted_mat=mssa_indicator_obj$target_shifted_mat
 # M-SSA indicators
@@ -605,41 +611,45 @@ predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 #   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
 select_direct_indicator<-c("ifo_c","ESI")
 
-perf_obj<-compute_perf_func(x_mat_white_noise,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec) 
+perf_obj<-compute_perf_func(x_mat_white_noise,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,in_out_separator,select_direct_indicator,h_vec) 
 
-p_value_HAC_BIP_full=perf_obj$p_value_HAC_BIP_full
-p_value_HAC_BIP_oos=perf_obj$p_value_HAC_BIP_oos
+p_value_HAC_WN_full=perf_obj$p_value_HAC_BIP_full
+p_value_HAC_WN_oos=perf_obj$p_value_HAC_BIP_oos
 
 
 # We need to check whether we can forecast the white noise data WN (not HP-WN)  based on the predictors
 # Full sample
-p_value_HAC_BIP_full
+p_value_HAC_WN_full
 # Out-of-sample: 
-p_value_HAC_BIP_oos
+p_value_HAC_WN_oos
 
+# Check number of occurrences below 5%
+length(which(p_value_HAC_WN_full<0.05))
+length(which(p_value_HAC_WN_oos<0.05))
 # Check number of occurrences below 1%
-length(which(p_value_HAC_BIP_full<0.01))
-length(which(p_value_HAC_BIP_oos<0.01))
+length(which(p_value_HAC_WN_full<0.01))
+length(which(p_value_HAC_WN_oos<0.01))
 
 # Findings:
 # -We did not account for the multiple-test problem
 # -The above simulation experiment suggests that HAC-adjustments are unable to correct fully for the dependence
 #   -Therefore, some care is needed when evaluating results on the verge of statistical significance
 # -However, strongly significant results, such as found for HP-BIP, seem convincing, in a statistical sense, 
-#   since occurrences with p-values below 1% are `rare' (one out of 500 observations) in the above experiment
+#   since occurrences with p-values below 1% are `rare' (one out of ~1000 observations) in the above experiment
 
 # Discussion
-# -HP applied to white noise (HP-WN) leads to an autocorrelated series which can be predicted
-# -However, a predictor of HP-WN is not helpful in predicting WN
+# -HP applied to white noise (HP-WN) leads to an autocorrelated series which can be predicted (better than by the mean benchmark)
+# -However, a predictor of HP-WN is not helpful in predicting WN 
 # -In contrast, we expect HP-BIP in exercise 1 (and 3 below) to be informative about future BIP because the 
 #     latter is not WN:
 #   -The occurrence of recessions (business-cycle) contradicts the WN assumption
 #   -The acf and the VAR-model contradict the WN assumption
 #   -The systematic structure in the performance matrices (top-down/left-right) suggests predictability
 #   -The recent negative BIP-readings are not `random` events: they are due in part to exogenous shock-waves and 
-#     also to endogenous decisions whose underlying(s) did not realize as wished for (self-critical assessments by the former `Ampel' minister of economic affairs are telling)
+#     also to endogenous decisions whose underlying(s) did not realize as wished for 
 #   -These deviations of BIP from WN concern lower frequency components of the spectral decomposition, as 
 #     emphasized by HP-BIP
+# -In the following exercise we will emphasize specifically BIP and MSE performances
 
 ##################################################################################
 # Exercise 3 Working with (M-SSA) BIP predictor (sub-)components
@@ -661,7 +671,7 @@ length(which(p_value_HAC_BIP_oos<0.01))
 # To start, let us initialize all settings as in exercise 1 above
 lambda_HP<-160
 L<-31
-date_to_fit<-"2008"
+date_to_fit<-date_to_fit
 p<-1
 q<-0
 ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
@@ -719,7 +729,7 @@ max(abs(apply(scale(t(mssa_array[,,j_now])),1,mean)-predictor_mssa_mat[,j_now]),
 # Remarks:
 # -Equal-weighting of the M-SSA components, as done above, indicates that we assume each M-SSA series to be equally
 #   important for tracking dynamic changes of the BIP growth-rate by the resulting M-SSA predictor. This 
-#   `naive' assumption may be questioned. But at least the rule (equal-weighting) is robust and simple.
+#   `naive' assumption might be questioned. But the rule (equal-weighting) is robust and simple.
 # -Instead, we could think about a more sophisticated weighting scheme: for example, by regressing the components 
 #     on forward-shifted BIP. 
 #   -This way, we'd explicitly emphasize BIP-MSE forecast performances by the resulting (new) M-SSA `components` predictor
@@ -811,7 +821,7 @@ dat<-na.exclude(dat)
 # 3.3.2 Regression
 # We now regress forward-shifted BIP (first column) on the components
 #   -Specify an arbitrary in-sample span for illustration (below we shall use an expanding window starting in Q1-2007)
-i_time<-which(rownames(dat)>2011)[1]
+i_time<-which(rownames(dat)>2009)[1]
 # In-sample span: 
 tail(dat[1:i_time,])
 # Regression
@@ -862,58 +872,83 @@ summary(lm_obj)
 # The regression coefficients are slightly different (when compared to OLS above)
 
 # Compute out-of-sample prediction for time point i+shift: note that the GARCH is irrelevant when computing the predictor
-oos_pred_wls<-(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift,2:ncol(dat)]) 
+oos_pred_wls<-as.double(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift,2:ncol(dat)]) 
 # Compute out-of-sample forecast error
 oos_error_wls<-dat[i_time+shift,1]-oos_pred_wls
 # This is the out-of-sample error we observe in shift=2 quarters later
 oos_error_wls
 # Compare to out-of-sample error based on OLS: 
 oos_error
-# WLS outperforms OLS out-of-sample, at least for time point i_time+shift. 
-#   -A more extensive analysis would show that WLS is better on average (over many more time points)
+# Depending on the selected time point, WLS performs better or worse.
+# But on average, over many (out-of-sample) time points, WLS tends to outperform slightly OLS (see below for confirmation). 
 #   -Therefore we now apply WLS when deriving weights of M-SSA components
 #   -For comparison and benchmarking, we also derive a new direct forecast based on WLS (in contrast to 
 #     exercise 1.2.1 above which is based on classic OLS)
-# We can also compute the simple mean-benchmark
+
+# In addition to regressions, we can also compute the simple mean-benchmark 
 mean_bench<-mean(dat[1:i_time,1])
-# It's out-of-sample forecast error is
+# Its out-of-sample forecast error is
 oos_error_mean<-dat[i_time+shift,1]-mean_bench
 # The rRMSE of the WLS (M-SSA) component predictor referenced against the mean is
 rRMSE_mSSA_comp_mean<-sqrt(mean(oos_error_wls^2)/mean(oos_error_mean^2))
 rRMSE_mSSA_comp_mean
-# Next, we shall average rRMSE over a longer out-of-sample span, starting in 2007 and ending on Jan-2025
+# Depending on the selected time point, the rRMSE is larger or smaller one
+# On average, we expect the more sophisticated predictor(s) to outperform the simple mean benchmark
 
 #------------
-# 3.3.4 Apply the above findings to all data points after 2007: expanding window including the entire financial 
-#   crisis for out-of-sample evaluation
+# 3.3.4 Average: apply the above findings to all data points after 2007, including the 
+#   entire financial crisis for out-of-sample evaluations
 
-# Start with fitting the WLS regression in 2007 (the entire financial crisis will be out-of-sample, even for larger forecast horizons)
-#   -Note that the available estimation span is rather short at the start (due to filter initialization)
-start_fit<-"2007"
-# Use WLS based on GARCH model when regressing explanatory on forward-shifted BIP (setting the Boolean to F amounts to OLS)
+# Start point for out-of-sample evaluation: 2007
+in_out_separator<-in_out_separator
+# Note that the in-sample span is rather short at the start (due in part to filter initialization)
+
+# Next: use WLS based on GARCH model when regressing explanatory on forward-shifted BIP (setting the Boolean to F amounts to OLS)
 use_garch<-T
-# The following function applies the above WLS-regression for all time points larger/later than start_fit
-#     (expanding window).
+# The following function applies the above WLS-regression for all time points (expanding window)
 #   -For each time point, a GARCH is fitted and the WLS-regression is computed based on the up-dated GARCH-weights
 # Note: we can ignore `warnings' which are generated by the GARCH estimation routine
-perf_obj<-compute_component_predictors_func(dat,start_fit,use_garch,shift)
+perf_obj<-compute_component_predictors_func(dat,in_out_separator,use_garch,shift)
 
-# The function computes HAC-adjusted p-values of the regression of the out-of-sample predictor (oos_pred_wls obtained in exercise 3.3.3 above)
+# Here we have the out-of-sample forecast errors of the M-SSA components predictor
+tail(perf_obj$epsilon_oos)
+# We can see that the function replicates the proceeding in 3.3.3 above, i.e., oos_error_wls is obtained as one of the realizations
+which(perf_obj$epsilon_oos==oos_error_wls)
+# We also obtain the out-of-sample forecast errors of the mean benchmark predictor
+tail(perf_obj$epsilon_mean_oos)
+# And the corresponding out-of-sample error (in 3.3.3) is replicated too
+which(perf_obj$epsilon_mean_oos==oos_error_mean)
+# More importantly, the function computes HAC-adjusted p-values of the regression of the out-of-sample predictor (oos_pred_wls obtained in exercise 3.3.3 above)
 #   on forward-shifted BIP
 perf_obj$p_value
 # The same but without singular Pandemic readings
 perf_obj$p_value_without_covid
-# We also obtain the out-of-sample MSE (the mean of oos_error_wls^2, where oos_error_wls were obtained in exercise 3.3.3 above)
+# We infer that there exists a statistically significant link, out-of-sample, between the new predictor and forward-shifted BIP
+#   -The singular pandemic data weakens this link somehow
+# In addition, we also obtain the out-of-sample MSE of the M-SSA component predictor (the mean of oos_error_wls^2, where oos_error_wls was obtained in exercise 3.3.3 above)
 perf_obj$MSE_oos
 # The same but without Pandemic: we can s(e)ize the impact of the crisis on the MSE metric!
 perf_obj$MSE_oos_without_covid
-# The function also compute the out-of-sample MSE of the simple mean benchmark predictor (expanding window): 
+# The function also computes the out-of-sample MSE of the simple mean benchmark predictor (expanding window): 
 #   -we expect the mean (benchmark) to be slightly worse (larger MSE) than the 
 #     M-SSA components, at least for smaller forward-shifts of BIP
 perf_obj$MSE_mean_oos
 perf_obj$MSE_mean_oos_without_covid
 
-# The next step will be to compute the above performances for all combinations of forward-shift (of BIP) and 
+# We can compute a classic OLS regression and compare with WLS above. For this purpose we set use_garch<-F
+use_garch<-F
+perf_obj_OLS<-compute_component_predictors_func(dat,in_out_separator,use_garch,shift)
+
+perf_obj_OLS$MSE_oos
+# Compare with WLS
+perf_obj$MSE_oos
+# The same but without Pandemic: we can s(e)ize the impact of the crisis on the MSE metric!
+perf_obj_OLS$MSE_oos_without_covid
+# Compare with WLS
+perf_obj$MSE_oos_without_covid
+# WLS outperforms OLS
+
+# In the next step, we compute the above performance metrics for all combinations of forward-shift (of BIP) and 
 #   forecast horizons (of M-SSA components)
 
 #----------------
@@ -925,11 +960,13 @@ perf_obj$MSE_mean_oos_without_covid
 #       the simple expanding mean as well as with the direct forecasts
 #     -Direct forecasts are based on the more effective WLS-regression (in contrast to OLS regression in exercise 1 above)
 # -We compute all combinations of forward-shift and forecast horizon (7*7 matrix of performance metrics)
-# -Computations may take several minutes (regressions and GARCH-models are recomputed for each time point and all combinations of shift/horizon))
+# -Depending on the CPU, computations may last several minutes (regressions and GARCH-models are recomputed for each time point and for all combinations of shift and forecast horizon))
 
 # Initialize performance matrices
 p_mat_mssa<-p_mat_mssa_components<-p_mat_mssa_components_without_covid<-p_mat_direct<-rRMSE_mSSA_comp_direct<-rRMSE_mSSA_comp_mean<-rRMSE_mSSA_comp_direct_without_covid<-rRMSE_mSSA_comp_mean_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec))
-# The double loop computes all combinations of forward-shifts (of BIP) and forecast horizons (of M-SSA)
+# Use WLS
+use_garch<-T
+# The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons (of M-SSA)
 for (shift in h_vec)#shift<-1
 {
 # We can see the progress in the R console: shift starts at 0 and ends at a value of 6 (quarters ahead)
@@ -953,7 +990,7 @@ for (shift in h_vec)#shift<-1
     rownames(dat)<-rownames(x_mat)
     dat<-na.exclude(dat)
 # Apply the previous function    
-    perf_obj<-compute_component_predictors_func(dat,start_fit,use_garch,shift)
+    perf_obj<-compute_component_predictors_func(dat,in_out_separator,use_garch,shift)
 # Retrieve out-of-sample performances    
     p_mat_mssa_components[shift+1,k]<-perf_obj$p_value
     p_mat_mssa_components_without_covid[shift+1,k]<-perf_obj$p_value_without_covid
@@ -966,10 +1003,11 @@ for (shift in h_vec)#shift<-1
 # -The main difference to M-SSA above is the specification of the explanatory variables: here x_mat 
 #   -We here select all series (but one could easily change this setting)
     dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),x_mat)
+#    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),x_mat[,c("ifo_c","ESI")])
     rownames(dat)<-rownames(x_mat)
     dat<-na.exclude(dat)
     
-    perf_obj<-compute_component_predictors_func(dat,start_fit,use_garch,shift)
+    perf_obj<-compute_component_predictors_func(dat,in_out_separator,use_garch,shift)
     
     p_mat_direct[shift+1,k]<-perf_obj$p_value 
     MSE_oos_direct<-perf_obj$MSE_oos
@@ -992,17 +1030,37 @@ rownames(p_mat_mssa_components)<-rownames(p_mat_direct)<-rownames(p_mat_mssa_com
   rownames(rRMSE_mSSA_comp_direct)<-rownames(rRMSE_mSSA_comp_mean)<-
   rownames(rRMSE_mSSA_comp_direct_without_covid)<-rownames(rRMSE_mSSA_comp_mean_without_covid)<-paste("Shift=",h_vec,sep="")
 
-# HAC-adjusted p-values of out-of-sample M-SSA starting in start_fit=2007
+# HAC-adjusted p-values of out-of-sample (M-SSA) components predictor when targeting forward-shifted BIP
+#   -Evaluation based on out-of-sample span starting at in_out_separator and ending on Jan-2025
 p_mat_mssa_components
-# Same but without Pandemic
+# Same but without singular Pandemic
 p_mat_mssa_components_without_covid
-# rRMSE of M-SSA components when benchmarked against mean, out-of-sample, all time points from start_fit=2007 onwards
+# The link between the new predictor and future BIP is statistically significant up to multiple quarters ahead 
+#   -Designs optimized for larger forecast horizons (h>=4) seem to perform significantly up to one year ahead
+#   -The somehow curious results at shift=6 will be analyzed later 
+
+# We can compare the new and original M-SSA predictor (exercise 1)
+# a. New M-SSA components predictor
+p_mat_mssa_components
+# b. Original M-SSA predictor (based on naive equal-weighting of the components)
+p_value_HAC_BIP_oos
+# Findings: the new M-SSA components predictor tends to track BIP better than the M-SSA predictor (exercise 1) 
+#   specifically at larger forward-shifts 
+
+# We can also have a look at p-values of the direct forecast
+p_mat_direct
+# The link between the direct forecast and future BIP is weaker (generally not significant)
+
+# -The above p-values are based on regressions (of predictors on BIP) thereby ignoring `static' level and scale parameters
+# -The following rRMSEs account (also) for scale and level of the new predictor
+#   -In contrast to exercise 1.2.3, all computations are now effectively out-of-sample
+# a. rRMSE of M-SSA components when benchmarked against mean, out-of-sample, all time points from in_out_separator=2007 onwards
 rRMSE_mSSA_comp_mean
-# rRMSE of M-SSA components when benchmarked against direct forecast, out-of-sample, all time points from start_fit=2007 onwards
+# b. rRMSE of M-SSA components when benchmarked against direct forecast, out-of-sample, all time points from in_out_separator=2007 onwards
 rRMSE_mSSA_comp_direct
 # Same but without Pandemic
-rRMSE_mSSA_comp_direct_without_covid
 rRMSE_mSSA_comp_mean_without_covid
+rRMSE_mSSA_comp_direct_without_covid
 
 # Summary (main findings)
 # -The original M-SSA predictor (exercise 1) does not emphasize MSE-BIP performances explicitly
@@ -1013,13 +1071,13 @@ rRMSE_mSSA_comp_mean_without_covid
 #     -Technical note: our results suggest that WLS regression (based on GARCH-vola) dominates OLS, out-of-sample
 # -Outcome (out-of-sample MSE performance gains): 
 #   -The M-SSA components predictor outperforms significantly the simple mean as well as the direct forecasts 
-#      (the latter also based on WLS regression) in terms of MSE-performances at forward-shifts of up to one year
+#      (the latter either based on OLS or WLS regression) in terms of MSE-performances at forward-shifts of up to one year
 #     -At shifts larger than four quarters, p-values and rRMSEs seem to take a hit (in particular when excluding the Pandemic)
 #       but M-SSA still tends to perform (slightly) better
 #   -These results hold irrespective of the singular Pandemic readings
 #     -The Pandemic outliers weaken efficiency gains and statistical significance but the overall picture remains roughly the same
 #   -M-SSA designs optimized for larger forecast horizons tend to perform better 
-
+# -Systematic pattern: for larger forward-shifts (from top to bottom), designs optimized for larger horizons tend to perform better
 
 #######################################################################################
 # Exercise 4: More adaptive design
@@ -1058,7 +1116,7 @@ predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 #   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
 select_direct_indicator<-c("ifo_c","ESI")
 
-perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,date_to_fit,select_direct_indicator,h_vec_adaptive) 
+perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,in_out_separator,select_direct_indicator,h_vec_adaptive) 
 
 p_value_HAC_HP_BIP_full=perf_obj$p_value_HAC_HP_BIP_full
 t_HAC_HP_BIP_full=perf_obj$t_HAC_HP_BIP_full
@@ -1081,7 +1139,7 @@ target_BIP_mat=perf_obj$target_BIP_mat
 # We now examine performances when targeting specifically BIP (we already know that HP-BIP can be predicted)
 # 1. Full sample
 cor_mat_BIP_full
-# 2. Out-of-sample (specified by date_to_fit above)
+# 2. Out-of-sample 
 cor_mat_BIP_oos
 # These numbers are larger than in exercise 1, suggesting that the more adaptive design here is better able to
 #   track forward-shifted BIP
@@ -1090,17 +1148,12 @@ cor_mat_BIP_oos
 p_value_HAC_BIP_full
 p_value_HAC_BIP_oos
 
-# We can see a slight improvement (smaller p-values) when using a more adaptive target HP(16) for M-SSA
+# We cannot see systematic improvements (smaller p-values) when using a more adaptive target HP(16) for M-SSA
 
-# Notes: 
-# -Slightly more adaptive designs (smaller lambda_HP) or more aggressive settings  (larger forecast excess) 
-#   can improve performances further
-# -Danger of data-snooping
-# -Danger of phase-reversal 
 
 ##################################################################################
 # Exercise 5
-# As a counterpoint to exercise 4 above, we now briefly analyze the rather inflexible classic
+# As a complement to exercise 4 above, we now briefly analyze the rather inflexible classic
 #   quarterly HP(1600) design as a target for M-SSA, to back-up our previous discussion 
 #   with empirical facts
 
@@ -1167,21 +1220,22 @@ box()
 #     dynamics potentially relevant in a short- to mid-term forecast exercise (1-6 quarters ahead)
 #   -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent forecast pattern, 
 #       suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
-#     -This result suggests that M-SSA is informative about forward-shifted BIP, although corresponding 
+#     -This result suggests that M-SSA is informative about forward-shifted BIP too, although corresponding 
 #       performance statistics are less conclusive (cluttered by noise)
-#   -More adaptive designs (lambda_HP=16) seem to be able to track forward-shifted BIP (more) consistently, 
-#     by allowing the (more) flexible trend-component to provide (more) overlap with relevant mid- and high-frequency 
-#     components of BIP
+#   -More adaptive (lambda_HP=16) or less adaptive designs (lambda_HP=1600) do not track forward-shifted BIP better
 #   -Sub-components of the M-SSA predictor are potentially useful for interpretation purposes (see exercise 3.2) 
 #     and for addressing MSE performances explicitly, see exercise 3.3
-#     -`Smartly' weighted M-SSA components are able to predict BIP multiple quarters ahead, though performances 
-#       take a hit for horizons larger than a year.
+#     -Weighting M-SSA components `optimally' (instead of equal-weighting in M-SSA predictor) leads to 
+#       performance gains when targeting BIP multiple quarters ahead
+#     -One can observe smaller p-values (stronger link between M-SSA component predictor and future BIP) as well as 
+#       better MSE performances (smaller rRMSE) out-of-sample 
+#     -Gains take a hit for horizons larger than a year.
 
 # C. Statistical significance
 #   -HAC-adjustments (of test-statistics) seem unable to account fully for the observed data-idiosyncrasies
 #   -However, exercise 2 suggests that biases are relatively small
 #     -p-values smaller than one percent are rare in the case of simulated white noise
-
+#   -We use the maximum of the standard error, as based on OLS and HAC, when deriving t-statistics (conservative setting)
 
 # Final notes on the publication lag and data revisions
 #   -All results relate to forward-shifts augmented by the publication lag
