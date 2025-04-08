@@ -758,16 +758,16 @@ box()
 # -The trough (minimum) of the grow-rate in the previous figure anticipates the effective trough of BIP (in levels) 
 #     by up to several quarters
 # -The timing of the BIP-trough (in levels) is sandwiched between the trough of the growth-rate and the next 
-#     zero-crossing (of the growth-rate). 
+#     zero-crossing (of the growth-rate in the above graph). 
 #   -Recall, in this context, that the zero-line in the above plot corresponds to (long-term) average growth 
 #     (crossing `average growth' signifies positive growth). 
 # -Given that the nowcast just passed the zero-line in the above plot, we infer that the 
 #     trough of BIP might be behind, based on Jan-2025 data.
 # -However, not all components (sub-series) would support this claim
-#   -The strongest up-turn signal is supported by the (leading) spread (which has been subjected to critic as a leading indicator)
+#   -The strongest up-turn signal is supported by the (leading) spread (which has been subjected to critic in is function as a leading indicator)
 #   -ifo and ESI are barely above the zero-line 
 #   -ip and BIP are `waiting' for further evidence and confirmation. 
-# -Looking at the M-SSA components (sub-series) can assist when interpreting the predictor (explainability) 
+# -We infer that we can gauge the M-SSA predictor by looking at its components; which component(s) trigger(s) a change in dynamics (explainability)? 
 # -Faint/fragile signals are sensitive to announced and/or unexpected disorders (tariffs, geopolitical contentions)
 #   which are not yet `priced-in' (as of Jan-2025).
 
