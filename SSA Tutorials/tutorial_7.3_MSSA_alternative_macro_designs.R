@@ -644,16 +644,16 @@ length(which(p_value_HAC_BIP_oos<0.01))
 ##################################################################################
 # Exercise 3 Working with (M-SSA) BIP predictor (sub-)components
 # Purposes: 
-# 1. Interpretability
+# 1. Interpretability: gauging the M-SSA predictor 
 # 2. Address explicitly MSE-forecast performances when targeting forward-shifted BIP
 #   -Explanation to 2: the M-SSA predictor in exercise 1 is designed to track HP-BIP; in doing so, it also 
 #     tracks BIP `somehow`; but it is not designed to track future BIP explicitly
 
 # Technical background: 
-# -The M-SSA predictor (the matrix predictor_mssa_mat) is constructed from components (array mssa_array)
+# -The M-SSA predictor (the matrix predictor_mssa_mat) is constructed from components (contained in array mssa_array)
 #   -We here briefly review, illustrate and confirm the construction principle: see exercise 3.1. 
 # -Subsequently, we suggest that predictor components support additional information that can be exploited.
-# -Specifically, we address interpretability, see exercise 3.2, and MSE forecast performances, see exercise 3.3
+# -Specifically, we address interpretability, see exercise 3.2, and BIP-MSE forecast performances, see exercise 3.3
 #   -Recall that the M-SSA predictor is designed to address dynamic changes (up-/downturns, target correlation, smoothness)
 #   -Therefore, MSE performances are deemed less relevant, in particular when targeting BIP (instead of HP-BIP)
 #   -We shall see that BIP predictor components can be used to this effect: address BIP-MSE performances more explicitly
@@ -677,7 +677,7 @@ predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
 predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
 mssa_array<-mssa_indicator_obj$mssa_array
 
-
+#-----------
 # 3.1 What are BIP predictor (sub-)components?
 # -The M-SSA BIP predictor was introduced in tutorial 7.2, exercise 3
 #   -The BIP predictor is obtained as the equally-weighted aggregate of standardized M-SSA outputs of all indicators (BIP, ip, ifo, ESI, spread)
@@ -689,10 +689,10 @@ h_vec[j_now]
 # For forecast horizon h_vec[j_now], the sub-series of the M-SSA predictor are:  
 tail(t(mssa_array[,,j_now]))
 # These sub-series correspond to the outputs of the multivariate M-SSA optimized for horizon h_vec[j_now]
-#   -One output for each series of the multivariate design
-#   -For each series, the target is the two-sided HP applied to this series and shifted forward by the forecast horizon
-#   -For each of these targets, the explanatory variables are the series of the multivariate design (BIP, ip, ifo, ESI and spread) 
-# We can check that the M-SSA predictor is the cross-sectional mean of the standardized sub-series: 
+#   -For each series of the multivariate design, the target is the two-sided HP applied to this series and 
+#     shifted forward by the forecast horizon (plus the publication lag in case of BIP)
+#   -For each of these targets, the explanatory variables are all series of the multivariate design (BIP, ip, ifo, ESI and spread) 
+# We can check that the M-SSA predictor is the cross-sectional mean of these standardized sub-series: 
 agg_std_comp<-apply(scale(t(mssa_array[,,j_now])),1,mean)
 # Plot the above aggregate and the M-SSA predictor
 mplot<-cbind(agg_std_comp, predictor_mssa_mat[,j_now])
@@ -720,11 +720,11 @@ max(abs(apply(scale(t(mssa_array[,,j_now])),1,mean)-predictor_mssa_mat[,j_now]),
 # -Equal-weighting of the M-SSA components, as done above, indicates that we assume each M-SSA series to be equally
 #   important for tracking dynamic changes of the BIP growth-rate by the resulting M-SSA predictor. This 
 #   `naive' assumption may be questioned. But at least the rule (equal-weighting) is robust and simple.
-# -Instead, we could think about a more sophisticated weighting scheme: for example, regressing the components 
+# -Instead, we could think about a more sophisticated weighting scheme: for example, by regressing the components 
 #     on forward-shifted BIP. 
 #   -This way, we'd explicitly emphasize BIP-MSE forecast performances by the resulting (new) M-SSA `components` predictor
 # -The corresponding `component predictor' will be derived and analyzed in exercise 3.3 below.
-# -But first we now consider an another application of the components, namely interpretability (of the M-SSA predictor)  
+# -But first we consider an alternative usage of the components, namely interpretability (of the M-SSA predictor)  
 #---------------
 # 3.2 We now exploit the M-SSA components in view of a better interpretation (explanation/understanding) of the M-SSA predictor.
 #   -We can examine which sub-series is (are) more/less likely to trigger a dynamic change of the M-SSA predictor
