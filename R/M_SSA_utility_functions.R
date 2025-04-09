@@ -675,7 +675,19 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
     if (use_garch)
     {
       y.garch_11<-garchFit(~garch(1,1),data=dat[1:i,1],include.mean=T,trace=F)
+# sigmat could be retrieved from GARCH-object
       sigmat<-y.garch_11@sigma.t
+# But this is lagged by one period
+# Therefore we recompute the vola based on the estimated GARCH-parameters
+      eps<-y.garch_11@residuals
+      d<-y.garch_11@fit$matcoef["omega",1]
+      alpha<-y.garch_11@fit$matcoef["alpha1",1]
+      beta<-y.garch_11@fit$matcoef["beta1",1]
+      sigmat_own<-sigmat
+      for (i in 2:length(sigmat))#i<-2
+        sigmat_own[i]<-sqrt(d+beta*sigmat_own[i-1]^2+alpha*eps[i]^2)
+# This is now correct (not lagging anymore)
+      sigmat<-sigmat_own
 # Weights are proportional to 1/sigmat^2      
       weight<-1/sigmat^2
     } else

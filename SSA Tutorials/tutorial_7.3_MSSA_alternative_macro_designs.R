@@ -1,7 +1,7 @@
 # Tutorial 7.3: we propose various M-SSA BIP (GDP Germany) predictor designs
 # -The concept of M-SSA predictors for BIP was introduced in tutorial 7.2
 # -We wrapped this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
-# -In exercise 1, we propose a `fairly adaptive' predictor. A `more adaptive' one is analyzed in exercise 4 and a more inflexible one in exercise 5
+# -In exercise 1, we propose a `fairly adaptive' predictor. A `more adaptive' one is analyzed in exercise 4 and a `more inflexible' one in exercise 5
 #   -One might be able to find better hyperparameters by fine-tuning adaptivity further
 
 # Main purposes of this tutorial
@@ -45,6 +45,10 @@
 #   terms of out-sample MSE performances up to multiple quarters ahead.
 # Exercise 4: analyze a more adaptive M-SSA design based on targeting HP(16) by M-SSA
 # Finally, exercise 5 briefly analyzes the classic HP(1600) as a target for M-SSA
+
+
+# To do: 6 quarters (maybe 5)
+# GARCH
 
 #-------------------------------------
 # Start with a clean sheet
@@ -654,10 +658,11 @@ length(which(p_value_HAC_WN_oos<0.01))
 ##################################################################################
 # Exercise 3 Working with (M-SSA) BIP predictor (sub-)components
 # Purposes: 
-# 1. Interpretability: gauging the M-SSA predictor 
-# 2. Address explicitly MSE-forecast performances when targeting forward-shifted BIP
-#   -Explanation to 2: the M-SSA predictor in exercise 1 is designed to track HP-BIP; in doing so, it also 
-#     tracks BIP `somehow`; but it is not designed to track future BIP explicitly
+# 1. Interpretability: M-SSA predictor components can be used for gauging the M-SSA predictor 
+# 2.  M-SSA predictor components can also be used to address explicitly MSE-forecast performances when targeting 
+#       forward-shifted BIP
+# -Explanation to 2: the M-SSA predictor in exercise 1 is designed to track HP-BIP; in doing so, it also 
+#     tracks BIP `somehow`; but the optimization criterion does not address BIP explicitly
 
 # Technical background: 
 # -The M-SSA predictor (the matrix predictor_mssa_mat) is constructed from components (contained in array mssa_array)
@@ -666,7 +671,7 @@ length(which(p_value_HAC_WN_oos<0.01))
 # -Specifically, we address interpretability, see exercise 3.2, and BIP-MSE forecast performances, see exercise 3.3
 #   -Recall that the M-SSA predictor is designed to address dynamic changes (up-/downturns, target correlation, smoothness)
 #   -Therefore, MSE performances are deemed less relevant, in particular when targeting BIP (instead of HP-BIP)
-#   -We shall see that BIP predictor components can be used to this effect: address BIP-MSE performances more explicitly
+#   -We shall see that BIP predictor components can be used to this effect: address BIP-MSE performances explicitly
 
 # To start, let us initialize all settings as in exercise 1 above
 lambda_HP<-160
@@ -821,7 +826,7 @@ dat<-na.exclude(dat)
 # 3.3.2 Regression
 # We now regress forward-shifted BIP (first column) on the components
 #   -Specify an arbitrary in-sample span for illustration (below we shall use an expanding window starting in Q1-2007)
-i_time<-which(rownames(dat)>2009)[1]
+i_time<-which(rownames(dat)>2011)[1]
 # In-sample span: 
 tail(dat[1:i_time,])
 # Regression
@@ -841,7 +846,20 @@ oos_error
 # -Given that BIP is subject to heteroscedasticity we may apply a GARCH(1,1) to obtain an estimate of its variance
 y.garch_11<-garchFit(~garch(1,1),data=dat[1:i_time,1],include.mean=T,trace=F)
 summary(y.garch_11)
+# sigmat could be retrieved from GARCH-object
 sigmat<-y.garch_11@sigma.t
+# But this is lagged by one period
+# Therefore we recompute the vola based on the estimated GARCH-parameters
+eps<-y.garch_11@residuals
+d<-y.garch_11@fit$matcoef["omega",1]
+alpha<-y.garch_11@fit$matcoef["alpha1",1]
+beta<-y.garch_11@fit$matcoef["beta1",1]
+sigmat_own<-sigmat
+for (i in 2:length(sigmat))#i<-2
+  sigmat_own[i]<-sqrt(d+beta*sigmat_own[i-1]^2+alpha*eps[i]^2)
+# This is now correct (not lagging anymore)
+sigmat<-sigmat_own
+
 
 # Plot BIP and its vola
 par(mfrow=c(1,1))
@@ -880,7 +898,7 @@ oos_error_wls
 # Compare to out-of-sample error based on OLS: 
 oos_error
 # Depending on the selected time point, WLS performs better or worse.
-# But on average, over many (out-of-sample) time points, WLS tends to outperform slightly OLS (see below for confirmation). 
+# But on average, over many (out-of-sample) time points, WLS tends to outperform slightly OLS (see exercise 3.3.4 below for confirmation). 
 #   -Therefore we now apply WLS when deriving weights of M-SSA components
 #   -For comparison and benchmarking, we also derive a new direct forecast based on WLS (in contrast to 
 #     exercise 1.2.1 above which is based on classic OLS)
@@ -889,14 +907,15 @@ oos_error
 mean_bench<-mean(dat[1:i_time,1])
 # Its out-of-sample forecast error is
 oos_error_mean<-dat[i_time+shift,1]-mean_bench
-# The rRMSE of the WLS (M-SSA) component predictor referenced against the mean is
+# The rRMSE of the WLS (M-SSA) component predictor referenced against the mean-benchmark when targeting 
+#   BIP shifted forward by shift (+publication lag) is:
 rRMSE_mSSA_comp_mean<-sqrt(mean(oos_error_wls^2)/mean(oos_error_mean^2))
 rRMSE_mSSA_comp_mean
 # Depending on the selected time point, the rRMSE is larger or smaller one
-# On average, we expect the more sophisticated predictor(s) to outperform the simple mean benchmark
+# On average, over a longer out-of-span, we expect the more sophisticated predictor(s) to outperform the simple mean benchmark
 
 #------------
-# 3.3.4 Average: apply the above findings to all data points after 2007, including the 
+# 3.3.4 Average performances: apply the above findings to all data points after 2007, including the 
 #   entire financial crisis for out-of-sample evaluations
 
 # Start point for out-of-sample evaluation: 2007
@@ -912,11 +931,11 @@ perf_obj<-compute_component_predictors_func(dat,in_out_separator,use_garch,shift
 
 # Here we have the out-of-sample forecast errors of the M-SSA components predictor
 tail(perf_obj$epsilon_oos)
-# We can see that the function replicates the proceeding in 3.3.3 above, i.e., oos_error_wls is obtained as one of the realizations
+# We can see that the function replicates the proceeding in 3.3.3 above, i.e., oos_error_wls is obtained as one of the entries of the longer out-of-sample vector
 which(perf_obj$epsilon_oos==oos_error_wls)
 # We also obtain the out-of-sample forecast errors of the mean benchmark predictor
 tail(perf_obj$epsilon_mean_oos)
-# And the corresponding out-of-sample error (in 3.3.3) is replicated too
+# One again, the corresponding out-of-sample error (in 3.3.3) is replicated as an entry of the longer vector
 which(perf_obj$epsilon_mean_oos==oos_error_mean)
 # More importantly, the function computes HAC-adjusted p-values of the regression of the out-of-sample predictor (oos_pred_wls obtained in exercise 3.3.3 above)
 #   on forward-shifted BIP
@@ -924,13 +943,13 @@ perf_obj$p_value
 # The same but without singular Pandemic readings
 perf_obj$p_value_without_covid
 # We infer that there exists a statistically significant link, out-of-sample, between the new predictor and forward-shifted BIP
-#   -The singular pandemic data weakens this link somehow
+#   -The singular pandemic data affects (negatively) the strength of this link
 # In addition, we also obtain the out-of-sample MSE of the M-SSA component predictor (the mean of oos_error_wls^2, where oos_error_wls was obtained in exercise 3.3.3 above)
 perf_obj$MSE_oos
 # The same but without Pandemic: we can s(e)ize the impact of the crisis on the MSE metric!
 perf_obj$MSE_oos_without_covid
 # The function also computes the out-of-sample MSE of the simple mean benchmark predictor (expanding window): 
-#   -we expect the mean (benchmark) to be slightly worse (larger MSE) than the 
+#   -we expect the mean-benchmark to be slightly worse (larger MSE) than the 
 #     M-SSA components, at least for smaller forward-shifts of BIP
 perf_obj$MSE_mean_oos
 perf_obj$MSE_mean_oos_without_covid
@@ -946,7 +965,7 @@ perf_obj$MSE_oos
 perf_obj_OLS$MSE_oos_without_covid
 # Compare with WLS
 perf_obj$MSE_oos_without_covid
-# WLS outperforms OLS
+# As claimed, WLS outperforms OLS out-of-sample
 
 # In the next step, we compute the above performance metrics for all combinations of forward-shift (of BIP) and 
 #   forecast horizons (of M-SSA components)
