@@ -315,8 +315,8 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
 # 1.1 Target is forward-shifted HP-BIP
 # Check forward-shifts: HP-BIP cannot reach sample-end since filter is two-sided
   tail(target_shifted_mat,40)
-  t_HAC_HP_BIP_full<-p_value_HAC_HP_BIP_full<-t_HAC_HP_BIP_oos<-p_value_HAC_HP_BIP_oos<-cor_mat_HP_BIP_full<-cor_mat_HP_BIP_oos<-matrix(ncol=length(h_vec),nrow=length(h_vec))
-  for (i in 1:length(h_vec))# i<-1
+  t_HAC_HP_BIP_full<-p_value_HAC_HP_BIP_full<-t_HAC_HP_BIP_oos<-p_value_HAC_HP_BIP_oos<-cor_mat_HP_BIP_full<-cor_mat_HP_BIP_oos<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
+  for (i in 1:(length(h_vec)-1))# i<-1
   {
     for (j in 1:length(h_vec))# j<-1  j<-3
     {
@@ -349,12 +349,12 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
   colnames(p_value_HAC_HP_BIP_full)<-colnames(t_HAC_HP_BIP_full)<-colnames(cor_mat_HP_BIP_full)<-
   colnames(p_value_HAC_HP_BIP_oos)<-colnames(t_HAC_HP_BIP_oos)<-colnames(cor_mat_HP_BIP_oos)<-paste("M-SSA: h=",h_vec,sep="")
   rownames(p_value_HAC_HP_BIP_full)<-rownames(t_HAC_HP_BIP_full)<-rownames(cor_mat_HP_BIP_full)<-
-  rownames(p_value_HAC_HP_BIP_oos)<-rownames(t_HAC_HP_BIP_oos)<-rownames(cor_mat_HP_BIP_oos)<-paste("Shift of target: ",h_vec,sep="")
+  rownames(p_value_HAC_HP_BIP_oos)<-rownames(t_HAC_HP_BIP_oos)<-rownames(cor_mat_HP_BIP_oos)<-paste("Shift of target: ",h_vec[-length(h_vec)],sep="")
   
 # 1.2 Target is forward-shifted BIP
-  t_HAC_BIP_full<-p_value_HAC_BIP_full<-t_HAC_BIP_oos<-p_value_HAC_BIP_oos<-cor_mat_BIP_full<-cor_mat_BIP_oos<-matrix(ncol=length(h_vec),nrow=length(h_vec))
+  t_HAC_BIP_full<-p_value_HAC_BIP_full<-t_HAC_BIP_oos<-p_value_HAC_BIP_oos<-cor_mat_BIP_full<-cor_mat_BIP_oos<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
   BIP_target_mat<-NULL
-  for (i in 1:length(h_vec))# i<-1
+  for (i in 1:(length(h_vec)-1))# i<-1
   {
 # Shift BIP forward by publication lag and forecast horizon  
     shift<-h_vec[i]+lag_vec[1]
@@ -395,7 +395,7 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
   colnames(p_value_HAC_BIP_full)<-colnames(t_HAC_BIP_full)<-colnames(cor_mat_BIP_full)<-
   colnames(p_value_HAC_BIP_oos)<-colnames(t_HAC_BIP_oos)<-colnames(cor_mat_BIP_oos)<-paste("M-SSA: h=",h_vec,sep="")
   rownames(p_value_HAC_BIP_full)<-rownames(t_HAC_BIP_full)<-rownames(cor_mat_BIP_full)<-
-  rownames(p_value_HAC_BIP_oos)<-rownames(t_HAC_BIP_oos)<-rownames(cor_mat_BIP_oos)<-paste("Shift of target: ",h_vec,sep="")
+  rownames(p_value_HAC_BIP_oos)<-rownames(t_HAC_BIP_oos)<-rownames(cor_mat_BIP_oos)<-paste("Shift of target: ",h_vec[-length(h_vec)],sep="")
   
 # 2. Compute Direct predictors
 # We use full sample direct predictors
@@ -412,7 +412,7 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
 # Direct predictor: natural target is forward-shifted BIP  
   p_val_direct_mat<-matrix(nrow=length(h_vec),ncol=1)
   direct_pred_mat<-NULL
-  for (i in 1:length(h_vec))#i<-1
+  for (i in 1:(length(h_vec)))#i<-1
   { 
     shift<-h_vec[i]
 # Target: first column is forward-shifted BIP    
@@ -445,9 +445,9 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
     sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
     sd_ols<-sqrt(diag(vcov(lm_obj)))
 # Compute max of both: we rely on this estimate because HAC-adjustment is sometimes inconsistent (too small: maybe issue with R-package sandwich)    
-    sd_max<-max(sd_HAC,sd_ols)
+    sd_max<-max(sd_HAC[2],sd_ols[2])
 # Rely on max vola    
-    t_HAC<-summary(lm_obj)$coef[2,1]/sd_max[2]
+    t_HAC<-summary(lm_obj)$coef[2,1]/sd_max
 # One-sided test: if predictor is effective, then the sign of the coefficient must be positive  
     HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
     if (F)
@@ -463,8 +463,8 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
   
 # 3. Compute rRMSEs: 
 # 3.1 Target is forward-shifted HP-BIP
-  rRMSE_MSSA_HP_BIP_direct<-rRMSE_MSSA_HP_BIP_mean<-matrix(nrow=length(h_vec),ncol=length(h_vec))
-  for (i in 1:length(h_vec))#i<-1
+  rRMSE_MSSA_HP_BIP_direct<-rRMSE_MSSA_HP_BIP_mean<-matrix(nrow=length(h_vec)-1,ncol=length(h_vec))
+  for (i in 1:(length(h_vec)-1))#i<-1
   { 
     shift<-h_vec[i]
 # Target: first column is forward-shifted HP-BIP  
@@ -485,9 +485,9 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
   }
   
 # 3.2 Target is forward-shifted BIP
-  rRMSE_MSSA_BIP_direct<-rRMSE_MSSA_BIP_mean<-matrix(nrow=length(h_vec),ncol=length(h_vec))
+  rRMSE_MSSA_BIP_direct<-rRMSE_MSSA_BIP_mean<-matrix(nrow=length(h_vec)-1,ncol=length(h_vec))
   target_BIP_mat<-NULL
-  for (i in 1:length(h_vec))#i<-1
+  for (i in 1:(length(h_vec)-1))#i<-1
   { 
     shift<-h_vec[i]
     index_oos<-which(rownames(predictor_mssa_mat)>date_to_fit)
@@ -511,8 +511,8 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
       rRMSE_MSSA_BIP_mean[i,j]<-RMSE_MSSA/RMSE_mean  
     }
   }
-  colnames(target_BIP_mat)<-paste("shift=",h_vec,sep="")
-  rownames(rRMSE_MSSA_HP_BIP_direct)<-rownames(rRMSE_MSSA_HP_BIP_mean)<-rownames(rRMSE_MSSA_BIP_direct)<-rownames(rRMSE_MSSA_BIP_mean)<-paste("shift=",h_vec,sep="")
+  colnames(target_BIP_mat)<-paste("shift=",h_vec[-length(h_vec)],sep="")
+  rownames(rRMSE_MSSA_HP_BIP_direct)<-rownames(rRMSE_MSSA_HP_BIP_mean)<-rownames(rRMSE_MSSA_BIP_direct)<-rownames(rRMSE_MSSA_BIP_mean)<-paste("shift=",h_vec[-length(h_vec)],sep="")
   colnames(rRMSE_MSSA_HP_BIP_direct)<-colnames(rRMSE_MSSA_HP_BIP_mean)<-colnames(rRMSE_MSSA_BIP_direct)<-colnames(rRMSE_MSSA_BIP_mean)<-paste("h=",h_vec,sep="")
     
 
@@ -641,8 +641,8 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
   sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
   sd_ols<-sqrt(diag(vcov(lm_oos)))
 # Compute max of both vola estimates: HAC-adjustment is not 100% reliable (maybe issue with R-package sandwich)  
-  sd_max<-max(sd_ols,sd_HAC)
-  t_HAC<-summary(lm_oos)$coef[2,1]/sd_max[2]
+  sd_max<-max(sd_ols[2],sd_HAC[2])
+  t_HAC<-summary(lm_oos)$coef[2,1]/sd_max
 # One-sided test: if predictor is effective, then the sign of the coefficient must be positive (ngetaive signs can be ignored) 
   HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
   if (F)
@@ -767,7 +767,7 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
 compute_mssa_BIP_predictors_func_old<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
 {
   # 1. Compute target
-  
+  n<-ncol(x_mat)
   target_obj<-HP_target_sym_T(n,lambda_HP,L)
   
   gamma_target=t(target_obj$gamma_target)
