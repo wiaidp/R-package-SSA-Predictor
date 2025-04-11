@@ -727,7 +727,8 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
 # HAC adjustment (R-package sandwich)  
   sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
   t_HAC<-summary(lm_oos)$coef[2,1]/max(sd_HAC[2],sd_OLS[2])
-# One-sided test: if predictor is effective, then the sign of the coefficient must be positive (negative signs can be ignored) 
+#  t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
+  # One-sided test: if predictor is effective, then the sign of the coefficient must be positive (negative signs can be ignored) 
   p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
 # Out-of-sample MSE of predictor  
   MSE_oos<-mean(epsilon_oos[index_oos]^2)

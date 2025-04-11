@@ -982,11 +982,11 @@ perf_obj$MSE_oos_without_covid
 #   -A progress bar pops-up in the R-console
 
 # Initialize performance matrices
-p_mat_mssa<-p_mat_mssa_components<-p_mat_mssa_components_without_covid<-p_mat_direct<-rRMSE_mSSA_comp_direct<-rRMSE_mSSA_comp_mean<-rRMSE_mSSA_comp_direct_without_covid<-rRMSE_mSSA_comp_mean_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
+p_mat_mssa<-p_mat_mssa_components<-p_mat_mssa_components_without_covid<-p_mat_direct<-rRMSE_mSSA_comp_direct<-rRMSE_mSSA_comp_mean<-rRMSE_mSSA_comp_direct_without_covid<-rRMSE_mSSA_comp_mean_without_covid<-rRMSE_mSSA_direct_mean_without_covid<-rRMSE_mSSA_direct_mean<-p_mat_direct_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
 # Use WLS
 use_garch<-T
-# Set-up progress bar
-pb <- txtProgressBar(min=min(h_vec),max=max(h_vec),style=3)
+# Set-up progress bar: indicates progress in R-console
+pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
 
 # The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons (of M-SSA)
 for (shift in 0:5)
@@ -1011,44 +1011,64 @@ for (shift in 0:5)
     dat<-na.exclude(dat)
 # Apply the previous function    
     perf_obj<-compute_component_predictors_func(dat,in_out_separator,use_garch,shift)
-# Retrieve out-of-sample performances    
+# Retrieve out-of-sample performances 
+# a. p-values with/without Pandemic    
     p_mat_mssa_components[shift+1,k]<-perf_obj$p_value
     p_mat_mssa_components_without_covid[shift+1,k]<-perf_obj$p_value_without_covid
+# b. MSE forecast error out-of-sample
+#   -M-SSA components with/without Pandemic    
     MSE_oos_mssa_comp<-perf_obj$MSE_oos
     MSE_oos_mssa_comp_without_covid<-perf_obj$MSE_oos_without_covid
+#   -mean-benchmark with/without Pandemic    
     MSE_mean_oos<-perf_obj$MSE_mean_oos
     MSE_mean_oos_without_covid<-perf_obj$MSE_mean_oos_without_covid
     
 # B. Direct forecasts
-# -The main difference to M-SSA above is the specification of the explanatory variables: here x_mat 
-#   -We here select all series (but one could easily change this setting)
+# -The main difference to M-SSA above is the specification of the explanatory variables in the data 
+#     matrix dat: here x_mat 
+#   -We select all indicators (one could easily change this setting but results are only marginally effected as long as ifo and ESi are included)
+#   -Note that the data matrix here does not depend on j, in contrast  to the M-SSA components above    
     dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),x_mat)
+# Same but only ifo and ESI    
 #    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),x_mat[,c("ifo_c","ESI")])
     rownames(dat)<-rownames(x_mat)
     dat<-na.exclude(dat)
     
     perf_obj<-compute_component_predictors_func(dat,in_out_separator,use_garch,shift)
-    
+# Retrieve out-of-sample performances: p-values and forecast MSE, with/without Pandemic 
     p_mat_direct[shift+1,k]<-perf_obj$p_value 
+    p_mat_direct_without_covid[shift+1,k]<-perf_obj$p_value_without_covid 
     MSE_oos_direct<-perf_obj$MSE_oos
     MSE_oos_direct_without_covid<-perf_obj$MSE_oos_without_covid
     
+# Compute rRMSEs
+# a. M-SSA Components vs. direct forecast    
     rRMSE_mSSA_comp_direct[shift+1,k]<-sqrt(MSE_oos_mssa_comp/MSE_oos_direct)
+# b. M-SSA Components vs. mean benchmark    
     rRMSE_mSSA_comp_mean[shift+1,k]<-sqrt(MSE_oos_mssa_comp/MSE_mean_oos)
+# c. Direct forecast vs. mean benchmark    
+    rRMSE_mSSA_direct_mean[shift+1,k]<-sqrt(MSE_oos_direct/MSE_mean_oos)
+# Same as a, b, c but without Pandemic
     rRMSE_mSSA_comp_direct_without_covid[shift+1,k]<-sqrt(MSE_oos_mssa_comp_without_covid/MSE_oos_direct_without_covid)
     rRMSE_mSSA_comp_mean_without_covid[shift+1,k]<-sqrt(MSE_oos_mssa_comp_without_covid/MSE_mean_oos_without_covid)
+    rRMSE_mSSA_direct_mean_without_covid[shift+1,k]<-sqrt(MSE_oos_direct_without_covid/MSE_mean_oos_without_covid)
   }
 }
-
-# Note: possible warnings issued by the GARCH estimation routine can be ignored
+# Close progress bar
+close(pb)
+# Note: possible warnings issued by the GARCH estimation routine during computations can be ignored
 
 # Assign column and rownames
 colnames(p_mat_mssa_components)<-colnames(p_mat_direct)<-colnames(p_mat_mssa_components_without_covid)<-
   colnames(rRMSE_mSSA_comp_direct)<-colnames(rRMSE_mSSA_comp_mean)<-
-  colnames(rRMSE_mSSA_comp_direct_without_covid)<-colnames(rRMSE_mSSA_comp_mean_without_covid)<-paste("h=",h_vec,sep="")
+  colnames(rRMSE_mSSA_comp_direct_without_covid)<-colnames(rRMSE_mSSA_comp_mean_without_covid)<-
+  colnames(rRMSE_mSSA_direct_mean)<-colnames(rRMSE_mSSA_direct_mean_without_covid)<-
+  colnames(p_mat_direct_without_covid)<-paste("h=",h_vec,sep="")
 rownames(p_mat_mssa_components)<-rownames(p_mat_direct)<-rownames(p_mat_mssa_components_without_covid)<-
   rownames(rRMSE_mSSA_comp_direct)<-rownames(rRMSE_mSSA_comp_mean)<-
-  rownames(rRMSE_mSSA_comp_direct_without_covid)<-rownames(rRMSE_mSSA_comp_mean_without_covid)<-paste("Shift=",0:5,sep="")
+  rownames(rRMSE_mSSA_comp_direct_without_covid)<-rownames(rRMSE_mSSA_comp_mean_without_covid)<-
+  rownames(rRMSE_mSSA_direct_mean)<-rownames(rRMSE_mSSA_direct_mean_without_covid)<-
+  rownames(p_mat_direct_without_covid)<-paste("Shift=",0:5,sep="")
 
 # HAC-adjusted p-values of out-of-sample (M-SSA) components predictor when targeting forward-shifted BIP
 #   -Evaluation based on out-of-sample span starting at in_out_separator and ending on Jan-2025
@@ -1063,8 +1083,8 @@ p_mat_mssa_components_without_covid
 p_mat_mssa_components
 # b. Original M-SSA predictor (based on naive equal-weighting of the components)
 p_value_HAC_BIP_oos
-# Findings: the new M-SSA components predictor tends to track BIP better than the M-SSA predictor (exercise 1) 
-#   specifically at larger forward-shifts 
+# Findings: the new M-SSA components predictors tend to track BIP better than the M-SSA predictors  
+#   at larger forward-shifts (3 and 4 quarters ahead) 
 
 # -The above p-values are based on regressions (of predictors on BIP) thereby ignoring `static' level and scale parameters
 # -The following rRMSEs account (also) for scale and level of the new predictor
@@ -1073,19 +1093,36 @@ p_value_HAC_BIP_oos
 rRMSE_mSSA_comp_mean
 # b. rRMSE of M-SSA components when benchmarked against direct forecast, out-of-sample, all time points from in_out_separator=2007 onwards
 rRMSE_mSSA_comp_direct
+# c. rRMSE of direct forecasts when benchmarked against mean benchmark, out-of-sample, all time points from in_out_separator=2007 onwards
+#   Note: the columns are identical since for given shift, the direct forecast does not depend on j in the above loop  
+rRMSE_mSSA_direct_mean
 
 # Same but without Pandemic
 rRMSE_mSSA_comp_mean_without_covid
 rRMSE_mSSA_comp_direct_without_covid
+rRMSE_mSSA_direct_mean_without_covid
 
 # Comments:
-# -New M-SSA components predictor addresses BIP and MSE performances explicitly 
-#   -Weights of components rely on WLS regression (instead of equal-weighting)
-# -New predictor outperforms original M-SSA predictor when targeting BIP
-# -Systematic pattern: for larger forward-shifts (from top to bottom), designs optimized for larger horizons tend to perform better
+# -New M-SSA components predictor addresses future BIP and MSE performances explicitly 
+#   -Weights of components rely on WLS regression of components on future BIP (instead of equal-weighting)
+# -New predictor optimized for larger forecast horizons (h>=4) outperforms original M-SSA predictor when 
+#     targeting BIP at larger forward shifts (3 and 4 quarters ahead), see p_mat_mssa_components vs. p_value_HAC_BIP_oos
+# -Systematic pattern: for larger forward-shifts (from top to bottom), designs optimized for larger 
+#     forecasts horizons tend to perform better
 # -Singular Pandemic data affects evaluation 
-# -New predictor outperforms direct forecasts and mean-benchmark up to several quarters ahead  
-#   -Designs optimized for larger forecast horizons tend to perform better at larger forward-shifts, as intended
+#   -p-values and rRMSEs increase; systematic patterns are cluttered by noise
+
+# -Analysis without Pandemic:
+#   -New predictor vs. mean: (see rRMSE_mSSA_comp_mean_without_covid)
+#     -rRMSEs are below 90% for shifts up to 4 quarters and for M-SSA designs optimized for larger forecast horizons 
+#   -New predictor vs. direct forecasts: (see rRMSE_mSSA_comp_direct_without_covid) 
+#     -rRMSEs are below 90% for shifts 2<=shift<=4 and for M-SSA designs optimized for larger forecast horizons 
+#     -Outperformance less marked for shifts<=1: direct forecasts are informative at short forecast horizons
+#   -Direct forecast vs. mean benchmark: (see rRMSE_mSSA_direct_mean_without_covid)
+#     -rRMSEs below  (or close to) 90% for small shifts (shift<=1)
+#     -Confirmation: direct forecasts perform well at short forecast horizons
+#   -Systematic pattern: M-SSA designs optimized for larger forecast horizons tend to perform better at larger forward-shifts
+
 
 #######################################################################################
 # Exercise 4: More adaptive design
