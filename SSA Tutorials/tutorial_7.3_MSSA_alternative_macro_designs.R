@@ -1123,11 +1123,10 @@ rRMSE_mSSA_direct_mean_without_covid
 #     -rRMSEs are below 90% for shifts up to 4 quarters and for M-SSA designs optimized for larger forecast horizons 
 #   -New predictor vs. direct forecasts: (see rRMSE_mSSA_comp_direct_without_covid) 
 #     -rRMSEs are below 90% for shifts 2<=shift<=4 and for M-SSA designs optimized for larger forecast horizons 
-#     -Outperformance less marked for shifts<=1: direct forecasts are informative at short forecast horizons
+#     -Outperformance is less marked for shifts<=1: direct forecasts are informative at short forecast horizons
 #   -Direct forecast vs. mean benchmark: (see rRMSE_mSSA_direct_mean_without_covid)
-#     -rRMSEs below  (or close to) 90% for small shifts (shift<=1)
+#     -rRMSEs are below  (or close to) 90% for small shifts (shift<=1)
 #     -Confirmation: direct forecasts are informative at short forecast horizons
-#   -Systematic pattern: M-SSA designs optimized for larger forecast horizons tend to perform better at larger forward-shifts
 
 
 #######################################################################################
