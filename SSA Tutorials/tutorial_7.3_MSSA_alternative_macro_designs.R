@@ -1131,7 +1131,7 @@ rRMSE_mSSA_direct_mean_without_covid
 
 #######################################################################################
 # Exercise 4: More adaptive design
-# -Exercise 1 above confirms that we can predict HP-BIP several quarters ahead by the M-SSA predictor
+# -Exercise 1 illustrates that HP-BIP can be forecasted several quarters ahead by the M-SSA predictor
 # -But predicting BIP is more challenging
 #   -For this purpose exercise 3 proposed an analysis of M-SSA components, based on a more sophisticated 
 #     weighting scheme (than equal-weighting)
@@ -1200,7 +1200,6 @@ p_value_HAC_BIP_oos
 
 # We cannot see systematic improvements (smaller p-values) when using a more adaptive target HP(16) for M-SSA
 
-
 ##################################################################################
 # Exercise 5
 # As a complement to exercise 4 above, we now briefly analyze the rather inflexible classic
@@ -1257,13 +1256,13 @@ box()
 #   -To a good extent, some of the anomalies are due to the singular Pandemic readings
 #   -HP(1600) is more sensitive to the Pandemic than the previous (more adaptive) designs
 
-#---------------------------------------------
+##########################################################################################################
 # Findings overall:
 
 # A. Classic direct predictors:
 #   -Classic direct predictors often do not perform better (out-of-sample) than the simple mean benchmark at 
 #     forward-shifts of 2 quarters or more
-#   -Classic direct predictors are more sensitive (than M-SSA) to singular episodes (Pandemic)
+#   -Classic direct predictors tend to be more sensitive (than M-SSA) to singular episodes (Pandemic)
 
 # B. M-SSA
 #   -Classic business-cycle designs (lambda_HP=1600) smooth out recessions and hide  
@@ -1271,8 +1270,9 @@ box()
 #   -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent forecast pattern, 
 #       suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
 #     -This result suggests that M-SSA is informative about forward-shifted BIP too, although corresponding 
-#       performance statistics are less conclusive (cluttered by noise)
-#   -More adaptive (lambda_HP=16) or less adaptive designs (lambda_HP=1600) do not track forward-shifted BIP better
+#       performance statistics are less conclusive, see exercise 1 (cluttered by noise)
+#   -More adaptive (lambda_HP=16) or less adaptive designs (lambda_HP=1600) do not track forward-shifted BIP 
+#       systematically better, see exercises 4 and 5
 #   -Sub-components of the M-SSA predictor are potentially useful for interpretation purposes (see exercise 3.2) 
 #     and for addressing MSE performances explicitly, see exercise 3.3
 #     -Weighting M-SSA components `optimally' (instead of equal-weighting in M-SSA predictor) leads to 
@@ -1285,7 +1285,12 @@ box()
 #   -HAC-adjustments (of test-statistics) seem unable to account fully for the observed data-idiosyncrasies
 #   -However, exercise 2 suggests that biases are relatively small
 #     -p-values smaller than one percent are rare in the case of simulated white noise
-#   -We use the maximum of the standard error, as based on OLS and HAC, when deriving t-statistics (conservative setting)
+#   -The original bias could be reduced further by a simple trick
+#     -Compute standard errors (of regressors) based on OLS (classic) and HAC (R-package sandwich)
+#     -Compute the max of both standard errors
+#     -Derive t-statistics based on the max (conservative setting)
+#     -See our R-code: functions compute_perf_func, HAC_ajusted_p_value_func, 
+#       compute_calibrated_out_of_sample_predictors_func and compute_component_predictors_func
 
 # Final notes on the publication lag and data revisions
 #   -All results relate to forward-shifts augmented by the publication lag
