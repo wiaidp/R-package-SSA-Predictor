@@ -654,12 +654,18 @@ length(which(p_value_HAC_WN_oos<0.01))
 
 ##################################################################################
 # Exercise 3 Working with (M-SSA) BIP predictor (sub-)components
-# Purposes: 
-# 1. Interpretability: M-SSA predictor components can be used for gauging the M-SSA predictor 
+# Warning: this exercise assumes that the code in exercise 1 has been run to properly initialize 
+#   the design and to compute meaningful benchmarks
+# -Do not run exercise 3 directly after exercises 4 or 5 further down, since some variables would be overwritten 
+# -Always re-run exercise 1 before starting exercise 3
+
+# Purposes of exercise 3: 
+# 1. Interpretability: M-SSA predictor components can be used for gauging the M-SSA predictor (of exercise 1)
 # 2.  M-SSA predictor components can also be used to address explicitly MSE-forecast performances when targeting 
 #       forward-shifted BIP
 # -Explanation to 2: the M-SSA predictor in exercise 1 is designed to track HP-BIP; in doing so, it also 
-#     tracks BIP `somehow`; but the optimization criterion does not address BIP explicitly
+#     tracks BIP `somehow`; but the optimization criterion does not address BIP explicitly; the design 
+#     proposed here addresses MSE performances when targeting future BIP 
 
 # Technical background: 
 # -The M-SSA predictor (the matrix predictor_mssa_mat) is constructed from components (contained in array mssa_array)
@@ -670,7 +676,7 @@ length(which(p_value_HAC_WN_oos<0.01))
 #   -Therefore, MSE performances are deemed less relevant, in particular when targeting BIP (instead of HP-BIP)
 #   -We shall see that BIP predictor components can be used to this effect: address BIP-MSE performances explicitly
 
-# To start, let us initialize all settings as in exercise 1 above
+# To start, let us initialize some important settings (based on exercise 1 above)
 lambda_HP<-160
 L<-31
 date_to_fit<-date_to_fit
@@ -1120,7 +1126,7 @@ rRMSE_mSSA_direct_mean_without_covid
 #     -Outperformance less marked for shifts<=1: direct forecasts are informative at short forecast horizons
 #   -Direct forecast vs. mean benchmark: (see rRMSE_mSSA_direct_mean_without_covid)
 #     -rRMSEs below  (or close to) 90% for small shifts (shift<=1)
-#     -Confirmation: direct forecasts perform well at short forecast horizons
+#     -Confirmation: direct forecasts are informative at short forecast horizons
 #   -Systematic pattern: M-SSA designs optimized for larger forecast horizons tend to perform better at larger forward-shifts
 
 
