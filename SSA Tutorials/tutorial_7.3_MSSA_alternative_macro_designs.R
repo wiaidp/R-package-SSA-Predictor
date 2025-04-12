@@ -654,10 +654,6 @@ length(which(p_value_HAC_WN_oos<0.01))
 
 ##################################################################################
 # Exercise 3 Working with (M-SSA) BIP predictor (sub-)components
-# Warning: this exercise assumes that the code in exercise 1 has been run to properly initialize 
-#   the design and to compute meaningful benchmarks
-# -Do not run exercise 3 directly after exercises 4 or 5 further down, since some variables would be overwritten 
-# -Always re-run exercise 1 before starting exercise 3
 
 # Purposes of exercise 3: 
 # 1. Interpretability: M-SSA predictor components can be used for gauging the M-SSA predictor (of exercise 1)
