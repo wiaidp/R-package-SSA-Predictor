@@ -635,6 +635,12 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
   epsilon_oos<-dat[,1]-cal_oos_pred
   index_oos<-which(rownames(dat)>date_to_fit)
 # And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
+    da<-cbind(dat[index_oos,1],cal_oos_pred[index_oos])
+    
+  
+   
+  HAC_p_value<-HAC_ajusted_p_value_func(da)$p_value 
+  
   lm_oos<-lm(dat[index_oos,1]~cal_oos_pred[index_oos])
   ts.plot(cbind(dat[,1],cal_oos_pred))
   summary(lm_oos)
@@ -644,7 +650,7 @@ compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
   sd_max<-max(sd_ols[2],sd_HAC[2])
   t_HAC<-summary(lm_oos)$coef[2,1]/sd_max
 # One-sided test: if predictor is effective, then the sign of the coefficient must be positive (ngetaive signs can be ignored) 
-  HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
+  HAC_p_value<-pt(t_HAC, nrow(na.exclude(dat))-2, lower=FALSE)
   if (F)
   {
 # Classic OLS p-values
