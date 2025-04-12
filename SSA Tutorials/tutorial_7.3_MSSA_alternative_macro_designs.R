@@ -663,13 +663,15 @@ length(which(p_value_HAC_WN_oos<0.01))
 #     tracks BIP `somehow`; but the optimization criterion does not address BIP explicitly; the design 
 #     proposed here addresses MSE performances when targeting future BIP 
 
-# Technical background: 
+# Overview: 
 # -The M-SSA predictor (the matrix predictor_mssa_mat) is constructed from components (contained in array mssa_array)
 #   -We here briefly review, illustrate and confirm the construction principle: see exercise 3.1. 
-# -Subsequently, we suggest that predictor components support additional information that can be exploited.
-# -Specifically, we address interpretability, see exercise 3.2, and BIP-MSE forecast performances, see exercise 3.3
+# -Subsequently, we suggest that predictor components support additional information that can be exploited:
+#   -for interpretability, see exercise 3.2
+#   -and to address BIP-MSE forecast performances, see exercise 3.3
 
 # To start, let us initialize some important settings (based on exercise 1 above)
+#   -It is assumed that exercise 1 has been run beforehand
 lambda_HP<-160
 L<-31
 date_to_fit<-date_to_fit
@@ -691,8 +693,8 @@ mssa_array<-mssa_indicator_obj$mssa_array
 #-----------
 # 3.1 What are BIP predictor (sub-)components?
 # -The M-SSA BIP predictor was introduced in tutorial 7.2, exercise 3
-#   -The BIP predictor is obtained as the equally-weighted aggregate of standardized M-SSA outputs of all indicators (BIP, ip, ifo, ESI, spread)
-#   -For illustration, we here briefly replicate the predictor, as based on its components. 
+#   -The M-SSA BIP predictor is obtained as the equally-weighted aggregate of standardized M-SSA outputs of all indicators (BIP, ip, ifo, ESI, spread)
+#   -For illustration, we here briefly replicate the predictor, as based on its (equally-weighted) components. 
 #   -For this purpose, we select the M-SSA nowcast
 j_now<-1
 # This is the forecast horizon (nowcast)
@@ -711,6 +713,7 @@ rownames(mplot)<-rownames(x_mat)
 colnames(mplot)<-c("Cross-sectional mean of standardized predictor components","M-SSA predictor")
 colo<-c("blue",rainbow(length(select_vec_multi)))
 main_title<-"Replication of M-SSA predictor, based on its components"
+par(mfrow=c(1,1))
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (i in 1:ncol(mplot))
@@ -793,14 +796,15 @@ box()
 
 # 3.3.1 Selection
 # -We can select the M-SSA components which are deemed relevant for MSE performances when targeting BIP
-#   -ESI, ifo and spread are mainly relevant in a dynamic context (for the M-SSA predictor)
+#   -ESI, ifo and spread M-SSA components are mainly relevant in a dynamic context (for the M-SSA predictor)
 #   -In contrast, BIP and ip M-SSA components are natural candidates in a MSE perspective (which is emphasized here).
-#   -Note, however, that ESI, ifo and spread are important determinants of the two (BIP- and ip-) M-SSA components
+#   -Note, however, that the original indicators (data) ESI, ifo and spread are important determinants 
+#     of the selected (BIP- and ip-) M-SSA components
 sel_vec_pred<-select_vec_multi[c(1,2)]
 # Selected M-SSA components
 sel_vec_pred
 # We can select the forward shift of BIP: for illustration we assume a 2 quarters ahead forward-shift 
-#   (below we analyze all shifts, from zero to six quarters ahead)
+#   (below we analyze all shifts, from zero to five quarters ahead)
 shift<-2
 # We can select the forecast horizon of the M-SSA components: we select a 4 quarters ahead horizon 
 #   (below, we shall look all all combinations of shift and forecast horizon)
@@ -814,7 +818,7 @@ colnames(dat)<-c(paste("BIP shifted forward by lag_vec+shift=",shift+lag_vec[1],
                     paste("Predictor component ",colnames(t(mssa_array[sel_vec_pred,,k])),": h=",h_vec[k],sep=""))
 tail(dat)
 # We target BIP shifted forward by shift+publication lag (first column) based on M-SSA components BIP and ip
-
+#   -As stated above, ifo, ESI and spread (original data) are determinants of the two M-SSA components 
 # For estimation purposes we can remove all NAs
 dat<-na.exclude(dat)
 
@@ -830,7 +834,7 @@ lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)])
 summary(lm_obj)
 # The M-SSA components seem to be significant (HAC-adjustment wouldn't contradict this statement)
 
-# Compute an out-of-sample prediction for time point i+shift
+# Compute an out-of-sample prediction for time point i_time+shift
 oos_pred<-(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift,2:ncol(dat)]) 
 # Compute the out-of-sample forecast error
 oos_error<-dat[i_time+shift,1]-oos_pred
@@ -910,6 +914,7 @@ rRMSE_mSSA_comp_mean
 # Depending on the selected time point, the rRMSE is larger or smaller one
 # On average, over a longer out-of-span, we expect the more sophisticated predictor(s) to outperform the simple mean benchmark
 
+# We now apply the above proceeding to a longer out-of-sample span and compute average performances
 #------------
 # 3.3.4 Average performances: apply the above findings to all data points after 2007, including the 
 #   entire financial crisis for out-of-sample evaluations
@@ -946,7 +951,7 @@ perf_obj$MSE_oos
 perf_obj$MSE_oos_without_covid
 # The function also computes the out-of-sample MSE of the simple mean benchmark predictor (expanding window): 
 #   -we expect the mean-benchmark to be slightly worse (larger MSE) than the 
-#     M-SSA components, at least for smaller forward-shifts of BIP
+#     M-SSA components, at least for smaller forward-shifts of BIP (in the long run, the mean is difficult to outperform)
 perf_obj$MSE_mean_oos
 perf_obj$MSE_mean_oos_without_covid
 
@@ -961,21 +966,14 @@ perf_obj$MSE_oos
 perf_obj_OLS$MSE_oos_without_covid
 # Compare with WLS
 perf_obj$MSE_oos_without_covid
-# As claimed, WLS outperforms OLS out-of-sample
+# As claimed, WLS outperforms OLS out-of-sample, on average
 
 # In the next step, we compute the above performance metrics for all combinations of forward-shift (of BIP) and 
 #   forecast horizons (of M-SSA components)
 
 #----------------
 # 3.3.5 Compute performances of M-SSA components as predictors for forward-shifted BIP
-# -Performance metrics:
-#   -In contrast to the M-SSA predictor in exercise 1, we here explicitly emphasize MSE performances when 
-#     targeting forward-shifted BIP (instead of HP-BIP)
-#   -We compute HAC-adjusted p-values and rRMSEs when comparing M-SSA component predictors with 
-#       the simple mean as well as with the direct forecasts
-#     -Direct forecasts are based on the more effective WLS-regression (in contrast to OLS regression in exercise 1 above)
-#   -In contrast to exercise 1.2.3 above, all predictors here are `truly' out-of-sample (as a result, performances are not directly comparable with those obtained in exercise 1.2.3) 
-# -We compute all combinations of forward-shift and forecast horizon (7*7 matrix of performance metrics)
+# -We compute all combinations of forward-shift and forecast horizon (6*7 matrix of performance metrics)
 
 # -Depending on the CPU, computations may last up to several minutes (regressions and GARCH-models are recomputed for each time point and for all combinations of shift and forecast horizon))
 #   -A progress bar pops-up in the R-console
