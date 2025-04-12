@@ -1276,7 +1276,7 @@ box()
 #   -HAC-adjustments (of test-statistics) seem unable to account fully for the observed data-idiosyncrasies
 #   -However, exercise 2 suggests that biases are relatively small
 #     -p-values smaller than one percent are rare in the case of simulated white noise
-#   -The original bias could be reduced further by a simple trick
+#   -The original bias has been reduced further by a simple trick
 #     -Compute standard errors (of regressors) based on OLS (classic) and HAC (R-package sandwich)
 #     -Compute the max of both standard errors
 #     -Derive t-statistics based on the max (conservative setting)
