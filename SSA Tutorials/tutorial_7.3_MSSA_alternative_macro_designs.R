@@ -1110,7 +1110,7 @@ rRMSE_mSSA_direct_mean_without_covid
 
 # Comments:
 # -New M-SSA components predictor addresses future BIP and MSE performances explicitly 
-#   -Weights of components rely on WLS regression of components on future BIP (instead of equal-weighting)
+#   -Weights of components rely on WLS regression of components on future BIP (instead of equal-weighting in original M-SSA predictor, exercise 1)
 # -New predictor optimized for larger forecast horizons (h>=4) outperforms original M-SSA predictor when 
 #     targeting BIP at larger forward shifts (3 and 4 quarters ahead), see p_mat_mssa_components vs. p_value_HAC_BIP_oos
 # -Systematic pattern: for larger forward-shifts (from top to bottom), designs optimized for larger 
@@ -1123,7 +1123,7 @@ rRMSE_mSSA_direct_mean_without_covid
 #     -rRMSEs are below 90% for shifts up to 4 quarters and for M-SSA designs optimized for larger forecast horizons 
 #   -New predictor vs. direct forecasts: (see rRMSE_mSSA_comp_direct_without_covid) 
 #     -rRMSEs are below 90% for shifts 2<=shift<=4 and for M-SSA designs optimized for larger forecast horizons 
-#     -Outperformance is less marked for shifts<=1: direct forecasts are informative at short forecast horizons
+#     -Outperformance of M-SSA is less strong for shifts<=1: direct forecasts are informative at short forecast horizons
 #   -Direct forecast vs. mean benchmark: (see rRMSE_mSSA_direct_mean_without_covid)
 #     -rRMSEs are below  (or close to) 90% for small shifts (shift<=1)
 #     -Confirmation: direct forecasts are informative at short forecast horizons
@@ -1289,8 +1289,8 @@ box()
 #     -Compute standard errors (of regressors) based on OLS (classic) and HAC (R-package sandwich)
 #     -Compute the max of both standard errors
 #     -Derive t-statistics based on the max (conservative setting)
-#     -See our R-code: functions compute_perf_func, HAC_ajusted_p_value_func, 
-#       compute_calibrated_out_of_sample_predictors_func and compute_component_predictors_func
+#     -See our R-code: we use sd_max when computing the t-statistic in the following function
+head(HAC_ajusted_p_value_func,20)
 
 # Final notes on the publication lag and data revisions
 #   -All results relate to forward-shifts augmented by the publication lag

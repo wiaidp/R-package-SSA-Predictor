@@ -428,36 +428,21 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
     if (n==1)
     {
 # Classic regression prediction        
-      direct_pred<-c(rep(NA,shift+lag_vec[1]),lm_obj$coef[1]+lm_obj$coef[2]*dat[,2])
+      direct_pred<-lm_obj$coef[1]+lm_obj$coef[2]*dat[,2]
     } else
     {
 # Classic regression prediction though we use %*% instead of * above  
-      direct_pred<-c(rep(NA,shift+lag_vec[1]),lm_obj$coef[1]+lm_obj$coef[2]%*%dat[,2])
+      direct_pred<-as.vector(lm_obj$coef[1]+lm_obj$coef[2]%*%dat[,2])
     }
+    
+# Compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample
+# Technical note: we use the max of the standard error by OLS and HAC to tame the bias    
+    da<-cbind(dat[,1],direct_pred)
+    p_val_direct_mat[i,1]<-HAC_ajusted_p_value_func(da)$p_value
+# Shift predictor forward and add NAs 
+    direct_pred<-c(rep(NA,shift+lag_vec[1]),direct_pred)
+# Bind predictors into direct_pred_mat    
     direct_pred_mat<-cbind(direct_pred_mat,direct_pred)
-    
-# Compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
-    lm_obj<-lm(dat[,1]~na.exclude(direct_pred))
-    
-#    ts.plot(cbind(dat[,1],direct_pred))
-    summary(lm_obj)
-# Compute classic and HAC-adjusted standard errors    
-    sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
-    sd_ols<-sqrt(diag(vcov(lm_obj)))
-# Compute max of both: we rely on this estimate because HAC-adjustment is sometimes inconsistent (too small: maybe issue with R-package sandwich)    
-    sd_max<-max(sd_HAC[2],sd_ols[2])
-# Rely on max vola    
-    t_HAC<-summary(lm_obj)$coef[2,1]/sd_max
-# One-sided test: if predictor is effective, then the sign of the coefficient must be positive  
-    HAC_p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
-    if (F)
-    {
-# Classic OLS p-values      
-      sd_ols<-sqrt(diag(vcov(lm_obj)))
-      t_ols<-summary(lm_obj)$coef[2,1]/sd_ols[2]
-      OLS_p_value<-pt(t_ols, nrow(dat)-2, lower=FALSE)
-    }
-    p_val_direct_mat[i,1]<-HAC_p_value
   }
   rownames(p_val_direct_mat)<-paste("shift=",h_vec,sep="")
   
@@ -516,55 +501,7 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
   colnames(rRMSE_MSSA_HP_BIP_direct)<-colnames(rRMSE_MSSA_HP_BIP_mean)<-colnames(rRMSE_MSSA_BIP_direct)<-colnames(rRMSE_MSSA_BIP_mean)<-paste("h=",h_vec,sep="")
     
 
-# Older measures without calibration  
-  if (F)
-  {
-    p_val_mat<-matrix(nrow=length(h_vec),ncol=length(h_vec))
-    date_to_fit<-"2008"
-    for (i in 1:length(h_vec))
-    { 
-      for (j in 1:length(h_vec))#j<-1
-      {
-        shift<-h_vec[i]
-        dat<-cbind(c(x_mat[(lag_vec[1]+1+shift):nrow(x_mat),1],rep(NA,lag_vec[1]+shift)),predictor_mssa_mat[,j])
-        tail(dat,9)
-        dat<-na.exclude(dat)
-        ts.plot(dat)
-        oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit)
-        
-        p_val_mat[i,j]<-oos_pred_obj$HAC_p_value
-        
-      }
-      colnames(p_val_mat)<-paste("h=",h_vec,sep="")
-      rownames(p_val_mat)<-paste("shift=",h_vec,sep="")
-      
-    }
-    
-    p_val_mat
-    
-    p_val_mat<-matrix(nrow=length(h_vec),ncol=1)
-    for (i in 1:length(h_vec))
-    { 
-      shift<-h_vec[i]
-      dat<-cbind(c(x_mat[(lag_vec[1]+1+shift):nrow(x_mat),1],rep(NA,lag_vec[1]+shift)),x_mat[,select_direct_indicator])
-      tail(dat,9)
-      dat<-na.exclude(dat)
-      ts.plot(dat)
-      oos_pred_obj<-compute_calibrated_out_of_sample_predictors_func(dat,date_to_fit)
-        
-      p_val_mat[i,1]<-oos_pred_obj$HAC_p_value
-        
-      
-    }
-    rownames(p_val_mat)<-paste("shift=",h_vec,sep="")
-    
-    
-    p_val_mat
-    
-    
-    
-  }
-  
+
   return(list(p_value_HAC_HP_BIP_full=p_value_HAC_HP_BIP_full,t_HAC_HP_BIP_full=t_HAC_HP_BIP_full,
               cor_mat_HP_BIP_full=cor_mat_HP_BIP_full,p_value_HAC_HP_BIP_oos=p_value_HAC_HP_BIP_oos,
               t_HAC_HP_BIP_oos=t_HAC_HP_BIP_oos,cor_mat_HP_BIP_oos=cor_mat_HP_BIP_oos,
@@ -581,21 +518,25 @@ compute_perf_func<-function(x_mat,target_shifted_mat,predictor_mssa_mat,predicto
 # Compute HAC-adjusted p-value of-one-sided test when regressing column 2 on column 1 of da
 HAC_ajusted_p_value_func<-function(da)
 {
-  
+# regress predictor on target  
   lm_obj<-lm(da[,1]~da[,2])
   summary(lm_obj)
-# This one replicates Std. Error in summary
+# Compute standard error of regression coefficient (of predictor)
+# This one replicates Std. Error in summary: OLS standard error
   sd<-sqrt(diag(vcov(lm_obj)))
-# Here we use HAC  
+# Alternatively we can use HAC: R-package sandwich (to account for heteroscedasticity and autocorrelation of residuals)  
   sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
 # This is the same as
   sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
-# In some cases the HAC-adjustment is suspect (too small): we select the max of HAC-adjusted and OLS standard errors  
+# We now compute the max of HAC-adjusted and OLS standard errors  
   sd_max<-max(sd[2],sd_HAC[2])
+  if (F)
+  {
 # Classic OLS
-  t_stat<-summary(lm_obj)$coef[2,1]/sd[2]
+    t_stat<-summary(lm_obj)$coef[2,1]/sd[2]
 # HAC adjusted  
-  t_stat<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
+    t_stat<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
+  }
 # We noted that the HAC adjustment does not always lead to consistent results (maybe a problem with R-package sandwich)
 # In any case we here try to adopt a pragmatic proceeding by using sd_max, the larger of the two variance estimates 
   t_stat<-summary(lm_obj)$coef[2,1]/sd_max
@@ -606,63 +547,6 @@ HAC_ajusted_p_value_func<-function(da)
 
 
 
-compute_calibrated_out_of_sample_predictors_func<-function(dat,date_to_fit)
-{
-  len<-dim(dat)[1]
-  # First column is target, i.e. dimension is dim(dat)[2]-1
-  n<-dim(dat)[2]-1
-  # Compute calibrated out-of-sample predictor, based on expanding window
-  #   -Use data up i for fitting the regression
-  #   -Compute a prediction with explanatory data in i+1
-  cal_oos_pred<-rep(NA,len)
-  for (i in (n+2):(len-1)) #i<-n+2
-  {
-# Fit model with data up to time point i    
-    lm_obj<-lm(dat[1:i,1]~dat[1:i,2:(n+1)])
-# Compute out-of-sample prediction for i+1
-# Distinguish only one from multiple explanatory variables (R-code different...)    
-    if (n==1)
-    {
-# Classic regression prediction        
-        cal_oos_pred[i+1]<-lm_obj$coef[1]+lm_obj$coef[2]*dat[i+1,2] 
-    } else
-    {
-# Classic regression prediction though we use %*% instead of * above      
-      cal_oos_pred[i+1]<-lm_obj$coef[1]+lm_obj$coef[2:(n+1)]%*%dat[i+1,2:(n+1)] 
-    }
-  }
-# Once the predictors are computed we can obtain the out-of-sample prediction errors
-  epsilon_oos<-dat[,1]-cal_oos_pred
-  index_oos<-which(rownames(dat)>date_to_fit)
-# And we can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
-    da<-cbind(dat[index_oos,1],cal_oos_pred[index_oos])
-    
-  
-   
-  HAC_p_value<-HAC_ajusted_p_value_func(da)$p_value 
-  
-  lm_oos<-lm(dat[index_oos,1]~cal_oos_pred[index_oos])
-  ts.plot(cbind(dat[,1],cal_oos_pred))
-  summary(lm_oos)
-  sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
-  sd_ols<-sqrt(diag(vcov(lm_oos)))
-# Compute max of both vola estimates: HAC-adjustment is not 100% reliable (maybe issue with R-package sandwich)  
-  sd_max<-max(sd_ols[2],sd_HAC[2])
-  t_HAC<-summary(lm_oos)$coef[2,1]/sd_max
-# One-sided test: if predictor is effective, then the sign of the coefficient must be positive (ngetaive signs can be ignored) 
-  HAC_p_value<-pt(t_HAC, nrow(na.exclude(dat))-2, lower=FALSE)
-  if (F)
-  {
-# Classic OLS p-values
-    sd_ols<-sqrt(diag(vcov(lm_obj)))
-    t_ols<-summary(lm_obj)$coef[2,1]/sd_ols[2]
-    OLS_p_value<-pt(t_ols, nrow(dat)-2, lower=FALSE)
-  }
-  p_value<-HAC_p_value
-  
-  
-  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,p_value=p_value,HAC_p_value=HAC_p_value))
-}
 
 
 
@@ -723,19 +607,10 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
 # Once the predictors are computed we can obtain the out-of-sample prediction errors
   epsilon_oos<-dat[,1]-cal_oos_pred
   index_oos<-which(rownames(dat)>start_fit)
-# We can compute the HAC-adjusted p-values of the regression of the predictor on the target, out-of-sample  
-  lm_oos<-lm(dat[index_oos,1]~cal_oos_pred[index_oos])
-# Plot target and out-of-sample predictor  
-  ts.plot(cbind(dat[index_oos,1],cal_oos_pred[index_oos]),main=paste("shift=",shift,sep=""))
-  summary(lm_oos)
-# OLS standard error  
-  sd_OLS<-sqrt(diag(vcov(lm_oos)))
-# HAC adjustment (R-package sandwich)  
-  sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
-  t_HAC<-summary(lm_oos)$coef[2,1]/max(sd_HAC[2],sd_OLS[2])
-#  t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
-  # One-sided test: if predictor is effective, then the sign of the coefficient must be positive (negative signs can be ignored) 
-  p_value<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
+# Compute HAC-adjusted p-value
+# Technical note: we use max of standard error of OLS and HAC adjustment to reduce bias
+  da<-cbind(dat[index_oos,1],cal_oos_pred[index_oos])
+  p_value<-HAC_ajusted_p_value_func(da)$p_value
 # Out-of-sample MSE of predictor  
   MSE_oos<-mean(epsilon_oos[index_oos]^2)
 # Same but for benchmark mean predictor  
@@ -748,13 +623,10 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
     index_oos_without_covid<-index_oos[rownames(dat)[index_oos]<2019]
 # Check
     rownames(dat)[index_oos_without_covid]
-# Compute HAC adjusted p-value    
-    lm_oos<-lm(dat[index_oos_without_covid,1]~cal_oos_pred[index_oos_without_covid])
-    summary(lm_oos)
-    sd_HAC<-sqrt(diag(vcovHAC(lm_oos)))
-    t_HAC<-summary(lm_oos)$coef[2,1]/sd_HAC[2]
-# One-sided test: if predictor is effective, then the sign of the coefficient must be positive (negtaive signs can be ignored) 
-    p_value_without_covid<-pt(t_HAC, nrow(dat)-2, lower=FALSE)
+# Compute HAC adjusted p-value   
+# Technical note: we use max of standard error of OLS and HAC adjustment to reduce bias
+    da<-cbind(dat[index_oos_without_covid,1],cal_oos_pred[index_oos_without_covid])
+    p_value_without_covid<-HAC_ajusted_p_value_func(da)$p_value
 # Compute MSE: predictor and mean   
     MSE_oos_without_covid<-mean(epsilon_oos[index_oos_without_covid]^2)
     MSE_mean_oos_without_covid<-mean(epsilon_mean_oos[index_oos_without_covid]^2)
