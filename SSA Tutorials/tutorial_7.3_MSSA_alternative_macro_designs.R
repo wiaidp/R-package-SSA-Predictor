@@ -668,9 +668,6 @@ length(which(p_value_HAC_WN_oos<0.01))
 #   -We here briefly review, illustrate and confirm the construction principle: see exercise 3.1. 
 # -Subsequently, we suggest that predictor components support additional information that can be exploited.
 # -Specifically, we address interpretability, see exercise 3.2, and BIP-MSE forecast performances, see exercise 3.3
-#   -Recall that the M-SSA predictor is designed to address dynamic changes (up-/downturns, target correlation, smoothness)
-#   -Therefore, MSE performances are deemed less relevant, in particular when targeting BIP (instead of HP-BIP)
-#   -We shall see that BIP predictor components can be used to this effect: address BIP-MSE performances explicitly
 
 # To start, let us initialize some important settings (based on exercise 1 above)
 lambda_HP<-160
