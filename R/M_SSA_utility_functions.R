@@ -549,8 +549,25 @@ HAC_ajusted_p_value_func<-function(da)
 
 
 
-
-compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
+# This function computes optimal weights for predictors in columns 2,...,ncol(dat) of dat when targeting 
+#     column 1 of dat (it is assumed that column 1 has been shifted forward by shift)
+#   -start_fit determines the first time point for determining weights (need sufficiently long samples)
+#   -use_garch==F means OLS; use_garch==T assumes WLS whereby weights are inverse proportional to GARCH-variance
+#   -The function emphasizes out-of-sample predictors and performances: HAC-adjusted p-values and MSE
+#   -The function also computes the out-of-sample mean predictor benchmark with associated forecast performances
+# The function returns:
+# cal_oos_pred: out-of-sample predictor (readjusted for each new observation)
+# final_in_sample_preditor: final predictor at sample end (full in-sample)
+# track_weights:  time ser ies of regression weights as they change over time
+# epsilon_oos: out-of-sample forecast error optimally weighted predictor
+# epsilon_mean_oos: out-of-sample forecast error of mean benchmark
+# p_value: HAC adjusted p-value of out-of-sample predictor on target
+# MSE_oos: mean-quare out-of-sample forecast error of optimally weighted predictor
+# MSE_mean_oos: out-of-sample forecast error of mean benchmark
+# MSE_mean_oos_without_covid: same but without Pandemic
+# MSE_oos_without_covid: without Pandemic
+# p_value_without_covid: without Pandemic
+optimal_weight_predictor_func<-function(dat,start_fit,use_garch,shift)
 {
   
   len<-dim(dat)[1]
@@ -558,6 +575,7 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
   n<-dim(dat)[2]-1
 # Compute calibrated out-of-sample predictor, based on expanding window
   cal_oos_pred<-cal_oos_mean_pred<-rep(NA,len)
+  track_weights<-NULL
   for (i in (n+2):(len-shift)) #i<-n+2
   {
 # If use_garch==T then the regression relies on weighted least-squares, whereby the weights are based 
@@ -589,6 +607,8 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
 # Fit model with data up to time point i; weighted least-squares relying on weight as defined above  
     lm_obj<-lm(dat[1:i,1]~dat[1:i,2:(n+1)],weight=weight)
     summary(lm_obj)
+# Here we track the weights as they may change over time    
+    track_weights<-rbind(track_weights,lm_obj$coef)
 # Compute out-of-sample prediction for time point i+shift
     if (n==1)
     {
@@ -603,6 +623,18 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
     }
 # 2. Use mean as predictor (simplest benchmark)
     cal_oos_mean_pred[i+shift]<-mean(dat[1:i,1])
+  }
+  colnames(track_weights)<-c("intercept",colnames(dat)[2:ncol(dat)])
+  rownames(track_weights)<-rownames(dat)[(n+2):(len-shift)]
+# Here we compute the final (end-point) predictor: 
+# -This would be used typically at the sample end for prediction purposes
+# -It is an in-sample estimate  
+  if (n==1)
+  {
+    final_in_sample_preditor<-(lm_obj$coef[1]+lm_obj$coef[2]*dat[,2])
+  } else
+  {
+    final_in_sample_preditor<-lm_obj$coef[1]+dat[,2:(n+1)]%*%lm_obj$coef[2:(n+1)] 
   }
 # Once the predictors are computed we can obtain the out-of-sample prediction errors
   epsilon_oos<-dat[,1]-cal_oos_pred
@@ -632,7 +664,7 @@ compute_component_predictors_func<-function(dat,start_fit,use_garch,shift)
     MSE_mean_oos_without_covid<-mean(epsilon_mean_oos[index_oos_without_covid]^2)
   }
   
-  return(list(cal_oos_pred=cal_oos_pred,epsilon_oos=epsilon_oos,epsilon_mean_oos=epsilon_mean_oos,p_value=p_value,MSE_oos=MSE_oos,MSE_mean_oos=MSE_mean_oos,MSE_mean_oos_without_covid=MSE_mean_oos_without_covid,MSE_oos_without_covid=MSE_oos_without_covid,p_value_without_covid=p_value_without_covid))
+  return(list(cal_oos_pred=cal_oos_pred,final_in_sample_preditor=final_in_sample_preditor,track_weights=track_weights,epsilon_oos=epsilon_oos,epsilon_mean_oos=epsilon_mean_oos,p_value=p_value,MSE_oos=MSE_oos,MSE_mean_oos=MSE_mean_oos,MSE_mean_oos_without_covid=MSE_mean_oos_without_covid,MSE_oos_without_covid=MSE_oos_without_covid,p_value_without_covid=p_value_without_covid))
 }
 
 
