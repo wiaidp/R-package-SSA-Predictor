@@ -1248,9 +1248,12 @@ box()
 # -As for the M-SSA predictor in exercise 1, we see the increasing left-shift of the new M-SSA component 
 #     predictor with increasing forward-shift of the target 
 #   -This left-shift is much less pronounced when computing direct forecasts (substituting the original data 
-#     to the M-SSA components as regressors)  
+#     to the M-SSA components as regressors) 
+#   -Outperformance at shifts>=2 (of M-SSA components vs. mean-benchmark and/or direct forecasts) is directly 
+#     related to this left-shift, see the column entitled h=4 in the matrices 
+#     rRMSE_mSSA_comp_mean_without_covid and rRMSE_mSSA_comp_direct_without_covid in the previous exercise
 # -The M-SSA component predictors confirm the earlier assessment obtained by the M-SSA predictor in exercise 1
-#   -Data up to Jan-2025 suggests evidence of a recovery over the following 5-6 quarters
+#   -Data up to Jan-2025 suggests evidence of a recovery over 2025/2026
 
 #######################################################################################
 # Exercise 4: More adaptive design
