@@ -986,11 +986,11 @@ use_garch<-T
 pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
 
 # The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons (of M-SSA)
-for (shift in 0:5)#shift<-5
+for (shift in 0:5)#shift<-0
 {
 # Progress bar: see R-console
   setTxtProgressBar(pb, shift)
-  for (j in h_vec)#j<-6
+  for (j in h_vec)#j<-5
   {
 # Horizon j corresponds to k=j+1-th entry of array    
     k<-j+1
