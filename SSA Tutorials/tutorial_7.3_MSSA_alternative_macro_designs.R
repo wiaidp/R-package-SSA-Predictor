@@ -1193,9 +1193,12 @@ box()
 #   -The real-time predictor converges to the final predictor
 # -The intercept does not seem to be relevant (close to zero)
 #-----------------------
-# 3.3.7 Rely on `final' M-SSA component predictor to assess the business-cycle
-# -We can compute the final component predictor based on data up to Jan-2025
-# -For illustration we here use forecast horizon h=4 (one year ahead) and forward-shifts 0:5
+# 3.3.7 Apply the M-SSA components predictor
+# -Rely on `final' M-SSA component predictor to assess the business-cycle
+#   -We can compute the final component predictor based on data up to Jan-2025
+#   -For illustration we here use forecast horizon h=4 (M-SSA optimized for one year ahead forecast) and 
+#     forward-shifts 0:5 (of BIP target)
+
 k<-5
 # Check: forecast horizon h=4:
 h_vec[k]
@@ -1218,16 +1221,17 @@ for (shift in shift_vec)
 # OLS regression  
   lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
   optimal_weights<-lm_obj$coef
-# Compute predictor  
+# Compute predictor for each forward-shift  
   final_predictor<-cbind(final_predictor,optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)])
 }  
 
+# Plot M-SSA components predictors (optimized for h=4) and shifts 0:5
 par(mfrow=c(1,1))
 # Standardize for easier visual inspection
 mplot<-scale(cbind(dat[,1],final_predictor))
 colnames(mplot)<-c(paste("BIP forward-shifted by ",shift," quarters (plus publication lag)",sep=""),
                    paste("h=",h_vec[k],", shift=",shift_vec,sep=""))
-colo<-c("black",rainbow(ncol(final_predictor)))
+colo<-c("black",rainbow(4*ncol(final_predictor)))
 main_title<-paste("Final predictors based on M-SSA-components ",paste(sel_vec_pred,collapse=","),": h=",h_vec[k],sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
