@@ -1194,10 +1194,10 @@ box()
 # -The intercept does not seem to be relevant (close to zero)
 #-----------------------
 # 3.3.7 Apply the M-SSA components predictor
-# -Rely on `final' M-SSA component predictor to assess the business-cycle
+# -Rely on `final' M-SSA component predictor to assess the business-cycle 
 #   -We can compute the final component predictor based on data up to Jan-2025
 #   -For illustration we here use forecast horizon h=4 (M-SSA optimized for one year ahead forecast) and 
-#     forward-shifts 0:5 (of BIP target)
+#     forward-shifts 0:5 (of the BIP target)
 
 k<-5
 # Check: forecast horizon h=4:
