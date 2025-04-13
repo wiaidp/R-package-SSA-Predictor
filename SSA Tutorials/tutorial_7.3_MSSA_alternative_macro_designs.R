@@ -1192,7 +1192,65 @@ box()
 # -However, over time the weights seem to converge to fix-points (stationarity)
 #   -The real-time predictor converges to the final predictor
 # -The intercept does not seem to be relevant (close to zero)
+#-----------------------
+# 3.3.7 Rely on `final' M-SSA component predictor to assess the business-cycle
+# -We can compute the final component predictor based on data up to Jan-2025
+# -For illustration we here use forecast horizon h=4 (one year ahead) and forward-shifts 0:5
+k<-5
+# Check: forecast horizon h=4:
+h_vec[k]
+# Forward-shifts of BIP (+publication lag)
+shift_vec<-0:5
+final_predictor<-NULL
+# We compute the final predictor, based on data up to the sample end
+# Note: for simplicity we here compute an OLS regression 
+for (shift in shift_vec)
+{
+# Data matrix: forward-shifted BIP and M-SSA components  
+  if (length(sel_vec_pred)>1)
+  {
+    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mssa_array[sel_vec_pred,,k]))
+  } else
+  {
+    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mssa_array[sel_vec_pred,,k]))
+  }
+  rownames(dat)<-rownames(x_mat)
+# OLS regression  
+  lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
+  optimal_weights<-lm_obj$coef
+# Compute predictor  
+  final_predictor<-cbind(final_predictor,optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)])
+}  
 
+par(mfrow=c(1,1))
+# Standardize for easier visual inspection
+mplot<-scale(cbind(dat[,1],final_predictor))
+colnames(mplot)<-c(paste("BIP forward-shifted by ",shift," quarters (plus publication lag)",sep=""),
+                   paste("h=",h_vec[k],", shift=",shift_vec,sep=""))
+colo<-c("black",rainbow(ncol(final_predictor)))
+main_title<-paste("Final predictors based on M-SSA-components ",paste(sel_vec_pred,collapse=","),": h=",h_vec[k],sep="")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
+  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+}
+abline(h=0)
+abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
+axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+axis(2)
+box()
+
+# Comments:
+# -The standardization of the series in the plot somehow defeats the purpose of the M-SSA components which are 
+#     designed with MSE performances in mind. But standardization simplifies visual inspection.
+# -As for the M-SSA predictor in exercise 1, we see the increasing left-shift of the new M-SSA component 
+#     predictor with increasing forward-shift of the target 
+#   -This left-shift is much less pronounced when computing direct forecasts (substituting the original data 
+#     to the M-SSA components as regressors)  
+# -The M-SSA component predictors confirm the earlier assessment obtained by the M-SSA predictor in exercise 1
+#   -Data up to Jan-2025 suggests evidence of a recovery over the following 5-6 quarters
 
 #######################################################################################
 # Exercise 4: More adaptive design
