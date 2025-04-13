@@ -986,11 +986,11 @@ use_garch<-T
 pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
 
 # The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons (of M-SSA)
-for (shift in 0:5)
+for (shift in 0:5)#shift<-5
 {
 # Progress bar: see R-console
   setTxtProgressBar(pb, shift)
-  for (j in h_vec)
+  for (j in h_vec)#j<-6
   {
 # Horizon j corresponds to k=j+1-th entry of array    
     k<-j+1
@@ -1003,7 +1003,6 @@ for (shift in 0:5)
     {
       dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mssa_array[sel_vec_pred,,k]))
     }
-    
     rownames(dat)<-rownames(x_mat)
     dat<-na.exclude(dat)
 # Apply the previous function    
@@ -1131,20 +1130,22 @@ rRMSE_mSSA_direct_mean_without_covid
 
 #---------------
 # 3.3.6 Analyze revisions of components predictor
+# -The components predictor relies on quarterly up-dating of the (WLS-) regression weights
+# -We here analyze the impact of the quarterly up-dating on the predictor as well as on the regression weights
 
 # A. Compare the final predictor (calibrated over full sample) with the out-of-sample sequence of 
-#   continuously re-calibrated predictors: ideally, both series overlap
-# -Differences illustrate revisions due to re-estimating regression weights at each time point
+#   continuously re-calibrated predictors: ideally (in the absence of revisions), both series would overlap
+# -Differences illustrate revisions due to re-estimating regression weights each quarter
 par(mfrow=c(1,1))
 mplot<-cbind(final_components_preditor,oos_components_preditor)
 colnames(mplot)<-c("Final predictor","Real-time out-of-sample predictor")
 colo<-c("blue",rainbow(length(select_vec_multi)))
 main_title<-"Revisions: final vs. real-time predictor"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=1,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (i in 1:ncol(mplot))
 {
-  lines(mplot[,i],col=colo[i],lwd=1,lty=2)
+  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
   mtext(colnames(mplot)[i],col=colo[i],line=-i)
 }
 abline(h=0)
@@ -1152,25 +1153,32 @@ abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_
 axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
 axis(2)
 box()
-# Remarks: 
-#   -To the left of the plot, the real-time predictor is volatile because the sample is short
-#   -With increasing sample size, the real-time predictor approaches the final estimate (even during Pandemic)
-#   -The vertical black line in the plot indicates the start of the evaluation period, determining 
-#     out-of-sample MSE and p-value statistics, see exercise 3.3.5 above
+# Background 
+# -The above plot compares real-time and final predictors for maximal shift and maximal forecast horizon
+#   -Last run in the double-loop of exercise 3.3.5 above 
+#   -Similar plots could be obtained for all combinations of forward-shift and forecast horizon
+# -The last data point in the above does not correspond to Jan-2025 (because the target is forward-shifted and NAs are removed)
+tail(mplot)
+# -The purpose of the above plot is to illustrate revisions 
+#   -It does not show the current forecast at the series end (Jan-2025)
+
+# Comments (revisions): 
+# -To the left of the plot, the real-time predictor is volatile because the sample is short (revisions are large)
+# -With increasing sample size, the real-time predictor approaches the final estimate (even during Pandemic)
+# -The vertical black line in the plot indicates the start of the evaluation period, determining 
+#     out-of-sample MSEs and p-value statistics, see exercise 3.3.5 above
 
 
-# B. Track regression weights over time 
-
+# B. We now examine the effect of the revisions on the regression weights  
 par(mfrow=c(1,1))
 mplot<-track_weights
-
-colo<-rainbow(ncol(mplot))
+colo<-c("black","blue","red")
 main_title<-"Revisions: regression weights over time"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=1,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (i in 1:ncol(mplot))
 {
-  lines(mplot[,i],col=colo[i],lwd=1,lty=2)
+  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
   mtext(colnames(mplot)[i],col=colo[i],line=-i)
 }
 abline(h=0)
@@ -1179,10 +1187,11 @@ axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4
 axis(2)
 box()
 
-
-
-
-
+# Comments (revisions)
+# -Regression weights are quite volatile at the start
+# -However, over time the weights seem to converge to fix-points (stationarity)
+#   -The real-time predictor converges to the final predictor
+# -The intercept does not seem to be relevant (close to zero)
 
 
 #######################################################################################
