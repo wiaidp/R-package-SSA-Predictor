@@ -671,7 +671,6 @@ length(which(p_value_HAC_WN_oos<0.01))
 #   -and to address BIP-MSE forecast performances, see exercise 3.3
 
 # To start, let us initialize some important settings (based on exercise 1 above)
-#   -It is assumed that exercise 1 has been run beforehand
 lambda_HP<-160
 L<-31
 date_to_fit<-date_to_fit
