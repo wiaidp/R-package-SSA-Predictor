@@ -1194,10 +1194,9 @@ box()
 # -The intercept does not seem to be relevant (close to zero)
 #-----------------------
 # 3.3.7 Apply the M-SSA components predictor
-# -Rely on `final' M-SSA component predictor to assess the business-cycle 
-#   -We can compute the final component predictor based on data up to Jan-2025
-#   -For illustration we here use forecast horizon h=4 (M-SSA optimized for one year ahead forecast) and 
-#     forward-shifts 0:5 (of the BIP target)
+# -Rely on `final' M-SSA component predictor to assess the business-cycle (based on data up to Jan-2025)
+# -For illustration we here use forecast horizon h=4 (M-SSA optimized for one year ahead forecast) and 
+#     forward-shifts 0:5 (of BIP target)
 
 k<-5
 # Check: forecast horizon h=4:
@@ -1206,7 +1205,7 @@ h_vec[k]
 shift_vec<-0:5
 final_predictor<-NULL
 # We compute the final predictor, based on data up to the sample end
-# Note: for simplicity we here compute an OLS regression 
+# Note: for simplicity we here compute an OLS regression (WLS looks similar)
 for (shift in shift_vec)
 {
 # Data matrix: forward-shifted BIP and M-SSA components  
@@ -1249,7 +1248,7 @@ box()
 # Comments:
 # -The standardization of the series in the plot somehow defeats the purpose of the M-SSA components which are 
 #     designed with MSE performances in mind. But standardization simplifies visual inspection.
-# -As for the M-SSA predictor in exercise 1, we see the increasing left-shift of the new M-SSA component 
+# -As for the M-SSA predictor in exercise 1, we observe the increasing left-shift of the new M-SSA component 
 #     predictor with increasing forward-shift of the target 
 #   -This left-shift is much less pronounced when computing direct forecasts (substituting the original data 
 #     to the M-SSA components as regressors) 
