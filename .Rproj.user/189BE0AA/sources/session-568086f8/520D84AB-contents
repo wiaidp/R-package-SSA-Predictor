@@ -663,6 +663,8 @@ length(which(p_value_HAC_WN_oos<0.01))
 #     tracks BIP `somehow`; but the optimization criterion does not address BIP explicitly; the design 
 #     proposed here addresses MSE performances when targeting future BIP 
 
+# It is assumed that exercise 1 above has been run/executed to generate results that will be referred to
+
 # Overview: 
 # -The M-SSA predictor (the matrix predictor_mssa_mat) is constructed from components (contained in array mssa_array)
 #   -We here briefly review, illustrate and confirm the construction principle: see exercise 3.1. 
@@ -681,6 +683,8 @@ ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
 names(ht_mssa_vec)<-colnames(x_mat)
 h_vec<-0:6
 f_excess<-rep(4,length(select_vec_multi))
+in_out_separator<-"2007"
+
 
 # Run the wrapper  
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
