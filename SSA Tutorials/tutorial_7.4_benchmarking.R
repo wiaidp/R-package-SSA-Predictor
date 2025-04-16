@@ -514,14 +514,17 @@ box()
 # -Let us now look at the bottom two panels: targeting HP-spread
 #   -In this case, M-SSA and HP-C are nearly identical (no outperformance)
 #   -The explanation is pretty simple: 
-#     -The multivariate M-SSA filter is nearly identical to the univariate filter applied to spread,  
+#     -The multivariate M-SSA filter targeting HP-spread is nearly identical to the univariate filter,  
 #       see tutorial 7.1, exercise 1.5
-#     -This is because the weights assigned to the lagging (in relative terms) explanatory series is 
-#       negligible when targeting the leading (in relative terms) spread series
+#     -This is because the lagging explanatory series are (nearly) irrelevant when  
+#       targeting the leading (in relative terms) HP-spread
 
-# To summarize: the M-SSA components predictor outperforms the direct forecast and the direct HP forecast mainly 
-#   because 
-#   -one focuses on the relevant mid-term components: HP(160) applied to indicators
-#   -the M-SSA can exploit longitudinal and cross-sectional information
-#     -leading (in relative terms) indicators can (significantly) improve forecasts of HP-BIP, up to multiple quarters ahead
-   
+# Summary:
+# Key elements of the design of the M-SSA component predictor are
+#   -Emphasis of the relevant mid-term components (HP(160) target)
+#     -This explains why M-SSA outperforms classic direct forecast
+#   -Efficient exploitation of longitudinal and cross-sectional information when targeting HP-BIP
+#     -Leading (in relative terms) indicators can (significantly) improve forecasts of HP-BIP, up to multiple quarters ahead
+#     -This explains why M-SSA design outperforms direct HP forecast
+# These findings justify the  rather complex forecast design, wherein the novel (M-SSA) optimization framework 
+#   ensures an effective information retrieval along the time axis and across series, when tracking BIP.
