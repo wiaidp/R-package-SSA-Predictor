@@ -1,20 +1,29 @@
-# M-SSA components is a rather complex design, whose construction relies on multiple steps
+# The M-SSA components forecast of tutorial 7.3 is a rather complex design, involving multiple steps 
+#     in the derivation of the BIP predictor
+# Construction steps:
 #   -Filtering: remove undesirable high frequency noise 
-#     -HP(160)  emphasizes mid-term dynamics relevant when forecasting BIP 2-4 quarters ahead
-#       -Less (or more) adaptive designs perform less well, see exercises 4 and 5 in tutorial 7.3
-#   -Optimization criterion: maximize target correlation under HT (holding time) constraint
-#   -target HP-BIP (equall weighting of M-SSA components) or BIP (WLS regression of M-SSA components on BIP)
-# -In order to check pertinence and relevance of this construction principle, we assessed and verified outperformance
-#   of the M-SSA predictor over the simple mean (mean of BIP) and the direct forecasts (regressing indicators 
-#   on future BIP)
-# -However, we are still unable to assess the importance of M-SSA (the multivariate extension of SSA), as 
-#     based on the VAR-model (multivariate model of the DGP (data generating process).
-# -For this purpose we here benchmark the M-SSA predictor against: 
-#   -SSA (univariate) assuming the data to be WN (white noise) 
-#   -SSA (univariate) assuming an ARMA-model for the data
-#   -A simple (univariate) MSE predictor of the HP filter, assuming WN or ARMA
-# -Thereby we are able to quantify more precisely efficiency gains attributable to the various steps of 
-#   the construction principle underlying the M-SSA predictor
+#     -Filter based on HP(160) target to emphasizes mid-term dynamics relevant in a mid-term (2-4 quarters) 
+#       forecast perspective
+#   -Optimization criterion: maximize the target correlation under a HT (holding time) constraint
+#   -Target HP-BIP (two-sided HP applied to BIP) or BIP (WLS regression of M-SSA components on BIP)
+# -In order to check pertinence and relevance of this construction principle, we verified outperformance
+#     of the M-SSA predictor over the simple mean (mean of BIP) and the direct forecasts (regressing indicators 
+#     on future BIP)
+# -However, at this stage, we are still unable to assess the importance of M-SSA (the multivariate extension 
+#     of SSA), as based on the VAR-model of the DGP (data generating process).
+# -Question: why does the M-SSA components predictor perform better? Which steps (in ist construction) are relevant? 
+
+# -To answer this question we here consider a simple intermediary step (simplifications of M-SSA) as additional 
+#   benchmark for the M-SSA predictor: 
+# -Specifically, we consider an extension of the direct forecast, called direct HP forecast:
+#   -We apply the classic univariate HP concurrent filter (HP-C) to each indicator
+#   -The direct HP forecast is obtained by regressing the HP-C filtered indicators on future BIP
+# -M-SSA component, direct forecast and direct HP forecast differ only in the explanatory variables regressed on future BIP
+#   -M-SSA components rely on multivariate filters 
+#   -direct forecasts does not rely on filters
+#   -direct HP forecast relies on univariate HP-C 
+# -A comparison of these predictors will hint at the cause and origin of efficiency gains by the M-SSA predictor
+
 
 
 rm(list=ls())
@@ -81,8 +90,8 @@ n<-dim(x_mat)[2]
 len<-dim(x_mat)[1]
 
 ###############################################################################################
-# Exercise 1: Compute HP benchmark
-# 1.1 Compute filter
+# Exercise 1: Compute direct HP forecast
+# 1.1 HP filter
 
 lambda_HP<-160
 L<-31
@@ -390,3 +399,118 @@ rRMSE_mSSA_comp_HP_c_without_covid
 #   aspect cannot be efficiently handled by (WLS) regression, eventually combined with univariate filtering.
 # -We may infer that the BIP forecast problem eventually requires a simultaneous treatment of longitudinal and 
 #   cross-sectional aspects, such as provided by M-SSA in combination with (WLS-) regression 
+# -To back-up the last claim we compare classic HP-c filtered indicators with M-SSA components
+#   -Both procedures share the same common target, namely the two-sided HP applied to an indicator
+#   -The classic HP-C relies on the classic univariate concurrent HP, deemed relevant in business-cycle analysis
+#   -The M-SSA relies on multiple time series for each target, emphasizing the target correlation (in the 
+#     objective function) and the HT (in the constraint)
+
+# In order to understand the contribution of the multivariate framework (over a univariate filter) we here 
+#   consider BIP (lagging) and spread (leading)
+# Background:
+# -We expect the multivariate design to extract relevant information from leading series when targeting a 
+#   lagging series, i.e., we expect most efficiency gains of M-SSA over HP-C when targeting HP-BIP (the two-sided HP applied to BIP) 
+# -In constrast, when targeting a leading series, we expect gains of the multivariate filter to be less significant, 
+#   i.e., we expect least efficiency gains of M-SSA over HP-C when targeting HP-spread (two-sided HP applied to spread)
+# -To be clear: M-SSA and HP-C have the same target (two-sided HP applied to a series) but M-SSA can rely
+#   on multiple series (explanatory variables) and a more sophisticated optimization framework
+
+# To verify the above conjecture we now generate a main plot with 4 sub-panels: 
+# -panel a: HP-C aplied to BIP
+# -panel b: M-SSA applied to BIP (in this case we expect M-SSA to outperform HP-C) 
+# -panel c: HP_c applied to spread
+# -panel d: M-SSA applied to spread (in this case we do not expect M-SSA to outperform HP-C substantially, if at all) 
+
+# a. HP-C appliued to BIP
+i<-1
+colnames(x_mat)[i]
+# Plot HP-C for that indicator: we scale the series for better visual inspection
+mplot<-scale(hp_c_array[i,,])
+colnames(mplot)<-paste(colnames(x_mat)[i],": h=",h_vec,sep="")
+par(mfrow=c(2,2))
+colo<-c(rainbow(ncol(mplot)))
+main_title<-paste("HP-C targeting ",colnames(x_mat)[i],sep="")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (j in 1:ncol(mplot))
+{
+  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
+  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+}
+abline(h=0)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+# b. M-SSA applied to BIP 
+mplot<-scale(mssa_array[i,,])
+colnames(mplot)<-paste(colnames(x_mat)[i],": h=",h_vec,sep="")
+colo<-c(rainbow(ncol(mplot)))
+main_title<-paste("M-SSA targeting ",colnames(x_mat)[i],sep="")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (j in 1:ncol(mplot))
+{
+  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
+  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+}
+abline(h=0)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+
+# c. HP_C applied to spread
+i<-5
+colnames(x_mat)[i]
+# Plot HP-C for that indicator: we scale the series for better visual inspection
+mplot<-scale(hp_c_array[i,,])
+colnames(mplot)<-paste(colnames(x_mat)[i],": h=",h_vec,sep="")
+colo<-c(rainbow(ncol(mplot)))
+main_title<-paste("HP-C targeting ",colnames(x_mat)[i],sep="")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (j in 1:ncol(mplot))
+{
+  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
+  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+}
+abline(h=0)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+# d. M-SSA applied to spread 
+mplot<-scale(mssa_array[i,,])
+colnames(mplot)<-paste(colnames(x_mat)[i],": h=",h_vec,sep="")
+colo<-c(rainbow(ncol(mplot)))
+main_title<-paste("M-SSA targeting ",colnames(x_mat)[i],sep="")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (j in 1:ncol(mplot))
+{
+  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
+  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+}
+abline(h=0)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+
+# Findings:
+# -Let us first focus attention on the top two panels: targeting HP-BIP
+#   -The main difference between the classic HP-C (top left) and M-SSA (top right) is the size and the 
+#     `quality' of the left-shift as a function of the forecast horizon:
+#   -Size: the left-shift at the zero-crossings is stronger with M-SSA
+#   -Quality: 
+#     -In contrast to HP-C, M-SSA also leads to a (more pronounced) left-shift of dips and peaks, 
+#       in particular at recessions/crises
+#     -The left-shift operates at all levels: not only at zero-crossings but also at local peaks and dips and
+#       at any level in between
+# -Let us now look at the bottom two panels: targeting HP-spread
+#   -In this case, M-SSA and HP-C are nearly identical (no outperformance)
+#   -The explanation is pretty simple: 
+#     -The multivariate M-SSA filter is nearly identical to the univariate filter applied to spread,  
+#       see tutorial 7.1, exercise 1.5
+#     -This is because the weights assigned to the lagging (in relative terms) explanatory series is 
+#       negligible when targeting the leading (in relative terms) spread series
+
+# To summarize: the M-SSA components predictor outperforms the direct forecast and the direct HP forecast 
+#   
