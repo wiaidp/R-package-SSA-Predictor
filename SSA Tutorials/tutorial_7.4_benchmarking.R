@@ -535,4 +535,8 @@ box()
 
 # These findings justify the  advanced (and to some extent complex) forecast designs proposed in tutorial 7.3, 
 #   wherein the novel (M-SSA) optimization framework ensures an effective information retrieval along the 
-#   time axis and across series, when tracking forward-shifted BIP several quarters ahead.
+#   time axis and across series, when tracking forward-shifted BIP more than one quarter ahead.
+
+# Final remark: the forward-shift of BIP in all our results adds to a publication lag of two quarters which 
+#   might be excessive. We therefore expect performances at a given shift to be effectively representative 
+#   for shift+1 (conservative framework).
