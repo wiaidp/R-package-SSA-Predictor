@@ -378,4 +378,11 @@ p_mat_HP_c_without_covid
 # -In contrast, the M-SSA components predictor remains significant for shifts up to one-year ahead 
 
 
+# We can compare the M-SSA componsts predictor to the direct forecast and HP-c in terms of rRMSEs out-of-sample
+rRMSE_mSSA_comp_direct_without_covid
+rRMSE_mSSA_comp_HP_c_without_covid
 
+# -The above results suggest that applying the classic (univariate) HP-c to the data does not improve performances
+#   when compared to direct forecasts
+# -Therefore, outperformance by the M-SSA components predictor cannot be replicated/explained by a `simple` 
+#   univariate (HP-) filtering 
