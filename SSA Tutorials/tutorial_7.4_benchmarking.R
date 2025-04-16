@@ -502,27 +502,28 @@ axis(2)
 box()
 
 # Findings:
-# -Let us first focus attention on the top two panels: targeting HP-BIP
+# -Let us first focus attention on the top two panels: targeting HP-BIP (a lagging series)
 #   -The main difference between the classic HP-C (top left) and M-SSA (top right) is the size and the 
-#     `quality' of the left-shift as a function of the forecast horizon:
-#   -Size: the left-shift at the zero-crossings is stronger with M-SSA
+#     `quality' of the left-shift of the respective predictors as a function of the forecast horizon:
+#   -Size: the left-shift at the zero-crossings is stronger with M-SSA (top right)
 #   -Quality: 
 #     -In contrast to HP-C, M-SSA also leads to a (more pronounced) left-shift of dips and peaks, 
 #       in particular at recessions/crises
 #     -The left-shift operates at all levels: not only at zero-crossings but also at local peaks and dips and
 #       at any level in between
-# -Let us now look at the bottom two panels: targeting HP-spread
-#   -In this case, M-SSA and HP-C are nearly identical (no outperformance)
-#   -The explanation is pretty simple: 
-#     -The multivariate M-SSA filter targeting HP-spread is nearly identical to the univariate filter,  
-#       see tutorial 7.1, exercise 1.5
-#     -This is because the lagging explanatory series are (nearly) irrelevant when  
-#       targeting the leading (in relative terms) HP-spread
+# -Let us now look at the bottom two panels: targeting HP-spread (a leading indicator)
+#   -In this case, M-SSA (bottom right) and HP-C (bottom left) are nearly identical 
+#   -No obvious/clear outperformance of multivariate M-SSA vs. univariate HP-C
+# -The explanation is pretty simple: 
+#   -The multivariate M-SSA filter targeting HP-spread is nearly identical to the univariate filter,  
+#     see tutorial 7.1, exercise 1.5
+#   -This is because all lagging (in relative terms) explanatory series are irrelevant when  
+#     targeting the leading (in relative terms) HP-spread
 
 # Summary:
 # Applying a classic one-sided HP-C does not improve forecast performances over the classic direct predictor: 
 #   -the forecast problem is more complex 
-#   -predicting BIP takes advantage of a more effective treatment/extraction of the available information
+#   -predicting BIP takes advantage of a more effective/advanced treatment of the available information
 
 # Key elements of the design of the M-SSA component predictor are
 #   -Emphasis of the relevant mid-term components (HP(160) target)
@@ -532,5 +533,6 @@ box()
 #     -Address the size and the quality of the left-shift of the multivariate predictor (with increasing forecast horizon)
 #   -Explains why M-SSA designs outperform direct forecast as well as direct HP forecast (based on univariate HP)
 
-# These findings justify the  rather complex forecast design, wherein the novel (M-SSA) optimization framework 
-#   ensures an effective information retrieval along the time axis and across series, when tracking BIP.
+# These findings justify the  advanced (and to some extent complex) forecast designs proposed in tutorial 7.3, 
+#   wherein the novel (M-SSA) optimization framework ensures an effective information retrieval along the 
+#   time axis and across series, when tracking forward-shifted BIP several quarters ahead.
