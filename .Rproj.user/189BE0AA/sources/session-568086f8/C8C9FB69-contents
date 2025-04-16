@@ -90,7 +90,7 @@ n<-dim(x_mat)[2]
 len<-dim(x_mat)[1]
 
 ###############################################################################################
-# Exercise 1: Compute direct HP forecast
+# Exercise 1: Compute the new benchmark (direct HP forecast)
 # 1.1 HP filter
 
 lambda_HP<-160
@@ -132,7 +132,6 @@ axis(2)
 box()
 
 # 1.2 Filter indicators
-
 hp_c_mat<-NULL
 for (i in 1:ncol(x_mat))
 {
@@ -204,9 +203,9 @@ box()
 
 
 ###############################################################################################
-# Exercise 2: Compute M-SSA together with direct forecasts and mean-benchmark
-# This part is cut and paste from tutorial 7.3, exercises 7.1 and 7.3
-
+# Exercise 2: Compute M-SSA-components predictor together with direct forecast and direct HP forecast
+#   -Parts of the following code are cut and paste from tutorial 7.3, exercises 7.1 and 7.3
+#   -But we add the new direct HP forecast
 
 lambda_HP<-lambda_HP
 # Filter length: nearly 8 years is fine for the selected lambda_HP (filter weights decay sufficiently fast)
@@ -252,6 +251,13 @@ use_garch<-T
 pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
 
 # The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons (of M-SSA)
+# -We compute:
+#   A.The M-SSA components predictor
+#   B.The direct forecast
+#   C.The direct HP forecast
+# -For each predictor we compute HAC-adjusted p-values (significance of out-of-sample predictor) and 
+#  out-of-sample rRMSEs (relative root mean-square forecast errors)
+
 for (shift in 0:5)#shift<-2
 {
 # Progress bar: see R-console
@@ -380,11 +386,12 @@ p_mat_HP_c_without_covid
 
 
 # Findings:
-# -Like the classic direct forecast, the concurrent HP is limited to forward-shifts shift<=1
-#   -For shift>=2 the out-of-sample predictor (based on WLS regression on future BIP) is not statistically significant anymore
-#   -For shift<=1 the HP-based predictor seems slightly better than the direct forecasts on data including 
-#     the Pandemic. Without singular Pandemic data, both predictors are fairly close (similar p-values).
-# -In contrast, the M-SSA components predictor remains significant for shifts up to one-year ahead 
+# -Like the classic direct forecast, the new direct HP forecast is unable to forecast BIP at shifts larger than a quarter (+ publication lag)
+#   -p-values are larger 0.05 for shift>=2
+#   -For shift<=1 the direct HP forecast seems slightly better (smaller p-values) than the direct forecasts 
+#     on data including the Pandemic (more robust?). 
+# -In contrast, the M-SSA components predictor remains significant for shifts up to four quarters (plus publication lag)
+ 
 
 
 # We can compare the M-SSA componsts predictor to the direct forecast and HP-c in terms of rRMSEs out-of-sample
@@ -397,7 +404,7 @@ rRMSE_mSSA_comp_HP_c_without_covid
 #   univariate (HP-) filtering of the indicators
 # -On the other hand, outperformance of the direct forecasts (or HP) by M-SSA suggests that the multivariate  
 #   aspect cannot be efficiently handled by (WLS) regression, eventually combined with univariate filtering.
-# -We may infer that the BIP forecast problem eventually requires a simultaneous treatment of longitudinal and 
+# -We may infer that the BIP forecast problem requires a simultaneous treatment of longitudinal and 
 #   cross-sectional aspects, such as provided by M-SSA in combination with (WLS-) regression 
 # -To back-up the last claim we compare classic HP-c filtered indicators with M-SSA components
 #   -Both procedures share the same common target, namely the two-sided HP applied to an indicator
@@ -406,13 +413,13 @@ rRMSE_mSSA_comp_HP_c_without_covid
 #     objective function) and the HT (in the constraint)
 
 # In order to understand the contribution of the multivariate framework (over a univariate filter) we here 
-#   consider BIP (lagging) and spread (leading)
+#   consider BIP (lagging) and spread (leading) targets
 # Background:
 # -We expect the multivariate design to extract relevant information from leading series when targeting a 
 #   lagging series, i.e., we expect most efficiency gains of M-SSA over HP-C when targeting HP-BIP (the two-sided HP applied to BIP) 
-# -In constrast, when targeting a leading series, we expect gains of the multivariate filter to be less significant, 
+# -In contrast, when targeting a leading series, we expect gains of the multivariate filter to be less significant, 
 #   i.e., we expect least efficiency gains of M-SSA over HP-C when targeting HP-spread (two-sided HP applied to spread)
-# -To be clear: M-SSA and HP-C have the same target (two-sided HP applied to a series) but M-SSA can rely
+# -In this comparison, M-SSA and HP-C share the same target (two-sided HP applied to a series) but M-SSA can rely
 #   on multiple series (explanatory variables) and a more sophisticated optimization framework
 
 # To verify the above conjecture we now generate a main plot with 4 sub-panels: 
@@ -512,5 +519,9 @@ box()
 #     -This is because the weights assigned to the lagging (in relative terms) explanatory series is 
 #       negligible when targeting the leading (in relative terms) spread series
 
-# To summarize: the M-SSA components predictor outperforms the direct forecast and the direct HP forecast 
-#   
+# To summarize: the M-SSA components predictor outperforms the direct forecast and the direct HP forecast mainly 
+#   because 
+#   -one focuses on the relevant mid-term components: HP(160) applied to indicators
+#   -the M-SSA can exploit longitudinal and cross-sectional information
+#     -leading (in relative terms) indicators can (significantly) improve forecasts of HP-BIP, up to multiple quarters ahead
+   
