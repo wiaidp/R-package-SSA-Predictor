@@ -522,20 +522,23 @@ box()
 
 # Summary:
 # Applying a classic one-sided HP-C does not improve forecast performances over the classic direct predictor: 
-#   -the forecast problem is more complex 
-#   -predicting BIP takes advantage of a more effective/advanced treatment of the available information
+#   -the forecast problem is more `demanding' (complex) 
 
 # Key elements of the design of the M-SSA component predictor are
 #   -Emphasis of the relevant mid-term components (HP(160) target)
 #     -This explains why M-SSA outperforms classic direct forecast (which do not damp undesirable high-frequency noise)
 #   -Efficient exploitation of longitudinal and cross-sectional information when targeting HP-BIP
-#     -Exploit leading (in relative terms) indicators to (significantly) improve forecasts of HP-BIP, up to multiple quarters ahead
-#     -Address the size and the quality of the left-shift of the multivariate predictor (with increasing forecast horizon)
-#   -Explains why M-SSA designs outperform direct forecast as well as direct HP forecast (based on univariate HP)
+#     -Exploit leading (in relative terms) indicators to (significantly) improve forecasts of HP-BIP, up to 
+#       multiple quarters ahead
+#     -Address more effectively the size as well as the quality of the left-shift of the multivariate 
+#       predictor (as a function of the forecast horizon)
+# Answers the question at the start of this tutorial: why do the M-SSA predictor designs proposed in 
+#     tutorial 7.3 outperform the classic direct forecast as well as the direct HP forecast (based on 
+#     the univariate HP)
 
-# These findings justify the  advanced (and to some extent complex) forecast designs proposed in tutorial 7.3, 
-#   wherein the novel (M-SSA) optimization framework ensures an effective information retrieval along the 
-#   time axis and across series, when tracking forward-shifted BIP more than one quarter ahead.
+# These findings justify the  advanced (and to some extent `complex') forecast designs proposed in tutorial 7.3, 
+#   wherein the novel (M-SSA) optimization framework addresses the longitudinal as well as the cross-sectional 
+#   dimensions of the forecast problem, when tracking forward-shifted BIP more than one quarter ahead.
 
 # Final remark: the forward-shift of BIP in all our results adds to a publication lag of two quarters which 
 #   might be excessive (conservative framework since we here ignore data revisions). We therefore expect 
