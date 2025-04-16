@@ -385,4 +385,8 @@ rRMSE_mSSA_comp_HP_c_without_covid
 # -The above results suggest that applying the classic (univariate) HP-c to the data does not improve performances
 #   when compared to direct forecasts
 # -Therefore, outperformance by the M-SSA components predictor cannot be replicated/explained by a `simple` 
-#   univariate (HP-) filtering 
+#   univariate (HP-) filtering of the indicators
+# -On the other hand, outperformance of the direct forecasts (or HP) by M-SSA suggests that the multivariate  
+#   aspect cannot be efficiently handled by (WLS) regression, eventually combined with univariate filtering.
+# -We may infer that the BIP forecast problem eventually requires a simultaneous treatment of longitudinal and 
+#   cross-sectional aspects, such as provided by M-SSA in combination with (WLS-) regression 
