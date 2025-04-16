@@ -538,5 +538,5 @@ box()
 #   time axis and across series, when tracking forward-shifted BIP more than one quarter ahead.
 
 # Final remark: the forward-shift of BIP in all our results adds to a publication lag of two quarters which 
-#   might be excessive. We therefore expect performances at a given shift to be effectively representative 
-#   for shift+1 (conservative framework).
+#   might be excessive (conservative framework since we here ignore data revisions). We therefore expect 
+#   performances at a given shift to be representative for shift+1 quarters ahead.
