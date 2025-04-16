@@ -525,6 +525,7 @@ box()
 #     -This explains why M-SSA outperforms classic direct forecast
 #   -Efficient exploitation of longitudinal and cross-sectional information when targeting HP-BIP
 #     -Leading (in relative terms) indicators can (significantly) improve forecasts of HP-BIP, up to multiple quarters ahead
-#     -This explains why M-SSA design outperforms direct HP forecast
+#     -The size and the quality of the left-shift of the predictor (with increasing forecast horizon)
+#     -Explains why M-SSA design outperforms direct HP forecast (based on univariate HP)
 # These findings justify the  rather complex forecast design, wherein the novel (M-SSA) optimization framework 
 #   ensures an effective information retrieval along the time axis and across series, when tracking BIP.
