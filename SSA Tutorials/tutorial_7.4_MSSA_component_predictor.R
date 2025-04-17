@@ -1121,6 +1121,8 @@ box()
 #   forecast horizon, is obtained within the M-SSA optimization framework to track forward-shifted BIP 
 #   up to one year ahead.
 
-# Final remark: we assume a publication lag of two quarters for BIP which is systematically added to the 
+# Final remarks: 
+# -We assume a publication lag of two quarters for BIP which is systematically added to the 
 #   forward-shift in our computations (the effective publication lag is only one quarter).  
-#   -This assumption was made to compensate for the omission of data revisions, which were ignored  
+# -This assumption is made to compensate for the omission of data revisions, which are ignored in our 
+#     designs(s)
