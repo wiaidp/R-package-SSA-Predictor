@@ -1,13 +1,18 @@
 # Tutorial 7.4
 # Main purposes:
-# -Derive a new M-SSA components predictor which addresses MSE forecast performances when tracking BIP
-#   -The original M-SSA predictor proposed in tutorial 7.3 is standardized: it is not calibrated for tracking BIP 
-#   -The original M-SSA predictor is designed to track dynamic changes in the trend growth-rate of BIP (HP-BIP)
-#   -The original M-SSA predictor is based on aggregating equally the standardized M-SSA components 
-#   -We here propose a more refined design, the M-SSA components predictor, whereby equal weighting 
-#     (of M-SSA components) is replaced by an optimal weighting step.
-# -Interpretation: exploit M-SSA components to assess the predictor
-# -Explainability: which step(s) in the construction of the predictor generate(s) forecast gains?
+# 1. Forecasting BIP multiple quarters ahead
+#   -Derive a new M-SSA components predictor which addresses MSE forecast performances when tracking BIP
+#     -The original M-SSA predictor proposed in tutorial 7.3 is standardized: it is not calibrated for tracking BIP 
+#     -The original M-SSA predictor is designed to track dynamic changes in the trend growth-rate of BIP (HP-BIP)
+#     -The original M-SSA predictor is based on aggregating equally the standardized M-SSA components 
+#     -We here propose a more refined design, the M-SSA components predictor, whereby equal weighting 
+#       (of M-SSA components) is replaced by an additional (new) optimal weighting step.
+# 2. Interpretability: 
+#   -Exploit the M-SSA components to gauge forecasts by the proposed M-SSA predictor(s)
+#   -How trustworthy is a change of the predictor outlook?
+# 3. Explainability: 
+#   -Justify the design and construction steps underlying the proposed M-SSA predictor(s)
+#   -Determine which step(s) in the construction of the predictor(s) generate(s) forecast gains?
 
 # Proceeding:
 # -We rely on the design proposed in tutorial 7.3, exercise 1
