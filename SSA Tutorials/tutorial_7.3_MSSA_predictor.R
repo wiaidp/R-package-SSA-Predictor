@@ -45,7 +45,7 @@
 #   -It is mainly intended for tracking dynamic changes in the trend growth-rate (recessions/crises/expansions).  
 #   -The design of the proposed M-SSA predictor does not emphasize BIP explicitly
 #   -Tutorial 7.4 presents a slightly more refined `M-SSA components predictor' which exploits M-SSA 
-#     components more effectively in order to track explicitly BIP multiple quarters ahead.
+#     components more effectively in order to track explicitly BIP up to multiple quarters ahead.
 #-------------------------------------
 # Start with a clean sheet
 rm(list=ls())
