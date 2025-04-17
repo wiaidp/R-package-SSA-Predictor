@@ -3,7 +3,7 @@
     "path": "C:/Users/marca/OneDrive/2025/Projects/R-package-SSA-Predictor/SSA Tutorials/tutorial_7.1_multivariate_MSSA_simple_simulation_experiment.R",
     "project_path": "SSA Tutorials/tutorial_7.1_multivariate_MSSA_simple_simulation_experiment.R",
     "type": "r_source",
-    "hash": "962698765",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1744808358849.0,
@@ -12,8 +12,8 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "298,6",
-        "scrollLine": "267"
+        "cursorPosition": "64,0",
+        "scrollLine": "36"
     },
     "folds": "",
     "lastKnownWriteTime": 1744808477,
