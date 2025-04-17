@@ -640,26 +640,23 @@ length(which(p_value_HAC_WN_oos<0.01))
 # Discussion
 # -HP applied to white noise (HP-WN) leads to an autocorrelated series which can be predicted (better than by the mean benchmark)
 # -However, a predictor of HP-WN is not helpful in predicting WN 
-# -In contrast, we expect HP-BIP in exercise 1 (and 3 below) to be informative about future BIP because the 
+# -In contrast, we expect HP-BIP in exercise 1 to be informative about future BIP (log-differences) because the 
 #     latter is not WN:
 #   -The occurrence of recessions (business-cycle) contradicts the WN assumption
-#   -The acf and the VAR-model contradict the WN assumption
+#   -The acf and the VAR-model contradict the WN assumption 
 #   -The systematic structure in the performance matrices (top-down/left-right) suggests predictability
 #   -The recent negative BIP-readings are not `random` events: they are due in part to exogenous shock-waves and 
 #     also to endogenous decisions whose underlying(s) did not realize as wished for 
 #   -These deviations of BIP from WN concern lower frequency components of the spectral decomposition, as 
 #     emphasized by HP-BIP
-# -In the following exercise we will emphasize specifically BIP and MSE performances
 
 
 #######################################################################################
 # Exercise 3: More adaptive design
-# -Exercise 1 illustrates that HP-BIP can be forecasted several quarters ahead by the M-SSA predictor
+# -Exercise 1 above illustrates that HP-BIP can be forecasted several quarters ahead by the M-SSA predictor
 # -But predicting BIP is more challenging
-#   -For this purpose exercise 3 proposed an analysis of M-SSA components, based on a more sophisticated 
-#     weighting scheme (than equal-weighting)
 # -However, we cannot exclude (a priori) that the target specification, HP(160) is `too smooth'
-#   -Maybe relevant information is being suppressed by the filter...
+#   -Maybe relevant information is being suppressed by the filter.
 # -To verify this conjecture, we now analyze a more adaptive design by selecting lambda_HP=16 `small`
 
 # Question: does the more flexible design allow to predict BIP (not HP-BIP) more reliably?
@@ -725,7 +722,7 @@ p_value_HAC_BIP_oos
 
 ##################################################################################
 # Exercise 4
-# As a complement to exercise 4 above, we now briefly analyze the rather inflexible classic
+# As a complement to exercise 3 above, we now briefly analyze the rather inflexible classic
 #   quarterly HP(1600) design as a target for M-SSA, to back-up our previous discussion 
 #   with empirical facts
 
