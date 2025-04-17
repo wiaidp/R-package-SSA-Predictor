@@ -3,7 +3,7 @@
     "path": "C:/Users/marca/OneDrive/2025/Projects/R-package-SSA-Predictor/SSA Tutorials/tutorial_7.3_MSSA_predictor.R",
     "project_path": "SSA Tutorials/tutorial_7.3_MSSA_predictor.R",
     "type": "r_source",
-    "hash": "78536786",
+    "hash": "3906460816",
     "contents": "",
     "dirty": false,
     "created": 1743922807388.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "217,0",
-        "scrollLine": "193"
+        "cursorPosition": "47,91",
+        "scrollLine": "1"
     },
     "folds": "",
-    "lastKnownWriteTime": 1744881114,
+    "lastKnownWriteTime": 1744886647,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1744881114973,
+    "last_content_update": 1744886647145,
     "read_only": false,
     "read_only_alternatives": []
 }

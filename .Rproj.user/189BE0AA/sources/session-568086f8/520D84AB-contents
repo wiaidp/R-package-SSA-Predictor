@@ -1,7 +1,7 @@
 # Tutorial 7.3: we propose various M-SSA BIP (GDP Germany) predictor designs
 # -The concept of M-SSA predictors for BIP was introduced in tutorial 7.2
 # -We wrapped this proceeding into a single function to be able to analyze various M-SSA BIP predictor designs (hyperparameters)
-# -In exercise 1, we propose a `fairly adaptive' predictor. A `more adaptive' one is analyzed in exercise 4 and a `more inflexible' one in exercise 5
+# -In exercise 1, we propose a `fairly adaptive' predictor. A `more adaptive' one is analyzed in exercise 3 and a `more inflexible' one in exercise 4
 #   -One might be able to find better hyperparameters by fine-tuning adaptivity further
 
 # Main purposes of this tutorial
@@ -41,7 +41,11 @@
 # Exercise 3: analyze a more adaptive M-SSA design based on targeting HP(16) by M-SSA
 # Finally, exercise 4 briefly analyzes the classic HP(1600) as a target for M-SSA
 
-
+# Note: the M-SSA predictor proposed in this tutorial is designed to track HP-BIP (two-sided HP applied to BIP). 
+#   -It is mainly intended for tracking dynamic changes in the trend growth-rate (recessions/crises/expansions).  
+#   -The design of the proposed M-SSA predictor does not emphasize BIP explicitly
+#   -Tutorial 7.4 presents a slightly more refined `M-SSA components predictor' which exploits M-SSA 
+#     components more effectively in order to track explicitly BIP multiple quarters ahead.
 #-------------------------------------
 # Start with a clean sheet
 rm(list=ls())
