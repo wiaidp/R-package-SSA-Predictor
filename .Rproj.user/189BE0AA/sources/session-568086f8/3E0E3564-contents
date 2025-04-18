@@ -325,12 +325,13 @@ summary(lm_obj)
 # Compute an out-of-sample prediction for time point i_time+shift+lag_vec[1] 
 #   -Due to the publication lag, the regression span cannot extend up to the sample end
 #   -Therefore we shift the explanatory variables as well as the target forward by the additional publication lag 
-#   -Note however that this effect (adding lag_vec[1] or not) is negligible, because the 
-#     regression coefficients tend to converge to fixed values with increasing sample size, see exercise 2.2 below
+#   -Note however that this effect (due to shifting explanatory and target by lag_vec[1]) is negligible, 
+#     because the regression coefficients tend to converge to fixed values with increasing sample size, 
+#     see exercise 2.2 below. 
 oos_pred<-(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift+lag_vec[1],2:ncol(dat)]) 
 # Compute the out-of-sample forecast error
 oos_error<-dat[i_time+shift+lag_vec[1],1]-oos_pred
-# This is the out-of-sample error that will be observed shift=2 quarters ahead
+# This is the out-of-sample error that will be observed shift (+publication lag) quarters ahead
 oos_error
 
 #---------------
@@ -384,11 +385,12 @@ summary(lm_obj)
 
 # Compute out-of-sample prediction for time point i+shift+lag_vec[1]: 
 # Technical notes:
-#   1. The GARCH is irrelevant when computing the predictor (it us used for estimating regression coefficients)
+#   1. The GARCH is irrelevant when computing the predictor (the GARCH is us used for estimating regression coefficients, only)
 #   2. Due to the publication lag, the regression span cannot extend up to the sample end
 #     -Therefore we shift the explanatory variables as well as the target forward by the additional publication lag 
-#     -Note however that this effect (adding lag_vec[1] or not) is negligible, because the 
-#       regression coefficients tend to converge to fixed values with increasing sample size, see exercise 2.2 below
+#     -Note however that this effect  (due to shifting explanatory and target by lag_vec[1]) is negligible, 
+#       because the regression coefficients tend to converge to fixed values with increasing sample size, 
+#       see exercise 2.2 below.
 oos_pred_wls<-as.double(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift+lag_vec[1],2:ncol(dat)]) 
 # Compute out-of-sample forecast error
 oos_error_wls<-dat[i_time+shift+lag_vec[1],1]-oos_pred_wls
@@ -410,13 +412,13 @@ oos_error
 mean_bench<-mean(dat[1:i_time,1])
 # Its out-of-sample forecast error is
 oos_error_mean<-dat[i_time+shift+lag_vec[1],1]-mean_bench
-# The rRMSE of the WLS (M-SSA) component predictor referenced against the mean-benchmark when targeting 
-#   BIP shifted forward by shift (+publication lag) is:
+# Compute the rRMSE of the WLS (M-SSA) component predictor referenced against the mean-benchmark when 
+#   targeting BIP, shifted forward by shift (+publication lag):
 rRMSE_mSSA_comp_mean<-sqrt(mean(oos_error_wls^2)/mean(oos_error_mean^2))
 rRMSE_mSSA_comp_mean
 # -Depending on the selected time point, the rRMSE is larger or smaller one
 # -However, on average over a longer out-of-sample span, we expect the more sophisticated predictor(s) 
-#   to outperform the simple mean benchmark
+#   to outperform the simple mean benchmark, at least for `reasonably sized' forecast horizons
 
 # We now apply the above proceeding to a longer out-of-sample span and compute average performances
 #------------
@@ -828,7 +830,7 @@ rRMSE_mSSA_comp_direct_without_covid[,"h=4"]
 # Exercise 4: Can we explain forecast gains of the new M-SSA components predictor at forecast horizons larger 
 #   than a quarter?
 
-# The M-SSA component forecast is a rather complex design, involving multiple steps 
+# The M-SSA component forecast is a rather complex `stacked' design, involving multiple steps 
 #     in the derivation of the BIP predictor
 # Construction steps:
 #   -Filtering: remove undesirable high frequency noise 
