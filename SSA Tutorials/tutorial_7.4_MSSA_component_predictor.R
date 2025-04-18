@@ -2,10 +2,11 @@
 # Main purposes:
 # 1. Forecasting BIP multiple quarters ahead
 #   -Derive a new M-SSA components predictor which addresses MSE forecast performances when tracking BIP
-#     -The original M-SSA predictor proposed in tutorial 7.3 is standardized: it is not calibrated for tracking BIP 
-#     -The original M-SSA predictor is designed to track dynamic changes in the trend growth-rate of BIP (HP-BIP)
-#     -The original M-SSA predictor is based on aggregating equally the standardized M-SSA components 
-#     -We here propose a more refined design, the M-SSA components predictor, whereby equal weighting 
+#     -The original M-SSA predictor (without the attribute `components') proposed in tutorial 7.3 is 
+#         standardized: neither level nor scale were calibrated to track BIP 
+#     -The original M-SSA predictor was designed to track dynamic changes in the trend growth-rate of BIP (HP-BIP)
+#     -The original M-SSA predictor was based on aggregating equally the standardized M-SSA components 
+#   -We here propose a more refined design, the `M-SSA components predictor', whereby equal weighting 
 #       (of M-SSA components) is replaced by an additional (new) optimal weighting step.
 # 2. Interpretability: 
 #   -Exploit the M-SSA components to gauge forecasts by the proposed M-SSA predictor(s)
@@ -17,6 +18,21 @@
 # Proceeding:
 # -We rely on the design proposed in tutorial 7.3, exercise 1
 # -We then add a new optimal weighting step in the construction of the final predictor
+
+# The tutorial is structured into 4 exercises
+# -Exercise 1
+#   -M-SSA components: derive M-SSA components and replicate the original M-SSA predictor (tutorial 7.3)
+#   -Interpretability: rely on M-SSA components to gauge forecasts (reliability/trustworthiness)
+#   -Forecast BIP: new additional optimization step
+#   -Out-of-sample performance evaluation
+#     -Comparison vs. simple mean, direct forecast and original M-SSA predictor
+# -Exercise 2
+#   -Analysis of revisions of new (real-time out-of-sample) M-SSA components predictor
+# -Exercise 3
+#   -Application of the predictor to German BIP
+# -Exercise 4
+#   -Explainability: why does the M-SSA component predictor outperform specifically at multi-quarters 
+#     ahead forecast horizons?
 #----------------------------------------------
 # Start with a clean sheet
 rm(list=ls())
@@ -187,7 +203,8 @@ max(abs(apply(scale(t(mssa_array[,,j_now])),1,mean)-predictor_mssa_mat[,j_now]),
 #---------------
 # 1.2 We now exploit the M-SSA components in view of a better interpretation (explanation/understanding) of the M-SSA predictor (tutorial 7.3, exercise 1).
 #   -We can examine which sub-series is (are) more/less likely to trigger a dynamic change of the M-SSA predictor
-#   -For illustration, we select the M-SSA nowcast
+#   -Thereby we can gauge the forecast (trustworthiness/reliability)
+# -For illustration, we here select the M-SSA nowcast
 
 # Plot M-SSA nowcast and components
 par(mfrow=c(1,1))
