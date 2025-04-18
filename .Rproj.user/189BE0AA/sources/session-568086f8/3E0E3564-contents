@@ -382,7 +382,7 @@ summary(lm_obj)
 oos_pred_wls<-as.double(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift,2:ncol(dat)]) 
 # Compute out-of-sample forecast error
 oos_error_wls<-dat[i_time+shift,1]-oos_pred_wls
-# This is the out-of-sample WLS error we observe in shift=2 quarters later
+# This is the out-of-sample WLS error that we observe in shift=2 quarters later
 oos_error_wls
 # Compare to out-of-sample error based on OLS: 
 oos_error
@@ -1146,12 +1146,12 @@ box()
 #     see tutorial 7.1, exercise 1.5
 #   -This is because all additional explanatory series are lagging (relative to spread): they are not 
 #     informative when targeting HP-spread
-# -From the above, we infer that M-SSA outperforms HP when targeting HP-BIP (a similar outcome would apply to 
+# -From the above, we infer that M-SSA outperforms HP-C when targeting HP-BIP (a similar outcome would apply to 
 #   HP-ip, too).
 # -Moreover, M-SSA BIP and ip components are the most important explanatory variables when targeting future 
 #   BIP by the WLS regression (the remaining components are not significant) 
 # -Therefore, M-SSA contributes to the forecast outperformance by generating `better' regressors for the 
-#   WLS-regression (on future BIP), with a more effective left-shift than either HP-C (in the direct HP 
+#   WLS-regression, with a more effective left-shift than either HP-C (in the direct HP 
 #   forecast) or the un-filtered indicators (in the direct forecasts)
 
 
@@ -1168,7 +1168,7 @@ box()
 #   -Efficient exploitation of longitudinal and cross-sectional information when targeting HP-BIP
 #     -Exploit leading (in relative terms) indicators to (significantly) improve forecasts of HP-BIP, up to 
 #       several quarters ahead
-#     -Address more effectively the size as well as the quality of the left-shift of the multivariate 
+#     -Address more effectively the size as well as the quality of the left-shift of the 
 #       predictor (as a function of the forecast horizon)
 
 # These findings justify the  `more complex' forecast design proposed in this tutorial, 
