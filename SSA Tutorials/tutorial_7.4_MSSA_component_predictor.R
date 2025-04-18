@@ -689,9 +689,10 @@ rRMSE_mSSA_direct_mean_without_covid
 ################################################################################################################
 # Exercise 2 Analyze revisions of M-SSA components predictor
 # -The new predictor relies on quarterly up-dating of the (WLS-) regression weights
+#   -Note that M-SSA is not subject to revisions because the VAR is fixed (based on data up to 2008: no up-dating)
 # -We here analyze the impact of the quarterly up-dating on the predictor as well as on the regression weights
 
-# 2.1 Compare the final predictor (calibrated over full sample) with the out-of-sample sequence of 
+# 2.1 Compare the final predictor (full sample regression) with the out-of-sample sequence of 
 #   continuously re-calibrated predictors: ideally (in the absence of revisions), both series would overlap
 # -Differences illustrate revisions due to re-estimating regression weights each quarter
 par(mfrow=c(1,1))
@@ -715,7 +716,7 @@ box()
 # 1. The above plot compares real-time and final predictors for maximal shift and maximal forecast horizon
 #     -Last run in the double-loop of exercise 1.3.5 above 
 #     -Similar plots could be obtained for all combinations of forward-shift and forecast horizon (with no systematic change/difference)
-# 2. The last data point in the above plot does not correspond to Jan-2025 because the target is forward-shifted and NAs are removed
+# 2. The last data point in the above plot does not correspond to Jan-2025 (because the target is forward-shifted and NAs are removed)
 tail(mplot)
 #     -The purpose of the above plot is to illustrate revisions 
 #     -It does not show the current forecast at the series end (Jan-2025)
@@ -723,9 +724,10 @@ tail(mplot)
 # Comments (revisions): 
 # -To the left of the plot, the real-time predictor is volatile because the sample is short (revisions are large)
 # -With increasing sample size (from left to right), the real-time predictor approaches the final estimate 
-# -The vertical black line in the plot indicates the start of the evaluation period, determining 
+# -The vertical black line in the plot indicates the start of the evaluation period, relevant for 
 #     out-of-sample MSEs and p-value statistics, see exercise 1.3.5 above
-
+# -As time progresses, we expect better out-of-sample forecast performances because the part imputable to the 
+#   above revision error will decrease
 
 # 2.2 We now examine the effect of the revisions on the regression weights  
 par(mfrow=c(1,1))
@@ -748,9 +750,8 @@ box()
 
 # Comments (revisions)
 # -Regression weights are quite volatile at the start
-# -However, over time the weights appear to converge to some fix-points (stationarity)
+# -However, progressively over time the weights appear to converge to some fix-points (stationarity)
 #   -The real-time predictor converges to the final predictor
-# -The intercept is insignificant
 
 
 ################################################################################################################
