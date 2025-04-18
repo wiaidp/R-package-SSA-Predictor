@@ -421,13 +421,14 @@ rRMSE_mSSA_comp_mean
 #   to outperform the simple mean benchmark, at least for `reasonably sized' forecast horizons
 
 # We now apply the above proceeding to a longer out-of-sample span and compute average performances
-#------------
+#------------------
 # 1.3.4 Average performances: apply the above proceeding to all data points after 2007, including the 
 #   entire financial crisis for out-of-sample evaluations
 
 # Start point for out-of-sample evaluation: 2007
 in_out_separator<-in_out_separator
 # Note that the in-sample span is rather short at the start (due in part to filter initialization)
+#   -Therefore MSE forecast performances are likely to be worse than towards the sample end
 
 # Use WLS based on GARCH(1,1) when regressing M-SSA components on forward-shifted BIP 
 #   (setting the Boolean to F would amount to OLS, see below for details)
@@ -527,7 +528,7 @@ if (recompute_results)
       }
       rownames(dat)<-rownames(x_mat)
       dat<-na.exclude(dat)
-# Apply the previous function: compute GARCH, WLS regression, MSE, p-value    
+# Apply the previous function: compute GARCH, WLS regression, out-of-sample MSEs and p-values    
       perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec)
 # Retrieve out-of-sample performances 
 # a. p-values with/without Pandemic    
@@ -540,16 +541,16 @@ if (recompute_results)
 #   -mean-benchmark with/without Pandemic    
       MSE_mean_oos<-perf_obj$MSE_mean_oos
       MSE_mean_oos_without_covid<-perf_obj$MSE_mean_oos_without_covid
-# Here we retrieve the final in-sample predictor (based on full-sample WLS regression) and the 
-#    out-of-sample predictor (re-adjusted at each time point)
-# We can plot both predictors to illustrate revisions (due to WLS estimation at each time point)
-# Note: the variables will be overwritten, i.e., we keep only the last one corresponding to maximal shift
-#   and maximal forecast horizon 
+# Here we retrieve the final in-sample predictor (based on the full-sample WLS regression) as well as the 
+#    real-time out-of-sample predictor (re-adjusted to new data at each time point)
+# We can plot both predictors to illustrate revisions (due to WLS estimation at each time point), see below
+# Note: the variables will be overwritten, i.e., we keep only the last run through the double loop, 
+#   corresponding to maximal shift and maximal forecast horizon, see exercise 2.1 below 
       final_components_preditor<-perf_obj$final_in_sample_preditor
       oos_components_preditor<-perf_obj$cal_oos_pred
 # We can also obtain the regression weights to track changes (systematic vs. noisy revisions) over time
-# Note: the variable will be overwritten, i.e., we keep only the last one corresponding to maximal shift
-#   and maximal forecast horizon 
+# Note: the variable will be overwritten, i.e., we keep only the last run through the double loop, 
+#   corresponding to maximal shift and maximal forecast horizon, see exercise 2.2 below 
       track_weights<-perf_obj$track_weights
       
 # B. Direct forecasts
