@@ -190,7 +190,7 @@ j_now<-1
 h_vec[j_now]
 # For forecast horizon h_vec[j_now], the sub-series of the M-SSA predictor are:  
 tail(t(mssa_array[,,j_now]))
-# These sub-series correspond to the M-SSA outputs optimized for horizon h_vec[j_now]
+# These sub-series correspond to the M-SSA outputs optimized for horizon h_vec[j_now], see tutorial 7.2, exercise 1
 #   -For each series of the multivariate design, the target is the two-sided HP applied to this series and 
 #     shifted forward by the forecast horizon (plus the publication lag in case of BIP)
 #   -For each of these targets, the explanatory variables are BIP, ip, ifo, ESI and spread
@@ -223,7 +223,7 @@ box()
 max(abs(apply(scale(t(mssa_array[,,j_now])),1,mean)-predictor_mssa_mat[,j_now]),na.rm=T)
 
 # Remarks:
-# -Equal-weighting of the M-SSA components, as done above, indicates that we assume each M-SSA series to be equally
+# -Equal-weighting of the M-SSA components, as done above, indicates that we assume each M-SSA component to be equally
 #   important for tracking dynamic changes of the BIP growth-rate by the resulting M-SSA predictor. This 
 #   `naive' assumption might be questioned. But the rule (equal-weighting) is robust and simple.
 # -Instead, we could think about a more sophisticated weighting scheme: for example, by regressing the components 
@@ -265,7 +265,7 @@ box()
 # -Given that the nowcast (solid blue line) just passed the zero-line (long-term average-growth) in the 
 #     above plot, we may infer that the trough of BIP (in levels) might be behind, based on Jan-2025 data.
 # -However, not all components (sub-series) would support this claim:
-#   -The strongest up-turn signal is supported by the (leading) spread (which has been subjected to critic in is function as a leading indicator)
+#   -The strongest up-turn signal is supported by the (leading) spread (which has been subjected to critic as a leading indicator)
 #   -ifo and ESI are barely above the zero-line 
 #   -ip and BIP are `waiting' for further evidence and confirmation. 
 
@@ -276,23 +276,23 @@ box()
 # Exercise 1.3 Addressing BIP-MSE performances 
 # -As stated above, the original M-SSA predictor emphasizes dynamic changes (recessions/expansions); 
 #     MSE performances are deemed less relevant 
-#   -In particular, the predictor is standardized: neither its level nor its scale are calibrated to BIP
+#   -In particular, the predictor is standardized: neither its level nor its scale are calibrated on BIP
 # -In order to track (future) BIP explicitly, we may rely on the M-SSA components in the previous figure
 # -For this purpose, we can regress the components on forward-shifted BIP (instead of equal-weighting)
 # -This is the same proceeding as for the direct forecasts (see tutorial 7.3, exercise 1.2.1), except that 
-#   we rely on the M-SSA components for the regressors (instead of the original indicators)
+#   we rely on the M-SSA components for the regressors (instead of the original un-filtered indicators)
 
 # 1.3.1 Selection
 # -We can select the M-SSA components which are deemed relevant for MSE performances when targeting BIP
 #   -ESI, ifo and spread M-SSA components are mainly relevant in a dynamic context (for the M-SSA predictor)
 #   -In contrast, BIP and ip M-SSA components are natural candidates in a MSE perspective (which is emphasized here).
 #   -Note, however, that the original indicators ESI, ifo and spread are important determinants 
-#     of the selected (BIP- and ip-) M-SSA components
+#     of the selected (BIP- and ip-) M-SSA components, see tutorial 7.2, exercise 1.
 sel_vec_pred<-select_vec_multi[c(1,2)]
 # Selected M-SSA components
 sel_vec_pred
-# We can select the forward shift of BIP: for illustration we here assume a 2 quarters ahead forward-shift 
-#   (below we analyze all shifts, from zero to five quarters ahead)
+# We can select the forward shift of BIP: for illustration we here assume a 2 quarters ahead forward-shift
+#   (plus publication lag). Below we shall analyze all shifts, from zero to five quarters ahead.
 shift<-2
 # We can select the forecast horizon of the M-SSA components: we select a 4 quarters ahead horizon 
 #   (below, we shall look all all combinations of shift and forecast horizon)
@@ -303,24 +303,24 @@ h_vec[k]
 dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mssa_array[sel_vec_pred,,k]))
 rownames(dat)<-rownames(x_mat)
 colnames(dat)<-c(paste("BIP shifted forward by lag_vec+shift=",shift+lag_vec[1],sep=""),
-                 paste("Predictor component ",colnames(t(mssa_array[sel_vec_pred,,k])),": h=",h_vec[k],sep=""))
+                 paste("M-SSA component ",colnames(t(mssa_array[sel_vec_pred,,k])),": h=",h_vec[k],sep=""))
 tail(dat)
 # We target BIP shifted forward by shift+publication lag (first column) based on M-SSA components BIP and ip
-#   -As stated above, ifo, ESI and spread (original data) are determinants of the two M-SSA components 
+#   -As stated above, ifo, ESI and spread are important determinants of the two selected M-SSA components 
 # For estimation purposes we can remove all NAs
 dat<-na.exclude(dat)
 
 #-----------------
 # 1.3.2 Regression
-# We now regress forward-shifted BIP (first column) on the components
-#   -Specify an arbitrary in-sample span for illustration (below we shall use an expanding window starting in Q1-2007)
+# We now regress forward-shifted BIP (first column) on the two M-SSA components
+#   -Specify an arbitrary in-sample span (below we shall use an expanding window starting in Q1-2007 and ending in Q4-2025)
 i_time<-which(rownames(dat)>2011)[1]
 # In-sample span: 
 tail(dat[1:i_time,])
 # Regression
 lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)])
 summary(lm_obj)
-# The M-SSA components seem to be significant (HAC-adjustment wouldn't contradict this statement)
+# The M-SSA components are strongly significant (HAC-adjustments wouldn't contradict this statement)
 
 # Compute an out-of-sample prediction for time point i_time+shift
 oos_pred<-(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift,2:ncol(dat)]) 
@@ -375,13 +375,14 @@ weight<-1/sigmat^2
 # Apply WLS instead of OLS
 lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)],weight=weight)
 summary(lm_obj)
-# The regression coefficients are slightly different (when compared to OLS above)
+# The M-SSA components are still strongly significant but the regression coefficients are slightly 
+#   different (when compared to OLS above)
 
 # Compute out-of-sample prediction for time point i+shift: note that the GARCH is irrelevant when computing the predictor
 oos_pred_wls<-as.double(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift,2:ncol(dat)]) 
 # Compute out-of-sample forecast error
 oos_error_wls<-dat[i_time+shift,1]-oos_pred_wls
-# This is the out-of-sample error we observe in shift=2 quarters later
+# This is the out-of-sample WLS error we observe in shift=2 quarters later
 oos_error_wls
 # Compare to out-of-sample error based on OLS: 
 oos_error
