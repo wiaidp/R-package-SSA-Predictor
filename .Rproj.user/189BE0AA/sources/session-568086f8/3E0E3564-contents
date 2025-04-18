@@ -1172,27 +1172,29 @@ axis(2)
 box()
 
 # Analysis:
-# -Let us first look at the top two panels: targeting HP-BIP (a lagging series)
+# -Let us first look at the top two panels: targeting HP-BIP 
 #   -The main difference between the classic HP-C (top left) and M-SSA (top right) is the size and the 
 #     `quality' of the left-shift of the respective predictors as a function of the forecast horizon:
 #   -Size: the left-shift at the zero-crossings is stronger with M-SSA (top right)
 #   -Quality: 
 #     -In contrast to HP-C, M-SSA also shows evidence of a (more pronounced) left-shift of dips and peaks, 
 #       in particular at recessions/crises
-#     -The left-shift operates at all levels: not only at zero-crossings but also at local peaks and dips and
-#       at any level in between
-# -Next, let us look at the bottom two panels: targeting HP-spread (a leading indicator)
+#     -The left-shift of M-SSA operates at all levels: not only at zero-crossings but also at local peaks 
+#       and dips and more generally, at all levels of the data
+# -Next, let us look at the bottom two panels: targeting HP-spread 
 #   -In this case, M-SSA (bottom right) and HP-C (bottom left) are nearly identical 
 #   -No outperformance (in terms of left-shift) by M-SSA
+
 # -The explanation is pretty simple: 
-#   -The multivariate M-SSA filter targeting HP-spread collapses to a univariate filter,  
+#   -The multivariate M-SSA filter targeting HP-spread simplifies (`collapses') to a univariate design,  
 #     see tutorial 7.1, exercise 1.5
 #   -This is because all additional explanatory series are lagging (relative to spread): they are not 
 #     informative when targeting HP-spread
+
 # -From the above, we infer that M-SSA outperforms HP-C when targeting HP-BIP (a similar outcome would apply to 
-#   HP-ip, too).
-# -Moreover, M-SSA BIP and ip components are the most important explanatory variables when targeting future 
-#   BIP by the WLS regression (the remaining components are not significant) 
+#   HP-ip, not shown).
+# -Moreover, M-SSA BIP and M-SSA ip components are the most important explanatory variables when targeting 
+#   future BIP within the WLS regression (the remaining components are not significant) 
 # -Therefore, M-SSA contributes to the forecast outperformance by generating `better' regressors for the 
 #   WLS-regression, with a more effective left-shift than either HP-C (in the direct HP 
 #   forecast) or the un-filtered indicators (in the direct forecasts)
@@ -1200,19 +1202,19 @@ box()
 
 # Findings:
 # -Applying a classic one-sided HP-C does not improve forecast performances (over the classic direct 
-#     forecast).
+#     forecast, i.e., un-filtered data).
 # -The BIP forecast problem is more `demanding' (complex) and asks for more advanced `signal extraction' 
-#   than afforded by classic regression, eventually in combination with classic univariate HP-C filtering.
+#   than afforded by regression, eventually in combination with univariate HP-C filtering.
 
 
-# Let us then summarize the key design-elements of the proposed M-SSA component predictor:
+# Let us summarize the key design-elements of the proposed M-SSA component predictor:
 #   -Emphasis of the relevant mid-term components: HP(160) target (see exercises 3 and 4 of tutorial 7.3 
 #       for a justification of this target)
 #   -Efficient exploitation of longitudinal and cross-sectional information when targeting HP-BIP
 #     -Exploit leading (in relative terms) indicators to (significantly) improve forecasts of HP-BIP, up to 
 #       several quarters ahead
 #     -Address more effectively the size as well as the quality of the left-shift of the 
-#       predictor (as a function of the forecast horizon)
+#       predictor (as a function of the forecast horizon) by M-SSA
 
 # These findings justify the  `more complex' forecast design proposed in this tutorial, 
 #   wherein the key property of the predictor, namely the pronounced left-shift as a function of the 
