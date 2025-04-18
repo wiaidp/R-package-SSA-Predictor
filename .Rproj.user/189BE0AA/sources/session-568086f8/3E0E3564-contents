@@ -809,15 +809,17 @@ axis(2)
 box()
 
 # Comments:
-# -The standardization of the series in the above plot somehow defeats the purpose of the M-SSA components which are 
-#     designed with MSE performances in mind. But standardization simplifies visual inspection.
+# -The standardization of the series in the above plot somehow defeats the purpose of the M-SSA component 
+#     predictors which are designed with MSE performances in mind. 
+#   -But standardization simplifies visual inspection.
 # -As for the M-SSA predictor in tutorial 7.3 (exercise 1), we observe an increasing left-shift of the new 
 #     M-SSA component predictor with increasing forward-shift of the target 
 #   -This left-shift is much less pronounced when computing direct forecasts (substituting the original data 
 #     to the M-SSA components as regressors) 
-#   -Outperformance at shifts>=2 (of M-SSA components vs. mean-benchmark and/or direct forecasts) is directly 
-#     related to this left-shift, see the column entitled h=4 in the matrices 
-#     rRMSE_mSSA_comp_mean_without_covid and rRMSE_mSSA_comp_direct_without_covid in exercise 1.3.5 above
+#   -Forecast MSE outperformance at shifts>=2 (of M-SSA components vs. mean-benchmark and/or direct forecasts) is directly 
+#     related to this left-shift, see the column entitled h=4 in the corresponding matrices 
+rRMSE_mSSA_comp_mean_without_covid[,"h=4"]
+rRMSE_mSSA_comp_direct_without_covid[,"h=4"]
 # -The M-SSA component predictors confirm the earlier assessment obtained by the original M-SSA predictor 
 #   -Data up to Jan-2025 suggests evidence of a recovery over 2025/2026
 
@@ -835,10 +837,12 @@ box()
 #   -M-SSA optimization criterion: maximize the target correlation under a HT (holding time) constraint
 #   -WLS regression of M-SSA components on forward-shifted BIP
 
-# -In order to check pertinence and relevance of this construction principle, we verified outperformance
-#     of the M-SSA predictor over the simple mean (mean of BIP) and the direct forecasts (regressing indicators 
-#     on future BIP) on a longer out-of-sample span comprising the financial crisis as well as the Pandemic
-# -However, at this stage, we are still unable to assess the role and the importance of M-SSA. 
+# -In order to check pertinence and relevance of this stacked construction principle, we verified outperformance
+#     of the new M-SSA component predictor over the simple mean (mean of BIP) and the direct forecasts 
+#     (regressing un-filtered indicators on future BIP) on a longer out-of-sample span comprising the 
+#     financial crisis as well as the Pandemic.
+# -However, at this stage, we are still unable to assess the role and the importance of M-SSA as a contributing 
+#   element to improved forecast performances. 
 
 # -Questions: 
 #   -why does the M-SSA components predictor perform better than classic forecast rules at forecast horizons>=2 quarters? 
@@ -846,13 +850,13 @@ box()
 
 # -To answer these questions we here propose to consider a simple intermediary step as an additional benchmark
 #   -This new benchmark is a simplification (a special case) of the M-SSA components predictor
-# -Specifically, we consider an extension of the direct forecast, called direct HP forecast:
+# -Specifically, we consider an extension of the direct forecast, called direct HP forecast, as follows:
 #   -We apply the classic univariate HP concurrent filter (HP-C) to each indicator
-#   -The direct HP forecast is obtained by regressing the HP-C filtered indicators on future BIP
+#   -The `direct HP forecast' is obtained by regressing the HP-C filtered indicators on future BIP
 #   -The direct HP forecast is a special case of the M-SSA component predictor, wherein the multivariate 
 #     filter (M-SSA) is replaced by a univariate design (HP-C).
-# -M-SSA component, direct forecast and direct HP forecast designs differ with respect to the explanatory variables 
-#     that are regressed on future BIP
+# -M-SSA component, direct forecast and direct HP forecast designs differ only with respect to the explanatory 
+#     variables that are regressed on future BIP:
 #   -M-SSA components rely on multivariate filters of the indicators 
 #   -direct forecasts rely on original (un-filtered) indicators
 #   -direct HP forecasts rely on univariate HP-C filters of the indicators 
@@ -861,15 +865,15 @@ box()
 
 
 # Exercise 4.1: Compute the new benchmark (direct HP forecast)
-# 4.1.1 HP filter
+# 4.1.1 Classic one-sided HP filter: HP-C
 
-lambda_HP<-160
-L<-31
+lambda_HP<-lambda_HP
+L<-L
 
 HP_obj<-HP_target_mse_modified_gap(L,lambda_HP)
 # Classic concurrent (one-sided) HP filter
 hp_c<-HP_obj$hp_trend
-ts.plot(hp_c,main=paste("Concurrent HP, lambda=",lambda_HP,sep=""))
+ts.plot(hp_c,main=paste("One-sided (concurrent) HP(",lambda_HP,"): HP-C",sep=""),xlab="",ylab="")
 
 # We can analyze the filter in the frequency-domain (but this topic will not be discussed further here)
 if (F)
@@ -903,7 +907,7 @@ if (F)
   box()
 }
 
-# 4.1.2 Filter the indicators
+# 4.1.2 Filter the indicators: apply HP-C
 hp_c_mat<-NULL
 for (i in 1:ncol(x_mat))
 {
@@ -940,7 +944,7 @@ for (j in 1:length(h_vec))
 # For forecast horizon h_vec[j], the first h_vec[j] filter coefficients are skipped (zeroes are appended at 
 #     the end). 
 #   -This simple rule is optimal if the data is (close to) WN (white noise).
-#   -Log-returns of the indicators ARE close to WN (have a look at ACFs) 
+#   -Log-returns of the indicators are fairly close to WN (one can inspect the ACFs) 
     hp_c_forecast<-c(hp_c[(h_vec[j]+1):L],rep(0,h_vec[j]))
     hp_c_array[i,,j]<-filter(x_mat[,i],hp_c_forecast,side=1)
   }
@@ -976,58 +980,75 @@ box()
 
 #------------------
 # 4.2: Compute performances of the new direct HP forecast
-
-
+# Numerical computations may take a couple minutes: therefore we already computed results which can be loaded
+#   -But one can run the double loop to check results 
+recompute_results<-F
+if (recompute_results)
+{
 # Initialize performance matrices
-p_mat_HP_c<-p_mat_HP_c_without_covid<-rRMSE_mSSA_comp_HP_c<-rRMSE_mSSA_comp_HP_c_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
+  p_mat_HP_c<-p_mat_HP_c_without_covid<-rRMSE_mSSA_comp_HP_c<-rRMSE_mSSA_comp_HP_c_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
 # Use WLS
-use_garch<-T
-# Set-up progress bar: indicates progress in R-console
-pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
-
+  use_garch<-T
+  
 # The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons 
 # -We compute HAC-adjusted p-values (significance of out-of-sample predictor) and 
 #  out-of-sample rRMSEs (relative root mean-square forecast errors) for the direct HP forecast
 
-for (shift in 0:5)#shift<-2
-{
-# Progress bar: see R-console
-  setTxtProgressBar(pb, shift)
-  for (j in h_vec)#j<-5
+# Set-up progress bar: indicates progress in R-console
+  pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
+  
+  for (shift in 0:5)#shift<-2
   {
+# Progress bar: see R-console
+    setTxtProgressBar(pb, shift)
+    for (j in h_vec)#j<-5
+    {
 # Horizon j corresponds to k=j+1-th entry of array    
-    k<-j+1
-
-# Direct HP forercast:
+      k<-j+1
+  
+# Direct HP forecast:
 #   -The explanatory variables are based on hp_c_array[,,k] 
 #   -We select all indicators (one could easily change this setting but results are only marginally effected as long as ifo and ESi are included)
-    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(hp_c_array[,,k]))
-    rownames(dat)<-rownames(x_mat)
-    dat<-na.exclude(dat)
-
-    perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec)
+      dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(hp_c_array[,,k]))
+      rownames(dat)<-rownames(x_mat)
+      dat<-na.exclude(dat)
+  
+      perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec)
 # Retrieve out-of-sample performances: p-values and forecast MSE, with/without Pandemic 
-    MSE_oos_HP_c<-perf_obj$MSE_oos
-    MSE_oos_HP_c_without_covid<-perf_obj$MSE_oos_without_covid
-    p_mat_HP_c[shift+1,k]<-perf_obj$p_value 
-    p_mat_HP_c_without_covid[shift+1,k]<-perf_obj$p_value_without_covid 
+      MSE_oos_HP_c<-perf_obj$MSE_oos
+      MSE_oos_HP_c_without_covid<-perf_obj$MSE_oos_without_covid
+      p_mat_HP_c[shift+1,k]<-perf_obj$p_value 
+      p_mat_HP_c_without_covid[shift+1,k]<-perf_obj$p_value_without_covid 
 # Note that MSEs of M-SSA predictor were computed in exercise 1.3.5
-    rRMSE_mSSA_comp_HP_c[shift+1,k]<-sqrt(MSE_oos_mssa_comp_mat[shift+1,k]/MSE_oos_HP_c)
+      rRMSE_mSSA_comp_HP_c[shift+1,k]<-sqrt(MSE_oos_mssa_comp_mat[shift+1,k]/MSE_oos_HP_c)
 # Same but without Pandemic
-    rRMSE_mSSA_comp_HP_c_without_covid[shift+1,k]<-sqrt(MSE_oos_mssa_comp_without_covid_mat[shift+1,k]/MSE_oos_HP_c_without_covid)
+      rRMSE_mSSA_comp_HP_c_without_covid[shift+1,k]<-sqrt(MSE_oos_mssa_comp_without_covid_mat[shift+1,k]/MSE_oos_HP_c_without_covid)
+    }
   }
-}
-close(pb)
+  close(pb)
 # Note: possible warnings issued by the GARCH estimation routine during computations can be ignored
-
+  
 # Assign column and rownames
-colnames(p_mat_HP_c)<-colnames(p_mat_HP_c_without_covid)<-
-colnames(rRMSE_mSSA_comp_HP_c)<-colnames(rRMSE_mSSA_comp_HP_c_without_covid)<-paste("h=",h_vec,sep="")
-rownames(p_mat_HP_c)<-rownames(p_mat_HP_c_without_covid)<-rownames(rRMSE_mSSA_comp_HP_c)<-rownames(rRMSE_mSSA_comp_HP_c_without_covid)<-
-paste("Shift=",0:5,sep="")
+  colnames(p_mat_HP_c)<-colnames(p_mat_HP_c_without_covid)<-
+    colnames(rRMSE_mSSA_comp_HP_c)<-colnames(rRMSE_mSSA_comp_HP_c_without_covid)<-paste("h=",h_vec,sep="")
+  rownames(p_mat_HP_c)<-rownames(p_mat_HP_c_without_covid)<-rownames(rRMSE_mSSA_comp_HP_c)<-rownames(rRMSE_mSSA_comp_HP_c_without_covid)<-
+    paste("Shift=",0:5,sep="")
+# Save results
+  list_2<-list(p_mat_HP_c=p_mat_HP_c,p_mat_HP_c_without_covid=p_mat_HP_c_without_covid,rRMSE_mSSA_comp_HP_c=rRMSE_mSSA_comp_HP_c,rRMSE_mSSA_comp_HP_c_without_covid=rRMSE_mSSA_comp_HP_c_without_covid)
+  save(list_2,file=paste(getwd(),"/Results/list_2",sep=""))
+} else
+{
+# Load results  
+  load(file=paste(getwd(),"/Results/list_2",sep=""))
+  p_mat_HP_c=list_2$p_mat_HP_c
+  p_mat_HP_c_without_covid=list_2$p_mat_HP_c_without_covid
+  rRMSE_mSSA_comp_HP_c=list_2$rRMSE_mSSA_comp_HP_c
+  rRMSE_mSSA_comp_HP_c_without_covid=list_2$rRMSE_mSSA_comp_HP_c_without_covid  
+}
+
 
 # HAC-adjusted p-values out-of-sample 
-# -We here compare M-SSA components predictor with direct forecast and direct HP forecast
+# -We here compare the M-SSA components predictor with the direct forecast and the new direct HP forecast
 p_mat_mssa_components
 p_mat_direct
 p_mat_HP_c
@@ -1040,10 +1061,7 @@ p_mat_HP_c_without_covid
 
 # Findings:
 # -Like the classic direct forecast, the new direct HP forecast is unable to forecast BIP at shifts larger 
-#     than a quarter (+ publication lag)
-#   -p-values are larger 0.05 for shift>=2
-#   -For shift<=1 the direct HP forecast seems slightly better (smaller p-values) than the direct forecasts 
-#     on data including the Pandemic (possibly more robust). 
+#     than a quarter (plus publication lag)
 # -In contrast, the M-SSA components predictor remains significant for shifts up to four quarters (plus publication lag)
  
 
@@ -1053,30 +1071,33 @@ p_mat_HP_c_without_covid
 rRMSE_mSSA_comp_direct_without_covid
 rRMSE_mSSA_comp_HP_c_without_covid
 
-# -The above results suggest that applying the classic (univariate) HP-c to the data does not improve performances
+# -The above results suggest that applying the classic (univariate) HP-C to the data does not improve performances
 #   when compared to direct forecasts (based on un-filtered data)
-# -Therefore, outperformance by the M-SSA components predictor cannot be replicated by a `simple` 
+# -Therefore, outperformance by the M-SSA components predictor cannot be replicated (explained) by a `simple` 
 #   univariate (HP-C) filter 
 # -Also, outperformance of the direct forecasts by M-SSA suggests that the multivariate  
 #   aspect of the forecast problem cannot be handled by simple (WLS) regression (with or without application of HP-C)
 # -We then infer that the BIP forecast problem requires a simultaneous treatment of longitudinal and 
 #   cross-sectional aspects, such as provided by M-SSA in combination with (WLS-) regression 
-# -But why? What is the added benefit of the M-SSA `step` in the construction of the predictor?
+# -But why? What is the added benefit of the `M-SSA step` in the construction of the predictor?
 
 # In order to understand the contribution of the multivariate M-SSA framework (over HP-C) we here 
 #   consider two different target series: BIP (lagging) and spread (leading)
 
-# -When targeting HP-BIP (two-sided HP applied to BIP), we expect the multivariate design to extract 
-#   relevant information from the leading series: ip, ESI, ifo and spread are leading when referenced against 
-#   BIP (accounting for the publication lag of BIP). In this case, we expect M-SSA to outperform HP-C. 
+# -When targeting HP-BIP, i.e., the two-sided HP applied to BIP, we expect the multivariate design to 
+#     extract relevant information from the leading series
+#   -The explanatory series ip, ESI, ifo and spread are all leading when referenced against BIP 
+#       (accounting for the publication lag of BIP). 
+#   -In this case, we expect M-SSA to outperform HP-C (because the latter cannot rely on leading data). 
 # -On the other hand, when targeting HP-spread, the additional explanatory series (BIP,ip,ifo,ESI) are 
-#   lagging, when referenced against spread, and therefore we do not expect substantial gains of M-SSA over HP-C.
+#     lagging, when referenced against spread
+#   -Therefore we do not expect substantial gains of M-SSA over HP-C in this case.
 
-# To verify this conjecture we now generate a main plot with 4 sub-panels: 
+# To verify the above conjectures we generate a main plot with 4 sub-panels: 
 # -panel a (top-left): HP-C applied to BIP
 # -panel b (top-right): M-SSA applied to BIP (in this case we expect M-SSA to outperform HP-C) 
-# -panel c (bottom left): HP_c applied to spread
-# -panel d (bottom right): M-SSA applied to spread (in this case we do not expect M-SSA to outperform HP-C substantially, if at all) 
+# -panel c (bottom left): HP-C applied to spread
+# -panel d (bottom right): M-SSA applied to spread (in this case we do not expect M-SSA to outperform HP-C) 
 
 # a. HP-C applied to BIP
 i<-1
