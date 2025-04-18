@@ -298,6 +298,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     box()
     
   }
+  colnames(target_shifted_mat)<-paste("Target: h=",h_vec,sep="")
   return(list(target_shifted_mat=target_shifted_mat,predictor_mssa_mat=predictor_mssa_mat,predictor_mmse_mat=predictor_mmse_mat,mssa_array=mssa_array,mmse_array=mmse_array))
 }  
   
@@ -809,6 +810,7 @@ compute_mssa_BIP_predictors_func_old<-function(x_mat,lambda_HP,L,date_to_fit,p,q
     box()
     
   }
+  colnames(target_shifted_mat)<-paste("h=",h_vec,sep="")
   return(list(target_shifted_mat=target_shifted_mat,predictor_mssa_mat=predictor_mssa_mat,predictor_mmse_mat=predictor_mmse_mat))
 }  
 

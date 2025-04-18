@@ -66,7 +66,7 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 
 
 #------------------------------------------------------------------------
-# Load the data and select the relevant indicators: see tutorials 7.3 and 7.2 for background
+# Load the data and select the relevant indicators: see tutorials 7.2 and 7.3 for background
 load(file=paste(getwd(),"\\Data\\macro",sep=""))
 tail(data)
 lag_vec<-c(2,rep(0,ncol(data)-1))
@@ -89,6 +89,10 @@ abline(h=0)
 axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
 axis(2)
 box()
+# The plot indicates that the publication lag of two quarters is too large 
+#   -Peaks and dips of the target (black line) are left-shifted by one quarter at recessions
+# The excessive publication lag is intended to compensate for data revisions (which are ignored in our design)
+#   -We may claim prudence: results will be conservative (on the safe side)  
 
 # Select macro indicators for M-SSA 
 select_vec_multi<-c("BIP","ip","ifo_c","ESI","spr_10y_3m")
@@ -102,6 +106,8 @@ len<-dim(x_mat)[1]
 ##################################################################################
 # Exercise 1 Working with M-SSA (sub-)components
 #   -We rely on the design proposed in tutorial 7.3, exercise 1
+
+# Exercise 1.0: brief summary of original M-SSA predictor
 
 # Target filter: lambda_HP is the single most important hyperparameter, see tutorial 7.1 for a discussion
 lambda_HP<-160
@@ -126,25 +132,51 @@ f_excess<-rep(4,length(select_vec_multi))
 #   -The function computes M-SSA for each forecast horizon h in h_vec
 mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
 
-# Targets
-target_shifted_mat=mssa_indicator_obj$target_shifted_mat
+# Target series: output of two-sided HP applied to BIP: 
+#   -This is the target for which the original M-SSA predictor (tutorial 7.3) has been designed
+#   -The target is forward-shifted by the forecast horizon (plus publication lag)
+target_shifted_mat<-mssa_indicator_obj$target_shifted_mat
 # Original M-SSA predictor, see tutorial 7.3
+#   -One predictor available for each forecast horizon in h_vec
 predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
-# M-SSA components
+# M-SSA components, see tutorial 7.2
+#   -This is a three dimensional array
+#   -For each forecast horizon and for each indicator we obtain the M-SSA predictor when targeting 
+#     the two-sided HP applied to this indicator, see exercise 1.1 below
 mssa_array<-mssa_indicator_obj$mssa_array
 
-# Performances
-# Start of out-of-sample span
+# Compute performances of original M-SSA predictor: these will be used as a benchmark when evaluating 
+#   the new design
+# Select start of out-of-sample span (entire financial crisis is out-of-sample)
 in_out_separator<-"2007"
 # We can specify the selection of macro-indicators for the direct forecast, see tutorial 7.3
+# Note: these results will not be used in this tutorial (but we need to specify a selection anyway)
 select_direct_indicator<-c("ifo_c","ESI")
 perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,in_out_separator,select_direct_indicator,h_vec) 
 
-# HAC adjusted p-values of regression of original M-SSA predictor on forward-shifted BIP, see tutorial 7.3, 
-#   exercise 1.2.2
+# The above function generates a rich output, see tutorial 7.3
+#   -But we need only one (important/representative) performance number for our comparisons further down
+# HAC adjusted p-values of regression of original M-SSA predictor on forward-shifted BIP, see tutorial 7.3 (exercise 1.2.2)
 p_value_HAC_BIP_oos=perf_obj$p_value_HAC_BIP_oos
 p_value_HAC_BIP_oos
+# The p-values are empirical significance levels of the regressions of the (out-of-sample) M-SSA predictors
+#   (optimized for forecast horizon h in h_vec: the columns of the matrix) on BIP shifted forward by shift 
+#   plus publication lag (the rows of the matrix)
 
+# Example: check if the M-SSA predictor optimized for horizon h_vec[j] can significantly predict BIP shifted forward
+#   by shift=i+1
+i<-4
+j<-7
+p_value_HAC_BIP_oos[i,j]
+# Below we shall verify that the new M-SSA component predictor will perform better (smaller p-value) in 
+#   particular at larger forward-shifts (>=3 quarters)
+
+# Technical note: 
+# -The M-SSA predictor can track forward-shifted HP-BIP (the series in target_shifted_mat above) more firmly 
+#   than forward-shifted BIP
+perf_obj$p_value_HAC_HP_BIP_oos
+# The corresponding p-values are smaller (statistical significance even at shifts >=4 quarters)
+#   -But we are not interested in predicting HP-BIP in this tutorial!
 
 
 #-----------
