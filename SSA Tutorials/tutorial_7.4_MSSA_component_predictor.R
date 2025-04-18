@@ -555,7 +555,7 @@ if (recompute_results)
       
 # B. Direct forecasts
 # -The main difference to M-SSA above is the specification of the explanatory variables in the data 
-#     matrix dat: here x_mat 
+#     matrix dat: we here use x_mat instead of mssa_array. 
 #   -We select all indicators (one could easily change this setting but results are only marginally effected as long as ifo and ESi are included)
 #   -Note that the data matrix here does not depend on j, in contrast  to the M-SSA components above    
       dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),x_mat)
