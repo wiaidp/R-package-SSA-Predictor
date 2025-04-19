@@ -19,7 +19,7 @@
 # -We rely on the design proposed in tutorial 7.3, exercise 1
 # -We then add a new optimal weighting step in the construction of the final predictor
 
-# The tutorial is structured into 4 exercises
+# The tutorial is structured into 5 exercises
 # -Exercise 1
 #   -M-SSA components: derive M-SSA components and replicate the original M-SSA predictor (tutorial 7.3)
 #   -Interpretability: rely on M-SSA components to gauge forecasts (reliability/trustworthiness)
@@ -33,12 +33,10 @@
 # -Exercise 4
 #   -Explainability: why does the M-SSA component predictor outperform specifically at multi-quarters 
 #     ahead forecast horizons?
+# -Exercise 5
+#   -Specify and compute an `M-MSE component predictor' (same as M-SSA but without HT imposed: lless smooth)
+#   -Compare forecast performances to simple mean benchmark and to M-SSA component predictor
 
-
-# Todos:
-# BIP log-diff original
-# M-MSE
-# Only M-SSA BIP
 #----------------------------------------------
 # Start with a clean sheet
 rm(list=ls())
@@ -150,6 +148,10 @@ predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
 #   -For each forecast horizon and for each indicator we obtain the M-SSA predictor when targeting 
 #     the two-sided HP applied to this indicator, see exercise 1.1 below
 mssa_array<-mssa_indicator_obj$mssa_array
+# M-MSE components
+# -Same as mssa_array but without HT imposed, i.e., classic multivariate mean-square error signal extraction
+# -Forecast performances, see exercise 5 below 
+mmse_array<-mssa_indicator_obj$mmse_array
 
 # Compute performances of original M-SSA predictor: these will be used as a benchmark when evaluating 
 #   the new design
@@ -505,7 +507,7 @@ perf_obj$MSE_oos_without_covid
 # -All results were previously computed and saved: 
 #   recompute_results<-F loads these results without lengthy computations
 #   recompute_results<-T recomputes everything
-recompute_results<-F
+recompute_results<-T
 
 if (recompute_results)
 {
@@ -679,14 +681,11 @@ rRMSE_mSSA_comp_direct_without_covid
 rRMSE_mSSA_direct_mean_without_covid
 
 # Comments:
-# -New M-SSA component predictor optimized for larger forecast horizons (columns h>=4 in the above matrices) 
-#   outperforms original M-SSA predictor (tutorial 7.3) when targeting BIP at larger forward shifts (3 and 4 quarters ahead), see p_mat_mssa_components vs. p_value_HAC_BIP_oos
 # -Systematic pattern: for larger forward-shifts (from top to bottom), designs optimized for larger 
 #     forecasts horizons (from left to right) tend to perform better
 # -Singular Pandemic data affects evaluation 
 #   -p-values and rRMSEs increase; systematic patterns are cluttered by noise
 #   -Direct forecasts barely outperform the simple mean benchmark, see rRMSE_mSSA_direct_mean
-
 # -Analysis on data excluding the Pandemic:
 #   -New predictor vs. mean: (see rRMSE_mSSA_comp_mean_without_covid)
 #     -rRMSEs are below 90% for shifts up to 4 quarters and for M-SSA designs optimized for larger forecast horizons 
@@ -696,6 +695,7 @@ rRMSE_mSSA_direct_mean_without_covid
 #   -Direct forecast vs. mean benchmark: (see rRMSE_mSSA_direct_mean_without_covid)
 #     -rRMSEs are below  (or close to) 90% for small shifts (shift<=1)
 #     -Confirmation: direct forecasts are informative at short forecast horizons
+
 
 
 ################################################################################################################
@@ -994,7 +994,7 @@ box()
 # 4.2: Compute performances of the new direct HP forecast
 # Numerical computations may take a couple minutes: therefore we already computed results which can be loaded
 #   -But one can run the double loop to check results 
-recompute_results<-F
+recompute_results<-recompute_results
 if (recompute_results)
 {
 # Initialize performance matrices
@@ -1047,7 +1047,10 @@ if (recompute_results)
     paste("Shift=",0:5,sep="")
 # Save results
   list_2<-list(p_mat_HP_c=p_mat_HP_c,p_mat_HP_c_without_covid=p_mat_HP_c_without_covid,rRMSE_mSSA_comp_HP_c=rRMSE_mSSA_comp_HP_c,rRMSE_mSSA_comp_HP_c_without_covid=rRMSE_mSSA_comp_HP_c_without_covid)
-  save(list_2,file=paste(getwd(),"/Results/list_2",sep=""))
+  if (F)
+  {
+    save(list_2,file=paste(getwd(),"/Results/list_2",sep=""))
+  }
 } else
 {
 # Load results  
@@ -1233,7 +1236,113 @@ box()
 #   forecast horizon, is obtained within the M-SSA optimization framework to track forward-shifted BIP 
 #   up to one year ahead.
 
-# Final remarks: 
+#############################################################################################
+# Exercise 5: M-MSE vs. M-SSA
+# -We illustrated in exercise 4 that a multivariate filter approach outperforms univariate (HP-C) filtering 
+#   (or no filtering at all) by generating a more systematic left-shift of the M-SSA component predictor
+# -However, we have not compared M-SSA to M-MSE, the classic multivariate mean-square error filter 
+#   -The M-MSE filter does not impose a HT constraint: it is less smooth (more zero-crossings) 
+# -We here briefly derive forecast performances of the `M-MSE component predictor' and compare results to the 
+#   simple mean as well as to the M-SSA component predictor
+# -Construction of the M-MSE component predictor is straightforward: 
+#   -Instead of M-SSA filter outputs we regress M-MSE filter outputs on forward-shifted BIP
+#   -In the code snippet below we substitute mmse_array for mssa_array in the data-matrix dat
+
+recompute_results<-recompute_results
+if (recompute_results)
+{
+  # Initialize performance matrices
+  rRMSE_mmse_comp_mean<-rRMSE_mmse_comp_mean_without_covid<-rRMSE_mmse_comp_mssa<-rRMSE_mmse_comp_mssa_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
+  # Use WLS
+  use_garch<-T
+  
+  # The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons 
+  # -We compute HAC-adjusted p-values (significance of out-of-sample predictor) and 
+  #  out-of-sample rRMSEs (relative root mean-square forecast errors) for the direct HP forecast
+  
+  # Set-up progress bar: indicates progress in R-console
+  pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
+  
+  for (shift in 0:5)#shift<-2
+  {
+    # Progress bar: see R-console
+    setTxtProgressBar(pb, shift)
+    for (j in h_vec)#j<-5
+    {
+      # Horizon j corresponds to k=j+1-th entry of array    
+      k<-j+1
+      
+# M-MSE component predictor
+# Specify data matrix for WLS regression: we insert mmse_array instead of mssa_array for the explanatory variables
+      if (length(sel_vec_pred)>1)
+      {
+        dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mmse_array[sel_vec_pred,,k]))
+      } else
+      {
+        dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mmse_array[sel_vec_pred,,k]))
+      }
+      rownames(dat)<-rownames(x_mat)
+      colnames(dat)<-c(colnames(x_mat)[1],sel_vec_pred)
+      dat<-na.exclude(dat)
+      
+      perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec)
+      # Retrieve out-of-sample performances: p-values and forecast MSE, with/without Pandemic 
+      MSE_oos_mmse<-perf_obj$MSE_oos
+      MSE_oos_mmse_without_covid<-perf_obj$MSE_oos_without_covid
+      MSE_oos_mean<-perf_obj$MSE_mean_oos
+      MSE_oos_mean_without_covid<-perf_obj$MSE_mean_oos_without_covid
+      # Note that MSEs of M-SSA predictor were computed in exercise 1.3.5
+      rRMSE_mmse_comp_mssa[shift+1,k]<-sqrt(MSE_oos_mmse/MSE_oos_mssa_comp_mat[shift+1,k])
+      # Same but without Pandemic
+      rRMSE_mmse_comp_mssa_without_covid[shift+1,k]<-sqrt(MSE_oos_mmse_without_covid/MSE_oos_mssa_comp_without_covid_mat[shift+1,k])
+      # Note that MSEs of M-SSA predictor were computed in exercise 1.3.5
+      rRMSE_mmse_comp_mean[shift+1,k]<-sqrt(MSE_oos_mmse/MSE_oos_mean)
+      # Same but without Pandemic
+      rRMSE_mmse_comp_mean_without_covid[shift+1,k]<-sqrt(MSE_oos_mmse_without_covid/MSE_oos_mean_without_covid)
+    }
+  }
+  close(pb)
+  # Note: possible warnings issued by the GARCH estimation routine during computations can be ignored
+  
+  # Assign column and rownames
+  colnames(rRMSE_mmse_comp_mssa)<-colnames(rRMSE_mmse_comp_mssa_without_covid)<-
+    colnames(rRMSE_mmse_comp_mean)<-colnames(rRMSE_mmse_comp_mean_without_covid)<-paste("h=",h_vec,sep="")
+  rownames(rRMSE_mmse_comp_mssa)<-rownames(rRMSE_mmse_comp_mssa_without_covid)<-
+    rownames(rRMSE_mmse_comp_mean)<-rownames(rRMSE_mmse_comp_mean_without_covid)<-paste("Shift=",0:5,sep="")
+  # Save results
+  list_3<-list(rRMSE_mmse_comp_mssa=rRMSE_mmse_comp_mssa,rRMSE_mmse_comp_mssa_without_covid=rRMSE_mmse_comp_mssa_without_covid,
+               rRMSE_mmse_comp_mean=rRMSE_mmse_comp_mean,rRMSE_mmse_comp_mean_without_covid=rRMSE_mmse_comp_mean_without_covid)
+  if (F)
+  {
+    save(list_3,file=paste(getwd(),"/Results/list_3",sep=""))
+  }
+} else
+{
+  # Load results  
+  load(file=paste(getwd(),"/Results/list_3",sep=""))
+  rRMSE_mmse_comp_mssa=list_3$rRMSE_mmse_comp_mssa
+  rRMSE_mmse_comp_mssa_without_covid=list_3$rRMSE_mmse_comp_mssa_without_covid
+  rRMSE_mmse_comp_mean=list_3$rRMSE_mmse_comp_mean
+  rRMSE_mmse_comp_mean_without_covid=list_3$rRMSE_mmse_comp_mean_without_covid
+}
+
+
+# M-MSE components vs. mean
+rRMSE_mmse_comp_mean_without_covid
+# M-SSA components vs. mean
+rRMSE_mSSA_comp_mean_without_covid
+# M-MSE components vs. M-SSA components: rRMSE<1 signifies that M-MSE perform better
+rRMSE_mmse_comp_mssa_without_covid
+
+# Findings
+# -M-SSA does not perform systematically worse that M-MSE, despite increased smoothness (larger HT)
+# -Stronger outperformance of M-SSA (rMSE>1) at shifts=2,3 and forecast horizons h=2,3,4
+# -At forecast horizon h=5 M-SSA does not outperform and at h=6 M-SSA is possibly slightly outperformed by M-MSE 
+
+########################################################
+
+
+# Final remark: 
 # -We assume a publication lag of two quarters for BIP which is systematically added to the 
 #   forward-shift in our computations (the effective publication lag is only one quarter).  
 # -This assumption is made to compensate for the omission of data revisions, which are ignored in our 
