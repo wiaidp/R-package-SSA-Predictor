@@ -19,7 +19,7 @@
 # -We rely on the design proposed in tutorial 7.3, exercise 1
 # -We then add a new optimal weighting step in the construction of the final predictor
 
-# The tutorial is structured into 5 exercises
+# The tutorial is organized into 5 exercises
 # -Exercise 1
 #   -M-SSA components: derive M-SSA components and replicate the original M-SSA predictor (tutorial 7.3)
 #   -Interpretability: rely on M-SSA components to gauge forecasts (reliability/trustworthiness)
@@ -34,8 +34,8 @@
 #   -Explainability: why does the M-SSA component predictor outperform specifically at multi-quarters 
 #     ahead forecast horizons?
 # -Exercise 5
-#   -Specify and compute an `M-MSE component predictor' (same as M-SSA but without HT imposed: lless smooth)
-#   -Compare forecast performances to simple mean benchmark and to M-SSA component predictor
+#   -Specify and compute an `M-MSE component predictor' (same as M-SSA but without HT imposed: less smooth)
+#   -Compare MSE forecast performances to the simple mean benchmark and the (new) M-SSA component predictor
 
 #----------------------------------------------
 # Start with a clean sheet
@@ -111,7 +111,7 @@ len<-dim(x_mat)[1]
 # Exercise 1 Working with M-SSA (sub-)components
 #   -We rely on the design proposed in tutorial 7.3, exercise 1
 
-# Exercise 1.0: brief summary of original M-SSA predictor
+# Exercise 1.0: brief summary of original M-SSA predictor (tutorial 7.3)
 
 # Target filter: lambda_HP is the single most important hyperparameter, see tutorial 7.1 for a discussion
 lambda_HP<-160
@@ -173,19 +173,24 @@ p_value_HAC_BIP_oos
 
 # Example: check if the M-SSA predictor optimized for horizon h_vec[j] can significantly predict BIP shifted forward
 #   by shift=i+1
-i<-4
+# One-year shift
+i<-5
+# Forecast horizon 6
 j<-7
 p_value_HAC_BIP_oos[i,j]
-# Below we shall verify that the new M-SSA component predictor will perform better (smaller p-value) in 
-#   particular at larger forward-shifts (>=3 quarters)
+# The original M-SSA predictor optimized for horizon h=6 does not significantly predict BIP 4 quarters ahead (plus publication lag)
+#   -Below we shall illustrate that the new M-SSA component predictor will perform better (smaller p-value) in 
+#     particular at larger forward-shifts (>=3 quarters)
 
 # Technical note: 
-# -The M-SSA predictor can track forward-shifted HP-BIP (the series in target_shifted_mat above) more firmly 
+# -The M-SSA predictor can track forward-shifted HP-BIP (the series in target_shifted_mat above) more tightly 
 #   than forward-shifted BIP
-perf_obj$p_value_HAC_HP_BIP_oos
-# The corresponding p-values are smaller (statistical significance even at shifts >=4 quarters)
-#   -But we are not interested in predicting HP-BIP in this tutorial!
+perf_obj$p_value_HAC_HP_BIP_oos[i,j]
+# The original M-SSA predictor optimized for horizon h=6 is strongly significant when predicting HP-BIP 
+#   4 quarters ahead (plus publication lag)
 
+# The original M-SSA predictor and the newly proposed M-SSA component predictor address 
+#   different targets!  
 
 #-----------
 # Exercise 1.1 What are M-SSA (sub-)components?
