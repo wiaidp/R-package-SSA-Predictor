@@ -778,7 +778,7 @@ k<-5
 h_vec[k]
 # Forward-shifts of BIP (+publication lag)
 shift_vec<-shift_vec
-final_predictor<-NULL
+final_mssa_predictor<-NULL
 # We compute the final predictor, based on data up to the sample end
 # Note: for simplicity we here compute an OLS regression (WLS looks nearly the same)
 for (shift in shift_vec)
@@ -796,13 +796,13 @@ for (shift in shift_vec)
   lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
   optimal_weights<-lm_obj$coef
 # Compute predictor for each forward-shift  
-  final_predictor<-cbind(final_predictor,optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)])
+  final_mssa_predictor<-cbind(final_mssa_predictor,optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)])
 }  
 
 # Plot M-SSA components predictors (optimized for h=4) and shifts in shift_vec
 par(mfrow=c(1,1))
 # Standardize for easier visual inspection
-mplot<-scale(cbind(dat[,1],final_predictor))
+mplot<-scale(cbind(dat[,1],final_mssa_predictor))
 colnames(mplot)<-c(paste("BIP forward-shifted by ",shift," quarters (plus publication lag)",sep=""),
                    paste("h=",h_vec[k],", shift=",shift_vec,sep=""))
 colo<-c("black",rainbow(4*ncol(final_predictor)))
@@ -1289,8 +1289,6 @@ if (recompute_results)
       dat<-na.exclude(dat)
       
       perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec)
-# Final M-MSE component predictor based on full-sample information      
-      final_mmse_components_preditor<-perf_obj$final_in_sample_preditor
 # Out-of-sample performances: p-values and forecast MSE, with/without Pandemic 
       MSE_oos_mmse<-perf_obj$MSE_oos
       MSE_oos_mmse_without_covid<-perf_obj$MSE_oos_without_covid
@@ -1317,7 +1315,7 @@ if (recompute_results)
   rownames(rRMSE_mmse_comp_mssa)<-rownames(rRMSE_mmse_comp_mssa_without_covid)<-
     rownames(rRMSE_mmse_comp_mean)<-rownames(rRMSE_mmse_comp_mean_without_covid)<-paste("Shift=",shift_vec,sep="")
   # Save results
-  list_3<-list(final_mmse_components_preditor=final_mmse_components_preditor,rRMSE_mmse_comp_mssa=rRMSE_mmse_comp_mssa,rRMSE_mmse_comp_mssa_without_covid=rRMSE_mmse_comp_mssa_without_covid,
+  list_3<-list(rRMSE_mmse_comp_mssa=rRMSE_mmse_comp_mssa,rRMSE_mmse_comp_mssa_without_covid=rRMSE_mmse_comp_mssa_without_covid,
                rRMSE_mmse_comp_mean=rRMSE_mmse_comp_mean,rRMSE_mmse_comp_mean_without_covid=rRMSE_mmse_comp_mean_without_covid)
   if (F)
   {
@@ -1327,7 +1325,6 @@ if (recompute_results)
 {
   # Load results  
   load(file=paste(getwd(),"/Results/list_3",sep=""))
-  final_mmse_components_preditor=list_3$final_mmse_components_preditor
   rRMSE_mmse_comp_mssa=list_3$rRMSE_mmse_comp_mssa
   rRMSE_mmse_comp_mssa_without_covid=list_3$rRMSE_mmse_comp_mssa_without_covid
   rRMSE_mmse_comp_mean=list_3$rRMSE_mmse_comp_mean
@@ -1337,13 +1334,46 @@ if (recompute_results)
 #-------------------
 # Exercise 5.2: evaluate performances of M-MSE component predictor
 
-# 5.2.1 Plot of M-MSE and M-SSA predictors
-#   -Note that the series do not reach the sample end (We'd have to recompute predictors as in exercise 3 above)
-#   -The forward shifted target has NAs at the sample end and rows with NAs were removed
-mplot<-cbind(final_components_preditor,final_mmse_components_preditor)
+# 5.2.1 Compute Final M-MSE component predictor until the sample end
+
+k<-5
+# Check: forecast horizon h=4:
+h_vec[k]
+# Forward-shifts of BIP (+publication lag)
+shift_vec<-shift_vec
+final_mmse_predictor<-NULL
+# We compute the final predictor, based on data up to the sample end
+# Note: for simplicity we here compute an OLS regression (WLS looks nearly the same)
+for (shift in shift_vec)
+{
+  # Data matrix: forward-shifted BIP and M-SSA components  
+  if (length(sel_vec_pred)>1)
+  {
+    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mmse_array[sel_vec_pred,,k]))
+  } else
+  {
+    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mmse_array[sel_vec_pred,,k]))
+  }
+  rownames(dat)<-rownames(x_mat)
+  # OLS regression  
+  lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
+  optimal_weights<-lm_obj$coef
+  # Compute predictor for each forward-shift  
+  final_mmse_predictor<-cbind(final_mmse_predictor,optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)])
+}  
+
+
+
+# 5.2.2 Plot of M-MSE and M-SSA predictors
+# Select forward-shift: we select a one-year ahead shift 
+j<-5
+shift_vec[j]
+
+par(mfrow=c(1,1))
+mplot<-cbind(final_mssa_predictor[,j],final_mmse_predictor[,j])
 colnames(mplot)<-c("M-SSA component predictor","M-MSE component predictor")
 colo<-c(rainbow(ncol(mplot)))
-main_title<-paste("Predictors: M-SSA component vs. M-MSE component, h=",h_vec[length(h_vec)],", shift=5",sep="")
+main_title<-paste("Predictors: M-SSA component vs. M-MSE component, h=",h_vec[k],", shift=",shift_vec[j],sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (j in 1:ncol(mplot))
@@ -1355,18 +1385,25 @@ abline(h=0)
 axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
 axis(2)
 box()
+# As expected, the M-SSA component predictor appears smoother
+# Interestingly, M-SSA is not retarded (not slower than M-MSE) 
 
-# As expected, the M-MSE component predictor is much `noisier`
-# But it is slightly left-shifted (slightly faster)
 
-# 5.2.2 Holding times
+# 5.2.3 Holding times
 # -For additional confirmation we may compute the empirical holding times of both predictors
 #    (mean duration between consecutive zero-crossings)
-compute_empirical_ht_func(final_components_preditor)
-compute_empirical_ht_func(final_mmse_components_preditor)
-# M-SSA has much less crossings
+compute_empirical_ht_func(final_mssa_predictor)
+compute_empirical_ht_func(final_mmse_predictor)
+# M-SSA has less crossings
+# Technical note:
+# -M-SSA controls the rate of crossings at the mean-level: if the mean is zero, then M-SSA controls zero-crossings
+#   -However, the mean here is different from zero and therefore M-SSA does not directly control the rate of 
+#     crossings at the zero-level
+#   -But increased smoothness (less crossings at the mean level) also generally implies less crossings at other
+#     levels (here zero), as illustrated by the above empirical HTs
 
-# 5.2.3 MSE forecast performances
+
+# 5.2.4 MSE forecast performances
 # M-MSE vs. mean
 rRMSE_mmse_comp_mean_without_covid
 # M-SSA components vs. mean
