@@ -1346,7 +1346,7 @@ if (recompute_results)
 #   the full data sample)
 
 # Select h and shift (should be smaller or equal 5)
-h<-4
+h<-1
 if (h>5)
   h=5
 # Select forward-shift
@@ -1389,7 +1389,7 @@ final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:l
 par(mfrow=c(2,1))
 mplot<-scale(cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),final_mssa_predictor,final_mmse_predictor))
 dim(mplot)
-colnames(mplot)<-c(paste("BIP shifted forward by ",shift,sep=""),"M-SSA component predictor","M-MSE component predictor")
+colnames(mplot)<-c(paste("BIP shifted forward by ",shift," (plus publication lag)",sep=""),"M-SSA component predictor","M-MSE component predictor")
 colo<-c("black","blue","green")
 main_title<-paste("BIP and Predictors",sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
@@ -1406,7 +1406,7 @@ box()
 
 mplot<-cbind(rep(0,nrow(final_mssa_predictor)),final_mssa_predictor,final_mmse_predictor)
 colnames(mplot)<-c("","M-SSA component predictor","M-MSE component predictor")
-main_title<-paste("Predictors: M-SSA component vs. M-MSE component, h=",h_vec[k],", shift=",shift_vec[k],sep="")
+main_title<-paste("Predictors: M-SSA component vs. M-MSE component, h=",h,", shift=",shift,sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (jj in 1:ncol(mplot))
