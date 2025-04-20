@@ -1333,9 +1333,12 @@ if (recompute_results)
 
 #-------------------
 # Exercise 5.2: evaluate performances of M-MSE component predictor
+#   -We here emphasize four quarters ahead forecasts (challenging forecast problem)
 
-# 5.2.1 Compute Final M-MSE component predictor until the sample end
-
+# 5.2.1 Compute Final M-MSE component predictor (final predictor whose regression relies on 
+#   all available data)
+# Note: this code snippet is almost the same as exercise 3 above, but we substitute mmse_array for mssa_array 
+#   as the explanatory variable(s)
 k<-5
 # Check: forecast horizon h=4:
 h_vec[k]
