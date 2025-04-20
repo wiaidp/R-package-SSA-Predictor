@@ -1342,61 +1342,83 @@ if (recompute_results)
 # Exercise 5.2: evaluate performances of M-MSE component predictor
 #   -We here emphasize a four quarters ahead forecast (challenging forecast problem)
 
-# 5.2.1 Compute Final M-MSE component predictor (final predictor whose regression relies on 
+# 5.2.1 Compute Final M-MSE and M-SSA component predictors (whose regression relies on 
 #   the full data sample)
-# Note: this code snippet is almost the same as exercise 3 above, but we substitute mmse_array for mssa_array 
-#   as the explanatory variable(s)
 
-# Select h
-k<-5
-# Check: forecast horizon h=4:
-h_vec[k]
-# Forward-shifts of BIP (+publication lag)
-shift_vec<-shift_vec
-final_mmse_predictor<-NULL
-# We compute the final predictor, based on data up to the sample end
+# Select h and shift (should be smaller or equal 5)
+h<-4
+if (h>5)
+  h=5
+# Select forward-shift
+shift<-h
+
+# Compute the final M-MSE component predictor optimized for forecast horizon h
 # Note: for simplicity we here compute an OLS regression (WLS looks nearly the same)
-for (shift in shift_vec)
+if (length(sel_vec_pred)>1)
 {
-  # Data matrix: forward-shifted BIP and M-SSA components  
-  if (length(sel_vec_pred)>1)
-  {
-    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mmse_array[sel_vec_pred,,k]))
-  } else
-  {
-    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mmse_array[sel_vec_pred,,k]))
-  }
-  rownames(dat)<-rownames(x_mat)
-  # OLS regression  
-  lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
-  optimal_weights<-lm_obj$coef
-  # Compute predictor for each forward-shift  
-  final_mmse_predictor<-cbind(final_mmse_predictor,optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)])
-}  
+  dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mmse_array[sel_vec_pred,,h+1]))
+} else
+{
+  dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mmse_array[sel_vec_pred,,h+1]))
+}
+# OLS regression  
+lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
+optimal_weights<-lm_obj$coef
+# Compute predictor for each forward-shift  
+final_mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+
+# Compute the final M-SSA component predictor optimized for forecast horizon h
+if (length(sel_vec_pred)>1)
+{
+  dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mssa_array[sel_vec_pred,,h+1]))
+} else
+{
+  dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mssa_array[sel_vec_pred,,h+1]))
+}
+# OLS regression  
+lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
+optimal_weights<-lm_obj$coef
+# Compute predictor for each forward-shift  
+final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+
 
 
 
 # 5.2.2 Plot of M-MSE and M-SSA predictors
 # Select forward-shift: we select a one-year ahead shift (of BIP)
-j<-5
-shift_vec[j]
-
-par(mfrow=c(1,1))
-mplot<-cbind(final_mssa_predictor[,j],final_mmse_predictor[,j])
-colnames(mplot)<-c("M-SSA component predictor","M-MSE component predictor")
-colo<-c(rainbow(ncol(mplot)))
-main_title<-paste("Predictors: M-SSA component vs. M-MSE component, h=",h_vec[k],", shift=",shift_vec[j],sep="")
+par(mfrow=c(2,1))
+mplot<-scale(cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),final_mssa_predictor,final_mmse_predictor))
+dim(mplot)
+colnames(mplot)<-c(paste("BIP shifted forward by ",shift,sep=""),"M-SSA component predictor","M-MSE component predictor")
+colo<-c("black","blue","green")
+main_title<-paste("BIP and Predictors",sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (j in 1:ncol(mplot))
+for (jj in 1:ncol(mplot))
 {
-  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
-  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+  lines(mplot[,jj],col=colo[jj],lwd=1,lty=1)
+  mtext(colnames(mplot)[jj],col=colo[jj],line=-jj)
 }
 abline(h=0)
 axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
 axis(2)
 box()
+
+mplot<-cbind(rep(0,nrow(final_mssa_predictor)),final_mssa_predictor,final_mmse_predictor)
+colnames(mplot)<-c("","M-SSA component predictor","M-MSE component predictor")
+main_title<-paste("Predictors: M-SSA component vs. M-MSE component, h=",h_vec[k],", shift=",shift_vec[k],sep="")
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (jj in 1:ncol(mplot))
+{
+  lines(mplot[,jj],col=colo[jj],lwd=1,lty=1)
+  mtext(colnames(mplot)[jj],col=colo[jj],line=-jj)
+}
+abline(h=0)
+axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+axis(2)
+box()
+
 # As expected, the M-SSA component predictor appears smoother
 # Interestingly, M-SSA is not retarded (not systematically right-shifted relative to M-MSE) 
 # Let's measure smoothness in terms of empirical holding-times
