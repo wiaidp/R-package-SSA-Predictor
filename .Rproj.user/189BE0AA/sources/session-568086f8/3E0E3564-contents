@@ -1391,7 +1391,7 @@ axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot
 axis(2)
 box()
 # As expected, the M-SSA component predictor appears smoother
-# Interestingly, M-SSA is not retarded (not slower than M-MSE) 
+# Interestingly, M-SSA is not retarded (not systematically right-shifted relative to M-MSE) 
 # Let's measure smoothness in terms of empirical holding-times
 
 # 5.2.3 Holding times
@@ -1400,6 +1400,7 @@ box()
 compute_empirical_ht_func(final_mssa_predictor)
 compute_empirical_ht_func(final_mmse_predictor)
 # M-SSA has less crossings
+#   -This feature of the predictor can be controlled by the HT hyperparameter
 
 
 # 5.2.4 MSE forecast performances
@@ -1420,8 +1421,7 @@ rRMSE_mmse_comp_mssa_without_covid
 #     performances when targeting forward-shifted BIP
 #   -Both predictors outperform the mean, the direct forecast and the direct HP forecast, specifically at 
 #     shifts>=1 quarter
-# -The M-SSA component predictor is markedly smoother (less noisy, fewer zero-crossings) but slightly 
-#     right shifted (retarded) compared to M-MSE
+# -The M-SSA component predictor is smoother (less noisy, fewer zero-crossings) 
 #   -The smoothness of M-SSA can be controlled by the HT hyperparameter
 # -The M-MSE component predictor can be replicated by the M-SSA component predictor by inserting the 
 #     former's HTs into the constraint
