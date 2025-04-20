@@ -189,8 +189,8 @@ perf_obj$p_value_HAC_HP_BIP_oos[i,j]
 # The original M-SSA predictor optimized for horizon h=6 is strongly significant when predicting HP-BIP 
 #   4 quarters ahead (plus publication lag)
 
-# The original M-SSA predictor and the newly proposed M-SSA component predictor address 
-#   different targets!  
+# The original M-SSA predictor (tutorial 7.3) and the newly proposed M-SSA component predictor 
+#   in this tutorial address different targets!  
 
 #-----------
 # Exercise 1.1 What are M-SSA (sub-)components?
