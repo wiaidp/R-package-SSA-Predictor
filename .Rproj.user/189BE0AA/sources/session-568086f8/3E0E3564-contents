@@ -297,12 +297,12 @@ box()
 
 # 1.3.1 Selection
 # -We can select the M-SSA components which are deemed relevant for MSE performances when targeting BIP
-#   -ESI, ifo and spread M-SSA components are mainly relevant in a dynamic context (for the M-SSA predictor)
-#   -In contrast, BIP and ip M-SSA components are natural candidates in a MSE perspective (which is emphasized here).
+#   -ESI, ifo and spread M-SSA components are mainly relevant in a dynamic context (for the original M-SSA predictor)
+#   -In contrast, BIP and ip M-SSA components are natural candidates in a MSE-BIP perspective (which is emphasized here).
 #   -Note, however, that the original indicators ESI, ifo and spread are important determinants 
 #     of the selected (BIP- and ip-) M-SSA components, see tutorial 7.2, exercise 1.
-# -In summary: one can try various combinations, including a single M-SSA BIP component. Performances are 
-#   similar. The combination of BIP and ip is simple, intuitively appealing and it performs well, out-of-sample.
+# -In summary: one can try various component combinations, including a single M-SSA BIP component. Performances are 
+#   roughly similar. The combination of BIP and ip M-SSA components is simple and intuitively appealing.
 sel_vec_pred<-select_vec_multi[c(1,2)]
 # Selected M-SSA components
 sel_vec_pred
