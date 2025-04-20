@@ -1339,6 +1339,8 @@ if (recompute_results)
 #   all available data)
 # Note: this code snippet is almost the same as exercise 3 above, but we substitute mmse_array for mssa_array 
 #   as the explanatory variable(s)
+
+# Select h
 k<-5
 # Check: forecast horizon h=4:
 h_vec[k]
@@ -1368,7 +1370,7 @@ for (shift in shift_vec)
 
 
 # 5.2.2 Plot of M-MSE and M-SSA predictors
-# Select forward-shift: we select a one-year ahead shift 
+# Select forward-shift: we select a one-year ahead shift (of BIP)
 j<-5
 shift_vec[j]
 
@@ -1390,7 +1392,7 @@ axis(2)
 box()
 # As expected, the M-SSA component predictor appears smoother
 # Interestingly, M-SSA is not retarded (not slower than M-MSE) 
-
+# Let's measure smoothness in terms of empirical holding-times
 
 # 5.2.3 Holding times
 # -For additional confirmation we may compute the empirical holding times of both predictors
@@ -1398,12 +1400,6 @@ box()
 compute_empirical_ht_func(final_mssa_predictor)
 compute_empirical_ht_func(final_mmse_predictor)
 # M-SSA has less crossings
-# Technical note:
-# -M-SSA controls the rate of crossings at the mean-level: if the mean is zero, then M-SSA controls zero-crossings
-#   -However, the mean here is different from zero and therefore M-SSA does not directly control the rate of 
-#     crossings at the zero-level
-#   -But increased smoothness (less crossings at the mean level) also generally implies less crossings at other
-#     levels (here zero), as illustrated by the above empirical HTs
 
 
 # 5.2.4 MSE forecast performances
