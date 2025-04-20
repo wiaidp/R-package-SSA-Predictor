@@ -304,7 +304,7 @@ box()
 # -In summary: one can try various component combinations, including a single M-SSA BIP component. Performances are 
 #   roughly similar. The combination of BIP and ip M-SSA components is simple and intuitively appealing.
 sel_vec_pred<-select_vec_multi[c(1,2)]
-# Selected M-SSA components
+# Check the selected M-SSA components
 sel_vec_pred
 # We can select the forward shift of BIP: for illustration we here assume a 2 quarters ahead forward-shift
 #   (plus publication lag). Below we shall analyze all shifts, from zero to five quarters ahead.
@@ -1236,6 +1236,7 @@ box()
 #       several quarters ahead
 #     -Address more effectively the size as well as the quality of the left-shift of the 
 #       predictor (as a function of the forecast horizon) by M-SSA
+#   -Address and control smoothness (rate of zero-crossings) of the predictor: HT constraint, see exercise 5 below
 
 # These findings justify the  `more complex' forecast design proposed in this tutorial, 
 #   wherein the key property of the predictor, namely the pronounced left-shift as a function of the 
@@ -1251,7 +1252,8 @@ box()
 # -We here briefly derive forecast performances of the `M-MSE component predictor' and compare results to the 
 #   simple mean as well as to the M-SSA component predictor
 # -Construction of the M-MSE component predictor is straightforward: 
-#   -Instead of M-SSA filter outputs we regress M-MSE filter outputs on forward-shifted BIP
+#   -Instead of M-SSA components (filter outputs) we regress M-MSE components (filter outputs) on 
+#     forward-shifted BIP
 #   -In the code snippet below we substitute mmse_array for mssa_array in the data-matrix dat
 
 # Exercise 5.1: compute M-MSE-component predictor
@@ -1338,10 +1340,10 @@ if (recompute_results)
 
 #-------------------
 # Exercise 5.2: evaluate performances of M-MSE component predictor
-#   -We here emphasize four quarters ahead forecasts (challenging forecast problem)
+#   -We here emphasize a four quarters ahead forecast (challenging forecast problem)
 
 # 5.2.1 Compute Final M-MSE component predictor (final predictor whose regression relies on 
-#   all available data)
+#   the full data sample)
 # Note: this code snippet is almost the same as exercise 3 above, but we substitute mmse_array for mssa_array 
 #   as the explanatory variable(s)
 
@@ -1402,10 +1404,13 @@ box()
 # 5.2.3 Holding times
 # -For additional confirmation we may compute the empirical holding times of both predictors
 #    (mean duration between consecutive zero-crossings)
+# -Note: we imposed a 50% larger expected (true) HT than M-MSE in the HT constraint of the optimization criterion
+#   -Ideally, the empirical HT of M-SSA should be 50% larger than M-MSE, too.
 compute_empirical_ht_func(final_mssa_predictor)
 compute_empirical_ht_func(final_mmse_predictor)
-# M-SSA has less crossings
+# M-SSA has approximately 33% less crossings (50% larger empirical HT)
 #   -This feature of the predictor can be controlled by the HT hyperparameter
+#   -The sample estimate is close to the expected (true) number 
 
 
 # 5.2.4 MSE forecast performances
@@ -1424,8 +1429,8 @@ rRMSE_mmse_comp_mssa_without_covid
 # Summary
 # -M-SSA and M-MSE component predictors perform roughly similarly in terms of out-of-sample MSE forecast 
 #     performances when targeting forward-shifted BIP
-#   -Both predictors outperform the mean, the direct forecast and the direct HP forecast, specifically at 
-#     shifts>=1 quarter
+#   -Both predictors outperform the mean, the direct forecast, the direct HP forecast and the original 
+#     M-SSA predictor (tutorial 7.3), specifically at larger forward shifts (shifts>=1 quarter).
 # -The M-SSA component predictor is smoother (less noisy, fewer zero-crossings) 
 #   -The smoothness of M-SSA can be controlled by the HT hyperparameter
 # -The M-MSE component predictor can be replicated by the M-SSA component predictor by inserting the 
