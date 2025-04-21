@@ -1339,14 +1339,14 @@ if (recompute_results)
 }
 
 #-------------------
-# Exercise 5.2: evaluate performances of M-MSE component predictor
+# Exercise 5.2: evaluate out-of-sample performances of M-MSE component predictor
 #   -We here emphasize a four quarters ahead forecast (challenging forecast problem)
 
 # 5.2.1 Compute Final M-MSE and M-SSA component predictors (whose regression relies on 
 #   the full data sample)
 
 # Select h and shift (should be smaller or equal 5)
-h<-1
+h<-5
 if (h>5)
   h=5
 # Select forward-shift
