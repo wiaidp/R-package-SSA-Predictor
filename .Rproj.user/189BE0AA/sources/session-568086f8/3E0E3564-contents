@@ -205,6 +205,27 @@ j_now<-1
 h_vec[j_now]
 # For forecast horizon h_vec[j_now], the sub-series of the M-SSA predictor are:  
 tail(t(mssa_array[,,j_now]))
+
+# Plot M-SSA components: these are the M-SSA outputs (predictors) tracking the two-sided HP(160) applied 
+#   to the indicators. Specifically: HP-BIP, HP-ip, HP-ifo, HP-ESI and HP-spread.
+# For each target, say HP-BIP, M-SSA can rely on all indicators for more effective tracking (than univariate filters)
+mplot<-t(mssa_array[,,j_now])
+colo<-c(rainbow(length(select_vec_multi)))
+main_title<-"M-SSA components: outputs of M-SSA tracking two-sided HP"
+par(mfrow=c(1,1))
+plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=1,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))),lty=2)
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i],col=colo[i],lwd=1,lty=2)
+  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+}
+abline(h=0)
+abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
+axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+axis(2)
+box()
+
 # These sub-series correspond to the M-SSA outputs optimized for horizon h_vec[j_now], see tutorial 7.2, exercise 1
 #   -For each series of the multivariate design, the target is the two-sided HP applied to this series and 
 #     shifted forward by the forecast horizon (plus the publication lag in case of BIP)
@@ -1520,7 +1541,6 @@ final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:l
 # 6.2.3 Plot final M-MSE and M-SSA predictors
 par(mfrow=c(2,1))
 mplot<-scale(cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),final_mssa_predictor,final_mmse_predictor))
-dim(mplot)
 colnames(mplot)<-c(paste("BIP shifted forward by ",shift," (plus publication lag)",sep=""),"M-SSA component predictor","M-MSE component predictor")
 colo<-c("black","blue","green")
 main_title<-paste("Forward-shifted BIP and Predictors: Pandemic episode removed",sep="")
