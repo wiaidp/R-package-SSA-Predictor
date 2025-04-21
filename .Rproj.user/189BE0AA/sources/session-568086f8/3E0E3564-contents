@@ -19,7 +19,7 @@
 # -We rely on the design proposed in tutorial 7.3, exercise 1
 # -We then add a new optimal weighting step in the construction of the final predictor
 
-# The tutorial is organized into 5 exercises
+# The tutorial is organized into 6 exercises
 # -Exercise 1
 #   -M-SSA components: derive M-SSA components and replicate the original M-SSA predictor (tutorial 7.3)
 #   -Interpretability: rely on M-SSA components to gauge forecasts (reliability/trustworthiness)
@@ -36,7 +36,9 @@
 # -Exercise 5
 #   -Specify and compute an `M-MSE component predictor' (same as M-SSA but without HT imposed: less smooth)
 #   -Compare MSE forecast performances to the simple mean benchmark and the (new) M-SSA component predictor
-
+# -Exercise 6
+#   -Compute final M-SSA and M-MSE component predictors based on full data information and optimal 
+#     WLS regression, discarding singular Pandemic data for estimation of parameters
 #----------------------------------------------
 # Start with a clean sheet
 rm(list=ls())
@@ -1382,16 +1384,138 @@ optimal_weights<-lm_obj$coef
 final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
 
 
+# Let's measure smoothness in terms of empirical holding-times
+
+# 5.2.2 Holding times
+# -For additional confirmation we may compute the empirical holding times of both predictors
+#    (mean duration between consecutive zero-crossings)
+# -Note: we imposed a 50% larger expected (true) HT than M-MSE in the HT constraint of the optimization criterion
+#   -Ideally, the empirical HT of M-SSA should be 50% larger than M-MSE, too.
+compute_empirical_ht_func(final_mssa_predictor)
+compute_empirical_ht_func(final_mmse_predictor)
+# M-SSA has approximately 33% less crossings (50% larger empirical HT)
+#   -This feature of the predictor can be controlled by the HT hyperparameter
+#   -The sample estimate is close to the expected (true) number 
 
 
-# 5.2.2 Plot of M-MSE and M-SSA predictors
-# Select forward-shift: we select a one-year ahead shift (of BIP)
+# 5.2.3 MSE forecast performances
+# M-MSE vs. mean
+rRMSE_mmse_comp_mean_without_covid
+# M-SSA components vs. mean
+rRMSE_mSSA_comp_mean_without_covid
+# M-MSE vs. M-SSA: rRMSE<1 signifies that M-MSE perform better
+rRMSE_mmse_comp_mssa_without_covid
+
+# Findings
+# -M-SSA does not perform systematically worse than M-MSE in terms of forecast MSE, 
+#     despite increased smoothness (larger HT, lfewer zero-crossings)
+# -Stronger outperformance of M-SSA (rMSE>1) at shifts=2,3 and forecast horizons h=2,3,4
+# -At forecast horizon h=5 M-SSA does not outperform and at h=6 M-SSA is possibly slightly outperformed by M-MSE 
+
+################################################################################################
+# Exercise 6: Compute final M-SSA and M-MSE component predictors 
+# -We here up-date the VAR-model for M-SSA and M-MSE
+# -We apply the final WLS regression, based on all available data and the GARCH(1,1)-vola
+# -We remove Pandemic to obtain better estimates for VAR and regression equations
+
+# 6.1 Up-date M-SSA and M-MSE
+# In-sample span for VAR, use all data for VAR
+date_to_fit<-"3000"
+# Remove Pandemic
+x_mat_wc<-x_mat[c(which(rownames(x_mat)<2020),which(rownames(x_mat)>2021)),]
+par(mfrow=c(1,1))
+ts.plot(x_mat_wc)
+
+# Run the M-SSA wrapper, see tutorial 7.2
+#   -The function computes M-SSA and M-MSE for each forecast horizon h in h_vec
+mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat_wc,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
+
+# Final original M-SSA predictor
+predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
+# Final M-SSA components
+mssa_array<-mssa_indicator_obj$mssa_array
+# Final M-MSE components
+mmse_array<-mssa_indicator_obj$mmse_array
+
+
+#----------------------
+# 6.2 Compute up-dated M-SSA and M-MSE component predictors based on WLS regression
+
+# Select h and shift (should be smaller or equal 5 or 6)
+# We select a one-year ahead forecast h=4, for its potential importance in applications
+# Background (short resume):
+# -The forecast horizon h conditions M-SSA to track HP-filtered targets h-steps ahead
+# -The corresponding M-SSA or M-MSE components are then used as regressors in the subsequent WLS regressions 
+#   on forward-shifted BIP 
+# -The output of the WLS regressions are the M-SSA and M-MSE component predictors
+#   -Two-stage (stacked) predictor design
+h<-4
+if (h>6)
+  h=6
+# Select forward-shift: we set shift=h 
+#   -WLS regression targets BIP shifted forward by shift (+publication lag)
+shift<-h
+if (shift>5)
+  shift=5
+
+# 6.2.1 M-MSE component predictor optimized for forecast horizon h
+# We here rely on GARCH(1,1) and WLS regression
+if (length(sel_vec_pred)>1)
+{
+  dat<-cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),t(mmse_array[sel_vec_pred,,h+1]))
+} else
+{
+  dat<-cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),(mmse_array[sel_vec_pred,,h+1]))
+}
+y.garch_11<-garchFit(~garch(1,1),data=na.exclude(dat[,1]),include.mean=T,trace=F)
+# sigmat could be retrieved from GARCH-object
+sigmat<-y.garch_11@sigma.t
+# But this is lagged by one period
+# Therefore we recompute the vola based on the estimated GARCH-parameters
+eps<-y.garch_11@residuals
+d<-y.garch_11@fit$matcoef["omega",1]
+alpha<-y.garch_11@fit$matcoef["alpha1",1]
+beta<-y.garch_11@fit$matcoef["beta1",1]
+sigmat_own<-sigmat
+for (i in 2:length(sigmat))#i<-2
+  sigmat_own[i]<-sqrt(d+beta*sigmat_own[i-1]^2+alpha*eps[i]^2)
+# This is now correct (not lagging anymore)
+sigmat<-sigmat_own
+# Weights are proportional to 1/sigmat^2      
+weight_short<-1/sigmat^2
+# Shift vola by shift+lag_vec[1] (see exercise 1.3.3) 
+weight<-c(rep(weight_short[1],shift+lag_vec[1]),weight_short)
+# WLS regression  
+lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
+optimal_weights<-lm_obj$coef
+# Compute predictor for each forward-shift  
+final_mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+
+
+# 6.2.2 M-SSA component predictor optimized for forecast horizon h
+# We here rely on GARCH(1,1) and WLS regression
+if (length(sel_vec_pred)>1)
+{
+  dat<-cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),t(mssa_array[sel_vec_pred,,h+1]))
+} else
+{
+  dat<-cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),(mssa_array[sel_vec_pred,,h+1]))
+}
+# OLS regression  
+lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
+optimal_weights<-lm_obj$coef
+# Compute predictor for each forward-shift  
+final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+
+
+
+# 6.2.3 Plot M-MSE and M-SSA predictors
 par(mfrow=c(2,1))
-mplot<-scale(cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),final_mssa_predictor,final_mmse_predictor))
+mplot<-scale(cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),final_mssa_predictor,final_mmse_predictor))
 dim(mplot)
 colnames(mplot)<-c(paste("BIP shifted forward by ",shift," (plus publication lag)",sep=""),"M-SSA component predictor","M-MSE component predictor")
 colo<-c("black","blue","green")
-main_title<-paste("BIP and Predictors",sep="")
+main_title<-paste("Forward-shifted BIP and Predictors: Pandemic episode removed",sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (jj in 1:ncol(mplot))
@@ -1419,34 +1543,10 @@ axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot
 axis(2)
 box()
 
-# As expected, the M-SSA component predictor appears smoother
-# Interestingly, M-SSA is not retarded (not systematically right-shifted relative to M-MSE) 
-# Let's measure smoothness in terms of empirical holding-times
-
-# 5.2.3 Holding times
-# -For additional confirmation we may compute the empirical holding times of both predictors
-#    (mean duration between consecutive zero-crossings)
-# -Note: we imposed a 50% larger expected (true) HT than M-MSE in the HT constraint of the optimization criterion
-#   -Ideally, the empirical HT of M-SSA should be 50% larger than M-MSE, too.
-compute_empirical_ht_func(final_mssa_predictor)
-compute_empirical_ht_func(final_mmse_predictor)
-# M-SSA has approximately 33% less crossings (50% larger empirical HT)
-#   -This feature of the predictor can be controlled by the HT hyperparameter
-#   -The sample estimate is close to the expected (true) number 
 
 
-# 5.2.4 MSE forecast performances
-# M-MSE vs. mean
-rRMSE_mmse_comp_mean_without_covid
-# M-SSA components vs. mean
-rRMSE_mSSA_comp_mean_without_covid
-# M-MSE vs. M-SSA: rRMSE<1 signifies that M-MSE perform better
-rRMSE_mmse_comp_mssa_without_covid
 
-# Findings
-# -M-SSA does not perform systematically worse than M-MSE in terms of forecast MSE, despite increased smoothness (larger HT)
-# -Stronger outperformance of M-SSA (rMSE>1) at shifts=2,3 and forecast horizons h=2,3,4
-# -At forecast horizon h=5 M-SSA does not outperform and at h=6 M-SSA is possibly slightly outperformed by M-MSE 
+
 
 # Summary
 # -M-SSA and M-MSE component predictors perform roughly similarly in terms of out-of-sample MSE forecast 
