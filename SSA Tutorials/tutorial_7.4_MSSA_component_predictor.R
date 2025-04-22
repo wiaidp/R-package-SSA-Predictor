@@ -892,7 +892,8 @@ rRMSE_mSSA_comp_direct_without_covid[,"h=4"]
 #   element to improved forecast performances. 
 
 # -Questions: 
-#   -why does the M-SSA components predictor perform better than classic forecast rules at forecast horizons>=2 quarters? 
+#   -why does the M-SSA components predictor perform better than classic forecast rules at 
+#     forecast horizons>=2 quarters? 
 #   -Which steps (in the the above construction) are relevant? 
 
 # -To answer these questions we here propose to consider a simple intermediary step as an additional benchmark
@@ -1484,8 +1485,6 @@ if (h>6)
 # Select forward-shift: we set shift=h 
 #   -WLS regression targets BIP shifted forward by shift (+publication lag)
 shift<-h
-if (shift>5)
-  shift=5
 
 # 6.2.1 M-MSE component predictor optimized for forecast horizon h
 # We here rely on GARCH(1,1) and WLS regression
