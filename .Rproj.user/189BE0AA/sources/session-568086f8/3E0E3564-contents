@@ -1510,10 +1510,12 @@ for (i in 2:length(sigmat))#i<-2
   sigmat_own[i]<-sqrt(d+beta*sigmat_own[i-1]^2+alpha*eps[i]^2)
 # This is now correct (not lagging anymore)
 sigmat<-sigmat_own
-# Weights are proportional to 1/sigmat^2      
+# WLS 
 weight_short<-1/sigmat^2
+# OLS
+weight_short<-rep(1,length(sigmat))
 # Shift vola by shift+lag_vec[1] (see exercise 1.3.3) 
-weight<-c(rep(weight_short[1],shift+lag_vec[1]),weight_short)
+weight<-c(weight_short,rep(weight_short[1],shift+lag_vec[1]))
 # WLS regression  
 lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
 optimal_weights<-lm_obj$coef
