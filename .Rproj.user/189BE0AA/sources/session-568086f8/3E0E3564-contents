@@ -99,10 +99,13 @@ abline(h=0)
 axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
 axis(2)
 box()
-# The plot indicates that the publication lag of two quarters is too large 
+# -The plot indicates that the publication lag of two quarters is too large 
 #   -Peaks and dips of the target (black line) are left-shifted by one quarter at recessions
-# The excessive publication lag is intended to compensate for data revisions (which are ignored in our design)
-#   -We may claim prudence: results will be conservative (on the safe side)  
+#   -The excessive publication lag is intended to compensate for data revisions (which are ignored in our design)
+#   -We may claim prudence: results will be conservative (on the safe side) 
+# -The explanatory variables BIP (red line) and ip (orange) are right shifted 
+#   -Publication lags: BIP one quarter and ip two months (see data_monthly for the 2-month lag of ip)
+
 
 # Select macro indicators for M-SSA 
 select_vec_multi<-c("BIP","ip","ifo_c","ESI","spr_10y_3m")

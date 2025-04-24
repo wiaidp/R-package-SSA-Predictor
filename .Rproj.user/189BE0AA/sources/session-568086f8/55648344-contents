@@ -53,7 +53,7 @@
 # -BIP `numbers' could be obtained by calibration of the standardized M-SSA predictors on BIP
 #   -Determine optimal static level and scale adjustments by linear regression
 
-# The tutorial is structured into exercises
+# The tutorial is structured into four exercises
 # -Exercise 1 discusses important design decisions (target specification) and applies M-SSA to the data
 #   -Unfortunately, the VAR(1) model is subject to misspecification resulting in poor performances
 # -Exercise 2 will analyze the (main) causes of misspecification and propose solutions to overcome undesirable consequences
@@ -91,7 +91,7 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 # 1.1. Load data and select indicators
 # 1.1.1 We first look at the original files: BIP `numbers` refer to this data
 data_file_name<-c("Data_HWI_2025_02.csv","gdp_2025_02.csv")
-# Monthly data
+# Monthly data: note that ip is generally not available up to sample end (publication lag)
 data_monthly<-read.csv(paste(getwd(),"/Data/",data_file_name[1],sep=""))
 tail(data_monthly)
 # Quarterly data: BIP in the first data column
@@ -157,6 +157,8 @@ axis(2)
 box()
 
 # Comments:
+# -The explanatory variables BIP (red line) and ip (orange) are right shifted (peaks/dips appear one quarter later)
+#   -Publication lags: BIP one quarter and ip two months, see tail(data_monthly)
 # -The explanatory variable BIP (red) is lagging the target BIP (black) by lag_vec[1]=2 quarters 
 # -The figure suggests that our selection of the publication lag might be too large since the target column
 #     anticipates peaks and dips of the other series by one quarter during crises (the target is left-shifted)
