@@ -250,7 +250,7 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
     }
   }
   
-# 5. Compute M-SSA predictors
+# 5. Compute M-SSA and M-MSE predictors (equally weighted average of standardized components)
   
   predictor_mssa_mat<-predictor_mmse_mat<-0*mssa_array[1,,]
   for (i in 1:length(select_vec_multi))#i<-1

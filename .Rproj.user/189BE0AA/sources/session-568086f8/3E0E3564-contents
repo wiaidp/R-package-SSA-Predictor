@@ -1508,7 +1508,7 @@ final_mmse_array<-final_mssa_indicator_obj$mmse_array
 h<-4
 if (h>6)
   h=6
-# Select forward-shift: we set shift=h 
+# Select forward-shift: 
 #   -WLS regression targets BIP shifted forward by shift (+publication lag)
 shift<-h
 
@@ -1545,8 +1545,13 @@ weight<-c(weight_short,rep(weight_short[1],shift+lag_vec[1]))
 lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
 optimal_weights<-lm_obj$coef
 # Compute predictor for each forward-shift  
-final_mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
-
+if (length(sel_vec_pred)>1)
+{  
+  final_mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+} else
+{
+  final_mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+}
 
 # 6.2.2 M-SSA component predictor optimized for forecast horizon h
 # We here rely on GARCH(1,1) and WLS regression
@@ -1561,8 +1566,13 @@ if (length(sel_vec_pred)>1)
 lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
 optimal_weights<-lm_obj$coef
 # Compute predictor for each forward-shift  
-final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
-
+if (length(sel_vec_pred)>1)
+{
+  final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+} else
+{
+  final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+}
 
 
 # 6.2.3 Plot final M-MSE and M-SSA predictors
@@ -1573,7 +1583,7 @@ colo<-c("black","blue","green")
 main_title<-paste("Forward-shifted BIP and Predictors: Pandemic episode removed",sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (jj in 1:ncol(mplot))
+for (jj in 1:ncol(mplot))#jj<-2
 {
   lines(mplot[,jj],col=colo[jj],lwd=1,lty=1)
   mtext(colnames(mplot)[jj],col=colo[jj],line=-jj)
@@ -1583,7 +1593,7 @@ axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot
 axis(2)
 box()
 
-mplot<-cbind(rep(0,nrow(final_mssa_predictor)),final_mssa_predictor,final_mmse_predictor)
+mplot<-cbind(rep(0,nrow(as.matrix(final_mssa_predictor))),final_mssa_predictor,final_mmse_predictor)
 colnames(mplot)<-c("","M-SSA component predictor","M-MSE component predictor")
 main_title<-paste("Predictors: M-SSA component vs. M-MSE component, h=",h,", shift=",shift,sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
@@ -1669,7 +1679,7 @@ x_mat_original_BIP_wc<-x_mat_original_BIP[c(which(rownames(x_mat_original_BIP)<2
 
 
 # 6.3.2 M-MSE component predictor optimized for forecast horizon h
-# We here rely on GARCH(1,1) and WLS regression
+# We can rely on GARCH(1,1) and WLS regression
 if (length(sel_vec_pred)>1)
 {
   dat<-cbind(c(x_mat_original_BIP_wc[(shift+lag_vec[1]+1):nrow(x_mat_original_BIP_wc),1],rep(NA,shift+lag_vec[1])),t(final_mmse_array[sel_vec_pred,,h+1]))
@@ -1700,12 +1710,17 @@ weight<-c(weight_short,rep(weight_short[1],shift+lag_vec[1]))
 # Regression  
 lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
 optimal_weights<-lm_obj$coef
-# Compute predictor for each forward-shift  
-final_mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
-
+# Compute predictor for each forward-shift 
+if (length(sel_vec_pred)>1)
+{
+  final_mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+} else
+{
+  final_mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+}
 
 # 6.3.3 M-SSA component predictor optimized for forecast horizon h
-# We here rely on GARCH(1,1) and WLS regression
+# We can rely on GARCH(1,1) and WLS regression
 if (length(sel_vec_pred)>1)
 {
   dat<-cbind(c(x_mat_original_BIP_wc[(shift+lag_vec[1]+1):nrow(x_mat_original_BIP_wc),1],rep(NA,shift+lag_vec[1])),t(final_mssa_array[sel_vec_pred,,h+1]))
@@ -1717,8 +1732,13 @@ if (length(sel_vec_pred)>1)
 lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
 optimal_weights<-lm_obj$coef
 # Compute predictor for each forward-shift  
-final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
-
+if (length(sel_vec_pred)>1)
+{
+  final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+} else
+{
+  final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+}
 
 
 # 6.3.4 Plot final M-MSE and M-SSA predictors
@@ -1739,7 +1759,7 @@ axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot
 axis(2)
 box()
 
-mplot<-cbind(rep(0,nrow(final_mssa_predictor)),final_mssa_predictor,final_mmse_predictor)
+mplot<-cbind(rep(0,nrow(as.matrix(final_mssa_predictor))),final_mssa_predictor,final_mmse_predictor)
 colnames(mplot)<-c("","M-SSA component predictor","M-MSE component predictor")
 main_title<-paste("Predictors: M-SSA component vs. M-MSE component, h=",h,", shift=",shift,sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
