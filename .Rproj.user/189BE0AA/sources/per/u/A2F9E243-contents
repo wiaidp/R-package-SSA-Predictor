@@ -1,0 +1,14 @@
+
+
+ts.plot(matrix(gammak_x_mse[,1],ncol=5),col=rainbow(5))
+ts.plot(matrix(bk_x_mat[,1],ncol=5),col=rainbow(5))
+
+
+ts.plot(filt_obj$mssa_mat[,ijk])
+ts.plot(filt_obj$mmse_mat[,ijk])
+
+
+ts.plot(cbind(dat[,2:ncol(dat)],final_mmse_predictor),col=c("red","orange","green"))
+ts.plot(scale(cbind(dat[,2:ncol(dat)],final_mmse_predictor)),col=c("red","orange","green"))
+
+
