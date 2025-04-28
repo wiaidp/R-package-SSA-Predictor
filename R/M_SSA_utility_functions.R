@@ -235,8 +235,9 @@ compute_mssa_BIP_predictors_func<-function(x_mat,lambda_HP,L,date_to_fit,p,q,ht_
       
       bk_x_mat=MSSA_main_obj$bk_x_mat
       MSSA_obj=MSSA_main_obj$MSSA_obj 
-      gammak_x_mse=MSSA_obj$gammak_x_mse
-      colnames(bk_x_mat)<-select_vec_multi
+# We have to rely on the MSSA object MSSA_obj to retrieve MSE filter      
+      gammak_x_mse=MSSA_main_obj$MSSA_obj$gammak_x_mse
+      colnames(bk_x_mat)<-colnames(gammak_x_mse)<-select_vec_multi
       
 # Apply filters to data
       filt_obj<-filter_func(x_mat,bk_x_mat,gammak_x_mse,gamma_target,symmetric_target,delta)

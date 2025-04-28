@@ -1505,6 +1505,11 @@ final_mmse_array<-final_mssa_indicator_obj$mmse_array
 #   on forward-shifted BIP 
 # -The output of the WLS regressions are the M-SSA and M-MSE component predictors
 #   -Two-stage (stacked) predictor design
+
+# One can `play' with the settings
+# Select M-SSA components
+sel_vec_pred<-c("BIP","ip")
+# Select Forecast horizon (determines M-SSA optimization)
 h<-4
 if (h>6)
   h=6
