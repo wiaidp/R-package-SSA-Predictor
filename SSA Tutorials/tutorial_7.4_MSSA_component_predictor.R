@@ -587,7 +587,7 @@ if (recompute_results)
       }
       rownames(dat)<-rownames(x_mat)
       colnames(dat)<-c(colnames(x_mat)[1],sel_vec_pred)
-      dat<-na.exclude(dat)
+ #     dat<-na.exclude(dat)
 # Apply the previous function: compute GARCH, WLS regression, out-of-sample MSEs and p-values    
       perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec)
 # Retrieve out-of-sample performances 
