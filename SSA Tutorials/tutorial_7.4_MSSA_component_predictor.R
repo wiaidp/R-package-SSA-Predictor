@@ -548,7 +548,7 @@ perf_obj$MSE_oos_without_covid
 # -All results were previously computed and saved: 
 #   recompute_results<-F loads these results without lengthy computations
 #   recompute_results<-T recomputes everything
-recompute_results<-F
+recompute_results<-T
 shift_vec<-0:5
 # Initialize arrays collecting final predictors, real-time predictors and regression weights
 #   -These will be used when analyzing revisions
@@ -750,7 +750,7 @@ rRMSE_mSSA_direct_mean_without_covid
 # -We here analyze the impact of the quarterly up-dating on the predictor as well as on the regression weights
 
 # Select h and shift
-h<-4
+h<-6
 shift<-3
 
 
@@ -1405,7 +1405,7 @@ if (recompute_results)
 #   the full data sample)
 
 # Select h and shift (h should be be smaller than max(h_vec))
-h<-4
+h<-6
 if (h>max(h_vec))
   h=max(h_vec)
 # Select forward-shift
@@ -1566,7 +1566,7 @@ final_mmse_array<-final_mssa_indicator_obj$mmse_array
 # Select M-SSA components
 sel_vec_pred<-sel_vec_pred
 # Select Forecast horizon (determines M-SSA optimization)
-h<-4
+h<-6
 if (h>6)
   h=6
 # Select forward-shift: 
