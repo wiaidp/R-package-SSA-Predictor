@@ -569,7 +569,7 @@ HAC_ajusted_p_value_func<-function(da)
 # MSE_mean_oos_without_covid: same but without Pandemic
 # MSE_oos_without_covid: without Pandemic
 # p_value_without_covid: without Pandemic
-optimal_weight_predictor_func<-function(dat,start_fit,use_garch,shift,lag_vec)
+optimal_weight_predictor_func<-function(dat,in_out_separator,use_garch,shift,lag_vec)
 {
   
   len<-dim(dat)[1]
@@ -591,6 +591,7 @@ optimal_weight_predictor_func<-function(dat,start_fit,use_garch,shift,lag_vec)
 # Fixed weight      
       weight<-rep(1,i)
     }
+#    ts.plot(cbind(dat[1:i,1],1/weight),col=c("red","blue"))
 # 1. Use predictors in columns 2,..., of dat    
 # Fit model with data up to time point i; weighted least-squares relying on weight as defined above  
     lm_obj<-lm(dat[1:i,1]~dat[1:i,2:(n+1)],weight=weight)
@@ -626,16 +627,16 @@ optimal_weight_predictor_func<-function(dat,start_fit,use_garch,shift,lag_vec)
   }
 # Once the predictors are computed we can obtain the out-of-sample prediction errors
   epsilon_oos<-dat[,1]-cal_oos_pred
-  index_oos<-which(rownames(dat)>start_fit)
+  index_oos<-which(rownames(dat)>in_out_separator)
 # Compute HAC-adjusted p-value
 # Technical note: we use max of standard error of OLS and HAC adjustment to reduce bias
   da<-cbind(dat[index_oos,1],cal_oos_pred[index_oos])
   p_value<-HAC_ajusted_p_value_func(da)$p_value
 # Out-of-sample MSE of predictor  
-  MSE_oos<-mean(epsilon_oos[index_oos]^2)
+  MSE_oos<-mean(epsilon_oos[index_oos]^2,na.rm=T)
 # Same but for benchmark mean predictor  
   epsilon_mean_oos<-dat[,1]-cal_oos_mean_pred
-  MSE_mean_oos<-mean(epsilon_mean_oos[index_oos]^2)
+  MSE_mean_oos<-mean(epsilon_mean_oos[index_oos]^2,na.rm=T)
 # The same as above but without Pandemic: check that Pandemic is within data span
   if ((sum(rownames(dat)>2019)>0)&(sum(rownames(dat)<2019)>0))
   {
@@ -677,7 +678,7 @@ garch_vola_func<-function(dat,shift,lag_vec)
   # WLS: inverse GARCH-vola
   weight_short<-1/sigmat^2
   # Add initial values at start to meet length of series (see exercise 1.3.3) 
-  weight<-c(rep(weight_short[1],shift+lag_vec[1]),weight_short)
+  weight<-c(weight_short,rep(weight_short[1],shift+lag_vec[1]))
   return(list(weight=weight))
 }
 
