@@ -333,7 +333,12 @@ box()
 #     of the selected (BIP- and ip-) M-SSA components, see tutorial 7.2, exercise 1.
 # -In summary: one can try various component combinations, including a single M-SSA BIP component. Performances are 
 #   roughly similar. The combination of BIP and ip M-SSA components is simple and intuitively appealing.
-sel_vec_pred<-select_vec_multi[c(1,2)]
+# This selection is interesting: 
+#   -Better MSE performances but less robust than BIP alone
+#   -Sign of ip in regressions is negative: can generate stronger left-shifts but predictor less robust
+sel_vec_pred<-c("BIP","ip")
+# Simplest design: intuitively appealing and quite robust 
+sel_vec_pred<-"BIP"
 # Check the selected M-SSA components
 sel_vec_pred
 # We can select the forward shift of BIP: for illustration we here assume a 2 quarters ahead forward-shift
@@ -345,10 +350,11 @@ k<-5
 # Check: k=5 corresponds to h_vec[k]=4, a one-year ahead horizon
 h_vec[k]
 # Define the data matrix for the regression
-dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mssa_array[sel_vec_pred,,k]))
+dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),
+           matrix(mssa_array[sel_vec_pred,,k],ncol=length(sel_vec_pred)))
 rownames(dat)<-rownames(x_mat)
 colnames(dat)<-c(paste("BIP shifted forward by lag_vec+shift=",shift+lag_vec[1],sep=""),
-                 paste("M-SSA component ",colnames(t(mssa_array[sel_vec_pred,,k])),": h=",h_vec[k],sep=""))
+                 paste("M-SSA component ",sel_vec_pred,": h=",h_vec[k],sep=""))
 tail(dat)
 # We target BIP shifted forward by shift+publication lag (first column) based on M-SSA components BIP and ip
 #   -As stated above, ifo, ESI and spread are important determinants of the two selected M-SSA components 
@@ -542,8 +548,16 @@ perf_obj$MSE_oos_without_covid
 # -All results were previously computed and saved: 
 #   recompute_results<-F loads these results without lengthy computations
 #   recompute_results<-T recomputes everything
-recompute_results<-F
+recompute_results<-T
 shift_vec<-0:5
+# Initialize arrays collecting final predictors, real-time predictors and regression weights
+#   -These will be used when analyzing revisions
+final_components_preditor<-oos_components_preditor<-array(dim=c(length(shift_vec),length(h_vec),nrow(x_mat)))
+dimnames(final_components_preditor)<-dimnames(oos_components_preditor)<-list(paste("shift=",shift_vec,sep=""),
+        paste("h=",h_vec,sep=""),rownames(x_mat))
+track_weights<-array(dim=c(length(shift_vec),length(h_vec),nrow(x_mat),length(sel_vec_pred)+1))
+dimnames(track_weights)<-list(paste("shift=",shift_vec,sep=""),
+              paste("h=",h_vec,sep=""),rownames(x_mat),c("Intercept",sel_vec_pred))
 if (recompute_results)
 {
 # Initialize performance matrices
@@ -554,11 +568,11 @@ if (recompute_results)
   pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
   
 # The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons (of M-SSA)
-  for (shift in shift_vec)#shift<-0
+  for (shift in shift_vec)#shift<-3
   {
 # Progress bar: see R-console
     setTxtProgressBar(pb, shift)
-    for (j in h_vec)#j<-5
+    for (j in h_vec)#j<-4
     {
 # Horizon j corresponds to k=j+1-th entry of array    
       k<-j+1
@@ -592,13 +606,15 @@ if (recompute_results)
 # We can plot both predictors to illustrate revisions (due to WLS estimation at each time point), see below
 # Note: the variables will be overwritten, i.e., we keep only the last run through the double loop, 
 #   corresponding to maximal shift and maximal forecast horizon, see exercise 2.1 below 
-      final_components_preditor<-perf_obj$final_in_sample_preditor
-      oos_components_preditor<-perf_obj$cal_oos_pred
-# We can also obtain the regression weights to track changes (systematic vs. noisy revisions) over time
+      final_in_sample_preditor<-perf_obj$final_in_sample_preditor
+      final_components_preditor[shift+1,j+1,(nrow(x_mat)-length(final_in_sample_preditor)+1):nrow(x_mat)]<-final_in_sample_preditor
+      cal_oos_pred<-perf_obj$cal_oos_pred
+      oos_components_preditor[shift+1,j+1,(nrow(x_mat)-length(cal_oos_pred)+1):nrow(x_mat)]<-cal_oos_pred
+      # We can also obtain the regression weights to track changes (systematic vs. noisy revisions) over time
 # Note: the variable will be overwritten, i.e., we keep only the last run through the double loop, 
 #   corresponding to maximal shift and maximal forecast horizon, see exercise 2.2 below 
-      track_weights<-perf_obj$track_weights
-      
+      track_weights_i<-perf_obj$track_weights
+      track_weights[shift+1,j+1,(nrow(x_mat)-nrow(track_weights_i)+1):nrow(x_mat),]<-track_weights_i
 # B. Direct forecasts
 # -The main difference to M-SSA above is the specification of the explanatory variables in the data 
 #     matrix dat: we here use x_mat instead of mssa_array. 
@@ -739,11 +755,16 @@ rRMSE_mSSA_direct_mean_without_covid
 #   -Note that M-SSA is not subject to revisions because the VAR is fixed (based on data up to 2008: no up-dating)
 # -We here analyze the impact of the quarterly up-dating on the predictor as well as on the regression weights
 
+# Select h and shift
+h<-4
+shift<-3
+
+
 # 2.1 Compare the final predictor (full sample regression) with the out-of-sample sequence of 
 #   continuously re-calibrated predictors: ideally (in the absence of revisions), both series would overlap
 # -Differences illustrate revisions due to re-estimating regression weights each quarter
 par(mfrow=c(1,1))
-mplot<-cbind(final_components_preditor,oos_components_preditor)
+mplot<-cbind(final_components_preditor[shift,h,],oos_components_preditor[shift,h,])
 colnames(mplot)<-c("Final predictor","Real-time out-of-sample predictor")
 colo<-c("blue",rainbow(length(select_vec_multi)))
 main_title<-"Revisions: final vs. real-time predictor"
@@ -778,8 +799,8 @@ tail(mplot)
 
 # 2.2 We now examine the effect of the revisions on the regression weights  
 par(mfrow=c(1,1))
-mplot<-track_weights
-colnames(mplot)[2:3]<-paste("Weight of M-SSA component ",colnames(track_weights)[2:3])
+mplot<-track_weights[shift,h,,]
+#colnames(mplot)[2:ncol(track_weights)]<-paste("Weight of M-SSA component ",colnames(track_weights)[2:ncol(track_weights)])
 colo<-c("black","blue","red")
 main_title<-"Revisions: regression weights over time"
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=1,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
@@ -838,7 +859,13 @@ for (shift in shift_vec)
   lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
   optimal_weights<-lm_obj$coef
 # Compute predictor for each forward-shift  
-  mssa_predictor_mat<-cbind(mssa_predictor_mat,optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)])
+  if (length(sel_vec_pred)>1)
+  {
+    mssa_predictor_mat<-cbind(mssa_predictor_mat,optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)])
+  } else
+  {
+    mssa_predictor_mat<-cbind(mssa_predictor_mat,optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)])
+  }
 }  
 
 # Plot M-SSA components predictors (optimized for h=4) and shifts in shift_vec
@@ -1053,11 +1080,11 @@ if (recompute_results)
 # Set-up progress bar: indicates progress in R-console
   pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
   
-  for (shift in shift_vec)#shift<-2
+  for (shift in shift_vec)#shift<-3
   {
 # Progress bar: see R-console
     setTxtProgressBar(pb, shift)
-    for (j in h_vec)#j<-5
+    for (j in h_vec)#j<-4
     {
 # Horizon j corresponds to k=j+1-th entry of array    
       k<-j+1
@@ -1383,12 +1410,12 @@ if (recompute_results)
 # 5.2.1 Compute Final M-MSE and M-SSA component predictors (whose regression relies on 
 #   the full data sample)
 
-# Select h and shift (should be smaller or equal 5)
-h<-5
-if (h>5)
-  h=5
+# Select h and shift (h should be be smaller than max(h_vec))
+h<-6
+if (h>max(h_vec))
+  h=max(h_vec)
 # Select forward-shift
-shift<-h
+shift<-3
 
 # Compute the final M-MSE component predictor optimized for forecast horizon h
 # Note: for simplicity we here compute an OLS regression (WLS looks nearly the same)
@@ -1399,12 +1426,21 @@ if (length(sel_vec_pred)>1)
 {
   dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mmse_array[sel_vec_pred,,h+1]))
 }
-# OLS regression  
-lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
+# Weights for WLS regression: inverse prop. to GARCH-vola
+#   Warnings are generated by garch-package and can be ignored
+weight<-garch_vola_func(dat,shift,lag_vec)$weight
+# Regression  
+lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
+summary(lm_obj)
 optimal_weights<-lm_obj$coef
 # Compute predictor for each forward-shift  
-mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
-
+if (length(sel_vec_pred)>1)
+{  
+  mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+} else
+{
+  mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+}
 # Compute the final M-SSA component predictor optimized for forecast horizon h
 if (length(sel_vec_pred)>1)
 {
@@ -1413,21 +1449,37 @@ if (length(sel_vec_pred)>1)
 {
   dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mssa_array[sel_vec_pred,,h+1]))
 }
-# OLS regression  
-lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
+# Weights for WLS regression: inverse prop. to GARCH-vola
+#   Warnings are generated by garch-package and can be ignored
+weight<-garch_vola_func(dat,shift,lag_vec)$weight
+# Regression  
+lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
+summary(lm_obj)
+
 optimal_weights<-lm_obj$coef
 # Compute predictor for each forward-shift  
-mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
-
+if (length(sel_vec_pred)>1)
+{  
+  mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+} else
+{  
+  mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+} 
 
 # 5.2.2 Holding times
 # Let's measure smoothness in terms of empirical holding-times
 # -M-SSA imposes a larger HT (than the `natural' HT of M-MSE) and therefore it should be smoother
-# -Note: 
-#   -We imposed a 50% larger expected (true) HT than M-MSE in the HT constraint of the optimization criterion
-#   -Ideally, the empirical HT of M-SSA should be (roughly) 50% larger than M-MSE, too.
-compute_empirical_ht_func(mssa_predictor)
-compute_empirical_ht_func(mmse_predictor)
+# -Notes: 
+#   1. We imposed a 50% larger expected (true) HT than M-MSE in the HT constraint of the optimization criterion
+#     -Ideally, the empirical HT of M-SSA should be (roughly) 50% larger than M-MSE, too.
+#   2. M-SSA controls crossings at the mean-level. 
+#     -Therefore we center the predictors when computing the empirical HT
+compute_empirical_ht_func(scale(mssa_predictor))
+compute_empirical_ht_func(scale(mmse_predictor))
+
+par(mfrow=c(1,1))
+ts.plot(scale(cbind(mssa_predictor,mmse_predictor)),col=c("blue","green"))
+abline(h=0)
 # M-SSA has approximately 33% less crossings (roughly 50% larger empirical HT)
 #   -This feature of the predictor can be controlled by the HT hyperparameter
 #   -The sample estimate is close to the expected (true) number 
@@ -1448,12 +1500,10 @@ rRMSE_mmse_comp_mssa_without_covid
 #     despite increased smoothness (larger HT, fewer zero-crossings). 
 #   -This outcome is quite remarkable and pleads in favor of the M-SSA components predictor (as a 
 #     potentially more interesting/relevant predictor than M-MSE).
-# -Stronger outperformance of M-SSA (rMSE>1) at shifts=2,3 and forecast horizons h=2,3,4
-# -At forecast horizon h=5 M-SSA does not outperform and at h=6 M-SSA is possibly slightly outperformed by M-MSE 
 
 
 # Summary
-# -M-SSA and M-MSE component predictors perform roughly similarly in terms of out-of-sample MSE forecast 
+# -M-SSA and M-MSE component predictors perform similarly in terms of out-of-sample MSE forecast 
 #     performances when targeting forward-shifted BIP
 #   -Both predictors outperform the mean, the direct forecast, the direct HP forecast and the original 
 #     M-SSA predictor (tutorial 7.3), specifically at larger forward shifts (shifts>=1 quarter).
@@ -1508,14 +1558,14 @@ final_mmse_array<-final_mssa_indicator_obj$mmse_array
 
 # One can `play' with the settings
 # Select M-SSA components
-sel_vec_pred<-c("BIP","ip")
+sel_vec_pred<-sel_vec_pred
 # Select Forecast horizon (determines M-SSA optimization)
 h<-4
 if (h>6)
   h=6
 # Select forward-shift: 
 #   -WLS regression targets BIP shifted forward by shift (+publication lag)
-shift<-h
+shift<-3
 
 # 6.2.1 M-MSE component predictor optimized for forecast horizon h
 # We here rely on GARCH(1,1) and WLS regression
@@ -1526,28 +1576,12 @@ if (length(sel_vec_pred)>1)
 {
   dat<-cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),(final_mmse_array[sel_vec_pred,,h+1]))
 }
-y.garch_11<-garchFit(~garch(1,1),data=na.exclude(dat[,1]),include.mean=T,trace=F)
-# sigmat could be retrieved from GARCH-object
-sigmat<-y.garch_11@sigma.t
-# But this is lagged by one period
-# Therefore we recompute the vola based on the estimated GARCH-parameters
-eps<-y.garch_11@residuals
-d<-y.garch_11@fit$matcoef["omega",1]
-alpha<-y.garch_11@fit$matcoef["alpha1",1]
-beta<-y.garch_11@fit$matcoef["beta1",1]
-sigmat_own<-sigmat
-for (i in 2:length(sigmat))#i<-2
-  sigmat_own[i]<-sqrt(d+beta*sigmat_own[i-1]^2+alpha*eps[i]^2)
-# This is now correct (not lagging anymore)
-sigmat<-sigmat_own
-# WLS 
-weight_short<-1/sigmat^2
-# OLS
-weight_short<-rep(1,length(sigmat))
-# Shift vola by shift+lag_vec[1] (see exercise 1.3.3) 
-weight<-c(weight_short,rep(weight_short[1],shift+lag_vec[1]))
+# Compute WLS weight: inverse proprtional to GARCH-vola
+#   Warnings are generated by garch-package and can be ignored
+weight<-garch_vola_func(dat,shift,lag_vec)$weight
 # Regression  
 lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
+summary(lm_obj)
 optimal_weights<-lm_obj$coef
 # Compute predictor for each forward-shift  
 if (length(sel_vec_pred)>1)
@@ -1692,28 +1726,12 @@ if (length(sel_vec_pred)>1)
 {
   dat<-cbind(c(x_mat_original_BIP_wc[(shift+lag_vec[1]+1):nrow(x_mat_original_BIP_wc),1],rep(NA,shift+lag_vec[1])),(final_mmse_array[sel_vec_pred,,h+1]))
 }
-y.garch_11<-garchFit(~garch(1,1),data=na.exclude(dat[,1]),include.mean=T,trace=F)
-# sigmat could be retrieved from GARCH-object
-sigmat<-y.garch_11@sigma.t
-# But this is lagged by one period
-# Therefore we recompute the vola based on the estimated GARCH-parameters
-eps<-y.garch_11@residuals
-d<-y.garch_11@fit$matcoef["omega",1]
-alpha<-y.garch_11@fit$matcoef["alpha1",1]
-beta<-y.garch_11@fit$matcoef["beta1",1]
-sigmat_own<-sigmat
-for (i in 2:length(sigmat))#i<-2
-  sigmat_own[i]<-sqrt(d+beta*sigmat_own[i-1]^2+alpha*eps[i]^2)
-# This is now correct (not lagging anymore)
-sigmat<-sigmat_own
-# WLS 
-weight_short<-1/sigmat^2
-# OLS
-weight_short<-rep(1,length(sigmat))
-# Shift vola by shift+lag_vec[1] (see exercise 1.3.3) 
-weight<-c(weight_short,rep(weight_short[1],shift+lag_vec[1]))
+# Compute WLS weight: inverse proprtional to GARCH-vola
+#   Warnings are generated by garch-package and can be ignored
+weight<-garch_vola_func(dat,shift,lag_vec)$weight
 # Regression  
 lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
+summary(lm_obj)
 optimal_weights<-lm_obj$coef
 # Compute predictor for each forward-shift 
 if (length(sel_vec_pred)>1)
