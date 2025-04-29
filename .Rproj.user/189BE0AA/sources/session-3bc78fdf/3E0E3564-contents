@@ -557,19 +557,19 @@ perf_obj$MSE_oos_without_covid
 #   recompute_results<-T recomputes everything
 recompute_results<-T
 shift_vec<-0:5
-# Initialize arrays collecting final predictors, real-time predictors and regression weights
-#   -These will be used when analyzing revisions
-final_components_preditor_array<-oos_components_preditor_array<-array(dim=c(length(shift_vec),length(h_vec),nrow(x_mat)))
-dimnames(final_components_preditor_array)<-dimnames(oos_components_preditor_array)<-list(paste("shift=",shift_vec,sep=""),
-        paste("h=",h_vec,sep=""),rownames(x_mat))
-track_weights_array<-array(dim=c(length(shift_vec),length(h_vec),nrow(x_mat),length(sel_vec_pred)+1))
-dimnames(track_weights_array)<-list(paste("shift=",shift_vec,sep=""),
-              paste("h=",h_vec,sep=""),rownames(x_mat),c("Intercept",sel_vec_pred))
 if (recompute_results)
 {
 # Initialize performance matrices
   MSE_oos_mssa_comp_without_covid_mat<-MSE_oos_mssa_comp_mat<-p_mat_mssa<-p_mat_mssa_components<-p_mat_mssa_components_without_covid<-p_mat_direct<-rRMSE_mSSA_comp_direct<-rRMSE_mSSA_comp_mean<-rRMSE_mSSA_comp_direct_without_covid<-rRMSE_mSSA_comp_mean_without_covid<-rRMSE_mSSA_direct_mean_without_covid<-rRMSE_mSSA_direct_mean<-p_mat_direct_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
-# Use WLS
+  final_components_preditor_array<-oos_components_preditor_array<-array(dim=c(length(shift_vec),length(h_vec),nrow(x_mat)))
+  dimnames(final_components_preditor_array)<-dimnames(oos_components_preditor_array)<-list(paste("shift=",shift_vec,sep=""),
+                                                                                           paste("h=",h_vec,sep=""),rownames(x_mat))
+# Initialize arrays collecting final predictors, real-time predictors and regression weights
+#   -These will be used when analyzing revisions
+  track_weights_array<-array(dim=c(length(shift_vec),length(h_vec),nrow(x_mat),length(sel_vec_pred)+1))
+  dimnames(track_weights_array)<-list(paste("shift=",shift_vec,sep=""),
+                                      paste("h=",h_vec,sep=""),rownames(x_mat),c("Intercept",sel_vec_pred))
+# Use OLS
   use_garch<-F
 # Set-up progress bar: indicates progress in R-console
   pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
