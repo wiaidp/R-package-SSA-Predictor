@@ -560,7 +560,7 @@ shift_vec<-0:5
 if (recompute_results)
 {
 # Initialize performance matrices
-  MSE_oos_mssa_comp_without_covid_mat<-MSE_oos_mssa_comp_mat<-p_mat_mssa<-p_mat_mssa_components<-p_mat_mssa_components_without_covid<-p_mat_direct<-rRMSE_mSSA_comp_direct<-rRMSE_mSSA_comp_mean<-rRMSE_mSSA_comp_direct_without_covid<-rRMSE_mSSA_comp_mean_without_covid<-rRMSE_mSSA_direct_mean_without_covid<-rRMSE_mSSA_direct_mean<-p_mat_direct_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
+  MSE_oos_mssa_comp_without_covid_mat<-MSE_oos_mssa_comp_mat<-p_mat_mssa<-p_mat_mssa_components<-p_mat_mssa_components_without_covid<-p_mat_direct<-rRMSE_mSSA_comp_direct<-rRMSE_mSSA_comp_mean<-rRMSE_mSSA_comp_direct_without_covid<-rRMSE_mSSA_comp_mean_without_covid<-rRMSE_mSSA_direct_mean_without_covid<-rRMSE_mSSA_direct_mean<-p_mat_direct_without_covid<-ht_mssa_comp_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
   final_components_preditor_array<-oos_components_preditor_array<-array(dim=c(length(shift_vec),length(h_vec),nrow(x_mat)))
   dimnames(final_components_preditor_array)<-dimnames(oos_components_preditor_array)<-list(paste("shift=",shift_vec,sep=""),
                                                                                            paste("h=",h_vec,sep=""),rownames(x_mat))
@@ -609,6 +609,7 @@ if (recompute_results)
 #   -mean-benchmark with/without Pandemic    
       MSE_mean_oos<-perf_obj$MSE_mean_oos
       MSE_mean_oos_without_covid<-perf_obj$MSE_mean_oos_without_covid
+      ht_mssa_comp_mat[shift+1,k]<-compute_empirical_ht_func(perf_obj$cal_oos_pred)$empirical_ht
 # Here we retrieve the final in-sample predictor (based on the full-sample WLS regression) as well as the 
 #    real-time out-of-sample predictor (re-adjusted to new data at each time point)
 # We can plot both predictors to illustrate revisions (due to WLS estimation at each time point), see below
@@ -662,13 +663,13 @@ if (recompute_results)
     colnames(rRMSE_mSSA_comp_direct_without_covid)<-colnames(rRMSE_mSSA_comp_mean_without_covid)<-
     colnames(rRMSE_mSSA_direct_mean)<-colnames(rRMSE_mSSA_direct_mean_without_covid)<-
     colnames(p_mat_direct_without_covid)<-colnames(MSE_oos_mssa_comp_mat)<-
-    colnames(MSE_oos_mssa_comp_without_covid_mat)<-paste("h=",h_vec,sep="")
+    colnames(MSE_oos_mssa_comp_without_covid_mat)<-colnames(ht_mssa_comp_mat)<-paste("h=",h_vec,sep="")
   rownames(p_mat_mssa_components)<-rownames(p_mat_direct)<-rownames(p_mat_mssa_components_without_covid)<-
     rownames(rRMSE_mSSA_comp_direct)<-rownames(rRMSE_mSSA_comp_mean)<-
     rownames(rRMSE_mSSA_comp_direct_without_covid)<-rownames(rRMSE_mSSA_comp_mean_without_covid)<-
     rownames(rRMSE_mSSA_direct_mean)<-rownames(rRMSE_mSSA_direct_mean_without_covid)<-
     rownames(p_mat_direct_without_covid)<-rownames(MSE_oos_mssa_comp_mat)<-
-    rownames(MSE_oos_mssa_comp_without_covid_mat)<-paste("Shift=",shift_vec,sep="")
+    rownames(MSE_oos_mssa_comp_without_covid_mat)<-rownames(ht_mssa_comp_mat)<-paste("Shift=",shift_vec,sep="")
 # Define list for saving all matrices  
     list_perf<-list(p_mat_mssa_components=p_mat_mssa_components,p_mat_direct=p_mat_direct,
     p_mat_mssa_components_without_covid=p_mat_mssa_components_without_covid,rRMSE_mSSA_comp_direct=rRMSE_mSSA_comp_direct,
@@ -677,7 +678,7 @@ if (recompute_results)
     rRMSE_mSSA_direct_mean_without_covid=rRMSE_mSSA_direct_mean_without_covid,p_mat_direct_without_covid=p_mat_direct_without_covid,
     final_components_preditor_array=final_components_preditor_array,oos_components_preditor_array=oos_components_preditor_array,
     track_weights_array=track_weights_array,MSE_oos_mssa_comp_mat=MSE_oos_mssa_comp_mat,
-    MSE_oos_mssa_comp_without_covid_mat=MSE_oos_mssa_comp_without_covid_mat)
+    MSE_oos_mssa_comp_without_covid_mat=MSE_oos_mssa_comp_without_covid_mat,ht_mssa_comp_mat=ht_mssa_comp_mat)
 # The results can be saved (overwritten)    
     if (T)
     {
@@ -702,6 +703,7 @@ if (recompute_results)
   track_weights_array=list_perf$track_weights_array
   MSE_oos_mssa_comp_mat=list_perf$MSE_oos_mssa_comp_mat
   MSE_oos_mssa_comp_without_covid_mat=list_perf$MSE_oos_mssa_comp_without_covid_mat
+  ht_mssa_comp_mat=list_perf<-ht_mssa_comp_mat
 }
 
 # HAC-adjusted p-values of out-of-sample (M-SSA) components predictor when targeting forward-shifted BIP
@@ -1070,7 +1072,7 @@ shift_vec<-shift_vec
 if (recompute_results)
 {
 # Initialize performance matrices
-  p_mat_HP_c<-p_mat_HP_c_without_covid<-rRMSE_mSSA_comp_HP_c<-rRMSE_mSSA_comp_HP_c_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
+  ht_HP_c_mat<-p_mat_HP_c<-p_mat_HP_c_without_covid<-rRMSE_mSSA_comp_HP_c<-rRMSE_mSSA_comp_HP_c_without_covid<-MSE_oos_HP_c_without_covid_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
 # Use WLS
   use_garch<-F
   
@@ -1093,32 +1095,44 @@ if (recompute_results)
 # Direct HP forecast:
 #   -The explanatory variables are based on hp_c_array[,,k] 
 #   -We select all indicators (one could easily change this setting but results are only marginally effected as long as ifo and ESi are included)
-      dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(hp_c_array[,,k]))
+      if (length(sel_vec_pred)>1)
+      {
+        dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(hp_c_array[sel_vec_pred,,k]))
+      } else
+      {
+        dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(hp_c_array[sel_vec_pred,,k]))
+        colnames(dat)[2]<-sel_vec_pred
+      }
       rownames(dat)<-rownames(x_mat)
       dat<-na.exclude(dat)
   
       perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec)
 # Retrieve out-of-sample performances: p-values and forecast MSE, with/without Pandemic 
       MSE_oos_HP_c<-perf_obj$MSE_oos
-      MSE_oos_HP_c_without_covid<-perf_obj$MSE_oos_without_covid
+      MSE_oos_HP_c_without_covid_mat[shift+1,k]<-MSE_oos_HP_c_without_covid<-perf_obj$MSE_oos_without_covid
       p_mat_HP_c[shift+1,k]<-perf_obj$p_value 
       p_mat_HP_c_without_covid[shift+1,k]<-perf_obj$p_value_without_covid 
+      perf_obj$track_weights
 # Note that MSEs of M-SSA predictor were computed in exercise 1.3.5
       rRMSE_mSSA_comp_HP_c[shift+1,k]<-sqrt(MSE_oos_mssa_comp_mat[shift+1,k]/MSE_oos_HP_c)
 # Same but without Pandemic
       rRMSE_mSSA_comp_HP_c_without_covid[shift+1,k]<-sqrt(MSE_oos_mssa_comp_without_covid_mat[shift+1,k]/MSE_oos_HP_c_without_covid)
+      ht_HP_c_mat[shift+1,k]<-compute_empirical_ht_func(perf_obj$cal_oos_pred)$empirical_ht
+
     }
   }
   close(pb)
 # Note: possible warnings issued by the GARCH estimation routine during computations can be ignored
   
 # Assign column and rownames
-  colnames(p_mat_HP_c)<-colnames(p_mat_HP_c_without_covid)<-
-    colnames(rRMSE_mSSA_comp_HP_c)<-colnames(rRMSE_mSSA_comp_HP_c_without_covid)<-paste("h=",h_vec,sep="")
-  rownames(p_mat_HP_c)<-rownames(p_mat_HP_c_without_covid)<-rownames(rRMSE_mSSA_comp_HP_c)<-rownames(rRMSE_mSSA_comp_HP_c_without_covid)<-
-    paste("Shift=",shift_vec,sep="")
+  colnames(p_mat_HP_c)<-colnames(p_mat_HP_c_without_covid)<-colnames(MSE_oos_HP_c_without_covid_mat)<-
+    colnames(rRMSE_mSSA_comp_HP_c)<-colnames(rRMSE_mSSA_comp_HP_c_without_covid)<-
+    colnames(ht_HP_c_mat)<-paste("h=",h_vec,sep="")
+  rownames(p_mat_HP_c)<-rownames(p_mat_HP_c_without_covid)<-rownames(rRMSE_mSSA_comp_HP_c)<-
+    rownames(MSE_oos_HP_c_without_covid_mat)<-rownames(rRMSE_mSSA_comp_HP_c_without_covid)<-
+    rownames(ht_HP_c_mat)<-paste("Shift=",shift_vec,sep="")
 # Save results
-  list_2<-list(p_mat_HP_c=p_mat_HP_c,p_mat_HP_c_without_covid=p_mat_HP_c_without_covid,rRMSE_mSSA_comp_HP_c=rRMSE_mSSA_comp_HP_c,rRMSE_mSSA_comp_HP_c_without_covid=rRMSE_mSSA_comp_HP_c_without_covid)
+  list_2<-list(ht_HP_c_mat=ht_HP_c_mat,MSE_oos_HP_c_without_covid_mat=MSE_oos_HP_c_without_covid_mat,p_mat_HP_c=p_mat_HP_c,p_mat_HP_c_without_covid=p_mat_HP_c_without_covid,rRMSE_mSSA_comp_HP_c=rRMSE_mSSA_comp_HP_c,rRMSE_mSSA_comp_HP_c_without_covid=rRMSE_mSSA_comp_HP_c_without_covid)
   if (T)
   {
     save(list_2,file=paste(getwd(),"/Results/list_2",sep=""))
@@ -1127,10 +1141,12 @@ if (recompute_results)
 {
 # Load results  
   load(file=paste(getwd(),"/Results/list_2",sep=""))
+  MSE_oos_HP_c_without_covid_mat=list_2$MSE_oos_HP_c_without_covid_mat
   p_mat_HP_c=list_2$p_mat_HP_c
   p_mat_HP_c_without_covid=list_2$p_mat_HP_c_without_covid
   rRMSE_mSSA_comp_HP_c=list_2$rRMSE_mSSA_comp_HP_c
   rRMSE_mSSA_comp_HP_c_without_covid=list_2$rRMSE_mSSA_comp_HP_c_without_covid  
+  ht_HP_c_mat=list_2$ht_HP_c_mat
 }
 
 
@@ -1157,6 +1173,10 @@ p_mat_HP_c_without_covid
 #   of rRMSEs out-of-sample
 rRMSE_mSSA_comp_direct_without_covid
 rRMSE_mSSA_comp_HP_c_without_covid
+
+# We can also compare the MSEs of M-SSA and direct HP forecasts: the above rMSE is the square root of the ratio
+MSE_oos_HP_c_without_covid_mat
+MSE_oos_mssa_comp_without_covid_mat
 
 # -The above results suggest that applying the classic (univariate) HP-C to the data does not improve performances
 #   when compared to direct forecasts (based on un-filtered data)
