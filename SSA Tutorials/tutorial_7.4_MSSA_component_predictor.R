@@ -393,91 +393,94 @@ oos_error<-dat[i_time+shift+lag_vec[1],1]-oos_pred
 oos_error
 
 #---------------
+# This part of the predictor design is not relevant anymore
+if (F)
+{
 # 1.3.3 Better/improved regression: we can improve the weighting of the M-SSA components further.
 # -Given that BIP is subject to heteroscedasticity we may apply a GARCH(1,1) to obtain an estimate of its variance
-y.garch_11<-garchFit(~garch(1,1),data=dat[1:i_time,1],include.mean=T,trace=F)
-summary(y.garch_11)
-# sigmat could be retrieved from GARCH-object
-sigmat<-y.garch_11@sigma.t
-# But this is lagged by one period
-# Therefore we recompute the vola based on the estimated GARCH-parameters
-eps<-y.garch_11@residuals
-d<-y.garch_11@fit$matcoef["omega",1]
-alpha<-y.garch_11@fit$matcoef["alpha1",1]
-beta<-y.garch_11@fit$matcoef["beta1",1]
-sigmat_own<-sigmat
-for (i in 2:length(sigmat))#i<-2
-  sigmat_own[i]<-sqrt(d+beta*sigmat_own[i-1]^2+alpha*eps[i]^2)
-# This is now correct (not lagging anymore)
-sigmat<-sigmat_own
-
-
-# Plot BIP and its vola
-par(mfrow=c(1,1))
-# Scale the data 
-mplot<-cbind(sigmat,dat[1:i_time,1])
-rownames(mplot)<-names(dat[1:i_time,1])
-colnames(mplot)<-c("GARCH-vola","BIP")
-colo<-c("blue",rainbow(length(select_vec_multi)))
-main_title<-"BIP and GARCH(1,1)-vola"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo[i],lwd=1,lty=2)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  y.garch_11<-garchFit(~garch(1,1),data=dat[1:i_time,1],include.mean=T,trace=F)
+  summary(y.garch_11)
+  # sigmat could be retrieved from GARCH-object
+  sigmat<-y.garch_11@sigma.t
+  # But this is lagged by one period
+  # Therefore we recompute the vola based on the estimated GARCH-parameters
+  eps<-y.garch_11@residuals
+  d<-y.garch_11@fit$matcoef["omega",1]
+  alpha<-y.garch_11@fit$matcoef["alpha1",1]
+  beta<-y.garch_11@fit$matcoef["beta1",1]
+  sigmat_own<-sigmat
+  for (i in 2:length(sigmat))#i<-2
+    sigmat_own[i]<-sqrt(d+beta*sigmat_own[i-1]^2+alpha*eps[i]^2)
+  # This is now correct (not lagging anymore)
+  sigmat<-sigmat_own
+  
+  
+  # Plot BIP and its vola
+  par(mfrow=c(1,1))
+  # Scale the data 
+  mplot<-cbind(sigmat,dat[1:i_time,1])
+  rownames(mplot)<-names(dat[1:i_time,1])
+  colnames(mplot)<-c("GARCH-vola","BIP")
+  colo<-c("blue",rainbow(length(select_vec_multi)))
+  main_title<-"BIP and GARCH(1,1)-vola"
+  plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+  mtext(colnames(mplot)[1],col=colo[1],line=-1)
+  for (i in 1:ncol(mplot))
+  {
+    lines(mplot[,i],col=colo[i],lwd=1,lty=2)
+    mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  }
+  abline(h=0)
+  abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
+  axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+  axis(2)
+  box()
+  
+  # We can now apply weighted least-squares (WLS) instead of OLS, using the (inverse of the) GARCH-vola for the weights 
+  weight<-1/sigmat^2
+  # Apply WLS instead of OLS
+  lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)],weight=weight)
+  summary(lm_obj)
+  # The M-SSA components are still strongly significant but the regression coefficients are slightly 
+  #   different (when compared to OLS above)
+  
+  # Compute out-of-sample prediction for time point i+shift+lag_vec[1]: 
+  # Technical notes:
+  #   1. The GARCH is irrelevant when computing the predictor (the GARCH is us used for estimating regression coefficients, only)
+  #   2. Due to the publication lag, the regression span cannot extend up to the sample end
+  #     -Therefore we shift the explanatory variables as well as the target forward by the additional publication lag 
+  #     -Note however that this effect  (due to shifting explanatory and target by lag_vec[1]) is negligible, 
+  #       because the regression coefficients tend to converge to fixed values with increasing sample size, 
+  #       see exercise 2.2 below.
+  oos_pred_wls<-as.double(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift+lag_vec[1],2:ncol(dat)]) 
+  # Compute out-of-sample forecast error
+  oos_error_wls<-dat[i_time+shift+lag_vec[1],1]-oos_pred_wls
+  # This is the out-of-sample WLS error that we observe in shift=2 quarters later
+  oos_error_wls
+  # Compare to out-of-sample error based on OLS: 
+  oos_error
+  # Depending on the selected time point, WLS performs better or worse than OLS.
+  # But on average, over many (out-of-sample) time points, WLS tends to outperform OLS (see exercise 1.3.4 below for confirmation). 
+  #   -Therefore we now apply WLS when deriving weights of M-SSA components
+  #   -For comparison and benchmarking, we also derive a better `direct forecast' based on WLS (in contrast to 
+  #     exercise 1.2.1 in tutorial 7.3 which is based on classic OLS)
+  
+  # Finally, we can also compute the simple mean-benchmark 
+  #   -Due to the publication lag, the mean estimate cannot extend up to the sample end
+  #     -We shift the target forward by the additional publication lag 
+  #   -Note however that this effect (adding lag_vec[1] or not) is negligible, because the 
+  #       mean converges to a fixed value (long-term average growth) with increasing sample size (assuming stationarity...)
+  mean_bench<-mean(dat[1:i_time,1])
+  # Its out-of-sample forecast error is
+  oos_error_mean<-dat[i_time+shift+lag_vec[1],1]-mean_bench
+  # Compute the rRMSE of the WLS (M-SSA) component predictor referenced against the mean-benchmark when 
+  #   targeting BIP, shifted forward by shift (+publication lag):
+  rRMSE_mSSA_comp_mean<-sqrt(mean(oos_error_wls^2)/mean(oos_error_mean^2))
+  rRMSE_mSSA_comp_mean
+  # -Depending on the selected time point, the rRMSE is larger or smaller one
+  # -However, on average over a longer out-of-sample span, we expect the more sophisticated predictor(s) 
+  #   to outperform the simple mean benchmark, at least for `reasonably sized' forecast horizons
 }
-abline(h=0)
-abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
-axis(2)
-box()
-
-# We can now apply weighted least-squares (WLS) instead of OLS, using the (inverse of the) GARCH-vola for the weights 
-weight<-1/sigmat^2
-# Apply WLS instead of OLS
-lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)],weight=weight)
-summary(lm_obj)
-# The M-SSA components are still strongly significant but the regression coefficients are slightly 
-#   different (when compared to OLS above)
-
-# Compute out-of-sample prediction for time point i+shift+lag_vec[1]: 
-# Technical notes:
-#   1. The GARCH is irrelevant when computing the predictor (the GARCH is us used for estimating regression coefficients, only)
-#   2. Due to the publication lag, the regression span cannot extend up to the sample end
-#     -Therefore we shift the explanatory variables as well as the target forward by the additional publication lag 
-#     -Note however that this effect  (due to shifting explanatory and target by lag_vec[1]) is negligible, 
-#       because the regression coefficients tend to converge to fixed values with increasing sample size, 
-#       see exercise 2.2 below.
-oos_pred_wls<-as.double(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift+lag_vec[1],2:ncol(dat)]) 
-# Compute out-of-sample forecast error
-oos_error_wls<-dat[i_time+shift+lag_vec[1],1]-oos_pred_wls
-# This is the out-of-sample WLS error that we observe in shift=2 quarters later
-oos_error_wls
-# Compare to out-of-sample error based on OLS: 
-oos_error
-# Depending on the selected time point, WLS performs better or worse than OLS.
-# But on average, over many (out-of-sample) time points, WLS tends to outperform OLS (see exercise 1.3.4 below for confirmation). 
-#   -Therefore we now apply WLS when deriving weights of M-SSA components
-#   -For comparison and benchmarking, we also derive a better `direct forecast' based on WLS (in contrast to 
-#     exercise 1.2.1 in tutorial 7.3 which is based on classic OLS)
-
-# Finally, we can also compute the simple mean-benchmark 
-#   -Due to the publication lag, the mean estimate cannot extend up to the sample end
-#     -We shift the target forward by the additional publication lag 
-#   -Note however that this effect (adding lag_vec[1] or not) is negligible, because the 
-#       mean converges to a fixed value (long-term average growth) with increasing sample size (assuming stationarity...)
-mean_bench<-mean(dat[1:i_time,1])
-# Its out-of-sample forecast error is
-oos_error_mean<-dat[i_time+shift+lag_vec[1],1]-mean_bench
-# Compute the rRMSE of the WLS (M-SSA) component predictor referenced against the mean-benchmark when 
-#   targeting BIP, shifted forward by shift (+publication lag):
-rRMSE_mSSA_comp_mean<-sqrt(mean(oos_error_wls^2)/mean(oos_error_mean^2))
-rRMSE_mSSA_comp_mean
-# -Depending on the selected time point, the rRMSE is larger or smaller one
-# -However, on average over a longer out-of-sample span, we expect the more sophisticated predictor(s) 
-#   to outperform the simple mean benchmark, at least for `reasonably sized' forecast horizons
-
 # We now apply the above proceeding to a longer out-of-sample span and compute average performances
 #------------------
 # 1.3.4 Average performances: apply the above proceeding to all data points after 2007, including the 
@@ -489,7 +492,7 @@ in_out_separator<-in_out_separator
 #   -Therefore MSE forecast performances are likely to be worse than towards the sample end
 
 # Use WLS based on GARCH(1,1) when regressing M-SSA components on forward-shifted BIP 
-#   (setting the Boolean to F would amount to OLS, see below for details)
+# The standard setting is F (setting the Boolean to T would underweight the importance of the recessions)
 use_garch<-F
 # The following function applies the above WLS-regression for all time points (expanding window)
 #   -For each time point, a GARCH is fitted and the WLS-regression is computed based on the up-dated GARCH-weights
@@ -499,21 +502,13 @@ perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag
 # Here we have the out-of-sample forecast errors of the new M-SSA components predictor
 # Note that the out-of-sample error series is shorter than the original data, due to publication lag and forward-shift
 tail(perf_obj$epsilon_oos)
-# We can see that the function replicates the proceeding in 1.3.3 above, i.e., oos_error_wls is obtained as one of the entries of the longer out-of-sample vector
-which(perf_obj$epsilon_oos==oos_error_wls)
 # We also obtain the out-of-sample forecast errors of the mean benchmark predictor
 tail(perf_obj$epsilon_mean_oos)
-# One again, the corresponding out-of-sample error (in 3.3.3) is replicated as an entry of the longer vector
-which(perf_obj$epsilon_mean_oos==oos_error_mean)
 # More importantly, the function computes HAC-adjusted p-values of the regression of the out-of-sample predictor (oos_pred_wls obtained in exercise 3.3.3 above)
 #   on forward-shifted BIP
 perf_obj$p_value
 # The same but without singular Pandemic readings
 perf_obj$p_value_without_covid
-# We infer that there exists a statistically significant link, out-of-sample, between the new M-SSA component
-#     predictor and BIP shifted by 2 quarters ahead 
-#   -Recall that the classic direct forecast (tutorial 7.3) was insignificant at shifts larger than one quarter
-# The singular pandemic data affects (negatively) the strength of this link
 
 # In addition, we obtain the out-of-sample MSE of the M-SSA component predictor (the mean of oos_error_wls^2, where oos_error_wls was obtained in exercise 3.3.3 above)
 perf_obj$MSE_oos
@@ -530,20 +525,6 @@ sqrt(perf_obj$MSE_oos/perf_obj$MSE_mean_oos)
 # Same but without Pandemic
 sqrt(perf_obj$MSE_oos_without_covid/perf_obj$MSE_mean_oos_without_covid)
 
-# For sake of comparison, we can compute a classic OLS regression and compare with WLS above. 
-#   For this purpose we set use_garch<-F
-use_garch<-F
-perf_obj_OLS<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec)
-
-perf_obj_OLS$MSE_oos
-# Compare with WLS
-perf_obj$MSE_oos
-# The same but without Pandemic: we can s(e)ize the impact of the crisis on the MSE metric!
-perf_obj_OLS$MSE_oos_without_covid
-# Compare with WLS
-perf_obj$MSE_oos_without_covid
-# As claimed, WLS outperforms OLS out-of-sample, on average, Note also that OLS outperforms the mean benchmark
-
 # In the next step, we compute the above performance metrics for all combinations of forward-shift (of BIP) 
 #   and forecast horizons (of M-SSA components)
 
@@ -555,7 +536,7 @@ perf_obj$MSE_oos_without_covid
 # -All results were previously computed and saved: 
 #   recompute_results<-F loads these results without lengthy computations
 #   recompute_results<-T recomputes everything
-recompute_results<-T
+recompute_results<-F
 shift_vec<-0:5
 if (recompute_results)
 {
@@ -712,8 +693,6 @@ p_mat_mssa_components
 # Same but without singular Pandemic
 p_mat_mssa_components_without_covid
 # The link between the new predictor and future BIP is statistically significant up to multiple quarters ahead 
-#   -Designs optimized for larger forecast horizons (columns with h>=4) seem to perform significantly up to 
-#     one year ahead
 
 
 # -The above p-values are based on regressions (of out-of-sample predictors on BIP) thereby ignoring 
@@ -740,16 +719,6 @@ rRMSE_mSSA_direct_mean_without_covid
 # -Singular Pandemic data affects evaluation 
 #   -p-values and rRMSEs increase; systematic patterns are cluttered by noise
 #   -Direct forecasts barely outperform the simple mean benchmark, see rRMSE_mSSA_direct_mean
-# -Analysis on data excluding the Pandemic:
-#   -New predictor vs. mean: (see rRMSE_mSSA_comp_mean_without_covid)
-#     -rRMSEs are below 90% for shifts up to 4 quarters and for M-SSA designs optimized for larger forecast horizons 
-#   -New predictor vs. direct forecasts: (see rRMSE_mSSA_comp_direct_without_covid) 
-#     -rRMSEs are below 90% for shifts 2<=shift<=4 and for M-SSA designs optimized for larger forecast horizons 
-#     -Outperformance of M-SSA is less strong for shifts<=1: direct forecasts are informative at short forecast horizons
-#   -Direct forecast vs. mean benchmark: (see rRMSE_mSSA_direct_mean_without_covid)
-#     -rRMSEs are below  (or close to) 90% for small shifts (shift<=1)
-#     -Confirmation: direct forecasts are informative at short forecast horizons
-
 
 
 ################################################################################################################
@@ -872,6 +841,8 @@ for (shift in shift_vec)
 }  
 
 # Plot M-SSA components predictors (optimized for h=4) and shifts in shift_vec
+# -Note: this plot is not useful when the component predictor is based on a single component, i.e., when
+#   length(sel_vec_pred)=1!!!!
 par(mfrow=c(1,1))
 # Standardize for easier visual inspection
 mplot<-scale(cbind(dat[,1],mssa_predictor_mat))
@@ -892,20 +863,6 @@ axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4
 axis(2)
 box()
 
-# Comments:
-# -The standardization of the series in the above plot somehow defeats the purpose of the M-SSA component 
-#     predictors which are designed with MSE performances in mind. 
-#   -But standardization simplifies visual inspection.
-# -As for the M-SSA predictor in tutorial 7.3 (exercise 1), we observe an increasing left-shift of the new 
-#     M-SSA component predictor with increasing forward-shift of the target 
-#   -This left-shift is much less pronounced when computing direct forecasts (substituting the original data 
-#     to the M-SSA components as regressors) 
-#   -Forecast MSE outperformance at shifts>=2 (of M-SSA components vs. mean-benchmark and/or direct forecasts) is directly 
-#     related to this left-shift, see the column entitled h=4 in the corresponding matrices 
-rRMSE_mSSA_comp_mean_without_covid[,"h=4"]
-rRMSE_mSSA_comp_direct_without_covid[,"h=4"]
-# -The M-SSA component predictors confirm the earlier assessment obtained by the original M-SSA predictor 
-#   -Data up to Jan-2025 suggests evidence of a recovery over 2025/2026
 
 
 #################################################################################################
