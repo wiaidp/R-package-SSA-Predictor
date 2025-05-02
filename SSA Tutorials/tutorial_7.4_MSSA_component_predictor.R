@@ -149,7 +149,7 @@ mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_f
 #   -This is the target for which the original M-SSA predictor (tutorial 7.3) has been designed
 #   -The target is forward-shifted by the forecast horizon (plus publication lag)
 target_shifted_mat<-mssa_indicator_obj$target_shifted_mat
-# Original M-SSA predictor, see tutorial 7.3
+# Original M-SSA predictor, see tutorial 7.3: it is the equally weighted average of all M-SSA components
 #   -One predictor available for each forecast horizon in h_vec
 predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
 # M-SSA components, see tutorial 7.2
@@ -391,99 +391,9 @@ oos_pred<-(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift+lag_vec[1]
 oos_error<-dat[i_time+shift+lag_vec[1],1]-oos_pred
 # This is the out-of-sample error that will be observed shift (+publication lag) quarters ahead
 oos_error
-
-#---------------
-# This part of the predictor design is not relevant anymore
-if (F)
-{
-# 1.3.3 Better/improved regression: we can improve the weighting of the M-SSA components further.
-# -Given that BIP is subject to heteroscedasticity we may apply a GARCH(1,1) to obtain an estimate of its variance
-  y.garch_11<-garchFit(~garch(1,1),data=dat[1:i_time,1],include.mean=T,trace=F)
-  summary(y.garch_11)
-  # sigmat could be retrieved from GARCH-object
-  sigmat<-y.garch_11@sigma.t
-  # But this is lagged by one period
-  # Therefore we recompute the vola based on the estimated GARCH-parameters
-  eps<-y.garch_11@residuals
-  d<-y.garch_11@fit$matcoef["omega",1]
-  alpha<-y.garch_11@fit$matcoef["alpha1",1]
-  beta<-y.garch_11@fit$matcoef["beta1",1]
-  sigmat_own<-sigmat
-  for (i in 2:length(sigmat))#i<-2
-    sigmat_own[i]<-sqrt(d+beta*sigmat_own[i-1]^2+alpha*eps[i]^2)
-  # This is now correct (not lagging anymore)
-  sigmat<-sigmat_own
-  
-  
-  # Plot BIP and its vola
-  par(mfrow=c(1,1))
-  # Scale the data 
-  mplot<-cbind(sigmat,dat[1:i_time,1])
-  rownames(mplot)<-names(dat[1:i_time,1])
-  colnames(mplot)<-c("GARCH-vola","BIP")
-  colo<-c("blue",rainbow(length(select_vec_multi)))
-  main_title<-"BIP and GARCH(1,1)-vola"
-  plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-  mtext(colnames(mplot)[1],col=colo[1],line=-1)
-  for (i in 1:ncol(mplot))
-  {
-    lines(mplot[,i],col=colo[i],lwd=1,lty=2)
-    mtext(colnames(mplot)[i],col=colo[i],line=-i)
-  }
-  abline(h=0)
-  abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-  axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
-  axis(2)
-  box()
-  
-  # We can now apply weighted least-squares (WLS) instead of OLS, using the (inverse of the) GARCH-vola for the weights 
-  weight<-1/sigmat^2
-  # Apply WLS instead of OLS
-  lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)],weight=weight)
-  summary(lm_obj)
-  # The M-SSA components are still strongly significant but the regression coefficients are slightly 
-  #   different (when compared to OLS above)
-  
-  # Compute out-of-sample prediction for time point i+shift+lag_vec[1]: 
-  # Technical notes:
-  #   1. The GARCH is irrelevant when computing the predictor (the GARCH is us used for estimating regression coefficients, only)
-  #   2. Due to the publication lag, the regression span cannot extend up to the sample end
-  #     -Therefore we shift the explanatory variables as well as the target forward by the additional publication lag 
-  #     -Note however that this effect  (due to shifting explanatory and target by lag_vec[1]) is negligible, 
-  #       because the regression coefficients tend to converge to fixed values with increasing sample size, 
-  #       see exercise 2.2 below.
-  oos_pred_wls<-as.double(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift+lag_vec[1],2:ncol(dat)]) 
-  # Compute out-of-sample forecast error
-  oos_error_wls<-dat[i_time+shift+lag_vec[1],1]-oos_pred_wls
-  # This is the out-of-sample WLS error that we observe in shift=2 quarters later
-  oos_error_wls
-  # Compare to out-of-sample error based on OLS: 
-  oos_error
-  # Depending on the selected time point, WLS performs better or worse than OLS.
-  # But on average, over many (out-of-sample) time points, WLS tends to outperform OLS (see exercise 1.3.4 below for confirmation). 
-  #   -Therefore we now apply WLS when deriving weights of M-SSA components
-  #   -For comparison and benchmarking, we also derive a better `direct forecast' based on WLS (in contrast to 
-  #     exercise 1.2.1 in tutorial 7.3 which is based on classic OLS)
-  
-  # Finally, we can also compute the simple mean-benchmark 
-  #   -Due to the publication lag, the mean estimate cannot extend up to the sample end
-  #     -We shift the target forward by the additional publication lag 
-  #   -Note however that this effect (adding lag_vec[1] or not) is negligible, because the 
-  #       mean converges to a fixed value (long-term average growth) with increasing sample size (assuming stationarity...)
-  mean_bench<-mean(dat[1:i_time,1])
-  # Its out-of-sample forecast error is
-  oos_error_mean<-dat[i_time+shift+lag_vec[1],1]-mean_bench
-  # Compute the rRMSE of the WLS (M-SSA) component predictor referenced against the mean-benchmark when 
-  #   targeting BIP, shifted forward by shift (+publication lag):
-  rRMSE_mSSA_comp_mean<-sqrt(mean(oos_error_wls^2)/mean(oos_error_mean^2))
-  rRMSE_mSSA_comp_mean
-  # -Depending on the selected time point, the rRMSE is larger or smaller one
-  # -However, on average over a longer out-of-sample span, we expect the more sophisticated predictor(s) 
-  #   to outperform the simple mean benchmark, at least for `reasonably sized' forecast horizons
-}
 # We now apply the above proceeding to a longer out-of-sample span and compute average performances
 #------------------
-# 1.3.4 Average performances: apply the above proceeding to all data points after 2007, including the 
+# 1.3.3 Average performances: apply the above proceeding to all data points after 2007, including the 
 #   entire financial crisis for out-of-sample evaluations
 
 # Start point for out-of-sample evaluation: 2007
@@ -529,7 +439,7 @@ sqrt(perf_obj$MSE_oos_without_covid/perf_obj$MSE_mean_oos_without_covid)
 #   and forecast horizons (of M-SSA components)
 
 #----------------
-# 1.3.5 Compute performances of new M-SSA component predictor for all combinations of forward-shift and 
+# 1.3.4 Compute performances of new M-SSA component predictor for all combinations of forward-shift and 
 #   forecast horizon (6*7 matrix of performance metrics)
 
 # -Depending on the CPU, computations may last up to several minutes (regressions and GARCH-models are recomputed for each time point and for all combinations of shift and forecast horizon))
@@ -684,7 +594,7 @@ if (recompute_results)
   track_weights_array=list_perf$track_weights_array
   MSE_oos_mssa_comp_mat=list_perf$MSE_oos_mssa_comp_mat
   MSE_oos_mssa_comp_without_covid_mat=list_perf$MSE_oos_mssa_comp_without_covid_mat
-  ht_mssa_comp_mat=list_perf<-ht_mssa_comp_mat
+  ht_mssa_comp_mat=list_perf$ht_mssa_comp_mat
 }
 
 # HAC-adjusted p-values of out-of-sample (M-SSA) components predictor when targeting forward-shifted BIP
@@ -795,74 +705,7 @@ box()
 
 
 ################################################################################################################
-# Exercise 3 Apply the new M-SSA components predictor
-# -Rely on the `final' M-SSA component predictor (at the sample end) to assess the business-cycle 
-#   (based on data up to Jan-2025)
-# -For illustration we here use forecast horizon h=4 (M-SSA optimized for one year ahead forecast) and 
-#     forward-shifts in shift_vec (of BIP target)
-# Remarks: 
-# -M-SSA here still relies on the in-sample span up to the financial crisis and is not up-dated yet
-# -Moreover, for simplicity, we here rely on OLS regression (of M-SSA components on forward-shifted BIP)
-# -The final `best' M-SSA component predictor is derived and discussed in exercise 6 below
-#   -We then rely on the full data set for estimating the VAR
-#   -We rely on WLS regression, using the GARCH(1,1) vola for weighting the data
-#   -We remove the Pandemic to obtain better estimates for the VAR as well as for the WLS regression
-
-k<-5
-# Check: forecast horizon h=4:
-h_vec[k]
-# Forward-shifts of BIP (+publication lag)
-shift_vec<-shift_vec
-mssa_predictor_mat<-NULL
-# We compute the final predictor, based on data up to the sample end
-# Note: for simplicity we here compute an OLS regression (WLS looks nearly the same)
-for (shift in shift_vec)
-{
-# Data matrix: forward-shifted BIP and M-SSA components  
-  if (length(sel_vec_pred)>1)
-  {
-    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mssa_array[sel_vec_pred,,k]))
-  } else
-  {
-    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mssa_array[sel_vec_pred,,k]))
-  }
-  rownames(dat)<-rownames(x_mat)
-# OLS regression  
-  lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
-  optimal_weights<-lm_obj$coef
-# Compute predictor for each forward-shift  
-  if (length(sel_vec_pred)>1)
-  {
-    mssa_predictor_mat<-cbind(mssa_predictor_mat,optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)])
-  } else
-  {
-    mssa_predictor_mat<-cbind(mssa_predictor_mat,optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)])
-  }
-}  
-
-# Plot M-SSA components predictors (optimized for h=4) and shifts in shift_vec
-# -Note: this plot is not useful when the component predictor is based on a single component, i.e., when
-#   length(sel_vec_pred)=1!!!!
-par(mfrow=c(1,1))
-# Standardize for easier visual inspection
-mplot<-scale(cbind(dat[,1],mssa_predictor_mat))
-colnames(mplot)<-c(paste("BIP forward-shifted by ",shift," quarters (plus publication lag)",sep=""),
-                   paste("h=",h_vec[k],", shift=",shift_vec,sep=""))
-colo<-c("black",rainbow(4*ncol(mssa_predictor_mat)))
-main_title<-paste("Final predictors based on M-SSA-components ",paste(sel_vec_pred,collapse=","),": h=",h_vec[k],sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
-}
-abline(h=0)
-abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
-axis(2)
-box()
-
+# Exercise 3 (has been skipped)
 
 
 #################################################################################################
@@ -917,37 +760,6 @@ HP_obj<-HP_target_mse_modified_gap(L,lambda_HP)
 hp_c<-HP_obj$hp_trend
 ts.plot(hp_c,main=paste("One-sided (concurrent) HP(",lambda_HP,"): HP-C",sep=""),xlab="",ylab="")
 
-# We can analyze the filter in the frequency-domain (but this topic will not be discussed further here)
-if (F)
-{
-  # Analyze filter in frequency-domain (amplitude function)
-  # Specify the number of equidistant frequency ordinates in [0,pi]
-  K<-600
-  # Compute transfer, amplitude and shift functions (shift=phase divided by frequency)
-  amp_obj_hp_c<-amp_shift_func(K,hp_c,F)
-  
-  # Plot amplitude function
-  par(mfrow=c(1,1))
-  mplot<-matrix(amp_obj_hp_c$amp,ncol=1)
-  colnames(mplot)<-paste("Concurrent HP, lambda=",lambda_HP,sep="")
-  colo<-c("blue",rainbow(ncol(mplot)))
-  plot(mplot[,1],type="l",axes=F,xlab="Frequency",ylab="",main=paste("Amplitude HP, lambda=",lambda_HP,sep=""),ylim=c(min(mplot),max(mplot)),col=colo[1])
-  if (ncol(mplot)>1)
-  {
-    lines(mplot[,2],col=colo[2])
-    abline(v=which(mplot[,1]==max(mplot[,1])),col=colo[1])
-    mtext(colnames(mplot)[1],line=-1,col=colo[1])
-    
-    for (i in 2:ncol(mplot))
-    {
-      lines(mplot[,i],col=colo[i])
-      mtext(colnames(mplot)[i],col=colo[i],line=-i)
-    }
-  }
-  axis(1,at=1+0:4*K/4,labels=expression(0, pi/4, 2*pi/4,3*pi/4,pi))
-  axis(2)
-  box()
-}
 
 # 4.1.2 Filter the indicators: apply HP-C
 hp_c_mat<-NULL
