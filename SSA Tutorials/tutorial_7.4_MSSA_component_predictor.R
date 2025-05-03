@@ -29,7 +29,7 @@
 # -Exercise 2
 #   -Analysis of revisions of new (real-time out-of-sample) M-SSA components predictor
 # -Exercise 3
-#   -Application of the predictor to German BIP
+#   -Skipped (the exercise was not meaningful for all settings)
 # -Exercise 4
 #   -Explainability: why does the M-SSA component predictor outperform specifically at multi-quarters 
 #     ahead forecast horizons?
@@ -37,8 +37,8 @@
 #   -Specify and compute an `M-MSE component predictor' (same as M-SSA but without HT imposed: less smooth)
 #   -Compare MSE forecast performances to the simple mean benchmark and the (new) M-SSA component predictor
 # -Exercise 6
-#   -Compute final M-SSA and M-MSE component predictors based on full data information and optimal 
-#     WLS regression, discarding singular Pandemic data for estimation of parameters
+#   -Compute final M-SSA and M-MSE component predictors based on full data information, discarding the 
+#     singular Pandemic data for estimation of parameters
 #----------------------------------------------
 # Start with a clean sheet
 rm(list=ls())
@@ -67,27 +67,21 @@ source(paste(getwd(),"/R/functions_MSSA.r",sep=""))
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 # Utility functions for M-SSA, see tutorial 
 source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
-# Set of performance metrics and tests of unequal predictability
-#source(paste(getwd(),"/R/performance_statistics_functions.r",sep=""))
 
 
 #------------------------------------------------------------------------
 # Load the data and select the relevant indicators: see tutorials 7.2 and 7.3 for background
 load(file=paste(getwd(),"\\Data\\macro",sep=""))
 
-# Publication lag: we assume a lag of two quarters for BIP 
-#   -Effective publication lag is one
-#   -But we here ignore data revisions
-#   -The higher publication lag addresses (in part) the absence of revisions 
-lag_vec<-c(2,rep(0,ncol(data)-1))
-# Note: we assume a publication lag of two quarters for BIP, see the discussion in tutorial 7.2
+# Publication lag: we assume a lag of one quarter for BIP 
+lag_vec<-c(1,rep(0,ncol(data)-1))
 
 # Plot the data
 # The real-time BIP (red) is lagging the target (black) by lag_vec[1] quarters (publication lag)
 par(mfrow=c(1,1))
-mplot<-data
-colo<-c("black",rainbow(ncol(data)-1))
-main_title<-paste("Quarterly design BIP: the target (black) assumes a publication lag of ",lag_vec[1]," Quarters",sep="")
+mplot<-data[,-1]
+colo<-c(rainbow(ncol(data)-1))
+main_title<-paste("Quarterly indicators",sep="")
 plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
 mtext(colnames(mplot)[1],col=colo[1],line=-1)
 for (i in 1:ncol(mplot))
@@ -99,10 +93,6 @@ abline(h=0)
 axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
 axis(2)
 box()
-# -The plot indicates that the publication lag of two quarters is too large 
-#   -Peaks and dips of the target (black line) are left-shifted by one quarter at recessions
-#   -The excessive publication lag is intended to compensate for data revisions (which are ignored in our design)
-#   -We may claim prudence: results will be conservative (on the safe side) 
 # -The explanatory variables BIP (red line) and ip (orange) are right shifted 
 #   -Publication lags: BIP one quarter and ip two months (see data_monthly for the 2-month lag of ip)
 
@@ -139,7 +129,7 @@ names(ht_mssa_vec)<-colnames(x_mat)
 # Forecast horizons: M-SSA is optimized for each forecast horizon in h_vec 
 h_vec<-0:6
 # Forecast excesses: see tutorial 7.2, exercise 2 for background
-f_excess<-rep(4,length(select_vec_multi))
+f_excess<-c(5,rep(4,length(select_vec_multi)-1))
 
 # Run the wrapper, see tutorial 7.2
 #   -The function computes M-SSA for each forecast horizon h in h_vec
