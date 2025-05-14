@@ -1,6 +1,6 @@
 # Tutorial 7.4
 # Main purposes:
-# 1. Forecasting BIP multiple quarters ahead
+# 1. Forecasting German GDP (BIP) multiple quarters ahead
 #   -Derive a new M-SSA components predictor which addresses MSE forecast performances when tracking BIP
 #     -The original M-SSA predictor (without the attribute `components') proposed in tutorial 7.3 is 
 #         standardized: neither level nor scale were calibrated to track BIP 
@@ -29,9 +29,9 @@
 # -Exercise 2
 #   -Analysis of revisions of new (real-time out-of-sample) M-SSA components predictor
 # -Exercise 3
-#   -Skipped (the exercise was not meaningful for all settings)
+#   -Skipped 
 # -Exercise 4
-#   -Explainability: why does the M-SSA component predictor outperform specifically at multi-quarters 
+#   -Explainability: why does the M-SSA component predictor outperform specifically at multiple-quarters 
 #     ahead forecast horizons?
 # -Exercise 5
 #   -Specify and compute an `M-MSE component predictor' (same as M-SSA but without HT imposed: less smooth)
