@@ -1,4 +1,4 @@
-# We here apply SSA to the refined Beveridge Nelson filter proposed in
+# We here analyze the so-called refined Beveridge Nelson filter proposed in
 # Gunes Kamber & James Morley & Benjamin Wong, 2024. "Trend-Cycle Decomposition in the Presence of Large Shocks," CAMA Working Papers 2024-24, Centre for Applied Macroeconomic Analysis, Crawford School of Public Policy, The Australian National University, revised Aug 2024.
 
 # For this purpose we rely on their R-code at https://drive.google.com/file/d/15P2OOV7aPl8qcwAsvSltaO2QfmuxID_N/view?pli=1
@@ -387,4 +387,7 @@ abline(h=0)
 axis(1,at=1+0:6*K/6,labels=c("0","pi/6","2pi/6","3pi/6","4pi/6","5pi/6","pi"))
 axis(2)
 box()
+
+#----------------------------------------
+# 6. Apply SSA: we refer to tutorial 2.1 (classic HP)
 
