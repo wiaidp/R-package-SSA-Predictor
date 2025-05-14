@@ -569,86 +569,112 @@ HAC_ajusted_p_value_func<-function(da)
 # MSE_mean_oos_without_covid: same but without Pandemic
 # MSE_oos_without_covid: without Pandemic
 # p_value_without_covid: without Pandemic
-optimal_weight_predictor_func<-function(dat,in_out_separator,use_garch,shift,lag_vec)
+optimal_weight_predictor_func<-function(dat,in_out_separator,use_garch,shift,lag_vec,align_sample,reg_type,lambda_reg=NULL)
 {
-  
   len<-dim(dat)[1]
-# First column is target, i.e. dimension is dim(dat)[2]-1
+  # First column is target, i.e. dimension is dim(dat)[2]-1
   n<-dim(dat)[2]-1
-# Compute calibrated out-of-sample predictor, based on expanding window
+  # Compute calibrated out-of-sample predictor, based on expanding window
   cal_oos_pred<-cal_oos_mean_pred<-rep(NA,len)
   track_weights<-NULL
   start_non_na<-which(!is.na(dat[,2]))[1]
-  for (i in (n+start_non_na):(len-shift-lag_vec[1])) #i<-n+2
+  for (i in (n+start_non_na):(len-shift-lag_vec[1])) #i<-n+start_non_na+2  i<-100
   {
-# If use_garch==T then the regression relies on weighted least-squares, whereby the weights are based 
-#   on volatility obtained from a GARCH(1,1) model fitted to target (first column of dat)
+    # If use_garch==T then the regression relies on weighted least-squares, whereby the weights are based 
+    #   on volatility obtained from a GARCH(1,1) model fitted to target (first column of dat)
     if (use_garch)
     {
-      weight<-garch_vola_func(dat,shift,lag_vec)$weight[1:i]
+      weights<-garch_vola_func(dat,shift,lag_vec)$weight[start_non_na:i]
     } else
     {
-# Fixed weight      
-      weight<-rep(1,i)
+      # Fixed weight      
+      weights<-rep(1,i-start_non_na+1)
     }
-#    ts.plot(cbind(dat[1:i,1],1/weight),col=c("red","blue"))
-# 1. Use predictors in columns 2,..., of dat    
-# Fit model with data up to time point i; weighted least-squares relying on weight as defined above  
-    lm_obj<-lm(dat[1:i,1]~dat[1:i,2:(n+1)],weight=weight)
+    length(weights)
+    length(dat[start_non_na:i,1])
+    #    ts.plot(cbind(dat[1:i,1],1/weight),col=c("red","blue"))
+    # 1. Use predictors in columns 2,..., of dat    
+    # Fit model with data up to time point i; weighted least-squares relying on weight as defined above  
+    if (reg_type=="OLS")
+    {
+      lm_obj<-lm(dat[start_non_na:i,1]~dat[start_non_na:i,2:(n+1)],weights=weights)
+      coef<-coef(lm_obj)
+    }  
+    if (reg_type=="Ridge")
+    {
+      lm_obj<-lm.ridge(dat[start_non_na:i,1]~matrix(cbind(rep(1,i-start_non_na+1),dat[start_non_na:i,2:(n+1)]),ncol=n+1)-1, lambda = lambda_reg)
+      coef<-coef(lm_obj)
+    }
+    if (reg_type=="Lasso")
+    {
+      lm_obj<-glmnet(x=dat[start_non_na:i,2:(n+1)],y=dat[start_non_na:i,1],alpha=0,lambda = lambda_reg)
+      coef<-as.vector(coef(lm_obj))
+    }
     summary(lm_obj)
-# Here we track the weights as they may change over time    
-    track_weights<-rbind(track_weights,lm_obj$coef)
-# Compute out-of-sample prediction for time point i+shift
+    
+    
+    # Here we track the weights as they may change over time    
+    track_weights<-rbind(track_weights,coef)
+    # Compute out-of-sample prediction for time point i+shift
     if (n==1)
     {
-# Only one predictor      
-#   Classic regression prediction        
-      cal_oos_pred[i+shift+lag_vec[1]]<-(lm_obj$coef[1]+lm_obj$coef[2]*dat[i+shift+lag_vec[1],2])
+      # Only one predictor      
+      #   Classic regression prediction        
+      cal_oos_pred[i+shift+lag_vec[1]]<-(coef[1]+coef[2]*dat[i+shift+lag_vec[1],2])
     } else
     {
-# Multiple predictors      
-#  We use %*% instead of * above      
-      cal_oos_pred[i+shift+lag_vec[1]]<-(lm_obj$coef[1]+lm_obj$coef[2:(n+1)]%*%dat[i+shift+lag_vec[1],2:(n+1)]) 
+      # Multiple predictors      
+      #  We use %*% instead of * above      
+      cal_oos_pred[i+shift+lag_vec[1]]<-(coef[1]+coef[2:(n+1)]%*%dat[i+shift+lag_vec[1],2:(n+1)]) 
     }
-# 2. Use mean as predictor (simplest benchmark)
-    cal_oos_mean_pred[i+shift+lag_vec[1]]<-mean(dat[1:i,1])
+    # 2. Use mean as predictor (simplest benchmark)
+    # Two variants: 
+    if (align_sample)
+    {
+      # 1. Same data span as filter (due to initialization the filter losts L values at start)    
+      cal_oos_mean_pred[i+shift+lag_vec[1]]<-mean(dat[start_non_na:i,1])
+    } else
+    {
+      # 2. Full sample, including first L observations (makes sense since the data is available)    
+      cal_oos_mean_pred[i+shift+lag_vec[1]]<-mean(dat[1:i,1])
+    }
   }
   colnames(track_weights)<-c("intercept",colnames(dat)[2:ncol(dat)])
   rownames(track_weights)<-rownames(dat)[(n+start_non_na):(len-shift-lag_vec[1])]
-# Here we compute the final (end-point) predictor: 
-# -This would be used typically at the sample end for prediction purposes
-# -It is an in-sample estimate  
+  # Here we compute the final (end-point) predictor: 
+  # -This would be used typically at the sample end for prediction purposes
+  # -It is an in-sample estimate  
   if (n==1)
   {
-    final_in_sample_preditor<-(lm_obj$coef[1]+lm_obj$coef[2]*dat[,2])
+    final_in_sample_preditor<-(coef[1]+coef[2]*dat[,2])
   } else
   {
-    final_in_sample_preditor<-lm_obj$coef[1]+dat[,2:(n+1)]%*%lm_obj$coef[2:(n+1)] 
+    final_in_sample_preditor<-coef[1]+dat[,2:(n+1)]%*%coef[2:(n+1)] 
   }
-# Once the predictors are computed we can obtain the out-of-sample prediction errors
+  # Once the predictors are computed we can obtain the out-of-sample prediction errors
   epsilon_oos<-dat[,1]-cal_oos_pred
   index_oos<-which(rownames(dat)>in_out_separator)
-# Compute HAC-adjusted p-value
-# Technical note: we use max of standard error of OLS and HAC adjustment to reduce bias
+  # Compute HAC-adjusted p-value
+  # Technical note: we use max of standard error of OLS and HAC adjustment to reduce bias
   da<-cbind(dat[index_oos,1],cal_oos_pred[index_oos])
   p_value<-HAC_ajusted_p_value_func(da)$p_value
-# Out-of-sample MSE of predictor  
+  # Out-of-sample MSE of predictor  
   MSE_oos<-mean(epsilon_oos[index_oos]^2,na.rm=T)
-# Same but for benchmark mean predictor  
+  # Same but for benchmark mean predictor  
   epsilon_mean_oos<-dat[,1]-cal_oos_mean_pred
   MSE_mean_oos<-mean(epsilon_mean_oos[index_oos]^2,na.rm=T)
-# The same as above but without Pandemic: check that Pandemic is within data span
+  # The same as above but without Pandemic: check that Pandemic is within data span
   if ((sum(rownames(dat)>2019)>0)&(sum(rownames(dat)<2019)>0))
   {
-# Specify out-of-sample span without COVID    
+    # Specify out-of-sample span without COVID    
     index_oos_without_covid<-index_oos[rownames(dat)[index_oos]<2019]
-# Check
+    # Check
     rownames(dat)[index_oos_without_covid]
-# Compute HAC adjusted p-value   
-# Technical note: we use max of standard error of OLS and HAC adjustment to reduce bias
+    # Compute HAC adjusted p-value   
+    # Technical note: we use max of standard error of OLS and HAC adjustment to reduce bias
     da<-cbind(dat[index_oos_without_covid,1],cal_oos_pred[index_oos_without_covid])
     p_value_without_covid<-HAC_ajusted_p_value_func(da)$p_value
-# Compute MSE: predictor and mean   
+    # Compute MSE: predictor and mean   
     MSE_oos_without_covid<-mean(epsilon_oos[index_oos_without_covid]^2)
     MSE_mean_oos_without_covid<-mean(epsilon_mean_oos[index_oos_without_covid]^2)
   }
