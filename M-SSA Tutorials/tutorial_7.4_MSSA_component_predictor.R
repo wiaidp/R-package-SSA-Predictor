@@ -396,7 +396,7 @@ in_out_separator<-in_out_separator
 #   -Therefore MSE forecast performances are likely to be worse than towards the sample end
 
 # Use WLS based on GARCH(1,1) when regressing M-SSA components on forward-shifted BIP 
-# The standard setting is F (setting the Boolean to T would underweight the importance of the recessions)
+#   -The standard setting is use_garch<-F (setting the Boolean to T would underweight the importance of the recessions)
 use_garch<-F
 # M-SSA looses L observations at start when compared to direct forecast or mean benchmarks: 
 #   -therefore the samples are slightly different

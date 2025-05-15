@@ -3,7 +3,6 @@
 # The following three functions compute holding-times and link lag-one acf and holding-times, see section 1 in paper
 compute_holding_time_func<-function(b)
 {
-  rho_ff1<-b[1:(length(b)-1)]%*%b[2:length(b)]/sum(b^2)
   # Mean holding-time
   ht<-1/(2*(0.25-asin(rho_ff1)/(2*pi)))
   # Alternative expression  

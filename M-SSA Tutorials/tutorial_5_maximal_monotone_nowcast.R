@@ -265,7 +265,7 @@ box()
 
 # Select target and HP-C
 select_vec<-c(2,5)
-plot(mplot[,select_vec[1]],main="Zero Crossings SSA",axes=F,type="l",xlab="",ylab="",col=colo[select_vec[1]],lwd=1,ylim=c(-0.013,0.006))
+plot(mplot[,select_vec[1]],main="Zero Crossings HP-C",axes=F,type="l",xlab="",ylab="",col=colo[select_vec[1]],lwd=1,ylim=c(-0.013,0.006))
 abline(v=1+which(sign(mplot[2:nrow(mplot),select_vec[2]])!=sign(mplot[1:(nrow(mplot)-1),select_vec[2]])),col=colo[select_vec[2]],lwd=1,lty=2)
 abline(v=1+which(sign(mplot[2:nrow(mplot),select_vec[2]])!=sign(mplot[1:(nrow(mplot)-1),select_vec[2]])),col="black",lwd=1,lty=2)
 abline(h=0)
@@ -301,7 +301,7 @@ box()
 mean((y_target-y_mse)^2,na.rm=T)
 mean((y_target-y_ssa)^2,na.rm=T)
 mean((y_target-y_hp_concurrent)^2,na.rm=T)
-# MSE with of SSA with respect to one-sided MSE predcitor (this should match bk_obj$mse_yz)
+# MSE of SSA with respect to one-sided MSE predictor (this should match bk_obj$mse_yz)
 mean((y_mse-y_ssa)^2,na.rm=T)
 bk_obj$mse_yz
 # Compute and compare empirical and theoretical holding times
