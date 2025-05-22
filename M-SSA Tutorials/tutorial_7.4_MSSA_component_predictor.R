@@ -352,7 +352,7 @@ k<-5
 h_vec[k]
 # Define the data matrix for the regression
 dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),
-           matrix(mssa_array[sel_vec_pred,,k],ncol=length(sel_vec_pred)))
+           matrix(t(mssa_array[sel_vec_pred,,k]),ncol=length(sel_vec_pred)))
 rownames(dat)<-rownames(x_mat)
 colnames(dat)<-c(paste("BIP shifted forward by lag_vec+shift=",shift+lag_vec[1],sep=""),
                  paste("M-SSA component ",sel_vec_pred,": h=",h_vec[k],sep=""))
