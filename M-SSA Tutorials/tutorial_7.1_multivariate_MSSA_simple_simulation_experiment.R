@@ -70,10 +70,10 @@ n<-5
 p<-1
 # AR(1) coefficient (we could just plug in any numbers, assuming stationarity)
 Phi<-matrix(rbind(c( 0.0000000,  0.00000000, 0.4481816,    0, 0.0000000),
-               c(0.2387036, -0.33015450, 0.5487510,    0, 0.0000000),
-               c(0.0000000,  0.00000000, 0.4546929,    0, 0.3371898),
-               c(0.0000000,  0.07804158, 0.4470288,    0, 0.3276132),
-               c(0.0000000,  0.00000000, 0.0000000,    0, 0.3583553)),nrow=n)
+                  c(0.2387036, -0.33015450, 0.5487510,    0, 0.0000000),
+                  c(0.0000000,  0.00000000, 0.4546929,    0, 0.3371898),
+                  c(0.0000000,  0.07804158, 0.4470288,    0, 0.3276132),
+                  c(0.0000000,  0.00000000, 0.0000000,    0, 0.3583553)),nrow=n)
 colnames(Phi)<-rownames(Phi)<-c("BIP", "ip", "ifo_c","ESI", "spr_10y_3m") 
 Phi
 # According to Phi, BIP (first row) is related to lagged ifo_c; ip (indust-prod, second row) is related to lagged BIP, ip and ifo; and so on...
@@ -87,10 +87,10 @@ Phi
 # Covariance matrix (of noise terms)
 # Note: if Phi and Sigma are diagonal, then the VAR reduces to n univariate designs running in parallel
 Sigma<-matrix(rbind(c(0.755535544,  0.49500481, 0.11051024, 0.007546104, -0.16687913),
-  c(0.495004806,  0.65832962, 0.07810020, 0.025101191, -0.25578971),
-  c(0.110510236,  0.07810020, 0.66385111, 0.502140497,  0.08539719),
-  c(0.007546104,  0.02510119, 0.50214050, 0.639843288,  0.05908741),
-c(-0.166879134, -0.25578971, 0.08539719, 0.059087406,  0.84463448)),nrow=n)
+                    c(0.495004806,  0.65832962, 0.07810020, 0.025101191, -0.25578971),
+                    c(0.110510236,  0.07810020, 0.66385111, 0.502140497,  0.08539719),
+                    c(0.007546104,  0.02510119, 0.50214050, 0.639843288,  0.05908741),
+                    c(-0.166879134, -0.25578971, 0.08539719, 0.059087406,  0.84463448)),nrow=n)
 
 # Simulate a series corresponding to 25 years of quarterly data    
 len<-100
@@ -169,6 +169,7 @@ for (i in 1:n)
     xi[,(i-1)*L+j]<-xi_p[,i+(j-1)*n]
 }
 # Plot the obtained MA inversion
+
 par(mfrow=c(1,n))
 for (i in 1:n)#i<-1
 {
@@ -198,7 +199,7 @@ for (i in 1:n)#i<-1
 #   -The target for each one of the five series is the two-sided HP applied to this series, 
 #       possibly shifted forward (prediction) or unshifted (nowcast) or shifted backward (backcast)
 # -M-SSA filters are structured/organized in vectors and matrices
-#   -The filter matrix has dimension n cross (n*L): n rows and n*L 
+#   -The filter matrix has dimension n cross (n*L): n rows and n*L columns
 #   -The i-th row of the filter matrix collects the filters for the i-th target
 #   -Each row consists of n filters: a series specific filter is assigned to each of the n explanatory variables
 #   -Therefore the number of columns is n*L (each sub-filter has length(L))
@@ -264,14 +265,14 @@ with_negative_lambda<-F
 lower_limit_nu<-"rhomax"
 # Optimization with half-way triangulation: effective resolution is 2^split_grid. Much faster than brute-force grid-search.
 # 20 is a good value: fast and strong convergence in most applications
-# WE can check if this number is large enough, see further down for details
+# We can check if this number is large enough, see further down for details
 split_grid<-20
 
 # Now we can apply M-SSA
 MSSA_obj<-MSSA_func(split_grid,L,delta,grid_size,gamma_target,rho0,with_negative_lambda,xi,lower_limit_nu,Sigma,symmetric_target)
 
 # In principle we could retrieve filters, apply to data and check performances
-#   -But M-SSA delivers a much richer output, containing different filters and useful evaluation metrics
+#   -But M-SSA delivers a richer output, containing different filters and useful evaluation metrics
 #   -These will be analyzed further down, see exercise 2
 # So let's pick out the M-SSA filter
 bk_x_mat<-MSSA_obj$bk_x_mat
@@ -376,18 +377,13 @@ ht_mssa_vec[m]
 #   -M-SSA maximizes the target correlation between zdelta and y
 #   -This is equivalent to minimizing MSE up to static scale and level parameters (the latter are ignored by the correlation)
 #   -Ex post calibration of static level and scale parameters can be obtained easily by linear regression 
-#     -Fit y on zdelta
+#     -Project y on zdelta
 #   -M-SSA also computes the best static scale adjustment internally, assuming the model is correctly specified
 #     -The blue line in the previous figure is optimally scaled
 #   -However, M-SSA does not provide any level adjustment, since the data is assumed to be zero-centered (zero-crossings)
 #   -The static level-adjustment must be provided explicitly, if desired
 # Background (philosophy): M-SSA emphasizes dynamic aspects of forecasting (zero-crossings, lead/advancement, growth).
 #   -Static (ex post) adjustments (of level/scale) are deemed less relevant
-# Some of the discussants at a recent conference (Conference on Real-Time Data Analysis, Methods, and Applications, Prague, 2025),
-#     asked for a GDP-number ("Give me a number"). We fear the correct answer should be: "M-SSA provides a tendency"
-# Going a step further: M-SSA as implemented in tutorials 7.2 and 7.3 is designed to provide (new) added value
-#     in a multi-step ahead forecast exercise. 
-#   -In a multi-step ahead perspective, the tendency is more relevant than a single `number' (assorted with an uninformative wide forecast interval)
 # Back to the sample MSE performance metric:
 mean((zdelta-y)^2,na.rm=T)
 
@@ -443,7 +439,7 @@ ht_mssa_vec[m]
 #   -Therefore the correlation with the MSE benchmark is typically smaller one
 #   -But the correlation with the MSE-benchmark is almost surely larger than the target correlation with the 
 #     effective (acausal) target, because the latter assumes additional knowledge of future observations
-# Let's check these claims. First we compute the correlation of M-SSA with the classic M-MSE predictor: we obtain a 
+# Let's check these claims. First we compute the correlation of M-SSA with the classic M-MSE (,i.e., the Wiener Kolmogorov) predictor: we obtain a 
 #   number for each series
 MSSA_obj$crit_rhoyz
 # Note that the correlations are large, indicating that M-SSA is pretty close to M-MSE
@@ -547,7 +543,7 @@ for (i in 1:n)# i<-1
   }
   ts.plot(mplot,main=paste("M-MSE applied to x ",colnames(x_mat)[i],sep=""),col=rainbow(n))
 }
-# If the imposed HT of M-SSA is larger than the intrinsic HT  of M-MSE, then the M-SSA filter will typically 
+# If the imposed HT of M-SSA is larger than the HT  of M-MSE, then the M-SSA filter will typically 
 #   decay more slowly towards zero than the M-MSE benchmark (stronger smoothing)
 
 
@@ -610,11 +606,12 @@ for (i in 2:n)
 # We can also derive the HTs based on the above ACFs: HT and lag-one ACFs are linked bijectively (at least for Gaussian processes)
 ht_comp<-apply(matrix(rho_ssa,nrow=1),1,compute_holding_time_from_rho_func)[[1]]$ht
 ht_comp
-# We have verified in the above simulation experiment that sample HTs match these `true' numbers`
+# We have verified in the above simulation experiment that sample HTs match these `true' numbers
 
 # We can once again verify successful numerical optimization 
 #  -If successful, then ht_comp (based on optimized filters) should match the imposed HTs ht_mssa_vec
 #  -Increasing the size of split_grid (the number of iterations) tightens the fit between ht_comp above and ht_mssa_vec below
+# The following (absolute) differences should vanish: increasing split_grid reduces the error
 abs(ht_mssa_vec-ht_comp)
 # We can also compute HTs of the classic M-MSE benchmark: 
 #   -In general M-SSA is designed to be smoother (stronger noise suppression), i.e., ht_mssa_vec is larger than the below HTs of MSE design
@@ -935,7 +932,6 @@ MSSA_obj$crit_rhoyz
 # We can compare sample and expected (imposed) HTs:
 apply(mssa_mat,2,compute_empirical_ht_func)
 ht_mssa_vec
-
 
 
 # The above functions can also be sourced
