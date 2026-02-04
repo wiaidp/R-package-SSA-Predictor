@@ -80,7 +80,8 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 
 #------------------------------------------------------------------------
 # Load data and select indicators: see tutorial 7.2 for background
-load(file=paste(getwd(),"\\Data\\macro",sep=""))
+load(file=paste(getwd(),"/Data/macro_2025",sep=""))
+load(file=paste(getwd(),"/Data/macro_2026",sep=""))
 tail(data)
 lag_vec<-c(2,rep(0,ncol(data)-1))
 # Note: we assume a publication lag of two quarters for BIP, see the discussion in tutorial 7.2
