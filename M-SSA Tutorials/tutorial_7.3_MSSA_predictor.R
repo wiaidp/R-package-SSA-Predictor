@@ -80,11 +80,15 @@ source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
 
 #------------------------------------------------------------------------
 # Load data and select indicators: see tutorial 7.2 for background
+# We can select real-time data set up to start 2025 and compare with real-time data set up to 2026 to analyze revisions
+# Data up to beginning 2025: used in Heinisch, van Norden, Wildi 2026 paper
 load(file=paste(getwd(),"/Data/macro_2025",sep=""))
+# Up-dated new data: up to start 2026 (one additional year)
 load(file=paste(getwd(),"/Data/macro_2026",sep=""))
+# Look at data
 tail(data)
-lag_vec<-c(2,rep(0,ncol(data)-1))
 # Note: we assume a publication lag of two quarters for BIP, see the discussion in tutorial 7.2
+lag_vec<-c(2,rep(0,ncol(data)-1))
 
 # Plot the data
 # The real-time BIP (red) is lagging the target (black) by lag_vec[1] quarters (publication lag)
