@@ -86,7 +86,9 @@ h<-2*4
 p<-4
 
 # Regression of y_{t+h} on y_t,y_{t-1},...,y_{t-p}
-explanatory<-cbind(y[(p):(len-h)],y[(p-1):(len-h-1)],y[(p-2):(len-h-2)],y[(p-3):(len-h-3)])
+explanatory<-y[(p):(len-h)]
+for (i in 1:(p-1))
+  explanatory<-cbind(explanatory,y[(p-i):(len-h-i)])
 target<-y[(h+p):len]
 # The time window here is very long, reaching back to WWII
 # We will be looking at a shorter subsample, starting in 1990, in example 4 further down
