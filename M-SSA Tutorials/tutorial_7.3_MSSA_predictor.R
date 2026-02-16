@@ -404,7 +404,7 @@ p_value_HAC_BIP_oos
 # 1.3 Visualize performances: link performance measures to plots of predictors against targets
 # 1.3.1 M-SSA predictors (without sub-series)
 # Select a forward-shift of target (the k-th entry in h_vec)
-k<-1
+k<-4
 # This is the forecast horizon 
 h_vec[k]
 # To obtain the effective forward-shift we have to add the publication lag
@@ -444,30 +444,38 @@ axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4
 axis(2)
 box()
 
-mplot2026<-mplot
-
-mplot<-cbind(c(rep(NA,4),mplot2025[,3]),mplot2026[,3])
-colo<-c("blue","red")
-rownames(mplot)<-rownames(x_mat)
-colnames(mplot)<-c("One year forecast based on 2025 data: shifted one year to the right","Nowcast based on 2026 data")
-main_title<-"One year forecast Jan 2025 (blue)"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(x_mat)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (i in 1:ncol(mplot))
+if (F)
 {
-  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+
+  mplot2025<-mplot
+  
+  mplot2026<-mplot
+  
+  dim(mplot2025)
+  
+
+  mplot<-cbind(c(rep(NA,4),mplot2025[,3]),mplot2026[,3])
+  colo<-c("blue","red")
+  rownames(mplot)<-c(rep(NA,4),rownames(x_mat))
+  colnames(mplot)<-c("One year forecast based on 2025 data: shifted one year to the right","Nowcast based on 2026 data")
+  main_title<-"One year forecast Jan 2025 (blue)"
+  plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(x_mat)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+  mtext(colnames(mplot)[1],col=colo[1],line=-1)
+  for (i in 1:ncol(mplot))
+  {
+    lines(mplot[,i],col=colo[i],lwd=1,lty=1)
+    mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  }
+  abline(h=0)
+  abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
+  axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+  axis(2)
+  box()
+  
+  
+  ts.plot(cbind(mplot2025[,3],mplot2026[,3]),col=c("blue","red"))
+  abline(h=0)
 }
-abline(h=0)
-abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
-axis(2)
-box()
-
-
-ts.plot(cbind(mplot2025[,3],mplot2026[,3]),col=c("blue","red"))
-abline(h=0)
-
 
 
 
@@ -544,6 +552,42 @@ abline(v=which(rownames(mplot)>date_to_fit)[1]-1,lty=2)
 axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
 axis(2)
 box()
+
+
+if (F)
+{
+  
+  mplot2025<-mplot
+  
+  mplot2026<-mplot
+  
+  dim(mplot2025)
+  
+  
+  mplot<-cbind(c(rep(NA,4),mplot2025[,ncol(mplot2025)]),mplot2026[,3])
+  colo<-c("blue","red")
+  rownames(mplot)<-c(rep(NA,4),rownames(x_mat))
+  colnames(mplot)<-c("One year forecast based on 2025 data: shifted one year to the right","Nowcast based on 2026 data")
+  main_title<-"One year forecast Jan 2025 (blue)"
+  plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(x_mat)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
+  mtext(colnames(mplot)[1],col=colo[1],line=-1)
+  for (i in 1:ncol(mplot))
+  {
+    lines(mplot[,i],col=colo[i],lwd=1,lty=1)
+    mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  }
+  abline(h=0)
+  abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
+  axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+  axis(2)
+  box()
+  
+  
+  ts.plot(cbind(mplot2025[,3],mplot2026[,3]),col=c("blue","red"))
+  abline(h=0)
+}
+
+
 
 # -We can observe increased smoothness of the predictors, as expected 
 #   -The expected duration between consecutive zero-crossings should double (when compared to the previous results) 
