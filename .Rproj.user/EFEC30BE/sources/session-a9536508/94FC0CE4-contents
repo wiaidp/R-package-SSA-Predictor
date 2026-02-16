@@ -530,7 +530,7 @@ par(mfrow=c(1,1))
 anf<-1000
 anf<-1500
 anf<-3000
-enf<-3500
+enf<-3300
 
 # SSA generates ~33% less crossings
 # The additional crossings of HP are typically clustered at time points where the filter output seems to hover at the zero line
