@@ -2247,123 +2247,215 @@ SSA_obj_HP$crit_rhoyz                # Theoretical value from SSA optimisation
 
 
 
-##########################################################################################################
-##########################################################################################################
-# Example 7
-# This is more of a counter-example and it is not related to SSA.
-# We here analyze the classic HP-gap filter, see also tutorial 2.0.
-# Based on its characteristics we advise against its use in BCA, in agreement with Hamilton: "never use the HP (gap)...", see tutorial 3
+# ========================================================================
+# Example 7: Analysis of the Classic HP-Gap Filter (Counter-Example)
+# ========================================================================
+# This example is a counter-example and is not related to SSA.
+# We analyse the classic HP-gap filter (see also Tutorial 2.0) and
+# demonstrate why its use in Business Cycle Analysis (BCA) is inadvisable.
+# This conclusion aligns with Hamilton's recommendation: "never use the HP
+# (gap) filter", as discussed in Tutorial 3.
+# ========================================================================
 
-# HP gap
-# 7.1 Compute HP-gap: we use the same length as in example 6 above
-L_sym<-401
-# Should be an odd number: otherwise HP is not centered correctly
-if (L_sym/2==as.integer(L_sym/2))
+# ------------------------------------------------------------------------
+# 7.1 Compute the HP-gap filter
+#     We use the same filter length as in Example 6 above.
+# ------------------------------------------------------------------------
+
+L_sym <- 401
+
+# The filter length must be odd to ensure the symmetric HP filter is correctly
+# centred. If L_sym is even, the filter cannot be centred symmetrically around
+# lag 0, which would introduce a spurious phase shift.
+if (L_sym / 2 == as.integer(L_sym / 2))
 {
   print("Filter length should be an odd number")
   print("If L_sym is even then HP cannot be correctly centered")
-  L_sym<-L_sym+1
-}  
-# HP monthly design
-lambda_monthly<-14400
+  L_sym <- L_sym + 1
+}
 
-HP_obj<-HP_target_mse_modified_gap(L_sym,lambda_monthly)
-# Bi-infinite HP: this is our new target (instead of one-sided MSE in example 1)
-hp_target=HP_obj$target
+# Set the HP smoothing parameter for monthly data.
+# lambda = 14400 is the standard monthly calibration (Hodrick-Prescott, 1997).
+lambda_monthly <- 14400
+
+# Compute the HP target, HP-gap, and HP-trend (classic concurrent) filters.
+HP_obj <- HP_target_mse_modified_gap(L_sym, lambda_monthly)
+
+# Bi-infinite (two-sided symmetric) HP-trend: serves as the estimation target.
+# This represents the ideal smoother we wish to approximate in real time.
+hp_target <- HP_obj$target
 ts.plot(hp_target)
-# Gap
-hp_gap<-HP_obj$hp_gap
+
+# HP-gap filter: the complement of the HP-trend, extracting the cyclical component.
+# Applied to levels, this is a high-pass filter.
+hp_gap <- HP_obj$hp_gap
 ts.plot(hp_gap)
-# Classic concurrent
-hp_trend<-HP_obj$hp_trend
+
+# Classic one-sided (concurrent) HP-trend filter for real-time estimation.
+hp_trend <- HP_obj$hp_trend
 ts.plot(hp_trend)
-# Gap is 1-hp_trend
-# Check: the difference of the following filters should vanish everywhere
-max(abs((c(1,rep(0,L_sym-1))-hp_trend)-hp_gap))
 
-#---------------------------------------------
-# 7.2 Transformation: from levels to first differences
-# The gap filter is applied to data in levels: this renders a direct analysis cumbersome and difficult
-# Instead, we here derive a filter whose output is the same as HP-gap when applied to first differences, see tutorial 2.0
-# This transformation will simplify our analysis, see proposition 4 in JBCY paper for background.
-gap_diff<-conv_with_unitroot_func(hp_gap)$conv
-par(mfrow=c(2,1))
-# Note that the coefficients of the new filter ham_diff vanish for lags larger than length of Hamilton_filter_adjusted and therefore we could set L=length(hamilton_filter_adjusted)
-ts.plot(gap_diff,main="HP-gap as applied to first differences")
-ts.plot(hp_gap,main="HP-gap as applied to level")
+# Verify the fundamental identity: HP-gap = delta_0 - HP-trend,
+# where delta_0 is a unit impulse (i.e., the identity operator in levels).
+# The maximum absolute deviation should be zero (or machine precision).
+max(abs((c(1, rep(0, L_sym - 1)) - hp_trend) - hp_gap))
 
-# We now verify that the outputs of both filters are identical
+# ------------------------------------------------------------------------
+# 7.2 Transformation: expressing the HP-gap in terms of first differences
+# ------------------------------------------------------------------------
+# The HP-gap filter is defined for data in levels, which makes direct
+# frequency-domain analysis difficult (levels are typically non-stationary).
+# To simplify the analysis, we derive an equivalent filter — gap_diff — that
+# produces identical output to HP-gap when applied to first differences of the
+# input series (see Tutorial 2.0 and Proposition 4 in the JBCY paper).
+# This transformation allows us to interpret the filter's spectral properties
+# in terms of a (near-stationary) differenced series.
+
+gap_diff <- conv_with_unitroot_func(hp_gap)$conv
+
+par(mfrow = c(2, 1))
+# Note: the coefficients of gap_diff decay to zero beyond the length of the
+# original hp_gap filter, so the effective filter length is well-defined.
+ts.plot(gap_diff, main = "HP-gap as applied to first differences")
+ts.plot(hp_gap,   main = "HP-gap as applied to levels")
+
+# ------------------------------------------------------------------------
+# Verify that hp_gap applied to levels and gap_diff applied to first 
+# differences produce numerically identical outputs.
+# ------------------------------------------------------------------------
 set.seed(252)
-len<-L+2000
-# Generate random-walk: data in levels will be fed to hp_gap
-y<-cumsum(rnorm(len))
-# Difference data: this will be fed to gap_diff: lengthen series with a zero to match y
-x<-c(0,diff(y))
-len_diff<-length(x)
-# Compute new cycle based on new filter ham_diff applied to returns
-yhat_diff<-filter(x,gap_diff,side=1)
-yhat_gap<-filter(y,hp_gap,side=1)
+len <- L + 2000
 
-# Check: both series are identical
-par(mfrow=c(1,1))
-ts.plot(yhat_diff,col="blue",main="Transformed HP-gap applied to differences replicates original HP-gap applied to levels")
-lines(yhat_gap,col="red")
-#-------------------------------------------
-# 7.3 We can now compute the amplitude  of HP-gap or, better, gap_diff as applied to first differences
-# First differences of typical economic data are generally close to white noise (typical spectral shape, see Granger (1966))
-# Therefore the squared amplitude of gap_diff is close to the spectral density of the filter output (convolution theorem)
-#   This is the main reason for considering gap_diff: we can derive the spectral density of the extracted cycle
+# Simulate a random walk in levels (unit-root process) to feed into hp_gap.
+y <- cumsum(rnorm(len))
 
-# We now select the number of equidistant frequency ordinates (grid-size) in [0,pi] 
-K<-600
-# Compute amplitude of gap_diff
-amp_gap_diff<-amp_shift_func(K,as.vector(gap_diff),F)$amp
+# Compute first differences to feed into gap_diff.
+# A leading zero is prepended to align the length of x with y.
+x      <- c(0, diff(y))
+len_diff <- length(x)
 
-# Plot amplitude function
-plot(amp_gap_diff,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Amplitude HP-gap as applied to differences",sep=""))
-axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+# Apply the transformed filter to differences.
+yhat_diff <- filter(x, gap_diff, side = 1)
+# Apply the original HP-gap filter to levels.
+yhat_gap  <- filter(y, hp_gap,   side = 1)
+
+# Overlay both outputs: they should be indistinguishable (exact numerical match).
+par(mfrow = c(1, 1))
+ts.plot(yhat_diff, col = "blue",
+        main = "Transformed HP-gap applied to differences replicates original HP-gap applied to levels")
+lines(yhat_gap, col = "red")
+
+# ------------------------------------------------------------------------
+# 7.3 Spectral analysis of the HP-gap filter via gap_diff
+# ------------------------------------------------------------------------
+# First differences of typical macroeconomic data are approximately white noise
+# (see Granger, 1966, for the characteristic spectral shape of economic series).
+# Under this approximation, the squared amplitude of gap_diff is proportional
+# to the spectral density of the HP-gap filter output (by the convolution theorem).
+# Analysing gap_diff therefore provides direct insight into the spectral content
+# of the extracted HP-gap cycle — this is the main motivation for the transformation.
+
+# Set the frequency grid resolution: K equidistant ordinates over [0, pi].
+K <- 600
+
+# Compute the amplitude function of gap_diff over the frequency grid.
+amp_gap_diff <- amp_shift_func(K, as.vector(gap_diff), F)$amp
+
+# Plot the amplitude function of gap_diff.
+# This reveals which frequencies are passed, attenuated, or amplified by the filter.
+plot(amp_gap_diff,
+     type = "l", axes = F,
+     xlab = "Frequency", ylab = "",
+     main = paste("Amplitude HP-gap as applied to differences", sep = ""))
+axis(1, at = 1 + 0:6 * K / 6,
+     labels = expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
 
-# Plot squared amplitude function: this is the true spectral density of the original HP-gap `cycle', when applied to a random-walk
-# This is a good proxy of the true spectral density of the HP-gap `cycle' when applied to typical (non-stationary) economic data in levels
-par(mfrow=c(1,1))
-plot(amp_gap_diff^2,type="l",axes=F,xlab="Frequency",ylab="",main=paste("Squared amplitude HP-gap as applied to differences",sep=""))
-axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+# Plot the squared amplitude function of gap_diff.
+# Under the white-noise approximation for first differences, this equals the
+# true spectral density of the HP-gap cycle when the input is a random walk —
+# a good proxy for spectral behaviour with typical non-stationary economic data.
+par(mfrow = c(1, 1))
+plot(amp_gap_diff^2,
+     type = "l", axes = F,
+     xlab = "Frequency", ylab = "",
+     main = paste("Squared amplitude HP-gap as applied to differences", sep = ""))
+axis(1, at = 1 + 0:6 * K / 6,
+     labels = expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
 
-# Outcomes:
-#   1. The original HP-gap is a highpass when applied to levels, see tutorial 2.0; but it is a bandpass when applied to first differences (the above amplitude vanishes at frequency zero)
-#     The one-sided HP-gap assumes a second order unit-root: after first differences, gap_diff must still remove a remaining unit-root
-#   2. HP-gap tends to generate a spurious cycle whose periodicity corresponds to the frequency of the peak-amplitude in the above plot
+# Key findings from the spectral analysis:
+#   1. Band-pass behaviour after differencing:
+#      Applied to levels the HP-gap is a high-pass filter (Tutorial 2.0), but
+#      applied to first differences gap_diff behaves as a band-pass filter
+#      (amplitude vanishes at frequency zero). This occurs because the one-sided
+#      HP-gap implicitly assumes a second-order unit root: after one round of
+#      differencing, gap_diff must still remove the remaining unit root.
+#   2. Spurious cycle risk:
+#      The filter concentrates spectral energy around a peak frequency, which
+#      corresponds to a specific periodicity. This peak drives a spurious cycle
+#      in the filter output, independent of any true cyclical feature in the data.
 
-# Let's briefly check the second claim
-# This is the frequency of the peak-amplitude
-omega_gap<-pi*(which(amp_gap_diff==max(amp_gap_diff))-1)/K
-# The periodicity in months: 
-2*pi/omega_gap
-# Approximately 6 years: a bit short for a completed cycle when compared against the duration of longer expansions (great moderation) 
-#   Therefore HP-gap tends to generate spurious alarms in midst of expansions, see tutorials 2.0 and 5
+# ------------------------------------------------------------------------
+# Identify the dominant (peak) frequency and its implied periodicity.
+# ------------------------------------------------------------------------
 
-# The periodogram of the filter output confirms our findings: low and high frequencies are damped, 
-#   thus generating a spurious cycle at the peak frequency
-per_obj<-per(na.exclude(yhat_gap),T)
-# The acf confirms these findings
+# Frequency (in radians) at which the amplitude of gap_diff is maximised.
+omega_gap <- pi * (which(amp_gap_diff == max(amp_gap_diff)) - 1) / K
+
+# Convert the peak frequency to a period expressed in months.
+2 * pi / omega_gap
+# Result: approximately 72 months (6 years).
+# This is shorter than many historical expansions (e.g., the Great Moderation),
+# meaning the HP-gap tends to signal mid-expansion cycle peaks that are
+# artefacts of the filter rather than genuine turning points.
+# See Tutorials 2.0 and 5 for detailed empirical evidence.
+
+# ------------------------------------------------------------------------
+# Corroborate the spectral findings using the periodogram and ACF.
+# ------------------------------------------------------------------------
+
+# Periodogram of the HP-gap output: confirms damping of both low and high
+# frequencies, with a spectral peak near the spurious cycle frequency.
+per_obj <- per(na.exclude(yhat_gap), T)
+
+# ACF of the HP-gap output: the autocorrelation structure reflects the
+# imposed periodicity and confirms the presence of the spurious cycle.
 acf(na.exclude(yhat_gap))
-# Finally: here's the cyle
-par(mfrow=c(1,1))
+
+# ------------------------------------------------------------------------
+# Visualise the extracted HP-gap cycle.
+# ------------------------------------------------------------------------
+par(mfrow = c(1, 1))
 ts.plot(yhat_gap)
-abline(h=0)
-# There are lots of noisy zero-crossings, too, which would hamper a real-time assessment of the cycle, see tutorials 2.0 and 5
-#   As we shall see, the Baxter and King filter is subject to similar issues, see tutorial 4
-# These findings confirm and reinforce Hamilton's statement: never use the HP (-gap) filter for BCA
-# But we may add: try the HP-concurrent lowpass instead, as applied to differences, see tutorials 2.0 and 5
-# Tutorial 2.0 shows that HP-trend applied to differences is a more conservative design (than the original HP-gap)
-#   -It tracks expansions and recessions well (neither too smooth nor too noisy: a smart compromise); 
-#   -It does not generate spurious alarms years ahead of (or past) effective recessions; 
-#   -It is slightly lagging behind HP-gap at start and end of recessions;
-#   -Its real-time characteristics can be modified by SSA in order to match specific priorities, see the above examples
+abline(h = 0)
+# Observations:
+#   - The cycle contains numerous noisy zero-crossings, which would make
+#     real-time business cycle assessment unreliable and prone to false signals.
+#   - The Baxter-King band-pass filter shares similar drawbacks; see Tutorial 4.
+
+# ------------------------------------------------------------------------
+# Conclusions
+# ------------------------------------------------------------------------
+# The above findings confirm and reinforce Hamilton's recommendation:
+#   "Never use the HP-gap filter for Business Cycle Analysis."
+#
+# However, the HP-trend (lowpass) filter applied to first differences offers
+# a practical and well-behaved alternative:
+#   - It reliably tracks expansions and recessions (neither over- nor under-smoothed).
+#   - It avoids the spurious cycle that afflicts the HP-gap.
+#   - It does not generate false alarms mid-expansion or mid-recession.
+#   - It lags slightly behind HP-gap at turning points — a minor and acceptable trade-off.
+#   - Its real-time properties can be further refined using SSA to match
+#     specific practitioner priorities (see Examples 1–6 above).
+# See Tutorial 2.0 for a full comparative analysis of HP-trend vs. HP-gap applied
+# to differences.
+
+
+
+
 
 
 ##########################################################################################################
