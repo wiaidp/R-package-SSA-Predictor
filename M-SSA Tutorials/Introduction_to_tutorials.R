@@ -1,103 +1,317 @@
-# This series of tutorials is about optimal prediction.
+# ─────────────────────────────────────────────────────────────────
+# M-SSA PREDICTOR: A TUTORIAL SERIES
+# ─────────────────────────────────────────────────────────────────
+# This series of tutorials introduces methods for optimal prediction,
+# with a focus on controlling key characteristics of the predictor.
 
-# For background: see Wildi, M. (2024) Business Cycle Analysis and Zero-Crossings of Time Series: a Generalized Forecast Approach: https://doi.org/10.1007/s41549-024-00097-5.
+# ── BACKGROUND REFERENCES ────────────────────────────────────────
+# The following papers provide the theoretical foundations:
+#
+#   Wildi, M. (2024) Business Cycle Analysis and Zero-Crossings of
+#     Time Series: a Generalized Forecast Approach. Published in Journal of Business-Cycle Research
+#     https://doi.org/10.1007/s41549-024-00097-5
+#
+#   Wildi, M. (2026a) Sign Accuracy, Mean-Squared Error and the Rate
+#     of Zero Crossings: a Generalized Forecast Approach.
+#     https://doi.org/10.48550/arXiv.2601.06547 (published on arXiv)
+#
+#   Wildi, M. (2026b) The Accuracy-Smoothness Dilemma in Prediction:
+#     a Novel Multivariate M-SSA Forecast Approach.
+#     https://doi.org/10.48550/arXiv.2602.13722. Published in Journal of Time Series Analysis (and arXiv)
+#
+# Note: Working paper versions are available in the 'Papers' folder
+# of this GitHub repository. Working papers contain full proofs and
+# detailed technical results, whereas published versions are more
+# streamlined, occasionally moving proofs to online appendices.
 
-# The structure of a prediction problem  can put forward different aspects of a predictor
-#   -One-step ahead forecasting: short-term performances, track higher frequency components
-#   -Multi-step ahead forecasting: fit and extrapolate short- and mid-term components
-#   -Cycle or trend extraction: emphasize mid and/or long-term components, suppress short-term `noise' 
-#   -Level performances vs. sign-changes vs. lead/lag (advancement, retardation)
+# ── PREDICTION OBJECTIVES ────────────────────────────────────────
+# The structure of a prediction problem shapes which predictor
+# properties matter most. Key distinctions include:
+#
+#   • One-step ahead forecasting
+#       → Prioritizes short-term accuracy; captures rapidly evolving
+#         (higher-frequency) dynamics
+#
+#   • Multi-step ahead forecasting
+#       → Fits and extrapolates short- to medium-term components;
+#         high-frequency variation is less critical
+#
+#   • Cycle or trend extraction
+#       → Emphasizes medium- and long-term components;
+#         short-term noise is suppressed
+#
+#   • Performance criteria
+#       → Level accuracy vs. sign-change detection
+#         vs. lead/lag behavior (advancement or retardation)
+# ─────────────────────────────────────────────────────────────────
 
-# Subjective preferences, priorities, risk aversion of the analyst can also put forward different aspects of a predictor
+# ── ANALYST PREFERENCES AND PREDICTOR PRIORITIES ─────────────────
+# Beyond problem structure, subjective preferences, priorities, and
+# risk aversion of the analyst further shape which predictor
+# properties are emphasized.
+#
+# Forecast performance can accordingly be assessed along multiple
+# dimensions:
+#
+#   • Mean-Squared Error (MSE) / Closeness to target
+#       → Measures how closely the predictor tracks the target signal
+#
+#   • Smoothness / Noise suppression
+#       → Controls the "wiggliness" of the predictor and reduces
+#         the rate of spurious, noise-driven alarms
+#
+#   • Timeliness / Lead-lag behavior
+#       → Controls the systematic advancement or retardation of the
+#         predictor relative to the target (i.e., how early or late
+#         an alarm is triggered)
 
-# Accordingly, forecast performances can address multiple characteristics of a predictor such as:
-#   -Mean-square error performances (MSE) or `closeness to target': 
-#   -Smoothness or noise suppression: controlling the `wiggleness' of a predictor or the rate of false noisy alarms. 
-#   -Timeliness or lead/lag: controlling the systematic advancement or retardation (until an alarm is set)
+# ── SSA: SIMPLE/SMOOTH SIGN ACCURACY ─────────────────────────────
+# SSA (Simple Sign Accuracy or Smooth Sign Accuracy) is a flexible
+# prediction framework applicable to:
+#   • One-step ahead, multi-step ahead, backcasting,
+#     nowcasting, and forecasting settings
+#
+# SSA explicitly targets key predictor characteristics:
+#   • MSE performance
+#   • Noise suppression  (smoothness, wiggliness,
+#                         rate of zero-crossings)
+#   • Timeliness         (lead, left-shift, reduced phase-lag)
+#
+# Note: SSA can be configured to replicate the classical MSE
+# predictor as a special case — see Tutorial 0.3.
 
+# ── M-SSA: MULTIVARIATE EXTENSION ────────────────────────────────
+# M-SSA generalizes the SSA framework to a multivariate setting,
+# allowing joint control of predictor characteristics across
+# multiple time series.
 
-# SSA is an acronym for Simple Sign Accuracy or Smooth Sign Accuracy. 
-# SSA: addresses prediction 
-#   -one step ahead, multi-step ahead, backcasting, nowcasting or forecasting 
-# SSA emphasizes characteristics of a predictor which are related to 
-#   -MSE, 
-#   -noise suppression (wiggleness, smoothness, rate of zero-crossings) 
-#   -timeliness (lead, left-shift, reduced phase-lag)
-# SSA can be configurated such that it replicates the classic MSE predictor, see tutorial 0.3
-
-# Forecast trilemma, see tutorial 0.1
-#   -MSE performances, smoothness and timeliness constitute a forecast trilemma
-#   -the MSE predictor does not directly relate to smoothness or timeliness
-# Therefore  
-#   -the predictor is often subject to noise-leakage (unsystematic random dynamics, wiggleness), see tutorial 0.3
-#   -the predictor is generally lagging behind the target (right-shift or lag), see tutorial 0.3
- 
+# ── THE FORECAST TRILEMMA ─────────────────────────────────────────
+# MSE performance, smoothness, and timeliness constitute a
+# forecast trilemma — see Tutorial 0.1.
+# These three objectives are inherently in tension:
+#
+#   • The classical MSE predictor does not directly optimize
+#     for smoothness or timeliness.
+#
+# As a consequence, the MSE predictor typically exhibits:
+#
+#   • Noise leakage
+#       → Unsystematic random dynamics ("wiggliness") contaminate
+#         the predictor — see Tutorial 0.3
+#
+#   • Lag bias
+#       → The predictor systematically trails behind the target
+#         (right-shift or phase-lag) — see Tutorial 0.3
+# ─────────────────────────────────────────────────────────────────
     
-# SSA optimization principle, see tutorial 0.2
-#   Maximize sign-accuracy under a holding-time constraint
-#     -Sign-accuracy: probability of matching the correct sign of the target by the predictor
-#     -Holding-time: expected duration between consecutive zero-crossings of the predictor
-# Criterion as implemented in R-code:
-#   -Maximize correlation of predictor and target (the same as sign-accuracy)
-#   -subject to a constraint of the lag-one ACF of the predictor (the same as expected duration between crossings)
-# See section 2 in JBCY paper for background
+# ── SSA OPTIMIZATION PRINCIPLE ────────────────────────────────────
+# See Tutorial 0.2 for implementation details.
+#
+# Core objective:
+#   Maximize sign-accuracy subject to a holding-time constraint
+#
+#   • Sign-accuracy
+#       → Probability that the (mean-zero) predictor correctly
+#         matches the sign of the (mean-zero) target
+#
+#   • Holding-time
+#       → Expected duration between consecutive zero-crossings
+#         (sign changes) of the predictor
+#
+# As implemented in the R code, the criterion is reformulated as:
+#
+#   • Maximize the correlation between predictor and target
+#       → Equivalent to maximizing sign-accuracy under Gaussianity;
+#         near-equivalent for non-Gaussian processes in practice
+#
+#   • Subject to a constraint on the first-order ACF of the predictor
+#       → Equivalent to controlling holding-time under Gaussianity;
+#         near-equivalent for non-Gaussian processes in practice
+#
+# Theoretical background:
+#   → Section 2 of the cited JBCY, SSA and M-SSA papers 
 
-# Motivation
-# -In applications, zero-crossings (sign changes) can be markers of important or relevant events 
-#     asking for possible interventions of decision-makers or market players:
-# -Examples:
-#   -a. Automatic trading algorithms often rely on zero-crossings of suitably filtered (financial) time series (e.g. MA-cross filters)
-#     to identify investment opportunities into bullish or de-investment from bearish markets 
-#   -b. Recession indicators often rely on zero-crossings of a suitably filtered macro-series (or aggregate of series)
-#   -c. Business-cycle analysis (BCA) assumes the existence of a more less regular and recurrent pattern (cycle) of the 
-#     economy, which can be divided into expansion (growth) and contraction (recession) phases.
-#       -`Anti-cyclical' policies are derived from the state of the cycle
-#       -the state of the cycle changes at its zero-crossings
-#   -d. Control problems (for example monitoring of industrial processes) can often be formulated in terms of filters exceeding 
-#     some thresholds (which could be transformed into zero-crossings straightforwardly)
-# -The classic MSE predictor is often noisy and lagging, see tutorial 0.3
-# -SSA can improve upon a benchmark in terms of 
-#   -noise suppression (less noisy alarms)  
-#   -timeliness (lead or left-shift). 
-#   -SSA can be both `smoother' and `faster' than the benchmark, see tutorials 2-5
+# ── MOTIVATION: WHY ZERO-CROSSINGS MATTER ─────────────────────────
+# In many applications, zero-crossings (sign changes) serve as
+# markers of significant events, triggering decisions or
+# interventions by analysts, decision-makers, or market participants.
+#
+# Illustrative examples:
+#
+#   a. Algorithmic trading
+#       → Automated strategies frequently rely on zero-crossings of
+#         filtered financial time series (e.g., MA-crossover filters)
+#         to signal entry into bullish markets or exit from bearish ones
+#
+#   b. Recession indicators
+#       → Turning-point detection often hinges on zero-crossings of a
+#         filtered macroeconomic series or composite aggregate. 
+#
+#   c. Business cycle analysis (BCA)
+#       → BCA posits a broadly regular, recurrent economic cycle
+#         alternating between expansion and contraction phases
+#         → Anti-cyclical policy responses are derived from the
+#           current phase of the cycle
+#         → Phase transitions occur precisely at zero-crossings
+#
+#   d. Industrial process control
+#       → Monitoring problems are often framed as a filter exceeding
+#         a threshold — readily recast as a zero-crossing problem
+#
+# Limitations of the classical MSE predictor:
+#   → Tends to be noisy (spurious alarms) and lagging
+#     behind the target — see Tutorial 0.3
+#
+# SSA improves upon the MSE benchmark by offering:
+#   • Noise suppression  → fewer spurious alarms
+#   • Timeliness         → lead or left-shift relative to target
+#
+# Notably, SSA can be simultaneously smoother and faster than the
+# benchmark — see Tutorials 2–5.
 
-# Background
-#   -SSA can set different priorities within the limits spanned by the cited forecast trilemma
-#   -Control (navigation) is provided by a set of two hyperparameters: the holding-time (or lag-one ACF) and the forecast horizon
-#   -It is possible to assign full-weight to MSE and to replicate the classic predictor, see tutorial 0.3
-#     -In this sense SSA generalizes MSE (see the remark after theorem 1 in the JBCY paper for background)
-#   -In principle, any linear forecast rule can be replicated by SSA 
-#     -In this sense, SSA generalizes the class of linear predictors
-#   -All our examples emphasize univariate linear predictors: a multivariate SSA extension is on the way
+# ── SSA: BACKGROUND AND SCOPE ─────────────────────────────────────
+# SSA navigates the forecast trilemma through two hyperparameters:
+#   • Holding-time (or equivalently, first-order ACF)
+#   • Forecast horizon
+#
+# These controls allow the analyst to set priorities freely within
+# the space defined by the trilemma.
+#
+# Key properties:
+#
+#   • Generalization of MSE
+#       → Assigning full weight to MSE replicates the classical
+#         predictor exactly — see Tutorial 0.3 and the remark
+#         after Theorem 1 in the JBCY paper
+#
+#   • Generalization of linear predictors
+#       → In principle, any linear forecast rule can be replicated
+#         within the SSA framework
+#
+#   • Customization of benchmarks
+#       → Once a classical linear forecast is replicated, SSA can
+#         be used to make it faster, smoother, or both
+#
+#   • Scope
+#       → SSA addresses univariate linear predictors;
+#         M-SSA extends the framework to multivariate designs
+# ─────────────────────────────────────────────────────────────────
+# ── SSA AS A PLUG-ON ──────────────────────────────────────────────
+# SSA can be used in two distinct modes:
+#
+#   • Standalone
+#       → SSA operates as a self-contained, original forecast
+#         algorithm in its own right
+#
+#   • Plug-on
+#       → SSA is grafted onto an existing benchmark predictor,
+#         enhancing its smoothness and/or timeliness in a
+#         controlled and predictable manner
+#
+# In this tutorial series, plug-on applications are demonstrated
+# for the following benchmarks:
+#
+#   • MSE predictor              → Tutorials 0–5
+#   • Hodrick-Prescott (HP) filter  → Tutorials 2 and 5
+#   • Hamilton filter (HF)          → Tutorial 3
+#   • Baxter-King (BK) filter        → Tutorial 4
+#   • Beveridge-Nelson (refined)     → Tutorial 5
 
-# Plug-on
-# -SSA can be considered as a self-contained and original forecast algorithm  
-# -But SSA can also be engrafted onto an existing benchmark in view of controlling its smoothness and/or timeliness characteristics 
-#   in a foreseeable way. 
-# -In this series of tutorials we propose `plug-on' applications to
-#   -MSE: see tutorials 0-5
-#   -Hodrick-Prescott (HP) filter: see tutorials 2 and 5
-#   -Hamilton filter (HF): see tutorial 3
-#   -Baxter and King (BK) filter: see tutorial 4
-# -Since SSA tracks the benchmark optimally, we argue that SSA retains interpretability (the original meaning or economic content) 
-#     of the latter 
-# -In our tutorials we typically ask SSA 
-#   -to increase ht by up to 50% (reduction by up to 33% of unwanted `noisy' alarms)
-#   -to lead the benchmark, typically between 1 and up to 6 time units
-#   -Asking for more or less is possible; but always within the confines of the trilemma, i.e. at costs of MSE
-# -Our R-package allows to evaluate the trilemma tradeoff by computing explicitly smoothness, MSE or timeliness contributions
+# ── INTERPRETABILITY ──────────────────────────────────────────────
+# Since SSA tracks the benchmark optimally, it inherits and
+# preserves the interpretability of the latter — including its
+# original economic meaning and content.
+
+# ── TYPICAL PLUG-ON CONFIGURATIONS IN THIS TUTORIAL SERIES ──────────────
+# In the tutorials, SSA plug-on applications are configured to:
+#
+#   • Increase holding-time (ht)
+#       → Mean duration between consecutive zero-crossings
+#         extended by up to 50%, reducing spurious noisy alarms
+#         by up to 33%
+#
+#   • Advance the benchmark (lead / left-shift)
+#       → Typically between 1 and 6 time units ahead of the target
+#
+# More aggressive settings (faster and/or smoother) are possible,
+# but always within the constraints of the forecast trilemma —
+# i.e., at the cost of increased MSE.
+
+# ── TRILEMMA TRADEOFF EVALUATION ──────────────────────────────────
+# The accompanying R package provides explicit decomposition of the
+# trilemma tradeoff, computing separate contributions from:
+#   • Smoothness
+#   • MSE
+#   • Timeliness
+# ─────────────────────────────────────────────────────────────────
 
 
-# Assumptions
-# -We assume a stationary zero-mean target or predictor
-#   -Otherwise zero-crossings would not be properly defined anymore
-# -Formally, we assume Gaussianity
-#   -In that case, sign accuracy and holding-time can be addressed by correlation and lag-one ACF exactly, see section 2 of JBCY paper
-#   -SSA is fairly robust against departures of Gaussianity (vola-clustering, heavy-tails) due to a central limit theorem.
-#     -This means that `typical' departures from Gaussianity, such as found in many economic series, do not affect performances unduly, in general. 
-# Non-Zero crossings 
-#   -if crossings are measured and counted on a non-zero level, then ht is biased in absolute terms but relative 
-#     performances, against a benchmark, are unaffected, see tutorials 1-5 
+# ── ASSUMPTIONS ───────────────────────────────────────────────────
+#
+# ── Stationarity and zero mean ────────────────────────────────────
+# For simplicity, the target and predictor are assumed to be
+# stationary and zero-mean.
+#   • For processes with a non-zero mean, zero-crossings should be
+#     replaced by mean-crossings throughout
 
+# ── Gaussianity ───────────────────────────────────────────────────
+# The formal theoretical framework assumes Gaussian processes.
+#   • Under Gaussianity, sign-accuracy and holding-time map exactly
+#     onto correlation and first-order ACF, respectively
+#     → See Section 2 of the JBCY, SSA, and M-SSA papers
+#
+#   • SSA is robust to departures from Gaussianity
+#     (e.g., volatility clustering, heavy tails)
+#     → This robustness follows from a central limit theorem argument
+#     → Typical deviations from Gaussianity, as commonly encountered
+#       in economic time series, do not materially affect performance
 
-
+# ── Crossings at non-mean thresholds ──────────────────────────────
+# When zero-crossings are measured at a threshold above or below
+# the mean (rather than at the mean itself):
+#
+#   • The holding-time (ht) statistic becomes biased at the
+#     absolute level
+#
+#   • However, relative performance against a benchmark is
+#     generally preserved:
+#     → SSA remains smoother and produces fewer crossings than
+#       the benchmark even at off-mean thresholds
+#     → See Tutorials 1–5 for empirical illustration
+# ─────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# ── M-SSA, MDFA AND DFP/PCS PREDICTORS: A COMPARATIVE OVERVIEW ─────────────
+#
+# Historical context:
+#   • DFA/MDFA   → origins in 2002 research and culminates in new MDFA book coauthored with Tucker McElroy (MDFA tutorials repository on github)
+#   • M-SSA      → developed from early 2020 (M-SSA tutorials repository on github)
+#   • DFP/PCS    → developed from mid 2020 (not yet on github)
+#
+# Common ground:
+#   All three prediction frameworks are organized around the forecast trilemma,
+#   jointly addressing Accuracy, Timeliness, and Smoothness —
+#   albeit with practically relevant differences in formulation
+#   and interpretation.
+#
+# Key distinctions:
+#
+#   • Domain
+#       → MDFA operates in the frequency domain
+#       → M-SSA and DFP/PCS are formulated in the time domain
+#
+#   • Trilemma decomposition in MDFA
+#       → MSE is decomposed into amplitude and phase contributions,
+#         which define the smoothness and timeliness terms
+#         respectively — see cited literature for details
+#
+#   • Smoothness in M-SSA
+#       → Measured as the mean duration between consecutive
+#         sign changes of a zero-mean predictor (holding-time)
+#       → Yields more direct and intuitive interpretation
+#         than the MDFA amplitude-based formulation
+#
+#   • Timeliness in DFP/PCS
+#       → Quantified via the effective time-shift of the predictor
+#         (rather than phase in the frequency domain)
+#       → Yields more direct and intuitive interpretation
+#         than the MDFA phase-based formulation

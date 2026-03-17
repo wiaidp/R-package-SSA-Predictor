@@ -1,13 +1,42 @@
-# In this tutorial we explain the SSA criterion based on a simple case study
-#   -This background is needed for understanding some of the counter-intuitive `idiosyncrasies' of our approach
-#   -For example: the predictor is claimed to predict signs and to control zero-crossings
-#   -But the criterion relies on cross-correlations and lag-one autocorrelations only: nothing about signs!  
-#   -The example illustrates that SSA effectively `does the job`
-# There exist alternative approaches for predicting signs of a target
-#   -We argue that SSA is more efficient than these!
-#   -In particular, we benchmark SSA to a classic logit model in example 2 of this tutorial
-# For background, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5. 
+# ════════════════════════════════════════════════════════════════════
+# TUTORIAL 0.2 — SSA: THE OPTIMIZATION CRITERION
+# ════════════════════════════════════════════════════════════════════
 
+# ── PURPOSE ───────────────────────────────────────────────────────
+# This tutorial explains the SSA optimization criterion through a
+# simple, illustrative case study.
+#
+# A key motivation is to resolve an apparent paradox in the approach:
+#
+#   • SSA is designed to predict signs and control zero-crossings
+#       → Yet the criterion relies solely on cross-correlations
+#         and first-order autocorrelations — with no explicit reference
+#         to signs
+#
+# The case study demonstrates that, despite this apparent disconnect,
+# SSA effectively achieves its stated objectives.
+
+# ── COMPARISON WITH ALTERNATIVE APPROACHES ────────────────────────
+# Alternative methods exist for directly predicting the sign of a
+# target series. This tutorial argues that SSA is more statistically
+# efficient than such alternatives.
+#
+# The key reason:
+#   → SSA exploits the full information set of the time series,
+#     whereas sign-based approaches (such as logit models) reduce
+#     the data to a binary sequence, discarding valuable magnitude
+#     information in the process.
+#
+#   • Example 2 benchmarks SSA against a classical logit model,
+#     providing direct empirical evidence for this efficiency claim.
+# ─────────────────────────────────────────────────────────────────
+
+# ── BACKGROUND ────────────────────────────────────────────────────
+#   Wildi, M. (2024)
+#     Business Cycle Analysis and Zero-Crossings of Time Series:
+#     a Generalized Forecast Approach.
+#     https://doi.org/10.1007/s41549-024-00097-5
+# ─────────────────────────────────────────────────────────────────
 
 rm(list=ls())
 
@@ -29,7 +58,7 @@ plot(gamma,axes=F,type="l",xlab="Lag-structure",ylab="filter-coefficients",main=
 axis(1,at=1:length(gamma),labels=(-(length(gamma)+1)/2)+1:length(gamma))
 axis(2)
 box()
-# Note that the above plot indicates that gamma is meant as a two-sided (acausal) filter
+# Note that the above plot indicates that gamma is meant as a two-sided (acausal) filter with weights assigned to both past and future data
 
 # We can apply the filter to white noise: xt=epsilont
 set.seed(231)
@@ -42,7 +71,7 @@ x<-epsilon
 acf(x)
 
 
-# We can filter the data: either by assuming a two-sided a causal design (side=2) or a causal one-sided design (side=1)
+# We can filter the data: either by assuming a two-sided acausal design (side=2) or a causal one-sided design (side=1)
 y_sym<-filter(x,gamma,side=2)
 y_one_sided<-filter(x,gamma,side=1)
 
@@ -53,15 +82,29 @@ tail(cbind(y_sym,y_one_sided))
 
 ts.plot(cbind(y_sym,y_one_sided),col=c("black","black"),lty=1:2,main="One-sided vs. two-sided")
 
-# -In applications one is often interested in obtaining estimates of y_sym towards the sample end
-# -An estimate of y_sym at the sample end t=len is called a nowcast: in the above example, we have to compute 
-#   forecasts for the future data x_{len+1}, x_{len+2},x_{len+3} missing in the symmetric filter at the sample end. 
-#   If we compute MSE-forecasts, then we obtain an MSE estimate of zt at t=len.
-# -In our case (white noise) the MSE forecasts of the future data are zero and we obtain the one-sided truncated 
-#   filter as our optimal causal MSE nowcast
+# ── NOWCASTING AT THE SAMPLE END ──────────────────────────────────
+# In practice, estimates of the symmetric filter output (y_sym)
+# are often required at or near the sample boundary.
+#
+# Definition:
+#   • An estimate of y_sym at the sample end (t = len) is called
+#     a nowcast
+#
+# The nowcasting problem:
+#   • At t = len, the symmetric filter requires future observations
+#     x_{len+1}, x_{len+2}, x_{len+3} that are not yet available
+#   • These missing values must be replaced by forecasts
+#   • Substituting MSE-optimal forecasts yields the MSE-optimal
+#     estimate of y_sym at the sample end
+#
+# Special case — white noise input:
+#   • MSE forecasts of future white noise observations are zero
+#   • The optimal causal MSE nowcast therefore reduces to the
+#     one-sided truncated filter
+# ─────────────────────────────────────────────────────────────────
 
 b_MSE<-gamma[((length(gamma)+1)/2):length(gamma)]
-plot(b_MSE,axes=F,type="l",xlab="Lag-structure",ylab="filter-coefficients",main="MSE-nowcast filter")
+plot(b_MSE,axes=F,type="l",xlab="Lag-structure",ylab="filter-coefficients",main="MSE-nowcast filter, assuming white noise data")
 axis(1,at=1:((length(gamma)+1)/2),labels=-1+1:((length(gamma)+1)/2))
 axis(2)
 box()
@@ -75,43 +118,62 @@ y_sym<-filter(x,gamma,side=2)
 ts.plot(cbind(y_sym,y_mse),col=c("black","green"),lty=1:2,main="Target (black) vs MSE (green)")
 abline(h=0)
 
-# Holding times were introduced in tutorial 0.1 (mean duration between consecutive zero-crossings)
-# 1: empirical ht
+# ── HOLDING-TIME: EMPIRICAL VS. EXPECTED ──────────────────────────
+# Holding-time (ht): mean duration between consecutive zero-crossings
+# Introduced in Tutorial 0.1.
+
+# 1. Empirical ht — two-sided and one-sided filters
 compute_empirical_ht_func(y_sym)
 compute_empirical_ht_func(y_mse)
-# 2. true or expected ht, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
+
+# 2. True (expected) ht — see Wildi, M. (2024) and (2026a), Section 2
 compute_holding_time_func(gamma)$ht
 compute_holding_time_func(b_MSE)$ht
-# Empirical ht converge to expected ht for increasing sample size len
 
+# Note: empirical ht converges to expected ht as sample size (len)
+# increases.
 
-# The SSA criterion emphasizes zero-crossings or sign accuracy: it aims at maximizing the probability that the 
-#   predictor yt forecasts the sign of the target z_{t+delta} correctly
+# ── SIGN ACCURACY: EMPIRICAL ESTIMATE ─────────────────────────────
+# The SSA criterion targets sign accuracy (SA):
+#   → Maximize the probability that the predictor yt correctly
+#     forecasts the sign of the target z_{t+delta}
 
-# We first compute the empirical sign-accuracy
-SA_empirical<-sum((sign(y_mse*y_sym)+1)/2,na.rm=T)/length(na.exclude(y_sym))
+# Step 1 — Compute the empirical sign accuracy
+SA_empirical <- sum((sign(y_mse * y_sym) + 1) / 2, na.rm = T) /
+  length(na.exclude(y_sym))
 SA_empirical
-# If xt and thus yt and zt are Gaussian, then sign-accuracy and target correlation can be linked, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
-# For this purpose we compute the (true or expected) correlation between target and predictor
-filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_MSE)),b_MSE))
+
+# ── SIGN ACCURACY: THEORETICAL LINK TO CORRELATION ────────────────
+# Under Gaussianity, sign accuracy and target-predictor correlation
+# are analytically linked — see Wildi, M. (2024), (2026a).
+
+# Step 2 — Compute the true (expected) correlation between
+#           target and predictor (assuming white noise)
+filter_mat <- cbind(gamma,
+                    c(rep(0, length(gamma) - length(b_MSE)), b_MSE))
 colnames(filter_mat)[2]<-"predictor"
-filter_mat
-# Compute (true) correlation assuming white noise
-rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
+
+rho_yz <- filter_mat[, 1] %*% filter_mat[, 2] /
+  sqrt(filter_mat[, 1] %*% filter_mat[, 1] *
+         filter_mat[, 2] %*% filter_mat[, 2])
 rho_yz
-# The following non-linear expression of rho_yz corresponds to the true/expected SA, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
-SA_true<-asin(rho_yz)/pi+0.5
+
+# Step 3 — Derive true (expected) SA from rho_yz
+# The following non-linear transform of rho_yz yields the
+# true/expected SA — see Wildi, M. (2024), (2026a)
+SA_true <- asin(rho_yz) / pi + 0.5
 SA_true
-# We can also compute a second empirical estimate
+
+# Empirical SA (step 1) converges to theoretical SA (step 3) for large sample sizes len
+
+# ── SIGN ACCURACY: ALTERNATIVE EMPIRICAL ESTIMATE ─────────────────
+# An alternative empirical SA estimate based on applying the asin function to the empirical target correlation
 asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
-# Here our original estimate
+# Compare with original empirical estimate
 SA_empirical
-# One can verify that both empirical estimates of SA converge towards SA_true for large sample sizes
-
-
-
-# We here verify this claim: generate a much longer series in order for empirical estimates to converge towards expected (true) values
-
+# Notice how both empirical SA estimates approach the true SA value (SA_true) as the sample size increases.
+# To confirm this, we generate a considerably larger time series, allowing the empirical estimates to converge to their 
+#   theoretical (true) values.
 set.seed(65)
 len<-120000
 # Scaling
@@ -158,18 +220,50 @@ asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
 #   -Therefore, if we insert the holding-time ht_mse of the optimal MSE predictor, then SSA replicates the latter,
 #     see tutorial 0.3
 
+# Discussion:
+# - The closed-form expression SA_true links the predictor directly to Sign Accuracy (SA),
+#     enabling explicit maximization of SA as a function of the filter weights. This defines
+#     the notion of optimality in the SSA framework.
+#
+# - The SSA criterion (Wildi, M. (2024), (2026a), section 2) maximizes SA subject to a holding-time constraint ht.
+#
+# - An equivalent, computationally efficient formulation - as implemented here - maximizes
+#     the cross-correlation rho_yz subject to a constraint on the lag-one ACF of the
+#     predictor. Both formulations share the same optimal solution under Gaussianity.
+#     In the absence of Gaussianity, both criteria are generally close (see the discussion in the cited literature)
+#
+# - Under Gaussianity, SA and rho_yz are linked bijectively via the monotone arc-sine function (up to an affine
+#     transformation). Consequently, maximizing either expression yields the same optimal
+#     SSA predictor.
+#
+# Note: rho_yz, SA, ht, and the lag-one ACF are all invariant to affine transformations.
+#   - The SSA solution is determined only up to an arbitrary scaling constant s; any
+#       value of s yields a valid solution with respect to the SA and ht criteria.
+#   - This indeterminacy is resolved by selecting the scaling s that maximizes MSE
+#       performance subject to the imposed ht constraint.
+#   - Therefore, when the ht constraint is set to match the holding time ht_mse of the
+#       optimal MSE predictor, SSA exactly replicates the MSE solution (see tutorial 0.3).
+
+
 #############################################################################################################
 # Example 2
-# As claimed, SSA is designed to match signs of a target by a predictor
-# There are alternative tools for matching signs
-#   -But none (as far as we know) allows to impose a holding-time constraint
-# Also, we here argue that SSA is more efficient (irrespective of the added bonus of a ht-constraint) 
-# Why?
-#   -The SSA criterion emphasizes sign accuracy by maximizing the correlation rho_yz between the target and the predictor
-#   -The correlation rho_yz uses the `full' information: it does not restrict attention to signs only
-#   -Using the full data information affects efficiency: SSA is more efficient than methods relying on signs only 
-#   -Under the posited assumptions, the predictor maximizes the likelihood (efficient)
-# Let us check this claim by comparing SSA to a classic logit-model
+# SSA is designed to match the signs of a target series with a predictor.
+# While alternative sign-matching approaches exist, none - to our knowledge -
+#   supports an explicit holding-time constraint.
+#
+# Beyond this added flexibility, we argue that SSA is inherently more efficient.
+# The reasoning is as follows:
+#   - SSA maximizes the cross-correlation rho_yz between target and predictor,
+#       which leverages the full distributional information of the data.
+#   - In contrast, methods that operate on signs only discard the magnitude
+#       information, leading to efficiency losses.
+#   - Under the assumptions posited here, the SSA predictor maximizes the
+#       likelihood, and is therefore statistically efficient.
+#
+# We examine this claim by benchmarking SSA against a classical logistic
+#   regression (logit) model.
+# For illustration, we assume that SSA is the MSE predictor, i.e., we skip the ht constraint
+#   In this case SSA=linear regression
 
 # Sample length
 len<-120
@@ -180,7 +274,7 @@ gamma<-rep(1/L,L)
 set.seed(23)
 # Data
 x<-rnorm(len)
-# Target signal 
+# Target signal: apply two-sided (acausal) filter
 z<-filter(x,gamma,side=2)
 
 ts.plot(cbind(x,z),col=c("black","red"),main="Data (black) and target (red)")
@@ -219,9 +313,12 @@ summary(logit_model)
 mse_model<-lm(z~explanatory[,ncol(explanatory):1]-1)
 summary(mse_model)
 
-# Advantage classic MSE predictor over logit-model: 
-#   -The MSE predictor has smaller sample variances or, equivalently, larger t-values
-#   -The MSE predictor has the full data as disposal vs. the logit-model which `sees' signs only
+# Advantages of the MSE predictor over the logit model:
+#   - The MSE predictor yields smaller sampling variances and, equivalently,
+#       larger t-statistics, indicating more precise coefficient estimates.
+#   - The MSE predictor exploits the full interval-scaled data, whereas the
+#       logit model operates on binary sign indicators only, discarding
+#       magnitude information and reducing statistical efficiency.
 
 #-------------------------------------------------
 # Let us now apply both predictors out-of-sample
@@ -268,7 +365,7 @@ SA_true_logit<-asin(rho_yz)/pi+0.5
 # True SA:
 SA_true_mse
 SA_true_logit
-# As expected, MSE outperforms logit
+# As expected, MSE outperforms logit. Also, the previous empirical SA converge to these true numbers
 
 #-------------------------------------------
 # The above results were based on a single long sample of xt
@@ -328,11 +425,17 @@ apply(mat_perf,2,sd)
 t.test(mat_perf[,1], mat_perf[,2], paired = F, alternative = "greater",var.equal=F)
 # Proportion of cases where MSE is outperformed by logit
 length(which(mat_perf[,1]<mat_perf[,2]))/anzsim
+
 # Findings:
-# -MSE has a higher sign accuracy, in the mean over all samples
-# -The sample variance of SA is substantially smaller (this result reflects the higher sample variance of coefficient estimates)
-#   -Using the signs only in the logit-model discards information in the data
-# -MSE outperforms logit in a majority of cases (~90%)
+#   - The MSE predictor achieves higher Sign Accuracy (SA) on average across samples.
+#   - The sampling variance of SA is substantially smaller for the MSE predictor,
+#       reflecting the more precise coefficient estimates noted above.
+#       This gain in precision stems directly from the logit model's reliance on
+#       binary sign indicators, which discards the magnitude information present
+#       in the data.
+#   - Consequently, the MSE predictor outperforms the logit model in approximately
+#       90% of simulated samples.
+
 
 
 

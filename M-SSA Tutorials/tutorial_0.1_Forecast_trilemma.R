@@ -1,6 +1,23 @@
-# We here present and discuss a fundamental forecast trilemma
-# See Wildi, M. (2024) Business Cycle Analysis and Zero-Crossings of Time Series: a Generalized Forecast Approach: https://doi.org/10.1007/s41549-024-00097-5.
+# ════════════════════════════════════════════════════════════════════
+# TUTORIAL 0.1 — SSA: THE FORECAST TRILEMMA
+# ════════════════════════════════════════════════════════════════════
 
+# ── PURPOSE ───────────────────────────────────────────────────────
+# This tutorial presents and discusses the fundamental forecast
+# trilemma underpinning the SSA framework.
+#
+# Theoretical background:
+#   Wildi, M. (2026a) Sign Accuracy, Mean-Squared Error and the Rate
+#     of Zero Crossings: a Generalized Forecast Approach.
+#     https://doi.org/10.48550/arXiv.2601.06547
+
+# Application to business-cycle analysis
+#   Wildi, M. (2024)
+#     Business Cycle Analysis and Zero-Crossings of Time Series:
+#     a Generalized Forecast Approach.
+#     https://doi.org/10.1007/s41549-024-00097-5
+
+# ─────────────────────────────────────────────────────────────────
 
 rm(list=ls())
 
