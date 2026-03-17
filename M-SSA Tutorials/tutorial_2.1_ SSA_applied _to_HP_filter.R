@@ -2631,7 +2631,7 @@ if (F)
 }
 
 # ========================================================================
-# Final Comment: Example 8 — Extensions and Future Directions
+# Final Comment: Timeliness — Alternatives, Extensions and Future Directions
 # ========================================================================
 #
 # Timeliness via forecast horizon (current approach):
@@ -2659,6 +2659,8 @@ if (F)
 #   - This frontier provides a principled and quantitative basis for
 #     navigating the accuracy–timeliness dimension of the prediction trilemma,
 #     complementing the Accuracy-Smoothness trade-off inherent to (M-)SSA.
+
+#   -The MDFA tutorial (https://wiaidp.github.io/MDFA-tutorial) proposes an alternative frequency-domain trilemma
 #
 # ------------------------------------------------------------------------
 # Outlook:
