@@ -1,53 +1,99 @@
-# In this tutorial we consider an application of SSA to the Hodrick-Prescott (HP) filter 
-# Tutorial 2.0 provided background:
-#   -For understanding HP; 
-#   -For justifying and motivating some of our decisions when working with HP (which differ from classic applications of HP)
-# In particular we prefer HP-trend applied to differenced (stationary) data to the original HP-gap (applied to levels)
 
-# Accordingly, we here consider the HP-trend or lowpass filter, applied to stationary data, resembling differenced economic data/series
-#   -This design is used in Wildi (2024) https://doi.org/10.1007/s41549-024-00097-5: HP-trend applied to log-returns of US INDPRO (does not generate spurious cycle)
-#   -All examples in this tutorial rely on artificial (simulated) stationary series: knowing the true model allows for verification of theoretical results 
-#     -Tutorial 5 applies HP and SSA to US-INDPRO
-#     -Tutorial 7 presents an application of the more general multivariate SSA (M-SSA) to German macro-data
-# We apply SSA to different targets 
-#   a.The one-sided MSE HP (optimal if data is white noise), applied to white noise, see example 1
-#   b.The classic one-sided HP (optimal if data is an ARIMA(0,2,2)), applied to white noise, too, see example 2
-#   c.The classic one-sided HP, applied to autocorrelated data, see example 5
-#   d.The one-sided MSE HP, applied to autocorrelated data, too, see example 5 (just change the target specification) 
-#   e.The two-sided HP applied to autocorrelated data, see example 6
+# =============================================================================
+# TUTORIAL 2.1: SSA APPLIED TO THE HODRICK-PRESCOTT FILTER
+# =============================================================================
+# =============================================================================
+# BROADER PERSPECTIVE: HP AS A PLATFORM FOR SSA
+# =============================================================================
+# The goal of this tutorial is NOT to advocate for HP as the definitive
+# BCA tool. Rather, HP serves as a transparent, well-understood PLATFORM
+# for illustrating the SSA optimization principle:
+#
+#   Any linear filter can be replicated and improved by SSA with respect to:
+#     1. SMOOTHNESS  — noise suppression, holding-time control
+#     2. TIMELINESS  — phase advancement, earlier turning point detection
+#
+# SSA performance is evaluated through a set of interpretable, theoretically
+# grounded metrics that confirm the value of the optimization approach.
+#
+# RELATED TUTORIALS:
+#   - Tutorial 3: SSA applied to Hamilton's (2018) regression filter
+#                 (proposed as an alternative to HP)
+#   - Tutorial 4: SSA applied to the Baxter-King bandpass filter
+#   - Tutorial 5: SSA applied to the `refined' Beveridge-Nelson filter
 
-# Note: a look at tutorial 2.0 suggests that the two-sided target is less relevant in a BCA-context: 
-#   -it is too smooth: recession dips are washed-out and may eventually vanish or merge
-#   -the classic one-sided HP-trend filter is relevant (it has desirable frequency-domain and time-domain characteristics)
+# =============================================================================
+# Background on HP: see Tutorial 2.0 (not necessary to understand results presented here)
+# KEY DESIGN CHOICE (motivated in Tutorial 2.0):
+#   We work with HP TREND applied to DIFFERENCED (stationary) data,
+#   rather than the classic HP GAP applied to levels. Reasons:
+#     - Macro data is more consistent with I(1) than I(2) dynamics
+#     - HP trend on differences avoids spurious cycle alarms mid-expansion
+#     - See Wildi (2024), Section 4.1: https://doi.org/10.1007/s41549-024-00097-5
+
+# =============================================================================
+# SCOPE AND COVERAGE
+# =============================================================================
+# All examples in this tutorial use SIMULATED stationary data.
+# Advantage: the true DGP is known, enabling exact theoretical verification.
+#
+# Applications to real data are deferred to later tutorials:
+#   - Tutorial 5: HP and SSA applied to US Industrial Production (INDPRO)
+#   - Tutorial 7: Multivariate SSA (M-SSA) applied to German macro data
+
+# =============================================================================
+# EXAMPLES COVERED IN THIS TUTORIAL: TARGET FILTER × DATA TYPE
+# =============================================================================
+#
+#   Example | Target Filter                        | Input Data
+#   --------|--------------------------------------|----------------------
+#   1       | One-sided MSE-HP (WN-optimal)        | White noise
+#   2       | Classic one-sided HP (ARIMA(0,2,2))  | White noise
+#   5a      | Classic one-sided HP                 | Autocorrelated data
+#   5b      | One-sided MSE-HP                     | Autocorrelated data
+#   6       | Two-sided HP                         | Autocorrelated data
+#   7       | Classic HP gap (levels)              | Non-stationary data
+#   8       | SSA targeting HP-MSE                 | Forecast trilemma
+#
 
 
-# Main outcomes: 
-#   1.The classic HP-gap (as applied to non-stationary data in levels) is not suited for BCA, see example 7 below: "never use HP-gap". 
-#       -Therefore, we here emphasize the trend filter(s) only: as applied to stationary data (first differences of economic time series) 
-#   2.The classic concurrent (one-sided) HP-trend can be derived from a particular (implicit) ARIMA(0,2,2) model for the data, see tutorial 2.0.
-#     -Typically, economic data does not conform to such a model, see tutorial 2.0
-#     -Consequences: 
-#       -In contrast to usual assumptions, HP-concurrent is not an optimal (MSE) nowcast of the two-sided trend, see example 6
-#       -The holding-time of HP-concurrent is rather small i.e. the filter is subject to noise-leakage 
-#         (noisy zero crossings, see also tutorial 2.0).
-#   3.In this scenario, SSA can be applied to control and to tame the number of noisy crossings of HP
-#       -We typically impose 50% larger ht or, equivalently, 33% less (noisy) crossings
-#   4.Besides nowcasts (delta=0) we also consider 12-steps ahead forecasts (one year for monthly data)
-#       -SSA-forecasts adopt the same stringent holding-time constraint: 33% less noisy crossings than (one-sided) HP targets (in the long run)
-#       -SSA-forecasts are left-shifted (relative advancement): they generally have a lead when referenced against the concurrent benchmarks
-#       -SSA real-time (concurrent) designs can be smoother as well as leading, when compared to the concurrent benchmarks 
-#   5. The forecast trilemma (see tutorial 0.1) is visualized in example 8 for a SSA-design targeting HP-MSE
+# =============================================================================
+# MAIN FINDINGS
+# =============================================================================
 
-# Note: 
-# -our intention is not to push a particular BCA-tool (HP filter). 
-# -Rather, we strive at illustrating that a particular predictor or BCA-filter (any one as long 
-#       as it's linear in the data) can be replicated and modified by SSA in view of addressing 
-#   1. smoothness (noise suppression) and 
-#   2. timeliness (advancement)
-# -In this perspective, HP is considered as a basic platform and a vitrine for showcasing SSA
-#   -We offer a number of compelling performance measures, confirming pertinence of a simple novel optimization principle  
-# -Applications of SSA to Hamilton's filter (proposed as an alternative to HP) and to the Baxter-King filter 
-#   are proposed in tutorials 3 and 4, respectively
+
+# -----------------------------------------------------------------------------
+# FINDING 1: SSA CONTROLS NOISE LEAKAGE (Examples 1, 2, 5)
+# -----------------------------------------------------------------------------
+# SSA can be applied to tame the noisy zero-crossings of HP-concurrent:
+#
+#   Standard SSA constraint:
+#     - Holding time increased by 50%  (smoother cycle)
+#     - Equivalently: 33% fewer noisy zero-crossings than the HP benchmark
+#
+#   This smoothness constraint is applied consistently across all examples.
+
+# -----------------------------------------------------------------------------
+# FINDING 2: SSA FORECASTS ARE TIMELY AND SMOOTH (Examples 5, 6)
+# -----------------------------------------------------------------------------
+#
+#   - SSA concurrent designs can simultaneously achieve:
+#       * Greater SMOOTHNESS (noise suppression) than HP-concurrent
+#       * Earlier DETECTION (timeliness) of peaks and troughs
+
+# -----------------------------------------------------------------------------
+# FINDING 3: ACTING ON THE FORECAST TRILEMMA TROUGH SSA (Example 8)
+# -----------------------------------------------------------------------------
+# Example 8 visualizes the fundamental trade-off in real-time filter design
+# for SSA targeting HP-MSE (see Tutorial 0.1 for theoretical background):
+#
+#   ACCURACY   <=>  closeness to the two-sided benchmark
+#   SMOOTHNESS <=>  fewer noisy zero-crossings (larger holding time)
+#   TIMELINESS <=>  smaller phase delay (earlier turning point detection)
+#
+#   No filter can simultaneously maximize all three objectives.
+#   SSA makes this trade-off explicit and controllable via its
+#   optimization criterion.
 
 #-----------------------------------------------------------------------
 # Make a clean-sheet, load packages and functions

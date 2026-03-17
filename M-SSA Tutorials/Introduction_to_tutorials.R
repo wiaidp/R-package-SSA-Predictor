@@ -195,6 +195,7 @@
 #   • Scope
 #       → SSA addresses univariate linear predictors;
 #         M-SSA extends the framework to multivariate designs
+
 # ─────────────────────────────────────────────────────────────────
 # ── SSA AS A PLUG-ON ──────────────────────────────────────────────
 # SSA can be used in two distinct modes:
@@ -244,6 +245,50 @@
 #   • MSE
 #   • Timeliness
 # ─────────────────────────────────────────────────────────────────
+# =============================================================================
+# THEORETICAL FOUNDATION: THE SSA EFFICIENCY FRONTIER
+# =============================================================================
+# Wildi (2026a, 2026b) establish a fundamental DUALITY RESULT for SSA and
+# its multivariate extension M-SSA:
+#
+# DEFINITION — Accuracy-Smoothness (AS) Frontier:
+#   SSA and M-SSA trace out an EFFICIENT FRONTIER in the two-dimensional
+#   space of filter performance:
+#
+#     ACCURACY  : correlation between filter output and the target signal
+#                 (equivalently: sign accuracy of the extracted cycle)
+#     SMOOTHNESS: holding time of the filter output
+#                 (mean duration between consecutive zero-crossings)
+#
+# DUALITY THEOREM:
+#   The AS frontier is characterized by two equivalent optimization problems:
+#
+#   Primal problem:
+#     Maximize ACCURACY (target correlation / sign accuracy)
+#     subject to a SMOOTHNESS constraint (holding time >= h*)
+#
+#   Dual problem:
+#     Maximize SMOOTHNESS (holding time)
+#     subject to a ACCURACY constraint (target correlation >= rho*)
+#
+#   Both problems yield the SAME efficient frontier — SSA solves both
+#   simultaneously by varying the constraint level (h* or rho*).
+#
+# EFFICIENCY PROPERTY:
+#   No other linear predictor or filter can:
+#     (i)  achieve higher accuracy     for a given level of smoothness, OR
+#     (ii) achieve greater smoothness  for a given level of accuracy
+#
+#   => SSA / M-SSA are PARETO OPTIMAL in the accuracy-smoothness space.
+#
+# PRACTICAL IMPLICATION:
+#   The constraint and objective are fully interchangeable:
+#     - Fix smoothness (holding time h*)    => maximize accuracy
+#     - Fix accuracy  (target correlation rho*) => maximize smoothness
+#   The resulting filter is the same efficient design in both cases.
+#   This flexibility allows practitioners to parameterize SSA according
+#   to whichever performance dimension is most relevant for their application.
+# =============================================================================
 
 
 # ── ASSUMPTIONS ───────────────────────────────────────────────────
