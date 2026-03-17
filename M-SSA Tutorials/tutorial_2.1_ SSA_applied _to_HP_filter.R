@@ -71,7 +71,7 @@
 #       * Earlier DETECTION (timeliness) of peaks and troughs
 
 # -----------------------------------------------------------------------------
-# FINDING 3: ACTING ON THE FORECAST TRILEMMA TROUGH SSA (Example 8)
+# FINDING 3: ACTING ON THE FORECAST TRILEMMA THROUGH SSA (Example 8)
 # -----------------------------------------------------------------------------
 # Example 8 visualizes the fundamental trade-off in real-time filter design
 # for SSA targeting HP-MSE (see Tutorial 0.1 for theoretical background):
@@ -1916,135 +1916,6 @@ SSA_filt_HP <- SSA_obj_HP$ssa_x
 #   This is the best achievable filter in terms of MSE for the given data model and target.
 HP_MSE_x <- SSA_obj_HP$mse_x
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##########################################################################################################
-##########################################################################################################
-# Example 6
-# Same as example 5 but we now target specifically the output of the symmetric HP-filter
-# As a result, we will obtain a one-sided filter which tracks the output of the symmetric filter better than the classic HP-concurrent or HP-MSE (the latter is assuming white noise)
-# Recall that the classic HP-concurrent is optimal if the series is an ARIMA(0,2,2), where the two MA-parameters are determined by lambda, see tutorial 2.0
-# This example is a bit tricky because everything is merged and entangled!
-
-# Let us emphasize that:
-# -This exercise does not refer to the majority of use-cases of HP: 
-#   -Most (nearly all) practitioners assume that the classic concurrent HP is the optimal estimate of the two-sided filter at the sample end (real-time business BCA)
-#   -This assumption is wrong because economic data does not conform to an ARMA(0,2,2)-process, see tutorial 2.0
-#   -Therefore, by applying the classic HP-concurrent, users are not effectively tracking the two-sided target (at least not optimally)
-# -We advocated in tutorial 2.0 that the classic HP-concurrent has some desirable characteristics for BCA
-#   -Therefore, we plugged SSA on the classic HP-concurrent in the previous exercises 2,3 and 5
-#   -But, clearly, its tracking ability (of the two-sided target) is not optimal in typical applications 
-#   -When applying HP-concurrent, practitioners use a pertinent BCA-tool; but the tool is not doing what it is claimed to do (and what the analyst think it does)
-# -Exercise 6, here, addresses specifically an optimal one-sided filter for tracking the two-sided HP, assuming the true 
-#   (or the empirical) model of the data (which is not an ARIMA(0,2,2))
-# -This exercise is meant for analysts mainly interested in tracking the two-sided filter by an optimal concurrent design
-# -Besides the optimal MSE we also present SSA extensions which are smoother and/or faster 
-
-# 6.1 Specify symmetric filter as target
-L_sym<-401
-# Should be an odd number: otherwise HP is not centered correctly
-if (L_sym/2==as.integer(L_sym/2))
-{
-  print("Filter length should be an odd number")
-  print("If L_sym is even then HP cannot be correctly centered")
-  L_sym<-L_sym+1
-}  
-# HP monthly design
-lambda_monthly<-14400
-
-HP_obj<-HP_target_mse_modified_gap(L_sym,lambda_monthly)
-# Symmetric HP: this is not yet our new target, because this filter is one-sided causal
-# But we want the two-sided acausal as target for SSA (instead of one-sided MSE in example 1)
-hp_target=HP_obj$target
-ts.plot(hp_target)
-
-# Forecast horizon: here things become a bit tricky
-# The variable h is now our effective forecast horizon
-# For a nowcast of the symmetric filter we set h<-0 (h>0 for forecast, h<0 for backcast)
-h<-0
-# Here is the tricky part:
-# The symmetric filter hp_target is causal: its center is at lag (L_sym+1)/2, see brown line in plot below
-# For a nowcast of the two-sided acausal filter we have to shift the causal filter to the left, see violet line
-#   The peak of the violet line is now shifted to lag h=0 (nowcast)
-# Therefore our effective  forecast horizon is (L_sym-1)/2+h 
-forecast_horizon<-(L_sym-1)/2+h
-causal_sym<-c(rep(0 ,(L_sym-1)/2 ),hp_target)
-acausal_sym<-c(rep(0,max(0,(L_sym+1)/2-forecast_horizon-1)),hp_target[max(1,1+(forecast_horizon-(L_sym-1)/2)):L_sym],rep(0 ,forecast_horizon ))
-acausal_sym<-acausal_sym[1:length(causal_sym)]
-plot(causal_sym,col="brown",axes=F,type="l",xlab="lead                                                                  lag",ylab="",main="Acausal vs. causal HP: the target is acausal")
-lines(acausal_sym,col="violet")
-abline(v=(L_sym+1)/2,col="violet")
-abline(v=L_sym,col="brown")
-mtext(paste("Target acausal filter: center is at lag 0. For SSA we shift the causal HP (brown line) to the left by forecast_horizon=",forecast_horizon,sep=""), line=-1,col="violet")
-mtext(paste("                                                   Causal symmetric HP as calculated by mFilter: center is at lag ",(L_sym+1)/2,sep=""), line=-3,col="brown")
-axis(1,at=1:length(acausal_sym),labels=-forecast_horizon +1:length(acausal_sym))
-axis(2)
-box()
-
-# Since the target is the symmetric filter, the natural benchmark for SSA is the MSE estimate of the target 
-#  (this is also computed by our SSA function, see below. We here replicate these calculations, for illustration)
-# Proceeding for obtaining the MSE-filter (recall that hp_mse is not optimal here because xt is not white noise):
-#   a. Compute the convolution of symmetric filter hp_trend and Wold-decomposition xi: this way, HP is applied to epsilont 
-#   b. Truncate the convolution at lag forecast_horizon+1 (which is lag 0 in un-shifted data) because forecasts of future epsilont are zero
-# Step a: convolve xi_data and symmetric hp_target
-hp_conv_mse_d<-conv_two_filt_func(xi_data,hp_target)$conv
-# Step b: truncate at lag 0 corresponding to forecast_horizon
-hp_conv_mse<-hp_conv_mse_d[(forecast_horizon+1):L_sym]
-# We can now compute the holding-time of the optimal MSE filter: this is a natural benchmark for SSA 
-# -Idea: SSA should improve smoothness of best (MSE) nowcast
-# -Of course, the holding-time could be set differently (based on a priori knowledge or on particular priorities). 
-# -But having a natural (optimal) benchmark at disposal allows for more stringent/interesting comparisons
-ht_hp_conv_mse_obj<-compute_holding_time_func(hp_conv_mse)
-ht_hp_conv_mse<-ht_hp_conv_mse_obj$ht
-# ht of optimal MSE (assuming the data is not white noise): 
-ht_hp_conv_mse
-# We can compare with the holding-time ht_mse of hp_mse above (assuming white noise): this is slightly smaller because the data is weakly positively autocorrelated
-ht_mse
-#-----------------------------------------------
-# 6.2 Apply SSA: 
-# SSA: augment ht_hp_conv_mse of optimal MSE benchmark by 50% 
-ht<-1.5*ht_hp_conv_mse
-# Recall that we provide the lag-one acf: therefore we have to compute rho1 corresponding to ht
-rho1<-compute_rho_from_ht(ht)
-# In contrast to example 5 we now specify the symmetric target filter
-gammak_generic<-hp_target
-# Forecast horizon was discussed above 
-forecast_horizon<-forecast_horizon
-# We use the same filter length as in example 5
-L<-201
-# In contrast to example 4, we now supply the Wold-decomposition (MA-inversion) of the data generating process
-xi<-xi_data
-# SSA of HP-target
-SSA_obj_HP<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
-
-# SSA_func also computes the MSE estimate which we already computed above
-#   This filter is supposed to be applied to epsilont, not xt (convolution of target with xi)
-mse_eps<-SSA_obj_HP$mse_eps
-ts.plot(cbind(hp_conv_mse[1:L],mse_eps),main="MSE estimate: SSA_func vs. own calculation (both filters overlap)")
-
-# retrieve the SSA-filter applied to xt (we here ignore ssa_eps as applied to epsilont since we shall filter xt)
-SSA_filt_HP<-SSA_obj_HP$ssa_x
-# Retrieve benchmark MSE filter: this is automatically calculated by SSA 
-HP_MSE_x<-SSA_obj_HP$mse_x
-
-
-
 # -----------------------------------------------------------------------
 # Plot SSA filter designs from examples 4, 5, and 6 side-by-side for comparison.
 # This helps visualize how different assumptions (noise model, holding-time)
@@ -2759,4 +2630,40 @@ if (F)
   heat_map_func(scale_column,select_acausal_target,MSE_mat,target_mat)
 }
 
-
+# ========================================================================
+# Final Comment: Example 8 — Extensions and Future Directions
+# ========================================================================
+#
+# Timeliness via forecast horizon (current approach):
+#   - In Examples 3 and 8, timeliness (advancement / left-shift of the filter output
+#     relative to the target) is controlled by increasing the forecast horizon h.
+#   - Larger h shifts the SSA predictor further ahead in time, at the cost of
+#     reduced accuracy (lower correlation with the target) and/or reduced
+#     smoothness (lower holding-time) — the trilemma trade-off visualised above.
+#
+# ------------------------------------------------------------------------
+# A more powerful route to timeliness: the Look-Ahead DFP/PCS approach
+# ------------------------------------------------------------------------
+#   - The DFP (Decoupling From Present) and the PCS (Peak Correlation Shifting))
+#     offer fundamentally different and more powerful mechanisms for
+#     achieving timeliness than simply augmenting the forecast horizon h.
+#   - Key properties of the Look-Ahead DFP/PCS framework:
+#       * It can generate leads that extend BEYOND the range achievable by
+#         increasing the forecast horizon alone.
+#       * For any given level of target correlation (accuracy), DFP/PCS
+#         produces the MAXIMUM attainable lead among all linear predictors —
+#         it is lead-optimal by construction (though the lead is measured differently in DFP and PCS).
+#       * It defines a novel Accuracy–Timeliness efficient frontier:
+#         the set of Pareto-optimal (accuracy, lead) combinations that cannot
+#         be simultaneously improved upon by any other linear filter.
+#   - This frontier provides a principled and quantitative basis for
+#     navigating the accuracy–timeliness dimension of the prediction trilemma,
+#     complementing the Accuracy-Smoothness trade-off inherent to (M-)SSA.
+#
+# ------------------------------------------------------------------------
+# Outlook:
+# ------------------------------------------------------------------------
+#   - A dedicated tutorial covering the Look-Ahead DFP/PCS approach,
+#     its theoretical foundations, and its application to BCA is currently
+#     in preparation.
+# ========================================================================
