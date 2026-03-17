@@ -416,283 +416,807 @@ cor(yhat, c(x[(1 + forecast_horizon):len], rep(NA, forecast_horizon)), use = 'pa
 #   - When the HT imposed on SSA matches the native HT of the MSE solution,
 #     SSA exactly replicates MSE — see Tutorial 0.3 and Example 4 below.
 
-#---------------------------------------------------------------------
-# Example 4
-# Replicate MSE solution: this is the same as example 3 except that rho1=a1 in the holding-time constraint, i.e., 
-#   we replicate the lag-one ACF of the MSE-filter (or its holding-time) by SSA
-#   -Setting rho1=a1 in the holding-time constraint replicates the lag-one ACF of MSE
-#   -Therefore SSA also replicates MSE
+#================================================================
+# Example 4: Replicating the MSE Solution via SSA
+#================================================================
+#
+# This example mirrors Example 3, with one key modification:
+# we set rho1 = a1 in the holding-time constraint, so that SSA
+# exactly replicates the lag-one ACF — and therefore the filter — of the MSE solution.
+#
+# Key points:
+#   - Setting rho1 = a1 matches the lag-one ACF of the one-step ahead MSE filter
+#   - This causes SSA to exactly replicate the MSE solution
 
-a1<-0.8
-# Compute the Wold-decomposition (use true or empirical AR-estimate)
-len<-100
-# Reminder: we do not supply data to the SSA estimation function; the optimization relies on xi (and on target) only
-xi<-c(1,ARMAtoMA(ar=a1,lag.max=len-1))
-# Replicate lag-one-acf of one-step ahead (MSE) forecast filter: this is just a1
-rho1<-a1
-# Filter length
-L<-20
-# Target: in our case this is the identity since we want to forecast the original data xt
-gammak_generic<-1
-# Forecast horizon: one-step ahead
-forecast_horizon<-1
-# We retain the previous settings for the numerical optimization
-# The two warnings prevent that the target filter gammak_generic is shorter than L: this is OK (target is identity shifted forward)
-# The second warning informs that the SSA-solution is very close to MSE after optimization
-SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
+# AR(1) coefficient
+a1 <- 0.8
 
-ssa_x<-SSA_obj$ssa_x
-# Plot optimized filter: it is the MSE predictor
+# Wold Decomposition
+#   Truncated MA(inf) representation of the AR(1) process (see Example 3).
+#   Reminder: SSA_func does not require observed data — all process information
+#   is encoded in xi.
+len <- 100
+xi <- c(1, ARMAtoMA(ar = a1, lag.max = len - 1))
+
+# Holding-Time Constraint
+#   For an AR(1) process, the lag-one ACF of the one-step ahead MSE filter is
+#   exactly a1. Setting rho1 = a1 therefore instructs SSA to match the smoothness
+#   of the MSE solution, which causes SSA to replicate it exactly.
+rho1 <- a1
+
+# Filter Length
+L <- 20
+
+# Target Specification: Identity Filter
+#   As in Example 3, the target is the identity filter (gammak_generic = 1),
+#   appropriate for forecasting the original series x_t.
+gammak_generic <- 1
+
+# Forecast Horizon: one-step ahead
+forecast_horizon <- 1
+
+# SSA Optimization
+#   Two warnings may be issued by SSA_func:
+#     Warning 1: the target filter gammak_generic is shorter than L —
+#                this is expected and handled automatically via zero-padding.
+#     Warning 2: the SSA solution is very close to the MSE solution after
+#                optimization — this is the intended outcome in this example.
+SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
+
+#----------------------------------------------------------------
+# Results
+#----------------------------------------------------------------
+
+ssa_x <- SSA_obj$ssa_x
+
+# Plot the optimized SSA filter
+#   The resulting filter should closely replicate the MSE predictor.
 ts.plot(ssa_x)
 
-# This is the filter applied to epsilont (before deconvolution): it follows the exponential decay specified by a1
-ssa_eps<-SSA_obj$ssa_eps
+# Convolved Filter (applied to epsilon_t)
+#   ssa_eps is the SSA filter prior to deconvolution — i.e., expressed in terms
+#   of the white noise innovations epsilon_t rather than x_t.
+#   For an AR(1) process with coefficient a1, the optimal filter coefficients
+#   follow a geometric decay pattern governed by a1.
+ssa_eps <- SSA_obj$ssa_eps
 ts.plot(ssa_eps)
-# The decay pattern replicates a1 
-ssa_eps[2:L]/ssa_eps[1:(L-1)]
+
+# Verify the geometric decay rate
+#   Successive ratios of ssa_eps should equal a1, confirming that the
+#   convolved filter replicates the exponential decay of the MSE solution.
+ssa_eps[2:L] / ssa_eps[1:(L - 1)]
 
 
 
 
-#--------------------------------------------------------------------
-# Example 5
-# Exchange roles of xi and gammak_target in the previous examples
-# Background: 
-# In the above examples we assumed that xt = AR(1) and that zt=xt identity (z_{t+delta} is the target, see , see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
-# However, we could look at the forecast problem alternatively, by setting xt=epsilont and zt=AR(1)-filter applied to xt
-# We now show how to implement the latter design
+#================================================================
+# Example 5: Exchanging the Roles of xi and gammak_target
+#================================================================
+#
+# Background:
+#   In the previous examples, we assumed:
+#     - x_t  follows an AR(1) process  (xi encodes the Wold decomposition)
+#     - z_t  is the identity target     (z_{t+delta} = x_t shifted forward)
+#
+#   An equivalent alternative formulation is:
+#     - x_t  = epsilon_t  (white noise input; xi = NULL)
+#     - z_t  = AR(1) filter applied to x_t  (non-trivial target)
+#
+#   Both formulations represent the same underlying forecasting problem.
+#   This example demonstrates how to implement the alternative design.
+#   See Wildi, M. (2024)
 
+#----------------------------------------------------------------
+# SSA Settings
+#----------------------------------------------------------------
 
-a1<-0.8
-# Since xt=epsilont the Wold-decomposition is an identity: we then set xi<-NULL
-xi<-NULL
-# Replicate lag-one ACF of one-step ahead (MSE) forecast filter: this is just a1
-rho1<-0.8
-# Filter length
-L<-20
-# Target: we now supply the AR(1)-filter (its MA-inversion): in the previous example gamma_k_generic was the identity
-gammak_generic<-c(1,ARMAtoMA(ar=a1,lag.max=len-1))
-# Forecast horizon: one-step ahead
-forecast_horizon<-1
-# We retain the previous settings for the numerical optimization
-# Note that the function checks if the length of the target matches L: if not, a warning is printed meaning that the target is artificially extended with zeroes in order to match the length L
-SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
-# This is the same as the following call (omitting xi in the function call assumes default xi=NULL i.e. white noise)
-SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1)
+# AR(1) coefficient
+a1 <- 0.8
 
-ssa_x<-SSA_obj$ssa_x
-# Plot optimized filter: in contrast to ssa_x in previous exercise (which was a1*identity), we now have the 
-#   finite-sample MA-forecast filter 
-ts.plot(ssa_x)
-# Exponential decay 
-ssa_x[2:L]/ssa_x[1:(L-1)]
+# Wold Decomposition
+#   Since x_t = epsilon_t (white noise), the Wold decomposition is trivial.
+#   Setting xi = NULL instructs SSA_func to assume white noise input.
+xi <- NULL
 
-# This is the filter applied to epsilont 
-# It is now identical with ssa_x since xt=epsilont
-ssa_eps<-SSA_obj$ssa_eps
-# The decay pattern replicates a1
-ssa_eps[2:L]/ssa_eps[1:(L-1)]
-# In the previous example ssa_eps differed from ssa_x
+# Holding-Time Constraint
+#   As in Example 4, we match the lag-one ACF of the one-step ahead MSE filter,
+#   which equals a1 for an AR(1) process.
+rho1 <- 0.8
 
+# Filter Length
+L <- 20
 
+# Target Specification
+#   We now supply the AR(1) filter (via its MA inversion) as the target.
+#   This replaces the identity target used in the previous examples.
+#   Note: SSA_func checks whether the target length matches L. If not, a warning
+#   is issued and the target is automatically zero-padded to length L.
+gammak_generic <- c(1, ARMAtoMA(ar = a1, lag.max = len - 1))
 
+# Forecast Horizon: one-step ahead
+forecast_horizon <- 1
 
+# SSA Optimization
+#   Standard call supplying xi explicitly:
+SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
+#   Equivalent call omitting xi — when xi is not supplied, white noise is assumed
+#   by default (xi = NULL):
+SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1)
 
-#--------------------------------------------------------------------
-# Example 6
-# Unsmoothing: we replicate example 3 but we specify a smaller holding-time constraint; in this case the SSA-filter 
-#   must generate additional zero-crossings 
+#----------------------------------------------------------------
+# Results
+#----------------------------------------------------------------
 
-a1<-0.8
-# Compute the Wold-decomposition (use true or empirical AR-estimate)
-len<-100
-# Reminder: we do not supply data to the SSA estimation function; the optimization relies on xi (and on target) only
-xi<-c(1,ARMAtoMA(ar=a1,lag.max=len-1))
+ssa_x <- SSA_obj$ssa_x
 
-# In general we want the SSA-filter to be smoother (less zero-crossings)
-# However here we impose a smaller holding time
-ht<-3
-# Recall that we provide the lag-one acf: therefore we have to compute rho1 corresponding to ht
-rho1<-compute_rho_from_ht(ht)
-# Filter length
-L<-20
-# Target: in our case this is the identity since we want to forecast the original data xt
-gammak_generic<-1
-# Forecast horizon: one-step ahead
-forecast_horizon<-1
-# We retain the previous settings for the numerical optimization
-
-SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
-
-ssa_x<-SSA_obj$ssa_x
-# Plot optimized filter: the alternating pattern of the filter generates additional 'noisy' crossings
+# Plot the optimized SSA filter
+#   Unlike Example 4, where ssa_x was simply a1 * identity (a scalar multiple
+#   of the unit vector), ssa_x now represents the full finite-sample MA forecast
+#   filter, with coefficients decaying geometrically.
 ts.plot(ssa_x)
 
-# Various checks:
-# 1. Verify holding-time: compute empirical holding-time based on a very long time series
-len<-100000
+# Verify the geometric decay rate of ssa_x
+#   Successive ratios should converge to a1, confirming exponential decay.
+ssa_x[2:L] / ssa_x[1:(L - 1)]
+
+# Convolved Filter (applied to epsilon_t)
+#   Since x_t = epsilon_t in this formulation, ssa_eps is identical to ssa_x —
+#   no deconvolution step is required or applied.
+ssa_eps <- SSA_obj$ssa_eps
+
+# Verify the geometric decay rate of ssa_eps
+#   As with ssa_x, successive ratios should equal a1.
+#   Note: in Example 4, ssa_eps differed from ssa_x because x_t followed an
+#   AR(1) process (xi != NULL), requiring an explicit deconvolution step.
+ssa_eps[2:L] / ssa_eps[1:(L - 1)]
+
+
+
+
+#================================================================
+# Example 6: Unsmoothing — Imposing a Smaller Holding-Time Constraint
+#================================================================
+#
+# This example mirrors Example 3, but imposes a holding-time (HT) smaller than
+# the native HT of the AR(1) process. As a result, the SSA filter must actively
+# introduce additional zero-crossings to meet the constraint — the opposite of
+# the typical smoothing use case.
+
+#----------------------------------------------------------------
+# SSA Settings
+#----------------------------------------------------------------
+
+# AR(1) coefficient
+a1 <- 0.8
+
+# Wold Decomposition
+#   Truncated MA(inf) representation of the AR(1) process (see Example 3).
+#   Reminder: SSA_func does not require observed data — all process information
+#   is encoded in xi.
+len <- 100
+xi <- c(1, ARMAtoMA(ar = a1, lag.max = len - 1))
+
+# Holding-Time Constraint
+#   We deliberately impose an HT smaller than the native HT of the AR(1) filter,
+#   forcing the SSA filter to generate additional zero-crossings (unsmoothing).
+ht <- 3
+
+# Lag-One ACF
+#   SSA_func requires rho1 rather than HT directly; we convert accordingly.
+rho1 <- compute_rho_from_ht(ht)
+
+# Filter Length
+L <- 20
+
+# Target Specification: Identity Filter
+#   As in Example 3, the target is the identity filter (gammak_generic = 1),
+#   appropriate for forecasting the original series x_t.
+gammak_generic <- 1
+
+# Forecast Horizon: one-step ahead
+forecast_horizon <- 1
+
+# SSA Optimization
+SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
+
+#----------------------------------------------------------------
+# Results
+#----------------------------------------------------------------
+
+ssa_x <- SSA_obj$ssa_x
+
+# Plot the optimized SSA filter
+#   The alternating sign pattern of the coefficients reflects the additional
+#   zero-crossings introduced to satisfy the smaller HT constraint.
+ts.plot(ssa_x)
+
+#----------------------------------------------------------------
+# Performance Checks
+#----------------------------------------------------------------
+
+# 1. Holding-Time Verification
+#   We verify the imposed HT empirically using a long simulated AR(1) series.
+len <- 100000
 set.seed(1)
-x<-arima.sim(n = len, list(ar = a1))
+x <- arima.sim(n = len, list(ar = a1))
 
-# Compute filter output
-yhat<-filter(x,ssa_x,side=1)
-# Compute empirical holding-time
-empirical_ht<-compute_empirical_ht_func(yhat)
+# Apply the optimized SSA filter to the simulated series
+yhat <- filter(x, ssa_x, sides = 1)
+
+# Empirical HT of the filter output — should match the imposed constraint
+empirical_ht <- compute_empirical_ht_func(yhat)
 empirical_ht
-# compare with imposed constraint: they match
 ht
 
-# 2. Compare lag-one ACF of optimized design with imposed constraint: successful optimization means that both numbers should be close
-# In our example both numbers match nearly perfectly
+#----------------------------------------------------------------
+# 2. Optimization Convergence Check
+#   The lag-one ACF of the optimized filter (crit_rhoyy) should match rho1.
+#   Agreement confirms convergence to the global maximum.
 SSA_obj$crit_rhoyy
 rho1
 
-# 3. Criterion values: correlations with two different targets, see proposition 4 in JBCY paper
-#   a. Target = MSE predictor (idea: approximate the MSE-predictor as well as possible, subject to the holding-time constraint)
-#   b. Target = effective target (here: data shifted forward by one forecast step)
-# 3.a `True' (expected) correlation with one-step ahead forecast (MSE estimate)
-SSA_obj$crit_rhoyz
-# Compare with empirical correlation
-# Compute one-step ahead (MSE-) predictor
-MSE_forecast<-a1*x
-# Empirical correlation: matches 'true' correlation above
-cor(yhat,MSE_forecast,use='pairwise.complete.obs')
+#----------------------------------------------------------------
+# 3. SSA Criterion Values
+#   Two equivalent criteria are available (see Proposition 4 in the JBCY paper).
+#   Both yield the same optimal filter, but measure performance against
+#   different targets:
+#     a. Correlation with the MSE predictor: how well does SSA approximate
+#        the MSE solution, subject to the HT constraint?
+#     b. Correlation with the effective target: how well does SSA approximate
+#        the forward-shifted series (the quantity being forecast)?
 
-# 3.b Correlation with effective target i.e. series shifted by one time unit
+# 3a. Theoretical correlation with the one-step ahead MSE forecast
+SSA_obj$crit_rhoyz
+# Empirical verification: compute the MSE predictor and correlate with filter output
+MSE_forecast <- a1 * x
+cor(yhat, MSE_forecast, use = 'pairwise.complete.obs')
+
+# 3b. Theoretical correlation with the effective target (series shifted one step forward)
 SSA_obj$crit_rhoy_target
-# Compare with empirical correlation
-cor(yhat,c(x[(2):len],x[len]),use='pairwise.complete.obs')
+# Empirical verification: correlate filter output with the forward-shifted series
+cor(yhat, c(x[2:len], x[len]), use = 'pairwise.complete.obs')
+
+
+#================================================================
+# Example 7
+# Holding-time: strict interpretation, misspecification, smoothing hyperparameter
+#================================================================
+#
+# The "holding-time" (ht) measures how long a filter output tends to stay on
+# the same side of zero (i.e., its sign persistence). Two versions are compared:
+#   - Expected ht: derived analytically from the filter coefficients (assumes white noise input)
+#   - Empirical ht: computed directly from the filtered output series
+
+#-----------------------------------------------------------------------------
+# 7.1 Correct model: xt = epsilon_t (white noise)
+#
+# When the input is truly white noise, the analytical expected ht
+# and the empirically observed ht should agree up to sampling error.
+#-----------------------------------------------------------------------------
+
+len <- 12000  # Length of the simulated time series
+
+# Define an equally-weighted moving average (MA) filter of length L
+# Each coefficient equals 1/L, so the filter computes a simple rolling mean
+L  <- 10
+b  <- rep(1/L, L)
+
+set.seed(65)
+x <- rnorm(len)  # Simulate white noise input
+
+# Apply the MA filter to x using a one-sided (causal) convolution
+yhat <- filter(x, b, side = 1)
+yhat <- na.exclude(yhat)  # Remove the leading NAs introduced by the filter lag
+
+# Compare expected ht (from filter coefficients) with empirical ht (from filtered series).
+# Both should be close; any difference is due to finite-sample variation.
+compute_holding_time_func(b)$ht       # Analytical expected holding-time
+compute_empirical_ht_func(yhat)       # Empirical holding-time from simulated data
+
+#-----------------------------------------------------------------------------
+# 7.2 Misspecified model: xt = ARMA(1,1) process
+#
+# The analytical formula for expected ht assumes white noise input.
+# When the input is autocorrelated (e.g., ARMA), that assumption is violated,
+# so the expected ht and the empirical ht will no longer agree.
+#-----------------------------------------------------------------------------
+
+L  <- 10
+b  <- rep(1/L, L)   # Same equally-weighted MA filter as above
+a1 <- 0.4           # AR(1) coefficient
+b1 <- 0.3           # MA(1) coefficient
+
+set.seed(65)
+x <- arima.sim(n = len, model = list(ar = a1, ma = b1))  # Simulate ARMA(1,1) input
+
+# Apply the same MA filter to the ARMA-generated data
+yhat <- filter(x, b, side = 1)
+yhat <- na.exclude(yhat)
+
+# Compare expected ht vs. empirical ht.
+# They now differ because the white noise assumption underlying compute_holding_time_func() is violated.
+compute_holding_time_func(b)$ht       # Analytical ht (incorrectly assumes white noise input)
+compute_empirical_ht_func(yhat)       # Empirical ht from ARMA-filtered data
+
+#-----------------------------------------------------------------------------
+# Reconciling expected and empirical ht under misspecification
+#
+# To fix the mismatch we need to find the "correct" filter: the one whose input
+# IS white noise (epsilon_t) but whose output is identical to applying b to xt.
+#
+# By the Wold decomposition, any ARMA process can be written as an infinite MA:
+#   xt = xi(L) * epsilon_t,  where xi contains the MA-inversion coefficients.
+#
+# The correct filter is therefore the convolution of xi with b:
+#   (b applied to xt) = (b * xi applied to epsilon_t)
+# Using this convolved filter with the white-noise formula recovers the true ht.
+#-----------------------------------------------------------------------------
+
+# Step 1: Compute MA-inversion (Wold representation) of the ARMA(1,1) process.
+xi <- c(1, ARMAtoMA(ar = a1, ma = b1, lag.max = len - 1))
+
+# Step 2: Convolve the MA-inversion filter xi with the original filter b.
+# The result, ssa_eps, is the filter that maps white noise epsilon_t to the
+# same output as b applied to xt.
+ssa_eps <- conv_two_filt_func(xi, b)$conv
+
+# Visual check: compare the original filter b (black) with the convolved filter ssa_eps (red).
+# The convolved filter captures additional autocorrelation structure not present in b.
+ts.plot(ssa_eps[1:30], col = "red",
+        main = "Original filter b (black) vs. convolved filter ssa_eps (red)")
+lines(b, col = "black")
+
+# Compute the analytical expected ht using the corrected (convolved) filter.
+# This should now match the empirical ht of yhat computed above.
+compute_holding_time_func(ssa_eps)$ht
+
+#-----------------------------------------------------------------------------
+# Numerical verification: confirm that b applied to xt equals ssa_eps applied to epsilon_t
+#-----------------------------------------------------------------------------
+
+# Simulate the same ARMA(1,1) process manually to have direct access to epsilon_t
+set.seed(43)                          # Note: use set.seed() as a function call, not assignment
+x   <- eps <- rnorm(len)
+for (i in 2:len)
+  x[i] <- a1 * x[i - 1] + eps[i] + b1 * eps[i - 1]
+
+# Filter xt with the original filter b
+yhat_x   <- filter(x,   b,              side = 1)
+
+# Filter epsilon_t with the first 30 coefficients of the convolved filter ssa_eps.
+# Truncating at lag 30 is a practical approximation; the tail coefficients are negligible.
+yhat_eps <- filter(eps, ssa_eps[1:30],  side = 1)
+
+# Align both series by removing NAs (introduced by the filter lags)
+mplot <- na.exclude(cbind(yhat_x, yhat_eps))
+
+# Plot both filtered series over the first 1000 observations.
+# They should be virtually identical, confirming that the two representations are equivalent.
+ts.plot(mplot[1:1000, ], lty = 1:2,
+        main = "b applied to xt (solid) vs. convolved filter applied to epsilon_t (dashed)")
+
+#-----------------------------------------------------------------------------
+# 7.3 Misspecified model: xt = ARMA(1,1) + mu (non-zero mean)
+#
+# We extend the misspecification of Section 7.2 by adding a non-zero mean mu.
+# This has an important consequence for the holding-time: shifting the series
+# upward moves the zero-crossing line away from the centre of the distribution,
+# reducing the frequency of zero-crossings and therefore *increasing* the
+# empirical ht relative to the zero-mean case.
+#-----------------------------------------------------------------------------
+
+L  <- 10
+b  <- rep(1/L, L)   # Equally-weighted MA filter of length L
+a1 <- 0.4           # AR(1) coefficient of the ARMA(1,1) input process
+b1 <- 0.3           # MA(1) coefficient of the ARMA(1,1) input process
+mu <- 1             # Non-zero mean shift applied to the simulated series
+
+set.seed(655)
+# Simulate an ARMA(1,1) process shifted upward by mu.
+# The resulting series oscillates around mu instead of zero.
+x    <- mu + arima.sim(n = len, model = list(ar = a1, ma = b1))
+yhat <- filter(x, b, side = 1)   # Apply one-sided MA filter
+yhat <- na.exclude(yhat)          # Remove leading NAs introduced by filter lag
+
+# Compare analytical expected ht with empirical ht.
+# The discrepancy is now *larger* than in Section 7.2 (zero-mean ARMA case),
+# because the upward shift reduces zero-crossings in the filtered output.
+compute_holding_time_func(b)$ht   # Analytical ht (assumes zero-mean white noise input)
+compute_empirical_ht_func(yhat)   # Empirical ht: inflated due to the mean shift
+
+#-----------------------------------------------------------------------------
+# Diagnostic plot: visualise the effect of the mean shift on zero-crossings
+#-----------------------------------------------------------------------------
+
+# Plot the first 100 observations of x to see how far the series sits above zero.
+# The horizontal line at 0 is the reference for zero-crossings;
+# the line at mu shows the true centre of the process.
+# As mu increases, zero-crossings become rarer (for mu > 4 they may vanish entirely).
+ts.plot(x[1:100], main = "Simulated ARMA(1,1) + mu series (first 100 obs)")
+abline(h = 0,  col = "red",  lty = 2, lwd = 1.5)   # Zero line (reference for ht calculation)
+abline(h = mu, col = "blue", lty = 2, lwd = 1.5)   # Mean line (true centre of the process)
+
+#-----------------------------------------------------------------------------
+# Reconciling expected and empirical ht under mean-shifted misspecification
+#
+# Two corrections are required:
+#   1. Centre the data (subtract mu) so that zero-crossings again correspond
+#      to crossings of the process mean — this is what the ht formula measures.
+#   2. Correct the filter for the ARMA autocorrelation structure, exactly as
+#      in Section 7.2 (convolve b with the Wold/MA-inversion of xt).
+#
+# After both corrections, the analytical expected ht should match the
+# empirical ht of the centred, filtered series.
+#-----------------------------------------------------------------------------
+
+# Step 1: Compute the MA-inversion (Wold representation) of the ARMA(1,1) process.
+xi <- c(1, ARMAtoMA(ar = a1, ma = b1, lag.max = len - 1))
+
+# Step 2: Convolve xi with the original filter b to obtain the corrected filter ssa_eps.
+# ssa_eps maps white noise epsilon_t to the same output as b applied to (xt - mu).
+ssa_eps <- conv_two_filt_func(xi, b)$conv
+
+# Visual check: compare the original filter b with the corrected filter ssa_eps.
+# The convolved filter is more spread out, reflecting the ARMA memory of xt.
+ts.plot(ssa_eps[1:30], col = "red",
+        main = "Original filter b (black) vs. corrected filter ssa_eps (red)")
+lines(b, col = "black")
+
+# Analytical ht of the corrected filter.
+# Note: this does NOT yet match the empirical ht of yhat above, because yhat
+# was computed from the uncentred series x.  Centering is still required (see below).
+compute_holding_time_func(ssa_eps)$ht
+
+#-----------------------------------------------------------------------------
+# Numerical verification: confirm equivalence of the two filtering approaches
+#-----------------------------------------------------------------------------
+
+# Simulate the ARMA(1,1) process manually to retain direct access to epsilon_t.
+# Note: set.seed() must be called as a function, not used as an assignment.
+set.seed(43)
+y   <- eps <- rnorm(len)
+for (i in 2:len)
+  y[i] <- a1 * y[i - 1] + eps[i] + b1 * eps[i - 1]
+x <- y + mu   # Reintroduce the mean shift
+
+# Approach A: filter the *centred* series (x - mean(x)) with b.
+# Subtracting mean(x) estimates and removes mu; any residual difference from
+# ssa_eps arises from finite-sample estimation error of mu by mean(x).
+yhat_x   <- filter(x - mean(x), b,             side = 1)
+
+# Approach B: filter epsilon_t directly with the corrected filter ssa_eps.
+# Truncating at lag 30 is a practical approximation; coefficients beyond
+# lag 30 are negligibly small for this ARMA specification.
+yhat_eps <- filter(eps,          ssa_eps[1:30], side = 1)
+
+# Align both series by removing NAs
+mplot <- na.exclude(cbind(yhat_x, yhat_eps))
+
+# Plot both filtered series for the first 1000 observations.
+# The two lines should be virtually identical, confirming the equivalence.
+ts.plot(mplot[1:1000, ], lty = 1:2,
+        main = paste("b applied to centred xt (solid)",
+                     "vs. corrected filter applied to epsilon_t (dashed)"))
+
+# Final check: empirical ht of the centred filtered series should now match
+# the analytical ht of the corrected filter ssa_eps (up to sampling error).
+compute_empirical_ht_func(yhat_x)          # Empirical ht after centering
+compute_holding_time_func(ssa_eps)$ht      # Analytical ht of corrected filter
+
+#-----------------------------------------------------------------------------
+# Conclusions from Sections 7.1 – 7.3
+#
+# 1. The analytical expected ht formula assumes that filter b is applied to
+#    zero-mean white noise.  Two forms of misspecification break this:
+#
+#    a) Autocorrelation: if xt is ARMA, convolve b with the Wold MA-inversion
+#       xi of xt to obtain the correct filter before applying the ht formula.
+#
+#    b) Non-zero mean: if xt has mean mu != 0, centre the data first (subtract mu).
+#       The ht then measures mean duration between crossings of the mu-line,
+#       not the zero-line. Under misspecification, this literal interpretation
+#       is lost, but the smoothing effect remains valid (see point 3 below).
+#
+# 2. When both corrections are applied (centering + convolution), the
+#    analytical and empirical holding-times agree up to sampling error.
+#
+# 3. Even under misspecification, increasing ht in the SSA optimisation
+#    always produces a smoother filter:
+#      - The smoothing effect operates at the mu-line and at any other level.
+#      - However, the ht value is biased relative to the true zero-crossing rate.
+#
+# 4. Therefore, ht can be treated as a *smoothing hyperparameter* that controls
+#    noise suppression regardless of whether the model is correctly specified.
+#    Tutorials 2, 3, and 4 illustrate these practical smoothing effects.
+#-----------------------------------------------------------------------------
+
+#================================================================
+# Example 8
+# Replicating SSA filters for business-cycle analysis
+#================================================================
+#-----------------------------------------------------------------------------
+#
+# Reference: Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
+#
+# Key modelling assumption:
+#   SSA filters here assume white noise input (xi = NULL), meaning we do NOT
+#   fit a parametric time-series model to the data. This is intentional:
+#   it avoids over-fitting ("data mining") and keeps the filter design robust.
+#
+# Overview of what this example produces:
+#   1. A suite of HP-filter designs (two-sided target, one-sided concurrent,
+#      one-sided MSE-optimal, gap filters).
+#   2. Two SSA filter sets derived from those HP designs:
+#      a. A "smooth" SSA filter with an *increased* holding-time (ht = 12)
+#         that generates ~40% fewer noisy zero-crossings than the classic HP.
+#      b. A "fast" SSA filter that matches the holding-time of the classic
+#         concurrent HP but forecasts 18 months ahead.
+#-----------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+# 8.1 HP filter targets and hyperparameters
+#-----------------------------------------------------------------------------
+
+L              <- 201     # Filter length (number of coefficients); monthly data context
+lambda_monthly <- 14400   # Standard HP smoothing parameter for monthly data
+# (corresponds to lambda = 1600 for quarterly data, scaled by 3^4)
+
+# Compute the full set of HP-related filter designs in one call.
+# The returned object contains both the two-sided ideal target and several
+# one-sided (causal) approximations used as SSA targets below.
+HP_obj <- HP_target_mse_modified_gap(L, lambda_monthly)
+
+# Two-sided (symmetric) HP trend filter — the ideal smoother, not realisable
+# in real time because it uses future observations.  Used as the benchmark target.
+target <- HP_obj$target
+
+# One-sided gap filter: approximates (data - HP trend) in real time.
+# Positive values indicate the series is above the long-run trend (expansion);
+# negative values indicate contraction.
+hp_gap <- HP_obj$hp_gap
+
+# Modified one-sided gap filter designed to operate on *first differences* of
+# the data.  When applied to differenced data it produces output identical to
+# hp_gap applied to the original (level) series.  Useful when the data are
+# differenced for stationarity before filtering.
+modified_hp_gap <- HP_obj$modified_hp_gap
+
+# Classic one-sided (concurrent) HP trend filter.
+# This is the MSE-optimal real-time estimate of the two-sided target *if* the
+# data follow an ARIMA(0,2,2) process — the model implicitly assumed by the HP filter.
+hp_trend <- HP_obj$hp_trend
+
+# Alternative one-sided HP trend based on direct (least-squares) truncation of
+# the two-sided symmetric filter.  This is MSE-optimal under the white noise
+# assumption (consistent with xi = NULL used in SSA below).
+hp_mse <- HP_obj$hp_mse
+
+# Any of the above designs can serve as an SSA target; see Tutorials 2 and 5.
+
+#-----------------------------------------------------------------------------
+# 8.2 SSA filter design — smooth variant with increased holding-time (ht = 12)
+#
+# Problem with the classic concurrent HP trend (hp_trend):
+#   The filter exhibits unwanted noise leakage, producing spurious zero-crossings
+#   (false alarms about turning points) that are undesirable in practice.
+#
+# Solution:
+#   Ask SSA to approximate hp_trend while imposing a *larger* holding-time.
+#   A higher ht forces the filter output to stay on the same side of zero longer,
+#   effectively suppressing high-frequency noise and reducing false alarms.
+#-----------------------------------------------------------------------------
+
+# Holding-time of the classic concurrent HP trend (baseline reference)
+compute_holding_time_func(hp_trend)$ht
+
+
+# Target holding-time for the smooth SSA variant.
+# Setting ht = 12 (months) means the filter output is expected to cross zero
+# roughly once every 12 months on average under white noise.
+ht <- 12
+
+# Ratio of target ht to the HP trend's own ht: shows the degree of extra smoothing.
+# A ratio > 1 means fewer crossings; ~1.56 implies roughly 40% fewer noisy alarms.
+ht / compute_holding_time_func(hp_trend)$ht
+
+# Convert the target holding-time to the equivalent autocorrelation parameter rho1
+# used internally by SSA_func to enforce the ht constraint.
+rho1 <- compute_rho_from_ht(ht)
+
+# Forecast horizons for which SSA will compute optimal filters simultaneously.
+# horizon = 0  → concurrent (nowcast) filter
+# horizon = 18 → 18-month-ahead forecast filter
+# SSA_func accepts a vector and returns one optimised filter per horizon.
+forecast_horizon_vec <- c(0, 18)
+
+# Choose the MSE-optimal truncated HP trend as the SSA approximation target.
+# Using hp_mse (rather than hp_trend) is consistent with the white noise
+# assumption (xi = NULL) adopted throughout this example.
+gammak_generic <- hp_mse
+
+# Compute SSA filters for all horizons in forecast_horizon_vec.
+# Because xi is omitted (xi = NULL by default), SSA assumes white noise input,
+# so ssa_x and ssa_eps are identical — no MA-inversion correction is needed.
+SSA_obj  <- SSA_func(L, forecast_horizon_vec, gammak_generic, rho1)
+ssa_eps  <- SSA_obj$ssa_eps
+
+# Label each column to identify its holding-time and forecast horizon clearly.
+colnames(ssa_eps) <- paste0("SSA(", round(ht, 2), ",", forecast_horizon_vec, ")")
+
+#-----------------------------------------------------------------------------
+# 8.3 SSA filter design — fast variant matching HP holding-time, 18-month forecast
+#
+# For comparison we also compute an SSA filter that:
+#   - Matches the holding-time of the classic concurrent HP trend (no extra smoothing)
+#   - Forecasts 18 months ahead
+# This allows a direct comparison: same noise level as HP, but with a longer
+# forecast horizon.
+#-----------------------------------------------------------------------------
+
+# Holding-time of the classic concurrent HP trend (used as the ht constraint here)
+ht_short     <- compute_holding_time_func(hp_trend)$ht
+
+# Convert this holding-time to its equivalent rho1 parameter for SSA_func
+rho1_short   <- compute_rho_from_ht(ht_short)
+
+# We only need the 18-month-ahead forecast for this variant
+forecast_short <- forecast_horizon_vec[2]
+  
+# Compute the fast SSA forecast filter with HP-equivalent holding-time
+SSA_obj  <- SSA_func(L, forecast_short, gammak_generic, rho1_short)
+ssa_eps1 <- SSA_obj$ssa_eps
+
+# Label the filter column consistently with the smooth variant above
+colnames(ssa_eps1) <- paste0("SSA(", round(ht_short, 2), ",", forecast_horizon_vec[2], ")")
+
+# Combine all SSA filters (smooth nowcast, smooth 18m forecast, fast 18m forecast)
+# into a single matrix for convenient plotting and comparison in subsequent steps.
+ssa_eps <- cbind(ssa_eps, ssa_eps1)
 
 
 #-----------------------------------------------------------------------------
-# Example 7
-# Holding-time: strict interpretation, misspecification, smoothing hyperparameter
+# 8.4 Visualisation of HP and SSA filter coefficients
+#
+# This plot replicates Figure 9 in:
+#   Wildi, M. (2024) 
+#
+# Left panel:  HP filter family — compares the two-sided symmetric target,
+#              the classic one-sided HP trend, and both gap filter variants.
+# Right panel: SSA filter family — compares the concurrent (nowcast) and
+#              forecast SSA filters at the smooth and fast holding-time settings.
+#
+# All filter coefficient vectors are scaled to unit maximum for visual
+# comparability (center = FALSE, scale = TRUE in scale()).
+# The x-axis shows the lag index (0 = most recent observation).
+#-----------------------------------------------------------------------------
 
-# 7.1 Correct model xt=epsilont white noise. If the model is not misspecified, then expected ht = empirical ht
-len<-12000
-# Apply an equally-weighted MA of length L to the data
-L<-10
-b<-rep(1/L,L)
-set.seed(65)  
-x<-rnorm(len)
-yhat<-filter(x,b,side=1)
-yhat<-na.exclude(yhat)
+# Colour scheme ---------------------------------------------------------------
+# HP filter family: warm tones (brown, red)
+colo_hp_all <- c("brown", "red")
+# SSA filter family: cool/distinct tones (orange, blue, violet)
+colo_SSA    <- c("orange", "blue", "violet")
+# Combined palette (used if all filters are plotted together)
+colo_all    <- c(colo_hp_all, colo_SSA)
 
-# Compare expected and empirical holding-times: they match up to sampling error
-compute_holding_time_func(b)$ht
-compute_empirical_ht_func(yhat)
-  
-#----------------------------------------------------------------
-# 7.2 Misspecified model xt=ARMA: expected ht does not match empirical ht because our expression for ht assumes white noise
-L<-10
-b<-rep(1/L,L)
-a1<-0.4
-b1<-0.3
-set.seed(65)  
-x<-arima.sim(n=len,model=list(ar=a1,ma=b1))
-yhat<-filter(x,b,side=1)
-yhat<-na.exclude(yhat)
+#-----------------------------------------------------------------------------
+# Left panel: HP filter family
+#-----------------------------------------------------------------------------
 
-# Compare expected and empirical holding-times: they differ
-compute_holding_time_func(b)$ht
-compute_empirical_ht_func(yhat)
+par(mfrow = c(1, 2))   # Side-by-side layout: HP filters (left), SSA filters (right)
 
-# In order to reconcile both numbers we have to specify the correct model or, more precisely, the correct filter
-# Correct here means: the filter whose input is epsilont (instead of xt) and whose output is the same as b when applied to xt 
-# The correct filter is thus the convolution of b with MA-inversion (Wold decomposition) of xt
+# Stack the four HP-related filters column-wise and scale each to unit maximum.
+# Scaling makes the shape (lag structure) comparable regardless of filter magnitude.
+mplot <- scale(cbind(hp_trend, target, hp_gap, modified_hp_gap),
+               center = FALSE, scale = TRUE)
+colnames(mplot) <- c("HP trend",           # Classic one-sided concurrent HP trend
+                     "Target symmetric",   # Two-sided ideal target (non-causal benchmark)
+                     "HP-gap (original)",  # One-sided gap filter applied to levels
+                     "HP-gap (modified)")  # One-sided gap filter applied to first differences
 
-# Step 1 MA-inversion
-xi<-c(1,ARMAtoMA(ar=a1,ma=b1,lag.max=len-1))
-# Step 2 Covolution
-ssa_eps<-conv_two_filt_func(xi,b)$conv
-# Compare ssa_eps and b
-ts.plot(ssa_eps[1:30],col="red",main="Original filter (black) vs. convolved filter (red)")
-lines(b,col="black")
-# Compute expected holding time of convolved filter: once corrected, the filter matches the empirical ht of yhat above
-compute_holding_time_func(ssa_eps)$ht
+colo <- c(colo_hp_all[1],   # HP trend       → brown
+          "black",           # Symmetric target → black
+          "darkgreen",       # HP-gap original  → dark green
+          colo_hp_all[2])    # HP-gap modified  → red
 
-# Filter data
-set.seed<-43
-x<-eps<-rnorm(len)
-for (i in 2:len)
-  x[i]<-a1*x[i-1]+eps[i]+b1*eps[i-1]
+# Initialise the plot with the first filter series; remaining series added in loop
+plot(mplot[, 1],
+     main  = "",
+     axes  = FALSE,
+     type  = "l",
+     xlab  = "Lag structure",
+     ylab  = "Filter coefficients (scaled)",
+     ylim  = c(min(mplot), max(mplot)),
+     col   = colo[1])
 
-# Filter x with b and eps with ssa_eps and compare filter outputs
-yhat_x<-filter(x,b,side=1)
-yhat_eps<-filter(eps,ssa_eps[1:30],side=1)
-mplot<-na.exclude(cbind(yhat_x,yhat_eps))
-# Both series are identical
-ts.plot(mplot[1:1000,],lty=1:2,main="b applied to xt generates the same output as convolved filter applied to epsilont")
+# Overlay all HP filters and add colour-coded legend via mtext
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i])
+  # Place each filter label at the top of the plot, stacked by line offset
+  mtext(colnames(mplot)[i], col = colo[i], line = -i)
+}
 
-#---------------------------------------------
-# 7.3 Misspecified model xt=ARMA+mu: we here shift additionally the series by mu!=0
-L<-10
-b<-rep(1/L,L)
-a1<-0.4
-b1<-0.3
-mu<-1
-set.seed(655)  
-x<-mu+arima.sim(n=len,model=list(ar=a1,ma=b1))
-yhat<-filter(x,b,side=1)
-yhat<-na.exclude(yhat)
+# x-axis: re-label tick marks so they show lag 0, 1, 2, ... instead of index 1, 2, 3, ...
+axis(1, at = 1:nrow(mplot), labels = -1 + 1:nrow(mplot))
+axis(2)
+box()
 
-# Compare expected and empirical holding-times: they differ even more than previously (when mu=0)
-compute_holding_time_func(b)$ht
-compute_empirical_ht_func(yhat)
+#-----------------------------------------------------------------------------
+# Right panel: SSA filter family
+#
+# We select the first three columns of ssa_eps, which correspond to:
+#   col 1: SSA concurrent filter  (horizon =  0, smooth ht = 12)
+#   col 2: SSA forecast filter    (horizon = 18, smooth ht = 12)
+#   col 3: SSA forecast filter    (horizon = 18, fast   ht = hp_trend ht)
+#
+# Comparing columns 2 and 3 isolates the effect of the holding-time constraint
+# on the 18-month-ahead forecast filter shape.
+# Comparing columns 1 and 2 shows how the filter adapts to increasing forecast horizon.
+#-----------------------------------------------------------------------------
 
-# Let's see what happened
-ts.plot(x[1:100])
-abline(h=0)
-abline(h=mu)
-# By shifting the series upward by mu, the number of zero crossings decreased (for mu>4 we would not observe zero-crossings anymore)
+select_vec <- 1:3   # Select the three SSA filter columns described above
 
-# In order to reconcile expected and empirical hts we have to specify the correct model or, more precisely, the correct filter
-# Correct here means: 
-#   -The filter whose input is epsilont (instead of xt) and whose output is the same as b when applied to 
-#     xt-mu (we need to center the data in order to reconcile holding times) 
-# The correct filter is thus the convolution of b with MA-inversion (Wold decomposition) of xt, shifted upwards by mu
+# Scale SSA filters to unit maximum for shape comparison (same rationale as HP panel)
+mplot <- scale(ssa_eps[, select_vec], center = FALSE, scale = TRUE)
 
-# Step 1 MA-inversion
-xi<-c(1,ARMAtoMA(ar=a1,ma=b1,lag.max=len-1))
-# Step 2 Covolution
-ssa_eps<-conv_two_filt_func(xi,b)$conv
-# Compare ssa_eps and b
-ts.plot(ssa_eps[1:30],col="red",main="Original filter (black) vs. convolved filter (red)")
-lines(b,col="black")
-# Compute expected holding time: it does not yet match the empirical ht of yhat above because xt has not been centered
-compute_holding_time_func(ssa_eps)$ht
+# Initialise the right-panel plot
+plot(mplot[, 1],
+     main  = "",
+     axes  = FALSE,
+     type  = "l",
+     xlab  = "Lag structure",
+     ylab  = "Filter coefficients (scaled)",
+     ylim  = c(min(mplot), max(mplot)),
+     col   = colo_SSA[1])
 
-# Filter data
-set.seed<-43
-y<-eps<-rnorm(len)
-for (i in 2:len)
-  y[i]<-a1*y[i-1]+eps[i]+b1*eps[i-1]
-x<-y+mu
-# Step 2: center data
-# Filter x-mean(x) (centered data) with b; filter eps with ssa_eps and compare filter outputs
-yhat_x<-filter(x-mean(x),b,side=1)
-yhat_eps<-filter(eps,ssa_eps[1:30],side=1)
-mplot<-na.exclude(cbind(yhat_x,yhat_eps))
-# Both series are virtually identical: up to finite sample estimation error of mu by mean(x)
-ts.plot(mplot[1:1000,],lty=1:2)
+# Overlay all selected SSA filters and add colour-coded labels
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo_SSA[i])
+  mtext(colnames(mplot)[i], col = colo_SSA[i], line = -i)
+}
 
-# Now the empirical ht matches the expected number (up to sampling error)
-compute_empirical_ht_func(yhat_x)
-compute_holding_time_func(ssa_eps)$ht
+# x-axis: re-label to show lag 0, 1, 2, ... consistent with the left panel
+axis(1, at = 1:nrow(mplot), labels = -1 + 1:nrow(mplot))
+axis(2)
+box()
 
-#--------------------------------------------
-# Conclusions
-# -The expected ht of a filter b assumes that b is applied to white noise: no autocorrelation, zero mean
-# -If the series xt is autocorrelated, then one needs to correct the filter b for the dependence structure
-#   -Compute the convolution of b with the MA-inversion xi of xt
-# -If the series has a non-vanishing mean mu, then ht addresses crossings at the mu-line (not at the zero-line anymore) 
-# -If the model is misspecified, then ht cannot be interpreted literally as `mean duration between consecutive zero-crossings'
-# -But increasing ht in the holding-time constraint of SSA will always lead to a smoother filter (irrespective of misspecification)
-#   -The smoothing effect (at the mu-line) operates also on any other level-line
-#   -But ht is biased
-# -In this sense, ht can be interpreted as a hyperparameter which triggers smoothness and controls noise suppression,
-#     even if the model is misspecified (not white noise)
-# -Tutorials 2,3 and 4 illustrate these effects
+#-----------------------------------------------------------------------------
+# Note on downstream use:
+#   These filters are applied to the monthly US Industrial Production (INDPRO)
+#   series in Tutorial 5, where their real-time business-cycle dating performance
+#   is evaluated empirically.
+#   Results replicate Figure 9 in Wildi, M. (2024).
+#-----------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #-----------------------------------------------------------------
 # Example 8
