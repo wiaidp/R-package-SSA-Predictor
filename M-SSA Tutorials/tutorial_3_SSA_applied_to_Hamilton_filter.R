@@ -1,31 +1,64 @@
-# In this tutorial we propose an application of SSA to Hamilton's regression  filter (HF)
-# For illustration, we consider quarterly GDP (example 1) and monthly non-farm payroll (examples 2 and 3) data  
-# We analyze long sample periods (starting at WWII) as well as shorter spans (starting at the great moderation)
+# ========================================================================
+# Tutorial 3: SSA Applied to Hamilton's Regression Filter (HF)
+# ========================================================================
+# This tutorial demonstrates how SSA can be applied to Hamilton's regression
+# filter (HF) to improve its real-time business cycle analysis (BCA) properties.
+#
+# Two datasets are used for illustration:
+#   - Example 1: Quarterly US GDP
+#   - Examples 2 & 3: Monthly US non-farm payroll employment
+# Both long samples (starting post-WWII) and shorter samples (starting at the
+# Great Moderation, ~1985) are analysed to assess robustness across regimes.
+#
+# ------------------------------------------------------------------------
+# Main findings:
+# ------------------------------------------------------------------------
+#
+#   1. HF is a low-pass filter (when expressed in terms of returns/differences):
+#        - It mitigates the generation of spurious business cycles.
+#        - This is a key advantage over band-pass designs such as Baxter-King (BK),
+#          Christiano-Fitzgerald (CF), and the HP-gap filter, which are all prone
+#          to spurious cycles — see Tutorials 2 (Example 7), 4, and 5.
+#
+#   2. HF removes the residual weak drift in the differenced series:
+#        - It can handle arbitrary integration orders by increasing the AR lag
+#          order p in the regression specification.
+#
+#   3. HF is inherently sample-dependent (defined by an in-sample regression):
+#        - The out-of-sample cycle is non-stationary because the estimated
+#          regression coefficients do not sum to one across the full sample.
+#        - The regression must be continuously updated as new observations arrive,
+#          which introduces undesirable real-time revisions to historical estimates.
+#
+#   4. HF has a relatively short holding-time and a relatively large phase-lag:
+#        - Short holding-time => noisy zero-crossings (many false turning-point signals).
+#        - Large phase-lag => retardation (turning points are detected with delay).
+#        - Both deficiencies make HF a natural candidate for SSA enhancement.
+#
+#   5. SSA nowcast target: approximately 30% fewer zero-crossings than HF
+#        (i.e., a ~30% larger holding-time), suppressing noise while retaining
+#        the low-pass character of the original filter.
+#
+#   6. SSA forecasts (6-month and 12-month horizons):
+#        - Remain smooth (holding-time constraint is satisfied).
+#        - Are leading relative to HF (reduced phase-lag / improved timeliness).
+#
+# ------------------------------------------------------------------------
+# Broader motivation:
+# ------------------------------------------------------------------------
+# The goal of this tutorial is not to advocate for any specific Business Cycle tool.
+# Rather, it illustrates a general principle:
+#
+#   Any linear filter — including HF — can be replicated and systematically
+#   improved by SSA with respect to two practical BCA priorities:
+#     1. Smoothness: suppression of high-frequency noise (fewer false signals).
+#     2. Timeliness: earlier detection of cyclical turning points.
+#
+# In this context, HF serves as a convenient baseline platform and a showcase
+# for the SSA optimisation principle. A range of quantitative performance
+# measures is provided to confirm the practical value of the approach.
+# ========================================================================
 
-# Main outcomes: 
-#   1.HF is a lowpass (transformed filter as applied to returns): it does not generate spurious cycles
-#       In contrast to BK, CF or HP-gap bandpass designs, see tutorials 2 (example 7), 4 and 5
-#   2.HF removes the (remaining) weak drift of the returns: it can address arbitrary integration orders by modifying the AR-order p of the regression
-#   3.By its very definition, the HF filter depends on the data-sample (regression model)
-#       -The out-of-sample cycle is non-stationary (regression parameters do not sum to one).
-#       -Therefore, the filter-regression must be continuously up-dated, as new information becomes available.
-#       -Up-dating the regression generates (undesirable) revisions.
-#   4.HF has a rather small holding-time and a rather large phase-lag 
-#       It is subject to noise leakage (`noisy' zero crossings) and retardation
-#       Therefore, an application of SSA is not inopportune
-#   5.We want the SSA-nowcast to be smoother than HF (~30% less crossings in the long run)
-#   6.The SSA forecasts (6 months and 1-year) are smooth, too, and leading 
-
-
-# Note: our intention is not to push a particular BCA-tool. Rather, we strive at illustrating that a particular 
-#   predictor or BCA-filter (any one as long as it's linear in the data) can be replicated and modified by SSA 
-#   in view of addressing 
-# 1. smoothness (noise suppression) and 
-# 2. timeliness (advancement)
-# In this perspective, HF is considered as a basic platform and a vitrine for showcasing SSA
-#   -We offer a number of compelling performance measures, confirming pertinence of a simple novel optimization principle  
-
-#-----------------------------------------------------------------------
 # Make a clean-sheet, load packages and functions
 
 rm(list=ls())
