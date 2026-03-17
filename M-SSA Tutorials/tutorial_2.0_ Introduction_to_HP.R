@@ -2,11 +2,11 @@
 # TUTORIAL: BUSINESS-CYCLE ANALYSIS (BCA) — FOUNDATION FOR SSA INTEGRATION
 # =============================================================================
 # NOTE: This tutorial is independent of the SSA.
-#       It covers the methodological foundation of Business-Cycle Analysis (BCA)
-#       — specifically, the framework onto which SSA is later applied.
 #
 # FOCUS: The Hodrick-Prescott (HP) filter as a target specification for
 #        trend and cycle extraction.
+# Readers/coders interested in SSA could skip this tutorial
+
 #
 # FILTER PERSPECTIVE:
 #   - Primary emphasis is placed on ONE-SIDED filters (also known as
