@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────
 # M-SSA PREDICTOR: A TUTORIAL SERIES
 # ─────────────────────────────────────────────────────────────────
-# This series of tutorials introduces methods for optimal prediction,
+# This series of exercises (tutorials) introduces methods for optimal prediction,
 # with a focus on controlling key characteristics of the predictor.
 
 # ── BACKGROUND REFERENCES ────────────────────────────────────────
@@ -65,17 +65,16 @@
 #         predictor relative to the target (i.e., how early or late
 #         an alarm is triggered)
 
-# ── SSA: SIMPLE/SMOOTH SIGN ACCURACY ─────────────────────────────
-# SSA (Simple Sign Accuracy or Smooth Sign Accuracy) is a flexible
-# prediction framework applicable to:
+# ── SSA: SIMPLE (or SMOOTH) SIGN ACCURACY ─────────────────────────────
+# SSA is a flexible prediction framework applicable to:
 #   • One-step ahead, multi-step ahead, backcasting,
 #     nowcasting, and forecasting settings
 #
 # SSA explicitly targets key predictor characteristics:
-#   • MSE performance
+#   • MSE performance (Mean-Squared Error)
 #   • Noise suppression  (smoothness, wiggliness,
 #                         rate of zero-crossings)
-#   • Timeliness         (lead, left-shift, reduced phase-lag)
+#   • It can also address Timeliness  `indirectly'   (lead, left-shift, reduced phase-lag)
 #
 # Note: SSA can be configured to replicate the classical MSE
 # predictor as a special case — see Tutorial 0.3.
@@ -186,11 +185,11 @@
 #
 #   • Generalization of linear predictors
 #       → In principle, any linear forecast rule can be replicated
-#         within the SSA framework
+#         within the SSA framework (see tutorials 1-5)
 #
 #   • Customization of benchmarks
 #       → Once a classical linear forecast is replicated, SSA can
-#         be used to make it faster, smoother, or both
+#         be used to make it faster, smoother, or both (see tutorials 1-5)
 #
 #   • Scope
 #       → SSA addresses univariate linear predictors;
