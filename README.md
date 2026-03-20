@@ -2,7 +2,7 @@ M-SSA Tutorial — GitHub Project
 
 
 
-Overview
+Overview:
 
 M-SSA (Multivariate Smooth Sign Accuracy) provides a unified framework for solving general prediction problems while simultaneously accommodating specific, practically relevant research priorities and objectives.
 
@@ -28,7 +28,7 @@ Background (references \& links): https://github.com/wiaidp/R-package-SSA-Predic
 
 \####
 
-Project Structure
+Project Structure:
 
 
 
@@ -90,7 +90,7 @@ Together, these constitute the ATS Trilemma.
 
 \####
 
-Optimization Principles
+Optimization Principles:
 
 M-SSA addresses each dimension of the trilemma as follows:
 
@@ -114,7 +114,7 @@ M-SSA is Specialized to the AS-Dilemma (with possible extension to the ATS Trile
 
 \####
 
-Why Zero-Crossings (Sign Changes) Matter
+Why Zero-Crossings (Sign Changes) Matter:
 
 In many applications, zero-crossings serve as markers of significant events, triggering decisions or interventions by analysts, decision-makers, or market participants.
 
@@ -152,7 +152,7 @@ In contrast to methods that depend exclusively on the sign of observations (e.g.
 
 \####
 
-Efficient Frontier and Pareto Optimality
+Efficient Frontier and Pareto Optimality:
 
 In an M-SSA-optimized predictor, any gain in sign accuracy inevitably incurs a higher rate of zero-crossings — and vice versa. There is no free lunch.
 
@@ -172,7 +172,7 @@ M-SSA extends the solution space to the full frontier, offering a richer and mor
 
 \####
 
-What Makes M-SSA Distinctive
+What Makes M-SSA Distinctive:
 
 
 
@@ -196,31 +196,23 @@ These qualities make M-SSA especially well-suited for settings where opacity is 
 
 \####
 
-Alternative Prediction Packages
+Alternative Prediction Packages:
 
 The author proposes the following complementary R-based prediction frameworks (https://marcwildi.com):
 
 
 
-MDFA: https://github.com/wiaidp/MDFA-tutorial
+1. MDFA: https://github.com/wiaidp/MDFA-tutorial. MDFA is a generic prediction approach addressing the full ATS trilemma in the frequency domain. Accuracy, smoothness, and timeliness are derived from and defined on the amplitude and phase characteristics of the predictor filter.
 
 
 
-MDFA is a generic prediction approach addressing the full ATS trilemma in the frequency domain. Accuracy, smoothness, and timeliness are derived from and defined on the amplitude and phase characteristics of the predictor filter.
-
-
-
-Look-Ahead DFP/PCS: tutorial in preparation.
-
-
-
-DFP/PCS specializes in the Accuracy-Timeliness trade-off, targeting applications where the cost of delay is particularly significant.
+2\. Look-Ahead DFP/PCS: tutorial in preparation. DFP/PCS specializes in the Accuracy-Timeliness trade-off, targeting applications where the cost of delay is particularly significant.
 
 
 
 \####
 
-Positioning of the Approaches
+Positioning of the Approaches:
 
 
 
