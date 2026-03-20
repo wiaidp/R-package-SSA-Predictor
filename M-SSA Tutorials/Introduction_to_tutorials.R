@@ -1,7 +1,11 @@
 # ─────────────────────────────────────────────────────────────────
 # M-SSA PREDICTOR: A TUTORIAL SERIES
 # ─────────────────────────────────────────────────────────────────
-# This series of exercises (tutorials) introduces methods for optimal prediction,
+
+# The M-SSA provides a unified framework for solving general prediction problems while simultaneously 
+# accommodating specific research priorities and objectives.
+
+# This series of tutorials introduces M-SSA,
 # with a focus on controlling key characteristics of the predictor.
 
 # ── BACKGROUND REFERENCES ────────────────────────────────────────
@@ -66,7 +70,8 @@
 #         an alarm is triggered)
 
 # ── SSA: SIMPLE (or SMOOTH) SIGN ACCURACY ─────────────────────────────
-# SSA is a flexible prediction framework applicable to:
+# SSA is the original and simpler univariate version of M-SSA. 
+# It is a flexible prediction framework applicable to:
 #   • One-step ahead, multi-step ahead, backcasting,
 #     nowcasting, and forecasting settings
 #
@@ -255,9 +260,9 @@
 #   space of filter performance:
 #
 #     ACCURACY  : correlation between filter output and the target signal
-#                 (equivalently: sign accuracy of the extracted cycle)
+#                 (equivalently: sign accuracy of the predictor)
 #     SMOOTHNESS: holding time of the filter output
-#                 (mean duration between consecutive zero-crossings)
+#                 (mean duration between consecutive sign changes)
 #
 # DUALITY THEOREM:
 #   The AS frontier is characterized by two equivalent optimization problems:
@@ -297,6 +302,9 @@
 # stationary and zero-mean.
 #   • For processes with a non-zero mean, zero-crossings should be
 #     replaced by mean-crossings throughout
+#   • An extension to non-stationary processes is given in Wildi (2026a) 
+#     → Max-monotone and min-curvature SSA predictors
+#
 
 # ── Gaussianity ───────────────────────────────────────────────────
 # The formal theoretical framework assumes Gaussian processes.
@@ -309,6 +317,8 @@
 #     → This robustness follows from a central limit theorem argument
 #     → Typical deviations from Gaussianity, as commonly encountered
 #       in economic time series, do not materially affect performance
+#     → See applications in Wildi (2024) and simulation studies in Wildi (2026 a,b)
+
 
 # ── Crossings at non-mean thresholds ──────────────────────────────
 # When zero-crossings are measured at a threshold above or below
@@ -340,18 +350,19 @@
 # Key distinctions:
 #
 #   • Domain
-#       → MDFA operates in the frequency domain
+#       → MDFA operates in the frequency domain: https://github.com/wiaidp/MDFA-tutorial
 #       → M-SSA and DFP/PCS are formulated in the time domain
 #
 #   • Trilemma decomposition in MDFA
 #       → MSE is decomposed into amplitude and phase contributions,
 #         which define the smoothness and timeliness terms
-#         respectively — see cited literature for details
+#         respectively — see cited literature for details and https://github.com/wiaidp/MDFA-tutorial
 #
-#   • Smoothness in M-SSA
-#       → Measured as the mean duration between consecutive
-#         sign changes of a zero-mean predictor (holding-time)
-#       → Yields more direct and intuitive interpretation
+#   • Accuracy and Smoothness in M-SSA
+#       → Accuracy measured as the predictor's sign accuracy
+#       → Smoothness measured as the mean duration between consecutive
+#         sign changes of the predictor (holding-time)
+#       → Yields more direct and intuitive interpretations
 #         than the MDFA amplitude-based formulation
 #
 #   • Timeliness in DFP/PCS
@@ -359,3 +370,7 @@
 #         (rather than phase in the frequency domain)
 #       → Yields more direct and intuitive interpretation
 #         than the MDFA phase-based formulation
+#       → DFP/PCS maximize the lead among linear predictors:
+#         We derive a universal upper bound on lead over classical MSE for any linear predictor 
+#         under a consistency constraint and prove that DFP/PCS hit this ceiling.
+#     
