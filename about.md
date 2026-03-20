@@ -74,13 +74,7 @@ Heinisch, K. and Van Norden, S. and Wildi, M. (2026) Smooth and Persistent Forec
 
 &#x20;streamlined, occasionally moving proofs to online appendices.
 
-
-
-\####
-
-
-
-Working paper versions of the above articles can be found in the `Papers' folder of the M-SSA tutorial project. The last cited work applies M-SSA to forecasting of German GDP.
+&#x20;The last cited work applies M-SSA to forecasting of German GDP.
 
 
 
