@@ -34,25 +34,19 @@ The theoretical foundations and principles of M-SSA are documented in the follow
 
 
 
-Wildi, M. (2024) Business Cycle Analysis and Zero-Crossings of
-
-&#x20;    Time Series: a Generalized Forecast Approach. Published in Journal of Business-Cycle Research
+Wildi, M. (2024) Business Cycle Analysis and Zero-Crossings of Time Series: a Generalized Forecast Approach. Published in Journal of Business-Cycle Research
 
 &#x20;    https://doi.org/10.1007/s41549-024-00097-5
 
 
 
-Wildi, M. (2026a) Sign Accuracy, Mean-Squared Error and the Rate
-
-&#x20;    of Zero Crossings: a Generalized Forecast Approach.
+Wildi, M. (2026a) Sign Accuracy, Mean-Squared Error and the Rate of Zero Crossings: a Generalized Forecast Approach.
 
 &#x20;    https://doi.org/10.48550/arXiv.2601.06547 (published on arXiv)
 
 
 
-Wildi, M. (2026b) The Accuracy-Smoothness Dilemma in Prediction:
-
-&#x20;    a Novel Multivariate M-SSA Forecast Approach.
+Wildi, M. (2026b) The Accuracy-Smoothness Dilemma in Prediction: a Novel Multivariate M-SSA Forecast Approach.
 
 &#x20;    https://doi.org/10.48550/arXiv.2602.13722. Published in Journal of Time Series Analysis (and arXiv)
 

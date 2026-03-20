@@ -58,15 +58,13 @@ Getting started: Open the R project by clicking the project icon located in the 
 
 
 
-\#########################################
+\################################################################################################################
 
 Background:
 
-\#########################################
+\################################################################################################################
 
-\####
 
-Prediction Problem
 
 M-SSA is built to address the prediction ATS Trilemma. Forecasting inherently involves three partly competing goals:
 
@@ -86,6 +84,8 @@ III. Smoothness — suppressing spurious noise and erratic fluctuations
 
 Together, these constitute the ATS Trilemma.
 
+The total mean-squared forecast error can be additively decomposed into: MSE=A+T+S(+R)
+
 
 
 \####
@@ -100,7 +100,7 @@ Accuracy: optimized via sign accuracy and MSE (mean-squared error).
 
 
 
-Smoothness: enforced by imposing a constraint on the mean duration between consecutive sign changes of the predictor.
+Smoothness: enforced by imposing a constraint on the mean duration between consecutive sign changes in the predictor (less sign changes means smoother).
 
 
 
@@ -140,7 +140,13 @@ BCA identifies a broadly regular, recurrent economic cycle alternating between e
 
 d. Industrial process control
 
-Monitoring problems are often framed as a filter exceeding a threshold — readily recast as a zero-crossing problem —.
+Monitoring problems are often framed as a filter exceeding a threshold and readily recast as a zero-crossing problem.
+
+
+
+Note:
+
+In contrast to methods that depend exclusively on the sign of observations (e.g., logit), M-SSA utilizes fully observed interval-scaled data to address signs, resulting in greater efficiency (see a corresponding tutorial).
 
 
 
@@ -156,11 +162,11 @@ This trade-off is a direct consequence of M-SSA residing on the efficient fronti
 
 
 
-Classical MSE predictors represent a single point on this frontier.
+Classical Max-Likelihood predictors represent a single point on this frontier.
 
 
 
-M-SSA extends the solution space to the full two-dimensional hyperplane, offering a richer and more flexible set of forecasting solutions.
+M-SSA extends the solution space to the full frontier, offering a richer and more flexible set of forecasting solutions.
 
 
 
@@ -168,7 +174,11 @@ M-SSA extends the solution space to the full two-dimensional hyperplane, offerin
 
 What Makes M-SSA Distinctive
 
+
+
 Generality: classical linear forecasting methods emerge as special cases, which can then be refined within M-SSA to reflect specific research priorities and objectives (customization).
+
+The tutorial proposes customization of Hodrick-Prescott, Hamilton, Christiano-Fitzgerald, refined Beveridge-Nelson filter designs as well as of ARMA/VARMA forecasting.
 
 
 
@@ -184,11 +194,13 @@ These qualities make M-SSA especially well-suited for settings where opacity is 
 
 
 
+
+
 \####
 
 Alternative Prediction Packages
 
-The author proposes the following complementary R-based prediction frameworks:
+The author proposes the following complementary R-based prediction frameworks (https://marcwildi.com):
 
 
 
