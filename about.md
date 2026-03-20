@@ -18,7 +18,7 @@ b) M-SSA (initiated in 2020): available in this repository (https://github.com/w
 
 
 
-c) Look-Ahead DFP and PCS (initiated in 2024): work in progress
+c) Look-Ahead DFP and PCS (initiated in 2024): tutorial in the works
 
 
 
