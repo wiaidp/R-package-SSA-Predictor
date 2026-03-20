@@ -1,22 +1,24 @@
-About Me
-
-
-
-My name is Marc Wildi. I am a Professor of Econometrics at the Zurich University of Applied Sciences. My primary research interests lie in forecasting and signal extraction. Over the years, I have developed (partly alone, partly in cooperation with fellow researchers) a number of novel forecasting frameworks designed to tackle real-world prediction challenges and to reconcile various — sometimes competing — research objectives within a unified forecast optimization criterion:
+Author: Marc Wildi — https://marcwildi.com
 
 
 
 
 
-a) MDFA (initiated in 2005): available in this repository
+I am a Professor of Econometrics at the Zurich University of Applied Sciences. My primary research interests lie in forecasting and signal extraction. Over the years, I have developed (partly alone, partly in cooperation with fellow researchers) a number of novel forecasting frameworks designed to tackle real-world prediction challenges and to reconcile various — sometimes competing — research objectives within a unified forecast optimization criterion:
 
 
 
-b) M-SSA (initiated in 2020): available in a separate GitHub repository
+
+
+a) MDFA (initiated in 2005): available in a separate GitHub repository (https://github.com/wiaidp/MDFA-tutorial)
 
 
 
-c) Look-Ahead DFP and PCS (initiated in 2024): available in a separate GitHub repository
+b) M-SSA (initiated in 2020): available in this repository (https://github.com/wiaidp/R-package-SSA-Predictor)
+
+
+
+c) Look-Ahead DFP and PCS (initiated in 2024): work in progress
 
 
 
