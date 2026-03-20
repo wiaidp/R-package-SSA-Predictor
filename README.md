@@ -176,17 +176,15 @@ What Makes M-SSA Distinctive
 
 
 
-Generality: classical linear forecasting methods emerge as special cases, which can then be refined within M-SSA to reflect specific research priorities and objectives (customization).
-
-The tutorial proposes customization of Hodrick-Prescott, Hamilton, Christiano-Fitzgerald, refined Beveridge-Nelson filter designs as well as of ARMA/VARMA forecasting.
+A. Generality: classical linear forecasting methods emerge as special cases, which can then be refined within M-SSA to reflect specific research priorities and objectives (customization). The tutorial proposes customization of Hodrick-Prescott, Hamilton, Christiano-Fitzgerald, refined Beveridge-Nelson filter designs as well as of ARMA/VARMA forecasting.
 
 
 
-Interpretability: optimization criteria are grounded in clear, fundamental principles, yielding solutions that are uniquely determined and straightforward to communicate.
+B. Interpretability: optimization criteria are grounded in clear, fundamental principles, yielding solutions that are uniquely determined and straightforward to communicate.
 
 
 
-Transparency: unlike black-box methods, M-SSA provides a direct window into the forecasting mechanism. Optimization is fast, numerically stable, and leads to unique solutions.
+C. Transparency: unlike black-box methods, M-SSA provides a direct window into the forecasting mechanism. Optimization is fast, numerically stable, and leads to unique solutions.
 
 
 
