@@ -84,7 +84,7 @@ III. Smoothness — suppressing spurious noise and erratic fluctuations
 
 Together, these constitute the ATS Trilemma.
 
-The total mean-squared forecast error can be additively decomposed into: MSE=A+T+S(+R)
+
 
 
 
