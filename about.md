@@ -66,15 +66,15 @@ Heinisch, K. and Van Norden, S. and Wildi, M. (2026) Smooth and Persistent Forec
 
 
 
-&#x20;Note: Working paper versions are available in the 'Papers' folder
+\####
 
-&#x20;of this GitHub repository. Working papers contain full proofs and
+Working paper versions are available in the 'Papers' folder of this GitHub repository. Working papers contain full proofs and
 
-&#x20;detailed technical results, whereas published versions are more
+detailed technical results, whereas published versions are more streamlined, occasionally moving proofs to online appendices.
 
-&#x20;streamlined, occasionally moving proofs to online appendices.
+The last cited article (Heinisch et al., 2026) applies M-SSA to forecasting German GDP multiple quarters ahead. 
 
-&#x20;The last cited work applies M-SSA to forecasting of German GDP.
+This application serves as one of the main empirical showcase of the M-SSA in this tutorial.
 
 
 
