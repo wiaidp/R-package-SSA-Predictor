@@ -1823,6 +1823,10 @@ box()
 #     is smaller than that of the Hamilton filter — see Tutorial 2 for details.
 
 
+
+
+
+
 # ============================================================
 # Example 4: Post-1990 Subsample Analysis
 # ============================================================
@@ -2428,13 +2432,6 @@ box()
 #   - The residual lag is structurally driven by the 2-year forecast horizon in the
 #     Hamilton regression equation.
 #
-# CLARIFICATION ON "NEVER USE THE HP":
-#   - The advice applies specifically to the HP-gap on the original (level) series:
-#     this produces a spurious and unreliable business cycle — confirmed in Tutorial 2.
-#   - The HP-trend applied to returns performs well: it is smooth, its passband lag is
-#     smaller than Hamilton's, and — unlike Hamilton — it does not depend on the
-#     chosen estimation window or sample size.
-#     (There are both pros and cons to parameter-free filters; see Tutorial 2 for details.)
 
 
 #----------------------------------------------------------------------------------------------
@@ -2542,6 +2539,7 @@ mtext("Nowcast (delta = 0)",                                   col = "blue",    
 #     via the level-to-differences transformation (ham_diff).
 #   - A simple regression-based adjustment was proposed to map the SSA output back to
 #     the original (classic) Hamilton cycle scale and level for direct comparison.
+#   - After transformation, cycles were indistinguishable.
 #
 # ROBUSTNESS TO MODEL MISSPECIFICATION:
 #   - SSA is broadly robust to misspecification of the data's dependence structure.
@@ -2582,7 +2580,7 @@ mtext("Nowcast (delta = 0)",                                   col = "blue",    
 #
 # OUTLOOK:
 #   - A more refined and operationally effective treatment of timeliness (left shift)
-#     will be presented in a forthcoming tutorial.
+#     is obtained by the novel Look-Ahead DFP/PCS predictors (tutorial in preparation) 
 ###################################################################################################
 
 
