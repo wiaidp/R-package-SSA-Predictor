@@ -95,6 +95,10 @@ source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
 # Load signal extraction functions used for JBCY paper (relies on mFilter)
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
+# Load hamilton regression with unit root constraint
+source(paste(getwd(),"/R/hamilton_unit_root.r",sep=""))
+
+
 # ==================================================================================
 # Example 1
 # ==================================================================================
@@ -222,18 +226,16 @@ sum(hamilton_filter)
 #   though HP tends to generate spurious cyclical fluctuations (see Tutorial 2, Example 7).
 
 # --- Unit-Root Adjustment of the Hamilton Filter ---
-# We correct the filter so that its coefficients sum to exactly zero,
-# enforcing the cointegration constraint (no long-run bias out-of-sample).
-# Approach: distribute the non-zero sum evenly across the p AR-lag coefficients.
-# Alternative redistribution schemes are possible, but since the correction
-# is much smaller than the OLS sampling error, the choice is inconsequential.
-# These adjustments do not materially affect relative SSA vs. HF performance comparisons.
-hamilton_filter_adjusted <- hamilton_filter
-hamilton_filter_adjusted[(h + 1):(h + p)] <-
-  hamilton_filter_adjusted[(h + 1):(h + p)] - sum(hamilton_filter) / p
-
-# Confirm that the adjusted filter now sums to exactly zero.
+# Impose unit-root to regression
+Diff=T
+Ham_obj<-HamiltonFilter_Restricted(y, p, h, Diff )
+# Verify: sum = 1
+sum(Ham_obj$coefficients[-1])
+#Ham_obj$cycle_xts
+#Ham_obj$trend_xts 
+hamilton_filter_adjusted<-c(1,rep(0,h-1),-Ham_obj$coefficients[-1])
 sum(hamilton_filter_adjusted)
+#Ham_obj$verification 
 
 # Compute the adjusted cycle: apply the corrected filter to the data matrix.
 # No intercept subtraction needed here, as the zero-sum constraint absorbs the mean.
@@ -284,7 +286,7 @@ ts.plot(residuals - residuals_adjusted, main = "Cycle difference")
 #       requiring an upward level shift to serve as a recession indicator.
 #     * The adjusted cycle is already 'uplifted' relative to the original,
 #       though it may sit somewhat too high during the pre-financial-crisis period.
-# - The cycle difference (bottom panel) resembles a rescaled copy of log-GDP itself,
+# - The cycle difference (bottom panel) has un upward drift,
 #   directly reflecting the time-varying drift in the underlying series.
 # - Since both cycles are statistical constructs rather than observable quantities,
 #   the choice between them is ultimately subjective and application-dependent.
@@ -307,13 +309,13 @@ cycle_diffh <- residuals - residuals_adjusted
 #---------------------------------------------------
 # 1.2 Transformation: From Levels to Differences
 #
-# To graft SSA onto the Hamilton filter, we must first transform the problem
+# To graft SSA onto the Hamilton filter (for customization), we must first transform the problem
 # so that the filter operates on stationary (differenced) data.
 # Theoretical background: Wildi, M. (2024), https://doi.org/10.1007/s41549-024-00097-5
 #
 # Motivation:
 #   - The concept of zero-crossings (and holding times) is not well-defined
-#     for non-stationary (integrated) series (an extension to integrated processes is given in Wildi (2026a))
+#     for non-stationary (integrated) series (a formal extension of SSA to integrated processes is given in Wildi (2026a))
 #   - We therefore re-express HF as an equivalent filter applied to first differences
 #     rather than levels.
 #   - This transformation applies broadly to all bandpass-cycle filters that operate
@@ -400,6 +402,10 @@ compute_empirical_ht_func(residuals_adjusted)
 par(mfrow = c(1, 1))
 ts.plot(residuals_adjusted)
 abline(h = 0)
+
+# Centering the cycle narrows the gap between empirical and true HT: 1 crossing all 2 years
+compute_empirical_ht_func(scale(residuals_adjusted))
+
 
 # In principle, a level shift (translation) of the series does not affect
 # the SSA computation itself. However, the theoretical holding time no longer
@@ -498,7 +504,8 @@ ht
 
 # Both values should agree up to rounding errors, confirming convergence to the
 # global optimum. In practice, convergence is reliable for standard forecast problems
-# of this type, as the optimization landscape is well-behaved.
+# of this type, as the optimization landscape is well-behaved. Otherwise one can augment
+# the number of iteration steps.
 
 #--------------------------------------------------
 # 1.6 Filter the Series and Compute Performance Measures
@@ -523,9 +530,14 @@ ham_out <- filter(x, ham_diff, side = 1)
 ht_ham_diff_obj$ht
 compute_empirical_ht_func(ham_out)
 
-# Result: the empirical holding time of SSA is approximately 50% larger than that
-# of HF, broadly consistent with the imposed constraint (the remaining discrepancy
-# is due to the level-bias discussed in Section 1.3).
+# Result: the empirical holding time of SSA is  larger than that of HF 
+# Conjecture: the observed discrepancy is due to the level-bias discussed in Section 1.3.
+# Verification:
+# Compare empirical HT of centered cycles: now SSA has ~30% less crossings, as expected
+# But the sample estimates still differ from true values (due to the remaining non-stationary drift)
+compute_empirical_ht_func(scale(SSA_out))
+compute_empirical_ht_func(scale(ham_out))
+
 
 # Visual comparison of SSA and Hamilton filter outputs.
 # Both cycles are closely aligned; the Hamilton filter is slightly noisier
@@ -577,6 +589,7 @@ abline(h = 0)
 # Note: the empirical holding times are now much closer to the theoretical values
 # because the back-transformation has corrected key sources of mis-specification
 # (level offset and scaling), as discussed in Tutorial 1, Exercise 7.
+# But the series is still non-stationary (WWII dynamics differ from `modern' dynamics)
 compute_empirical_ht_func(original_hamilton_cycle)
 compute_empirical_ht_func(scale_shifted_SSA)
 
@@ -611,10 +624,13 @@ SSA_filt_ham_diff_forecast <- SSA_obj_ham_diff$ssa_x
 # Apply the forecast filter to the differenced data.
 SSA_out_forecast <- filter(x, SSA_filt_ham_diff_forecast, side = 1)
 
-# Compare empirical holding times: SSA-forecast remains approximately 30% smoother
+# Compare empirical holding times: SSA-forecast remains  smoother
 # than the Hamilton filter (fewer zero-crossings), despite the increased forecast horizon.
 compute_empirical_ht_func(SSA_out_forecast)
 compute_empirical_ht_func(ham_out)
+# Scale series: SSA has ~30% less crossings
+compute_empirical_ht_func(scale(SSA_out_forecast))
+compute_empirical_ht_func(scale(ham_out))
 
 # Visual comparison of all three series (standardized to unit variance for comparability).
 # Key observation: the SSA forecast is shifted to the LEFT relative to both
@@ -653,7 +669,7 @@ lines(original_hamilton_cycle)
 abline(h = 0)
 
 # Confirm smoothness improvement: SSA forecast has fewer
-# zero-crossings than the original Hamilton cycle.
+# zero-crossings than the original Hamilton cycle (but not 30% less).
 compute_empirical_ht_func(original_hamilton_cycle)
 compute_empirical_ht_func(scale_shifted_SSA)
 
@@ -785,7 +801,7 @@ box()
 #     the phase-shift to vanish at frequency zero).
 #
 # Implication for the 'never use HP' debate:
-#   - HP-GAP applied to levels: avoid — generates spurious cycles (confirmed in Tutorial 2).
+#   - HP-GAP applied to levels: to avoid — generates spurious cycles (confirmed in Tutorial 2).
 #   - HP-TREND applied to returns: performs well — smaller lag and smoother output than HF
 #     (see Tutorial 2 for a direct comparison).
 #   The advice 'never use HP' therefore depends critically on WHICH HP design is used
@@ -890,13 +906,18 @@ ts.plot(cbind(residuals, lm_obj$residuals),
 # For non-stationary series, filter coefficients should sum to zero (trend removal)
 sum(hamilton_filter)
 
-# Enforce zero-sum constraint (cointegration condition)
-# Distribute adjustment evenly across lag coefficients
-hamilton_filter_adjusted <- hamilton_filter
-hamilton_filter_adjusted[(h+1):(h+p)] <-
-  hamilton_filter_adjusted[(h+1):(h+p)] - sum(hamilton_filter)/p
-
+# --- Unit-Root Adjustment of the Hamilton Filter ---
+# Impose unit-root to regression
+Diff=T
+Ham_obj<-HamiltonFilter_Restricted(y, p, h, Diff )
+# Verify: sum = 1
+sum(Ham_obj$coefficients[-1])
+#Ham_obj$cycle_xts
+#Ham_obj$trend_xts 
+hamilton_filter_adjusted<-c(1,rep(0,h-1),-Ham_obj$coefficients[-1])
 sum(hamilton_filter_adjusted)
+#Ham_obj$verification 
+
 
 # Compute adjusted cycle
 residuals_adjusted <- data_mat %*% hamilton_filter_adjusted
@@ -918,7 +939,7 @@ ts.plot(residuals - residuals_adjusted, main = "Cycle difference")
 # TAKEAWAY
 # The original and adjusted cycles are very similar; the main difference is a slowly varying level component.
 # SSA can be applied to either specification with comparable results.
-# We use the adjusted cycle for technical convenience.
+# We use the adjusted cycle for SSA customization due to technical convenience.
 ###########################################################################
 
 # We proceed with the adjusted (uncentered) cycle for SSA.
@@ -994,7 +1015,9 @@ abline(h = 0)
 acf(x, main = "ACF of log-returns")
 
 # The ACF indicates serial dependence in returns.
-# Here we deliberately assume white noise to illustrate SSA robustness.
+# ===================================================================
+# HERE WE DELIBERATELY ASSUME WHITE NOISE TO ILLUSTRATE SSA ROBUSTNESS.
+# ===================================================================
 # Examples 3 and 4 will incorporate explicit time-series models.
 xi <- NULL
 
@@ -1081,6 +1104,10 @@ mtext("SSA", col = "blue", line = -2)
 # Note: results are affected by model misspecification (see Example 4)
 compute_empirical_ht_func(SSA_out)
 compute_empirical_ht_func(ham_out)
+# Apply centering: now SSA has 30% less crossings
+compute_empirical_ht_func(scale(SSA_out))
+compute_empirical_ht_func(scale(ham_out))
+
 
 # Adjust SSA back to the scale of the original Hamilton cycle
 # (accounts for level shifts and scaling differences)
@@ -1172,14 +1199,16 @@ mtext(paste("SSA forecast: delta=", forecast_horizon[2]), col = colo[3], line = 
 mtext("Hamilton", col = colo[4], line = -4)
 abline(h = 0)
 
-# Empirical holding times: SSA designs remain smoother than Hamilton
-compute_empirical_ht_func(SSA_out)
-compute_empirical_ht_func(SSA_out_forecast_6)
-compute_empirical_ht_func(SSA_out_forecast_12)
-compute_empirical_ht_func(ham_out)
+# Empirical holding times after centering: 
+#   -Nowcast has 30% less crossings
+#   -Predictors are less smooth (effect of misspecified white noise model)
+compute_empirical_ht_func(scale(SSA_out))
+compute_empirical_ht_func(scale(SSA_out_forecast_6))
+compute_empirical_ht_func(scale(SSA_out_forecast_12))
+compute_empirical_ht_func(scale(ham_out))
 
 # Lead-lag analysis
-max_lead <- 8
+max_lead <- 9
 
 # Nowcast: aligned with Hamilton
 compute_min_tau_func(mplot[,c(1,4)], max_lead)
@@ -1187,7 +1216,7 @@ compute_min_tau_func(mplot[,c(1,4)], max_lead)
 # 6-month forecast: leads by ~3 months
 compute_min_tau_func(mplot[,c(2,4)], max_lead)
 
-# 12-month forecast: leads by ~6 months
+# 12-month forecast: leads by ~7 months
 compute_min_tau_func(mplot[,c(3,4)], max_lead)
 
 # Amplitude and phase-shift functions provide a complementary,
@@ -1196,7 +1225,8 @@ compute_min_tau_func(mplot[,c(3,4)], max_lead)
 
 ########################################################################################################
 # MAIN TAKE-AWAY:
-# SSA demonstrates superior performance in timeliness (relative lead) and smoothness (less crossings)
+# SSA demonstrates superior performance in timeliness (relative lead) and smoothness (less crossings) 
+# except for 12-steps ahead forecast (effect of wrong white noise model)
 ########################################################################################################
 
 # We verify this statement based on frequency-domain characteristics: amplitude and time-shift
@@ -1335,10 +1365,6 @@ box()
 #     * The large lag is structurally driven by the 2-year forecast horizon embedded
 #       in the Hamilton regression equation.
 #
-# - Clarification on "why you should never use the HP":
-#     * Avoid the HP-gap— see tutorial 2 for confirmation.
-#     * However, the HP-trend applied to log-differences performs well: it is smoother and
-#       incurs a smaller lag than the Hamilton filter — see tutorial 2 for details.
 
 
 
@@ -1349,7 +1375,8 @@ box()
 
 
 # ============================================================
-# Example 3: Extension of Example 2 — Fitting an ARMA Model to the Data
+# Example 3: Extension of Example 2
+#   — avoid white noise misspecification by fitting an ARMA Model to the Data
 # ============================================================
 # NOTE: Example 2 must be run at least once before Example 3 to ensure
 #       all required objects and settings are properly initialized.
@@ -1408,8 +1435,8 @@ ht_ham_conv_obj$ht
 ht_ham_diff_obj$ht
 
 # Compare both theoretical holding times against the empirical holding time
-# of residuals_adjusted (the output of the Hamilton filter applied to x).
-compute_empirical_ht_func(residuals_adjusted)
+# of (scaled) residuals_adjusted (the output of the Hamilton filter applied to x).
+compute_empirical_ht_func(scale(residuals_adjusted))
 
 # Summary of holding time comparison:
 #   - ham_conv has a holding time closer to the empirical ht than ham_diff,
@@ -1442,11 +1469,13 @@ gammak_generic <- ham_diff
 # Set forecast horizon to zero (nowcast)
 forecast_horizon <- 0
 
+# ================================================================
 # ---- INCORRECT SSA CALL (for illustration purposes) ----
 # Warning: xi (Wold decomposition) is intentionally omitted here to demonstrate
 #          the consequences of incorrectly assuming white noise innovations.
 #          With no xi supplied, SSA treats x_t as white noise, causing the ht
 #          constraint to be excessively tight and the resulting filter to over-smooth.
+# ================================================================
 SSA_obj_ham_diff   <- SSA_func(L, forecast_horizon, gammak_generic, rho1)
 SSA_filt_ham_diff  <- SSA_obj_ham_diff$ssa_eps
 
@@ -1521,15 +1550,16 @@ ht_obj$ht
 # Apply the SSA filter (in x_t space) to the original series using one-sided filtering
 SSA_out <- filter(x, SSA_filt_ham_diff_x, side = 1)
 
-# The empirical ht of SSA_out exceeds the targeted ht.
+# The empirical ht of (scaled) SSA_out slightly exceeds the targeted ht.
 # Reason: x_t is non-stationary; the cycle frequency/amplitude shifts over time,
 #         violating the stationarity assumption embedded in the ht constraint.
-compute_empirical_ht_func(SSA_out)
+compute_empirical_ht_func(scale(SSA_out))
 ht  # Targeted holding time for reference
 
 # --- 2. Hamilton Filter Output ---
 ham_out <- filter(x, ham_diff, side = 1)
-compute_empirical_ht_func(ham_out)
+# SSA has 30% less mean crossings, as expected
+compute_empirical_ht_func(scale(ham_out))
 
 # The appropriate benchmark for Hamilton's empirical ht is ht_ham_conv (not ht_ham_diff),
 # since ham_conv correctly reflects the autocorrelation structure of x_t.
@@ -1546,12 +1576,9 @@ abline(h = 0)
 mtext("Hamilton filter output", col = "red",  line = -1)
 mtext("SSA filter output",      col = "blue", line = -2)
 
-# Empirical holding times: SSA holds longer than Hamilton, but the 50% target is not fully achieved.
-# Root cause: structural non-stationarity of the business cycle (changing cycle frequency post-1990).
-# Suggestion: Try ht <- 2 * ht_ham_conv_obj$ht for a more aggressive smoothing target,
-#             or restrict the sample to post-1990 data (see Example 4 for this approach).
-compute_empirical_ht_func(SSA_out)
-compute_empirical_ht_func(ham_out)
+# Empirical holding times: SSA has 30% less mean crossings, as intended.
+compute_empirical_ht_func(scale(SSA_out))
+compute_empirical_ht_func(scale(ham_out))
 
 
 # --- 3. Adjust SSA Cycle to Match the Original Hamilton Cycle Scale and Level ---
@@ -1581,8 +1608,8 @@ abline(h = 0)
 #   (a) Increase ht in the SSA call to impose stronger smoothing, or
 #   (b) Restrict the estimation sample to post-1990 data to reduce structural
 #       misspecification from the earlier, more volatile cycle regime (see Example 4).
-compute_empirical_ht_func(scale_shifted_SSA)
-compute_empirical_ht_func(original_hamilton_cycle)
+compute_empirical_ht_func(scale(scale_shifted_SSA))
+compute_empirical_ht_func(scale(original_hamilton_cycle))
 
 
 
@@ -1648,12 +1675,13 @@ mtext("Hamilton filter",                                       col = colo[4], li
 abline(h = 0)
 
 # --- Empirical Holding Times ---
-# SSA designs achieve approximately 50% longer holding times than Hamilton,
-# confirming stronger noise suppression without sacrificing timeliness.
-compute_empirical_ht_func(SSA_out)           # SSA nowcast
-compute_empirical_ht_func(SSA_out_forecast_6)  # SSA 6-month forecast
-compute_empirical_ht_func(SSA_out_forecast_12) # SSA 12-month forecast
-compute_empirical_ht_func(ham_out)             # Hamilton benchmark
+# In contrast to example 2, SSA designs now achieve approximately 50% longer HT than Hamilton (as intended)
+#   -We now use a better model for the data (example 2 was based on white noise)
+compute_empirical_ht_func(scale(SSA_out) )          # SSA nowcast
+compute_empirical_ht_func(scale(SSA_out_forecast_6))  # SSA 6-month forecast
+compute_empirical_ht_func(scale(SSA_out_forecast_12)) # SSA 12-month forecast
+compute_empirical_ht_func(scale(ham_out))             # Hamilton benchmark
+#   -The results confirm stronger noise suppression: we next verify better timeliness (faster filters).
 
 # --- Lead/Lag Analysis via Tau-Statistic (Zero-Crossing Shifts) ---
 # Compute the minimum-tau shift between each SSA output and the Hamilton filter output.
@@ -1666,7 +1694,7 @@ shift_obj <- compute_min_tau_func(mplot[, c(1, 4)], max_lead)
 # SSA 6-month forecast vs. Hamilton: expected lead of approximately one quarter
 shift_obj <- compute_min_tau_func(mplot[, c(2, 4)], max_lead)
 
-# SSA 12-month forecast vs. Hamilton: expected lead of approximately two quarters
+# SSA 12-month forecast vs. Hamilton: expected lead of approximately 1.5 quarters
 shift_obj <- compute_min_tau_func(mplot[, c(3, 4)], max_lead)
 
 # NOTE: The frequency-domain analysis in section 3.8 (amplitude and phase-shift functions)
@@ -1798,14 +1826,14 @@ box()
 #   - SSA is remarkably robust to misspecification of the dependence structure.
 #   - Examples 2 (white noise assumption) and 3 (ARMA(1,1) model) yield filters
 #     with broadly similar/comparable empirical performance.
+#   - Main effect of misspecification: multi-step ahead forecasting led to smaller HT under
+#       the wrong white noise assumption.
 #
 # NON-STATIONARITY AND HOLDING TIME BIAS:
 #   - The full sample spans a very long history, introducing structural non-stationarity
 #     that systematically biases the empirical holding time upward.
 #   - In all cases, SSA outperformed the Hamilton target in terms of smoothness;
-#     however, the magnitude of the gain was sometimes less than projected.
-#   - Remedies: (a) increase the ht constraint in the SSA call, or
-#               (b) shorten the estimation window (see Example 4 for the post-1990 subsample).
+#     the reduction of mean-crossings (~30%) was in accordance with the HT constraint.
 #   - In all cases, the forecast SSA filters outperformed Hamilton in both
 #     smoothness (longer holding time) and timeliness (left shift at zero-crossings).
 #
@@ -1816,11 +1844,6 @@ box()
 #   - The source of the lag is structural: the Hamilton regression uses a 2-year
 #     forecast horizon, which induces a systematic delay in the extracted cycle.
 #
-# CLARIFICATION ON "NEVER USE THE HP":
-#   - The advice applies specifically to the HP-gap:
-#     this produces a spurious and unreliable cycle — see Tutorial 2 for confirmation.
-#   - The HP-trend applied to returns performs well: it is smooth and its passband lag
-#     is smaller than that of the Hamilton filter — see Tutorial 2 for details.
 
 
 
@@ -1906,14 +1929,17 @@ ts.plot(cbind(residuals, lm_obj$residuals),
 # necessitating frequent filter updates as new data arrives (causing revisions).
 sum(hamilton_filter)
 
-# Impose the exact cointegration constraint:
-# Distribute the residual sum evenly across the p AR coefficients.
-hamilton_filter_adjusted <- hamilton_filter
-hamilton_filter_adjusted[(h + 1):(h + p)] <-
-  hamilton_filter_adjusted[(h + 1):(h + p)] - sum(hamilton_filter) / p
-
-# Verify that the adjusted filter sums to exactly zero
+# --- Unit-Root Adjustment of the Hamilton Filter ---
+# Impose unit-root to regression
+Diff=T
+Ham_obj<-HamiltonFilter_Restricted(y, p, h, Diff )
+# Verify: sum = 1
+sum(Ham_obj$coefficients[-1])
+#Ham_obj$cycle_xts
+#Ham_obj$trend_xts 
+hamilton_filter_adjusted<-c(1,rep(0,h-1),-Ham_obj$coefficients[-1])
 sum(hamilton_filter_adjusted)
+#Ham_obj$verification 
 
 # Compute the cointegration-adjusted cycle
 residuals_adjusted <- data_mat %*% hamilton_filter_adjusted
@@ -2002,6 +2028,9 @@ ht_ham_example2  # Reference value from Example 2
 # Root cause: x_t (log-returns) are not white noise — they exhibit positive autocorrelation.
 # See Examples 1–3 for a detailed discussion of this bias.
 compute_empirical_ht_func(residuals_adjusted)
+# After centering: the rate of mean crossings is closer to expected HT (however, we have not yet accounted 
+# for the autocorrelation in data)
+compute_empirical_ht_func(scale(residuals_adjusted))
 
 # Visual confirmation that log-returns are not white noise
 par(mfrow = c(1, 1))
@@ -2060,6 +2089,11 @@ ts.plot(xi, main = "Wold Decomposition xi: Slowly Decaying Impulse Response (Pos
 ham_conv        <- conv_two_filt_func(xi, ham_diff)$conv
 ht_ham_conv_obj <- compute_holding_time_func(ham_conv)
 
+# RESULT: Theoretical and Empirical Holding Times (empirical mean crossings) Are Now in Close Agreement
+ht_ham_conv_obj$ht
+compute_empirical_ht_func(scale(residuals_adjusted))
+
+
 
 #--------------------------------------
 # 4.5 Apply SSA (Post-1990, ARMA-Informed)
@@ -2099,7 +2133,7 @@ SSA_filt_ham_diff_x <- SSA_obj_ham_diff$ssa_x
 mplot <- cbind(ham_diff, SSA_filt_ham_diff_x)
 par(mfrow = c(1, 1))
 ts.plot(mplot, ylim = c(min(mplot), max(mplot)), col = c("black", "blue"),
-        main = "Filter Coefficients Applied to Return Series x_t")
+        main = "Filter Coefficients Applied to Log-Diff Series x_t")
 mtext("Hamilton filter",   col = "black", line = -1)
 mtext("SSA filter (ssa_x)", col = "blue",  line = -2)
 
@@ -2130,16 +2164,15 @@ ht         # Targeted holding time
 SSA_out <- filter(x, SSA_filt_ham_diff_x, side = 1)
 
 # The empirical holding time exceeds the targeted ht.
-# Root cause: x_t (log-returns) are non-stationary over the full sample,
-# violating the stationarity assumption embedded in the ht constraint.
-compute_empirical_ht_func(SSA_out)
+# Root cause: x_t (log-returns) are still non-stationary.
+compute_empirical_ht_func(scale(SSA_out))
 ht   # Targeted holding time for reference
 
 # --- 4.6.2 Hamilton Filter Output ---
-# Apply the Hamilton filter (in x_t space) to log-returns
+# Apply the Hamilton filter (in x_t space) to log-diff x
 ham_out <- filter(x, ham_diff, side = 1)
-compute_empirical_ht_func(ham_out)
-
+# SSA generates 30% less mean-crossings, as intended
+compute_empirical_ht_func(scale(ham_out))
 # The appropriate theoretical benchmark for Hamilton's empirical ht is ht_ham_conv
 # (which accounts for autocorrelation via the ARMA model), not ht_ham_diff.
 ht_ham_conv_obj$ht
@@ -2156,10 +2189,10 @@ mtext("Hamilton filter output", col = "red",  line = -1)
 mtext("SSA filter output",      col = "blue", line = -2)
 
 # Empirical holding time comparison:
-# SSA achieves approximately 50% longer holding time than Hamilton,
+# SSA achieves approximately 50% longer holding time (30% less mean crossings) than Hamilton,
 # consistent with the targeted improvement (difference is within sampling error).
-compute_empirical_ht_func(SSA_out)
-compute_empirical_ht_func(ham_out)
+compute_empirical_ht_func(scale(SSA_out))
+compute_empirical_ht_func(scale(ham_out))
 
 # --- Level- and Scale-Adjusted SSA Cycle ---
 # To enable a direct comparison with the original (classic) Hamilton cycle,
@@ -2182,17 +2215,15 @@ mtext("Original Hamilton cycle",       col = "black", line = -2)
 lines(original_hamilton_cycle)
 abline(h = 0)
 
-# Result: SSA generates approximately 30% fewer zero-crossings than the original Hamilton cycle.
-# Agreement between empirical and expected holding times is better here than in Examples 2–3,
-# because the post-1990 subsample is more stationary (reduced structural misspecification).
-compute_empirical_ht_func(scale_shifted_SSA)
-compute_empirical_ht_func(original_hamilton_cycle)
+# Result: SSA generates approximately 50% fewer zero-crossings than the original Hamilton cycle.
+compute_empirical_ht_func(scale(scale_shifted_SSA))
+compute_empirical_ht_func(scale(original_hamilton_cycle))
 
 # Note on time-frame alignment:
 # scale_shifted_SSA is shorter than original_hamilton_cycle due to filter initialization lag.
 # We align the comparison window by restricting original_hamilton_cycle to the same span.
 # This correction does not materially affect the conclusions.
-compute_empirical_ht_func(original_hamilton_cycle[L:length(original_hamilton_cycle)])
+compute_empirical_ht_func(scale(original_hamilton_cycle[L:length(original_hamilton_cycle)]))
 
 
 #-----------------------------------------------
@@ -2264,12 +2295,12 @@ mtext("Hamilton filter",                                    col = colo[4], line 
 abline(h = 0)
 
 # --- Empirical Holding Times ---
-# All SSA variants achieve approximately 50% longer holding times than Hamilton,
+# All SSA variants achieve longer holding times than Hamilton,
 # confirming stronger noise suppression without sacrificing timeliness.
-compute_empirical_ht_func(SSA_out)            # SSA nowcast
-compute_empirical_ht_func(SSA_out_forecast_6)   # SSA 6-month forecast
-compute_empirical_ht_func(SSA_out_forecast_12)  # SSA 12-month forecast
-compute_empirical_ht_func(ham_out)              # Hamilton benchmark
+compute_empirical_ht_func(scale(SSA_out))            # SSA nowcast
+compute_empirical_ht_func(scale(SSA_out_forecast_6))   # SSA 6-month forecast
+compute_empirical_ht_func(scale(SSA_out_forecast_12))  # SSA 12-month forecast
+compute_empirical_ht_func(scale(ham_out))              # Hamilton benchmark
 
 # --- Lead/Lag Analysis via Tau-Statistic (Zero-Crossing Shifts) ---
 # Compute the minimum-tau shift between each SSA output and Hamilton.
@@ -2279,7 +2310,7 @@ max_lead <- 10
 # SSA nowcast vs. Hamilton: expected to be approximately synchronized
 shift_obj <- compute_min_tau_func(mplot[, c(1, 4)], max_lead)
 
-# SSA 6-month forecast vs. Hamilton: expected to lead Hamilton by approximately one quarter
+# SSA 6-month forecast vs. Hamilton: expected to lead Hamilton by approximately 1.5 quarters
 shift_obj <- compute_min_tau_func(mplot[, c(2, 4)], max_lead)
 
 # SSA 12-month forecast vs. Hamilton: expected to lead Hamilton by approximately two quarters
@@ -2416,22 +2447,15 @@ box()
 #   - Discarding pre-1990 data (WWII through the Great Inflation era) substantially
 #     reduces structural non-stationarity, yielding a more homogeneous estimation environment.
 #   - As a result, the agreement between theoretical and empirical holding times improves
-#     considerably compared to Examples 2 and 3 (full sample).
-#   - Empirical holding times of SSA more closely match the intended 50% increase over
-#     the Hamilton benchmark. Residual deviations are consistent with random sampling error:
-#       * Slightly below target for unadjusted cycles.
-#       * Slightly above target for level-adjusted cycles.
+#     somehow compared to Examples 2 and 3 (full sample).
+#   - Empirical holding times (mean crossings) of SSA match the intended 50% increase over
+#     the Hamilton benchmark. 
 #
 # HAMILTON FILTER LAG (POST-1990):
 #   - The positive phase-shift (lag) of the Hamilton filter is smaller in the post-1990
 #     subsample than in the full-sample analyses of Examples 2–3.
 #   - This confirms that the Hamilton filter's lag is data-window dependent,
 #     reflecting its reliance on regression parameters estimated from the chosen sample.
-#   - Despite being smaller, the Hamilton lag still exceeds that of the classic HP-concurrent
-#     trend applied to returns, whose phase-shift vanishes at frequency zero by construction.
-#   - The residual lag is structurally driven by the 2-year forecast horizon in the
-#     Hamilton regression equation.
-#
 
 
 #----------------------------------------------------------------------------------------------
