@@ -46,6 +46,18 @@
 #       → Replicates Hodrick-Prescott filter designs via SSA
 #         → See Wildi, M. (2024)
 #            https://doi.org/10.1007/s41549-024-00097-5
+
+# ── BACKGROUND ────────────────────────────────────────────────────
+#   Wildi, M. (2024)
+#     Business Cycle Analysis and Zero-Crossings of Time Series:
+#     a Generalized Forecast Approach.
+#     https://doi.org/10.1007/s41549-024-00097-5
+
+# Theoretical background:
+#   Wildi, M. (2026a) Sign Accuracy, Mean-Squared Error and the Rate
+#     of Zero Crossings: a Generalized Forecast Approach.
+#     https://doi.org/10.48550/arXiv.2601.06547
+
 # ─────────────────────────────────────────────────────────────────
 
 rm(list=ls())
@@ -63,10 +75,11 @@ source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
 # Load signal extraction functions used for JBCY paper (relies on mFilter)
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
-#---------------------------------------------------------
-# Example 1
-# Illustrate the holding-time, see Wildi, M. (2024), (2026a)
 
+# ================================================================
+# Example 1
+# ================================================================
+# Illustrate the holding-time, see Wildi, M. (2024), (2026a)
 
 # Let xt be a realization of length 12000 of an AR(1)-process
 # We need a long series in order to obtain an accurate empirical holding-time estimate
@@ -135,8 +148,14 @@ tsdiag(ar_obj)
 ahat<-ar_obj$coef["ar1"]
 
 rho<-ahat
-# Compare with true/expected holding-time above
+# True HT
+compute_holding_time_from_rho_func(a1)
+# Empirical HT based on estimate rho
 compute_holding_time_from_rho_func(rho)
+# Empirical HT based on effective crossings in series
+compute_empirical_ht_func(x)
+# The two empirical estimates converge to the true value for large sample size
+
 #   - See also Tables 3 and 4 in Wildi (2024) for a detailed discussion of sampling error.
 #       * In practice, sampling error is largely irrelevant because it cancels out
 #         when performance is assessed in relative terms.
@@ -148,7 +167,8 @@ compute_holding_time_from_rho_func(rho)
 # Example 2: Inconsistent Settings
 #================================================================
 #
-# A MA filter of length L imposes an upper bound on the achievable holding-time (HT).
+# A MA filter of length L imposes an upper bound on the achievable holding-time (HT): 
+#   HT cannot be infinite (see Wildi (2024, 2026a).
 # Requesting an HT that exceeds this bound leads to an inconsistent specification.
 # This example briefly illustrates such a case and its consequences.
 #
@@ -287,7 +307,6 @@ SSA_obj$ssa_x
 
 
 
-#---------------------------------------------------------------------------------------
 #================================================================
 # Example 3: One-Step Ahead Forecasting
 #================================================================
@@ -675,6 +694,8 @@ cor(yhat, MSE_forecast, use = 'pairwise.complete.obs')
 SSA_obj$crit_rhoy_target
 # Empirical verification: correlate filter output with the forward-shifted series
 cor(yhat, c(x[2:len], x[len]), use = 'pairwise.complete.obs')
+
+
 
 
 #================================================================
@@ -1211,112 +1232,6 @@ box()
 
 
 
-
-
-
-
-
-
-
-#-----------------------------------------------------------------
-# Example 8
-# We here replicate the SSA-filters in the business-cycle analysis, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
-# SSA-filters assume white noise i.e. xi=NULL: we do not `mine' the data by fitting a model
-
-# HP and hyperparameter
-L<-201
-lambda_monthly<-14400
-
-HP_obj<-HP_target_mse_modified_gap(L,lambda_monthly)
-
-# Two sided filter
-target=HP_obj$target
-# One-sided gap filter: observation minus HP-trend
-hp_gap=HP_obj$hp_gap
-# One sided gap filter when applied to first differences of the data
-#  modified_hp_gap applied to first differences replicates the output of the original gap applied to the original data  
-modified_hp_gap=HP_obj$modified_hp_gap
-# Classic one-sided (concurrent) HP-trend: this is an optimal (MSE) estimate of the two-sided filter if the data follows an ARIMA(0,2,2) specification 
-hp_trend=HP_obj$hp_trend
-# Alternative one-sided HP-trend based on truncating the two-sided filter
-#   It is an optimal (MSE) estimate of the two-sided filter if the data is white noise (which is consistent with xi=NULL)
-hp_mse=HP_obj$hp_mse
-# We can use any of the above HP-designs as targets for SSA, see tutorials 2 and 5
-#---------------------------
-# SSA and hyperparameters
-# The classic one-sided HP-trend hp_trend is subject to some undesirable noise-leakage: the filter generates 
-#   unwanted noisy crossings
-# Its holding time is:
-compute_holding_time_func(hp_trend)$ht
-# We therefore ask SSA to target hp_trend while simultaneously improving noise-suppression (less noisy alarms)  
-# For this purpose we impose a larger holding-time, see Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
-ht<-12
-# The resulting SSA filter will generate roughly 40% less (noisy) crossings:
-ht/compute_holding_time_func(hp_trend)$ht
-rho1<-compute_rho_from_ht(ht)
-# We compute a nowcast of the classic concurrent HP as well as a 18-months ahead forecast, both subject to ht
-# We can supply a vector with the desired forecast horizons: SSA will compute optimal filters for each forecast horizon
-forecast_horizon_vec<-c(0,18)
-# We here want SSA to approximate the one-sided MSE HP-trend
-gammak_generic<-hp_mse
-
-# By omitting xi in the call we assume the data to be white noise
-SSA_obj<-SSA_func(L,forecast_horizon_vec,gammak_generic,rho1)
-
-# In this case ssa_x and ssa_eps are the same filters
-ssa_eps<-SSA_obj$ssa_eps
-colnames(ssa_eps)<-paste("SSA(",round(ht,2),",",forecast_horizon_vec,")",sep="")
-
-
-# We also compute a concurrent SSA filter which replicates ht of the classic one-sided HP and which forecasts 
-#  it 18-months ahead
-ht_short<-compute_holding_time_func(hp_trend)$ht
-rho1_short<-compute_rho_from_ht(ht_short)
-forecast_short<-forecast_horizon_vec[2]
-
-# Compute fast SSA forecast filter with same holding time as HP-trend
-SSA_obj<-SSA_func(L,forecast_short,gammak_generic,rho1_short)
-
-ssa_eps1<-SSA_obj$ssa_eps
-colnames(ssa_eps1)<-paste("SSA(",round(ht_short,2),",",forecast_horizon_vec[2],")",sep="")
-
-ssa_eps<-cbind(ssa_eps,ssa_eps1)
-
-#--------------------------------------
-# Plot filters: this plot replicates fig.4 in JBCY paper
-colo_hp_all<-c("brown","red")
-colo_SSA<-c("orange","blue","violet")
-colo_all<-c(colo_hp_all,colo_SSA)
-
-
-par(mfrow=c(1,2))
-mplot<-scale(cbind(hp_trend,target,hp_gap,modified_hp_gap),center=F,scale=T)
-colnames(mplot)<-c("HP trend","Target symmetric","HP-gap (original)","HP-gap (modified)")
-colo<-c(colo_hp_all[1],"black","darkgreen",colo_hp_all[2])
-plot(mplot[,1],main="",axes=F,type="l",xlab="Lag-structure",ylab="filter-coefficients",ylim=c(min(mplot),max(mplot)),col=colo[1])
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo[i])
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
-}  
-axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
-axis(2)
-box()
-# Select forecast horizons 0 and 18
-select_vec<-1:3
-mplot<-scale(ssa_eps[,select_vec],center=F,scale=T)
-plot(mplot[,1],main="",axes=F,type="l",xlab="",ylab="",ylim=c(min(mplot),max(mplot)),col=colo_SSA[1])
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo_SSA[i])
-  mtext(colnames(mplot)[i],col=colo_SSA[i],line=-i)
-}  
-axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
-axis(2)
-box()
-
-# We employ these filters in tutorial 5, when applied to the monthly INDPRO series
-# The above plot replicates results in Wildi, M. (2024) https://doi.org/10.1007/s41549-024-00097-5
 
 
 

@@ -1,5 +1,6 @@
+# =============================================================================
 # Tutorial 0.3
-#
+# =============================================================================
 # This tutorial covers three main topics:
 #
 # 1. Derivation of the classical Mean-Square Error (MSE) predictor
@@ -9,13 +10,27 @@
 #
 # 2. Introduction to the SSA criterion
 #    (Wildi, M. (2024), (2026a)):
-#      - Example 3: replication of the MSE predictor using SSA.
-#      - Example 4: sensitivity analysis of SSA to its input parameters.
+#      - Replication of the MSE predictor by SSA (Example 3).
+#      - Swapping acausal target (prediction) and MSE predictor (smoothing) 
+#         in SSA objective (example 4)
 #
 # 3. Role of the MSE predictor in subsequent tutorials:
 #      - As a benchmark for comparing predictor performances.
 #      - As a base predictor on which SSA can be applied to trade off
-#          smoothness against timeliness.
+#          smoothness against timeliness (customization).
+
+# ── BACKGROUND ────────────────────────────────────────────────────
+#   Wildi, M. (2024)
+#     Business Cycle Analysis and Zero-Crossings of Time Series:
+#     a Generalized Forecast Approach.
+#     https://doi.org/10.1007/s41549-024-00097-5
+
+# Theoretical background:
+#   Wildi, M. (2026a) Sign Accuracy, Mean-Squared Error and the Rate
+#     of Zero Crossings: a Generalized Forecast Approach.
+#     https://doi.org/10.48550/arXiv.2601.06547
+
+# =============================================================================
 
 
 rm(list=ls())
@@ -38,9 +53,9 @@ source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 
-#==============================================================================================
+# =============================================================================
 # Example 1: White noise input (x_t = ε_t)
-#==============================================================================================
+# =============================================================================
 # This example extends Example 1 from the previous tutorial.
 
 # Define a symmetric target filter
@@ -274,9 +289,9 @@ box()
 
 
 
-#==============================================================================================
+# =============================================================================
 # Example 2: x_t follows an ARMA process (no longer white noise)
-#==============================================================================================
+# =============================================================================
 # The target filter gamma remains the same as in Example 1.
 gamma <- c(0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25)
 
@@ -491,15 +506,16 @@ par(mfrow = c(2, 1))
 # values near 0 indicate strong attenuation.
 plot(amp_mse, type = "l", axes = FALSE, xlab = "Frequency", ylab = "",
      main = "Amplitude function of the MSE filter", col = "green",
-     ylim = c(0, max(amp_mse)))
+     ylim = c(0, max(amp_target)))
 abline(h = 0)
+lines(amp_target)
 axis(1, at = 1 + 0:6 * K / 6,
      labels = expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
 
 # Phase-shift function: positive values indicate a lag; negative values a lead.
-# Ideally the phase shift is zero (or small) in the signal pass-band.
+# Ideally the phase shift is zero (or small), i.e., equal to the target in the signal pass-band.
 plot(shift_mse, type = "l", axes = FALSE, xlab = "Frequency", ylab = "",
      main = "Phase-shift function of the MSE filter", col = "green")
 axis(1, at = 1 + 0:6 * K / 6,
@@ -507,64 +523,70 @@ axis(1, at = 1 + 0:6 * K / 6,
 axis(2)
 box()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Interpretation:
-#   - Noise leakage at higher frequencies is more pronounced than in Example 1.
-#       This is because x_t is smoother than epsilon_t and therefore requires
-#       less attenuation from the predictor filter.
-#   - The phase shift in the passband is slightly smaller than in Example 1,
-#       though it remains close to one time unit.
+#   - Amplitude: 
+#     - Noise leakage is more pronounced than in Example 1 (amplitude larger in stopband): 
+#       the ARMA process generates a smoother series (stronger autocorrelation, lowpass, see plot below), 
+#       leaving less residual noise for the MSE filter to suppress.
+#   - Phase shift:
+#       -Shift is smaller than in example 1, since noise suppression is weaker
 
-# To compute the spectral density of the predictor y_mse, we must use
-#   gamma_conv_mse - the filter expressed in terms of epsilon_t - rather
-#   than gamma_mse. 
-par(mfrow=c(1,1))
-amp_obj_mse<-amp_shift_func(K,as.vector(gamma_conv_mse),F)
-amp_conv_mse<-amp_obj_mse$amp
-plot(sigma^2*amp_conv_mse^2,type="l",axes=F,xlab="Frequency",ylab="",main="Spectral density of predictor",col="green",ylim=c(0,max(sigma^2*amp_conv_mse^2)))
-abline(h=0)
-axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+# ── Spectral density of the MSE predictor ────────────────────────────────────
+# To compute the spectral density of y_mse, we must use gamma_conv_mse
+# (the MSE filter expressed in terms of the white-noise innovations epsilon_t)
+# rather than gamma_mse (the filter expressed in terms of x_t).
+# This is because the spectral density formula sigma^2 * |A(omega)|^2 is only
+# valid when the input is white noise with variance sigma^2.
+par(mfrow = c(1, 1))
+
+amp_obj_mse  <- amp_shift_func(K, as.vector(gamma_conv_mse), FALSE)
+amp_conv_mse <- amp_obj_mse$amp
+
+plot(sigma^2 * amp_conv_mse^2, type = "l", axes = FALSE,
+     xlab = "Frequency", ylab = "",
+     main = "Spectral density of MSE predictor",
+     col  = "green", ylim = c(0, max(sigma^2 * amp_conv_mse^2)))
+abline(h = 0)
+axis(1, at = 1 + 0:6 * K / 6,
+     labels = expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
-# The spectrum is rather weak towards higher frequencies: besides the squaring effect (we look at the squared amplitude function), 
-#   this effect is also due to the fact that the ARMA-filter, linking xt to epsilont, is a lowpass in this example: 
-#   xt is smoother than epsilont
-amp_obj_xi<-amp_shift_func(K,as.vector(xi),F)
-amp_arma<-amp_obj_xi$amp
-par(mfrow=c(1,1))
-plot(amp_arma,type="l",axes=F,xlab="Frequency",ylab="",main="Amplitude of ARMA filter",col="green",ylim=c(0,max(amp_arma)))
-abline(h=0)
-axis(1,at=1+0:6*K/6,labels=expression(0, pi/6, 2*pi/6,3*pi/6,4*pi/6,5*pi/6,pi))
+
+# The spectral density is strongly concentrated at low frequencies and
+# decays rapidly towards higher frequencies. Two effects contribute to this:
+#
+# 1. Squaring effect: the spectral density is proportional to the squared
+#      amplitude |A(omega)|^2, which amplifies the attenuation already
+#      present in the amplitude function.
+#
+# 2. ARMA low-pass effect: the Wold filter xi (mapping epsilon_t to x_t)
+#      acts as a low-pass filter in this example, meaning that x_t is
+#      inherently smoother than epsilon_t. The convolved filter gamma_conv_mse
+#      therefore inherits this low-pass character, further suppressing
+#      high-frequency spectral power.
+
+# ── Amplitude of the Wold (ARMA) filter ──────────────────────────────────────
+# To confirm the low-pass character of the ARMA process, we plot the
+# amplitude function of the Wold filter xi. A monotonically decreasing
+# amplitude confirms that the ARMA filter attenuates high frequencies,
+# producing the smoother series x_t observed in the time domain.
+amp_obj_xi <- amp_shift_func(K, as.vector(xi), FALSE)
+amp_arma   <- amp_obj_xi$amp
+
+par(mfrow = c(1, 1))
+plot(amp_arma, type = "l", axes = FALSE,
+     xlab = "Frequency", ylab = "",
+     main = "Amplitude function of the Wold (ARMA) filter",
+     col  = "green", ylim = c(0, max(amp_arma)))
+abline(h = 0)
+axis(1, at = 1 + 0:6 * K / 6,
+     labels = expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
 
-#####################################################################################################
-#####################################################################################################
+#=============================================================================================
 # Background and overview of the SSA framework
+#=============================================================================================
 # (Building on the ARMA signal extraction problem introduced in Example 2)
 #
 # Setup:
@@ -603,8 +625,8 @@ box()
 #     1. Maximum sign accuracy: the filter best matches the signs of z_{t+delta}.
 #     2. Maximum target correlation: the filter correlates most strongly with z_{t+delta}.
 #   Both criteria are equivalent under Gaussianity (Wildi, M. (2024),
-#   https://doi.org/10.1007/s41549-024-00097-5). The equivalence is robust to
-#   moderate departures from Gaussianity (e.g. t-distributions down to nu=2,
+#   https://doi.org/10.1007/s41549-024-00097-5). The equivalence is fairly robust to
+#   rather strong departures from Gaussianity (e.g. t-distributions down to nu=4,
 #   equity returns, and macroeconomic data).
 #
 # SSA outputs:
@@ -627,316 +649,474 @@ box()
 #   1. The SSA function call: inputs and outputs.
 #   2. Convergence of sample estimates to the theoretical criterion values.
 
-#############################################################################################
-#############################################################################################
+
+
+
+
+
+# =============================================================================
 # Example 3: Replicating the MSE Predictor with SSA
+# =============================================================================
 #
 # This example builds on the framework established in Example 2.
-# As outlined in the tutorial introduction, SSA exactly replicates the MSE
-#   predictor when the holding-time constraint ht is set to match the holding
-#   time of the MSE predictor itself.
+# SSA exactly replicates the MSE predictor when the holding-time constraint
+# is set to match the theoretical holding time of the MSE predictor itself.
+# This serves as a correctness check: if SSA cannot replicate MSE as a
+# special case, something is wrong with the implementation or the inputs.
+
+# ── Step 1: Compute the holding-time constraint ───────────────────────────────
 #
-# Hyperparameter specification:
-#   - To replicate the MSE predictor, we set ht to the theoretical holding time
-#       of the MSE predictor.
-#   - The holding-time formula requires the filter expressed in terms of epsilon_t;
-#       we therefore use the convolved filter gamma_conv_mse for this computation.
-ht<-compute_holding_time_func(gamma_conv_mse)$ht
-# Instead of ht, we provide the bijective `twin', namely the lag-one acf, see Wildi, M. (2024) 
-# We can transform ht in rho1 with the function compute_rho_from_ht 
-rho1<-compute_rho_from_ht(ht)
-# Alternatively we could set rho1 directly (the above function computes ht as well as the lag-one acf)
-rho1<-compute_holding_time_func(gamma_conv_mse)$rho_ff1
-# Filter length (should be at least twice the holding time)
-L<-max(L,2*round(ht,0))
-# Nowcast i.e. delta=0
-delta<-0
-# Recall that the symmetric two-sided target filter gamma is right-shifted by
-#   (length(gamma)-1)/2 = 3 time units when expressed as a one-sided causal filter.
-# To recover the acausal two-sided target, we must left-shift gamma by
-#   (length(gamma)-1)/2 lags. Equivalently, this corresponds to forecasting
-#   the causal filter gamma by (length(gamma)-1)/2 + delta steps ahead.
-forecast_horizon<-(length(gamma)-1)/2+delta
-forecast_horizon
-# We let SSA know that the data is an ARMA: recall that the ARMA-filter pre-whitens the noise (it's a lowpass in this example) 
-xi<-xi
-# Target specification:
-#   - gamma is specified as a symmetric one-sided (not two-sided) filter and will be left-shifted
-#       by forecast_horizon within SSA_func to recover the acausal two-sided target.
-#   - gamma is expressed in terms of x_t, not epsilon_t.
-#   - By supplying the Wold decomposition xi to SSA_func, the function automatically
-#       convolves the target filter with xi internally.
-gammak_generic<-gamma
-
-# Apply SSA
-# Since gamma is applied to xt, we have to supply information about the link between xt and epsilont in terms of xi
-# Warning messages inform that zeroes are appended to shorter filters and that SSA solution is very close to MSE after optimization
-SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
-
-# Filter as applied to xt
-ssa_x<-SSA_obj$ssa_x
-# Convolved filter as applied to epsilont
-ssa_eps<-SSA_obj$ssa_eps
-
-# SSA replicates MSE
-mplot<-cbind(ssa_x,gamma_mse)
-plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to xt: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
-lines(mplot[,2])
-axis(1,at=1:L,labels=-1+1:L)
-axis(2)
-box()
-
-
-# Same for the convolved designs (filters applied to epsilont)
-ssa_eps=SSA_obj$ssa_eps
-mplot<-cbind(ssa_eps,gamma_conv_mse)
-# Both filters overlap: SSA just replicated MSE up to arbitrary scaling
-plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to epsilont: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
-lines(mplot[,2])
-axis(1,at=1:L,labels=-1+1:L)
-axis(2)
-box()
-
-
-# SSA also computes the MSE-filters directly: as applied to xt and epsilont
-mplot<-cbind(SSA_obj$mse_x,gamma_mse)
-# Both filters overlap: SSA just replicated MSE up to arbitrary scaling
-plot(mplot[,1],main="MSE by SSA and original MSE as applied to xt: both filters overlap",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
-lines(mplot[,2])
-axis(1,at=1:L,labels=-1+1:L)
-axis(2)
-box()
-# MSE as applied to epsilont
-mplot<-cbind(SSA_obj$mse_eps,gamma_conv_mse)
-# Both filters overlap: SSA just replicated MSE up to arbitrary scaling
-plot(mplot[,1],main="MSE by SSA and original MSE as applied to epsilont: both filters overlap",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
-lines(mplot[,2])
-axis(1,at=1:L,labels=-1+1:L)
-axis(2)
-box()
-
-# In applications one typically relies on ssa_x: but the package also returns all other filters (for diagnostics, benchmarking, validation,...)
-
-#------------------------------
-# Performance Checks: Convergence of sample estimates to theoretical criterion values
-#
-# A. Criterion Values
-#
-# There are two equivalent optimization criteria:
-#   1. Maximize the correlation with the MSE solution (here: gamma_conv_mse)
-#   2. Maximize the correlation with the effective target (here: the two-sided filter)
-#
-# Both criteria are mathematically equivalent — see:
-#   Wildi, M. (2024), (2026a) section 2
-#
-# A.1 Below, we compute the first criterion:
-#   We leverage the convolved filters (applied to epsilon_t) to derive the correlations.
-#   Under the assumption of white noise input, the exact cross-correlation formula is:
-t(ssa_eps)%*%gamma_conv_mse/sqrt(t(ssa_eps)%*%ssa_eps*t(gamma_conv_mse)%*%gamma_conv_mse)
-# Since SSA replicates MSE, the cross-correlation is trivially one
-# SSA returns this criterion value
-SSA_obj$crit_rhoyz
-# A.2 Second Criterion: Maximize Correlation with the Acausal Two-Sided Target
-#
-#   To switch from the first criterion to the second, we simply correct for the
-#   difference in squared norms (or variances) between the MSE solution and the
-#   two-sided target filter — see Wildi, M. (2024), (2026a).
-#
-#   Crucially, this scaling ratio is independent of ssa_eps, which means both
-#   criteria are equivalent up to a constant scaling factor.
-length_ratio<-sqrt(sum(gamma_conv_mse^2)/sum(gamma_conv^2))
-t(ssa_eps)%*%gamma_conv_mse/sqrt(t(ssa_eps)%*%ssa_eps*t(gamma_conv_mse)%*%gamma_conv_mse)*length_ratio
-# SSA also returns the corresponding criterion value
-SSA_obj$crit_rhoy_target
-# The correlation with the effective target is smaller than one because the acausal filter relies on future (unobserved) data
-# Therefore, crit_rhoy_target <= crit_rhoyz 
-
-# We can verify pertinence of the above criterion values by computing empirical correlations
-y_ssa<-filter(x,ssa_x,side=1)
-# First criterion
-cor(na.exclude(cbind(y_mse,y_ssa)))[1,2]
-# Second criterion
-cor(na.exclude(cbind(y_sym,y_ssa)))[1,2]
-# These numbers converge to the theoretical values for large sample sizes
-
-# B. Holding-Times and Lag-One ACFs: Additional Performance Checks
-#
-#   Beyond optimization criteria, we can — and should — also verify holding-times (HT)
-#   or, equivalently, the lag-one ACFs of the filters.
-#   See Proposition 2 in the JBCY paper for the theoretical background.
-#
-# The imposed holding-time is:
+# The holding-time formula requires the filter expressed in terms of epsilon_t.
+# We therefore use gamma_conv_mse (the MSE filter convolved with the Wold
+# coefficients xi) rather than gamma_mse (the filter in terms of x_t).
+ht <- compute_holding_time_func(gamma_conv_mse)$ht
 ht
-# Its equivalent lag-one ACF representation is:
-rho1
-# After optimization, SSA achieves the following lag-one ACF:
-SSA_obj$crit_rhoyy
-# If both values match, this confirms that the optimization successfully reached the global maximum.
-#   Note: The tightness of this approximation can be improved by increasing the number of
-#   iterations in the numerical optimization. The default is 20 iterations, which is
-#   sufficient for typical (non-exotic) applications — no need to adjust this in practice.
 
-# Checking Holding-Times via compute_holding_time_func()
+# The SSA function accepts the holding-time constraint as its
+# bijective counterpart rho1 (the lag-one ACF of the predictor output).
+# The two representations are equivalent; see Wildi, M. (2024) for details.
+# compute_rho_from_ht() converts ht to rho1:
+rho1 <- compute_rho_from_ht(ht)
+rho1
+
+# Alternatively, rho1 can be extracted directly from compute_holding_time_func(),
+# which returns both ht and rho1 simultaneously:
+rho1 <- compute_holding_time_func(gamma_conv_mse)$rho_ff1
+rho1
+
+# ── Step 2: Set the filter length ────────────────────────────────────────────
 #
-#   We use compute_holding_time_func() to verify HT numerically.
-#   Important: we must supply the convolved filter ssa_eps, since the HT computation
-#   assumes white noise input.
+# L must be at least twice the holding time to ensure the filter has enough
+# lags to capture the imposed smoothness constraint without truncation bias.
+L <- max(L, 2 * round(ht, 0))
+
+# ── Step 3: Set the forecast horizon ─────────────────────────────────────────
+#
+# delta = 0 corresponds to a nowcast (estimating the current target value).
+delta <- 0
+
+# The symmetric two-sided target filter gamma, when written as a one-sided
+# causal filter, is right-shifted by (length(gamma) - 1) / 2 = 3 time units.
+# To recover the acausal two-sided target, the causal gamma must be left-shifted by the
+# same amount. Equivalently, this corresponds to forecasting the one-sided
+# causal filter (length(gamma) - 1) / 2 + delta steps ahead.
+forecast_horizon <- (length(gamma) - 1) / 2 + delta
+forecast_horizon
+
+# ── Step 4: Specify inputs to SSA_func ───────────────────────────────────────
+#
+# Supply the Wold decomposition xi so that SSA_func is aware that x_t follows
+# an ARMA process. The ARMA filter acts as a low-pass in this example,
+# pre-smoothing epsilon_t before it enters the target filter.
+# SSA_func will internally convolve gamma with xi.
+xi <- xi
+
+# gamma is specified as a causal filter in terms of x_t
+# The causal filter is symmetric around lag=(length(gamma) - 1) / 2 = 3 (instead of lag 0).
+# SSA_func will left-shift gamma by forecast_horizon to recover the intended acausal
+# two-sided target, and will convolve it with xi to express it in terms of
+# epsilon_t — both steps are handled internally.
+gammak_generic <- gamma
+
+# ── Step 5: Apply SSA ─────────────────────────────────────────────────────────
+#
+# Note: warning messages may inform that shorter filters are zero-padded to
+# length L, and that the SSA solution is very close to MSE after optimisation
+# (which is expected here, since ht matches that of the MSE predictor).
+SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
+
+# Extract the SSA filter expressed in terms of x_t (primary output for
+# practical use) and in terms of epsilon_t (used for diagnostics).
+ssa_x   <- SSA_obj$ssa_x
+ssa_eps <- SSA_obj$ssa_eps
+
+# ── Verification: SSA replicates MSE ─────────────────────────────────────────
+#
+# When the holding-time constraint matches that of the MSE predictor, the SSA
+# filter should coincide with the MSE filter (up to an arbitrary scaling factor).
+
+# Filter in terms of x_t: SSA vs. MSE
+mplot <- cbind(ssa_x, gamma_mse)
+plot(mplot[, 1], main = "SSA and MSE filters applied to x_t: both overlap",
+     axes = FALSE, type = "l", xlab = "Lag", ylab = "Filter weight")
+lines(mplot[, 2])
+axis(1, at = 1:L, labels = -1 + 1:L)
+axis(2)
+box()
+
+# Convolved filters in terms of epsilon_t: SSA vs. MSE
+ssa_eps <- SSA_obj$ssa_eps
+mplot   <- cbind(ssa_eps, gamma_conv_mse)
+plot(mplot[, 1], main = "SSA and MSE filters applied to epsilon_t: both overlap",
+     axes = FALSE, type = "l", xlab = "Lag", ylab = "Filter weight")
+lines(mplot[, 2])
+axis(1, at = 1:L, labels = -1 + 1:L)
+axis(2)
+box()
+
+# SSA_func also computes the MSE filter internally and returns it separately.
+# These internal MSE filters should match the reference filters derived in Example 2.
+
+# Internal MSE filter in terms of x_t vs. reference gamma_mse
+mplot <- cbind(SSA_obj$mse_x, gamma_mse)
+plot(mplot[, 1], main = "Internal MSE (SSA) and reference MSE applied to x_t: both overlap",
+     axes = FALSE, type = "l", xlab = "Lag", ylab = "Filter weight")
+lines(mplot[, 2])
+axis(1, at = 1:L, labels = -1 + 1:L)
+axis(2)
+box()
+
+# Internal MSE filter in terms of epsilon_t vs. reference gamma_conv_mse
+mplot <- cbind(SSA_obj$mse_eps, gamma_conv_mse)
+plot(mplot[, 1], main = "Internal MSE (SSA) and reference MSE applied to epsilon_t: both overlap",
+     axes = FALSE, type = "l", xlab = "Lag", ylab = "Filter weight")
+lines(mplot[, 2])
+axis(1, at = 1:L, labels = -1 + 1:L)
+axis(2)
+box()
+
+# In practice, ssa_x is the primary output. The remaining filters (ssa_eps,
+# mse_x, mse_eps) are returned for diagnostics, benchmarking, and validation.
+
+#############################################################################################
+# Performance Checks: Convergence of Sample Estimates to Theoretical Criterion Values
+#############################################################################################
+
+# ── A. Criterion values ───────────────────────────────────────────────────────
+#
+# SSA optimises one of two equivalent criteria (see Wildi, M. (2024), (2026a), Section 2):
+#
+#   Criterion 1: Maximise correlation between the SSA predictor and the MSE predictor.
+#   Criterion 2: Maximise correlation between the SSA predictor and the two-sided target.
+#
+# Both criteria are mathematically equivalent and yield the same optimal filter, see Wildi (2024,2026a).
+
+# A.1 – Criterion 1: Correlation with the MSE predictor
+#
+# Using the convolved filters (in terms of epsilon_t) and the white-noise
+# cross-correlation formula:
+t(ssa_eps) %*% gamma_conv_mse /
+  sqrt(t(ssa_eps) %*% ssa_eps * t(gamma_conv_mse) %*% gamma_conv_mse)
+
+# Since SSA replicates MSE here, the correlation is trivially 1.
+# SSA_func returns this value directly:
+SSA_obj$crit_rhoyz
+
+# A.2 – Criterion 2: Correlation with the acausal two-sided target
+#
+# Switching from Criterion 1 to Criterion 2 requires correcting for the
+# difference in squared norms between the MSE filter and the two-sided target
+# filter (see Wildi, M. (2024), (2026a)).
+# This scaling ratio is independent of ssa_eps, confirming that both criteria
+# are equivalent up to a constant factor.
+length_ratio <- sqrt(sum(gamma_conv_mse^2) / sum(gamma_conv^2))
+t(ssa_eps) %*% gamma_conv_mse /
+  sqrt(t(ssa_eps) %*% ssa_eps * t(gamma_conv_mse) %*% gamma_conv_mse) * length_ratio
+
+# SSA_func returns this value directly:
+SSA_obj$crit_rhoy_target
+
+# Note: crit_rhoy_target < crit_rhoyz, because the two-sided target relies on
+# future (unobserved) data (whereas MSE is a causal filter).
+
+# A.3 – Empirical verification
+#
+# In large samples, empirical correlations converge to the theoretical values
+# returned by SSA_func. We verify this by computing correlations from the
+# filtered output y_ssa.
+y_ssa <- filter(x, ssa_x, side = 1)
+
+# Empirical Criterion 1: correlation between SSA and MSE predictors
+cor(na.exclude(cbind(y_mse, y_ssa)))[1, 2]
+
+# Empirical Criterion 2: correlation between SSA predictor and two-sided target
+cor(na.exclude(cbind(y_sym, y_ssa)))[1, 2]
+
+# Both values should be close to the theoretical counterparts above.
+# Any residual discrepancy decreases as the sample size increases.
+
+# ── B. Holding-time and lag-one ACF verification ─────────────────────────────
+#
+# Beyond the optimisation criteria, we verify that the imposed holding-time
+# constraint is satisfied. See Proposition 2 in Wildi, M. (JBCY paper) for
+# the theoretical background.
+
+# Imposed holding time and its lag-one ACF equivalent:
+ht
+rho1
+
+# Lag-one ACF of the optimised predictor as returned by SSA_func:
+SSA_obj$crit_rhoyy
+# If this matches rho1, the optimisation successfully reached the global maximum.
+# The closeness of this approximation improves with the number of optimisation
+# iterations (default: 20), which is sufficient for typical applications.
+
+# Numerical verification via compute_holding_time_func():
+# Important: supply ssa_eps (filter in terms of epsilon_t), since the
+# holding-time formula assumes white-noise input.
 compute_holding_time_func(ssa_eps)$ht
 
-#   The filter applied directly to x_t yields a substantially smaller HT:
+# The filter in terms of x_t yields a substantially smaller holding time:
 compute_holding_time_func(ssa_x)$ht
-#   This is expected: the ARMA filter already imposes a smoothing effect on epsilon_t,
-#   as confirmed by its own HT:
+# This is expected: the ARMA filter (a low-pass in this example) already
+# imposes smoothing on epsilon_t, as confirmed by its own holding time:
 compute_holding_time_func(xi)$ht
-#   Accordingly, ssa_x extends the native HT of the ARMA filter (a lowpass in this example)
-#   to satisfy the imposed constraint. Note that HTs of convolved filters do not combine
-#   additively — HT is a non-linear function of the lag-one ACF (see Proposition 2, JBCY paper).
+# Accordingly, ssa_x extends the native smoothing of the ARMA filter to
+# satisfy the imposed constraint. Note that holding times of convolved filters
+# do not combine additively — HT is a non-linear function of the lag-one ACF
+# (see Proposition 2, JBCY paper).
 
-# Empirical Verification
+# ── C. Empirical lag-one ACF and holding-time ─────────────────────────────────
 #
-#   Empirical lag-one ACF of the SSA output — should match the imposed rho1:
+# The empirical lag-one ACF of the SSA output should match the imposed rho1:
 acf(na.exclude(y_ssa))$acf[2]
 rho1
-# Let's have a look at the empirical ht
+
+# The empirical holding time should match the imposed ht:
 compute_empirical_ht_func(y_ssa)
-# It matches our constraint (error can be made arbitrarily small when increasing the sample size)
 ht
-#   Any discrepancy can be made arbitrarily small by increasing the sample size,
-#   since xi is assumed to be the true (correctly specified) model.
+# Any discrepancy decreases as the sample size increases, provided xi is
+# correctly specified.
+
+# ── D. Model diagnostics remark ───────────────────────────────────────────────
 #
-#   If empirical estimates differ substantially from theoretical values, this signals
-#   model misspecification in xi. However, SSA is generally fairly robust to misspecification —
-#   ample empirical evidence is provided in the subsequent tutorials.
+# If empirical estimates differ substantially from theoretical values, this
+# signals model misspecification in xi. SSA is generally robust to moderate
+# misspecification — empirical evidence is provided in the subsequent tutorials.
 #
-#   Remark: The statistics above can also be reinterpreted as model diagnostics for xi,
-#   offering an alternative to classical tests such as the Ljung-Box test.
-#########################################################################################
-#########################################################################################
+# Remark: The statistics computed above can be reinterpreted as informal
+# model diagnostics for xi, offering a practical alternative to classical
+# tests such as the Ljung-Box test.
+
+
+
+
+
 # =============================================================================
 # Example 4: Alternative Target Specifications
 # =============================================================================
 #
 # This example builds on Example 3, but replaces the symmetric (acausal) filter
-# with the MSE filter as the optimization target.
+# with the MSE-optimal filter as the optimization target.
+#
 # For the theoretical background, see:
 #   Wildi, M. (2024), (2026a)
-#
-# The target can be specified in two equivalent ways:
-#   - gamma_mse      : the MSE filter as applied to x_t
-#   - gamma_conv_mse : the MSE filter as applied to epsilon_t (convolved form)
-#
-#   Important: the choice of input representation requires care —
-#   the filter supplied must be consistent with the data passed to SSA
-#   (i.e., gamma_mse paired with x_t, or gamma_conv_mse paired with epsilon_t).
-#
 # -----------------------------------------------------------------------------
-# A. First Case: gamma_mse — The MSE Filter Applied to x_t
+# Interpretation:
+#
+# Although both target specifications yield the same SSA solution, their conceptual
+# interpretations differ:
+#
+#   I. gamma_mse (causal MSE target):
+#      SSA acts as a smoother of the causal MSE filter.
+#      The MSE filter serves as the baseline, and SSA customizes its
+#      output by imposing a holding-time constraint on the signal.
+#
+#   II. gamma (acausal filter, after shift by forecast_horizon):
+#      SSA acts as a predictor of the acausal (two-sided) target filter.
+#      The optimization seeks the best causal approximation to the
+#      symmetric target, subject to a holding-time constraint.
+#
+#   The same solution is regarded either as a smoother (case I) or a predictor (case II)
+
 # -----------------------------------------------------------------------------
-gammak_generic<-gamma_mse
-# This target is causal and does not have to be shifted (in contrast to gamma in exercise 3). We set:
-forecast_horizon<-delta
-# Nowcast
+# Furthermore, the MSE target  can be specified in two equivalent ways:
+#
+#   A. gamma_mse      : the MSE filter expressed in terms of x_t
+#   B. gamma_conv_mse : the MSE filter expressed in terms of epsilon_t
+#                       (convolved form, obtained by pre-multiplying gamma_mse
+#                        by the MA coefficients xi)
+#
+# Important: the filter specification and the input data passed to SSA must
+# be consistent:
+#   - gamma_mse      requires x_t as input       (xi must be supplied)
+#   - gamma_conv_mse requires epsilon_t as input  (xi can be omitted)
+# see details below.
+
+# =============================================================================
+
+
+# =============================================================================
+# 4.A. First Case: gamma_mse — MSE Filter Expressed in Terms of x_t
+# =============================================================================
+
+# Set the optimization target to the MSE filter applied to x_t
+gammak_generic <- gamma_mse
+
+# gamma_mse is a causal filter, so no time-shift is needed
+# (unlike the symmetric target in Example 3, which required shifting).
+# The forecast horizon is set directly to delta (i.e., nowcast: horizon = 0).
+forecast_horizon <- delta
+
+# Confirm the forecast horizon (should be 0 for a nowcast)
 forecast_horizon
-# Since gamma_mse is applied to xt, we have to supply information about the link between xt and epsilont in terms of xi
-xi<-xi
-# Don't forget xi in the function call: otherwise SSA assumes xt=epsilont white noise, by default
-SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
 
-ssa_x=SSA_obj$ssa_x
-mse_x<-SSA_obj$mse_x
-mplot<-cbind(ssa_x,gamma_mse)
-plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to xt: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
-lines(mplot[,2])
-axis(1,at=1:L,labels=-1+1:L)
+# Specify the MA coefficient vector xi, which defines the link between x_t
+# and epsilon_t via the moving-average representation: x_t = xi(B) * epsilon_t.
+# This is required because gamma_mse operates on x_t, not epsilon_t.
+xi <- xi
+
+# Call SSA with xi explicitly supplied.
+# Omitting xi would cause SSA to assume x_t = epsilon_t (white noise), which
+# would be incorrect here since x_t has MA structure.
+SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
+
+# Extract the SSA filter expressed in terms of x_t and the MSE criterion value
+ssa_x  <- SSA_obj$ssa_x
+mse_x  <- SSA_obj$mse_x
+
+# --- Plot 1: SSA vs. gamma_mse, both expressed in terms of x_t ---
+# The SSA filter should closely replicate the MSE filter when applied to x_t.
+mplot <- cbind(ssa_x, gamma_mse)
+plot(mplot[, 1],
+     main = "SSA vs. MSE filter applied to x_t: SSA replicates MSE",
+     axes = F, type = "l", xlab = "Lag", ylab = "Filter weights")
+lines(mplot[, 2])
+axis(1, at = 1:L, labels = -1 + 1:L)
 axis(2)
 box()
 
-mplot<-cbind(ssa_eps,gamma_conv_mse)
-plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to epsilont: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
-lines(mplot[,2])
-axis(1,at=1:L,labels=-1+1:L)
+# --- Plot 2: SSA vs. gamma_conv_mse, both expressed in terms of epsilon_t ---
+# Converting both filters to the epsilon_t representation allows cross-checking
+# consistency between the two equivalent target specifications.
+mplot <- cbind(ssa_eps, gamma_conv_mse)
+plot(mplot[, 1],
+     main = "SSA vs. MSE filter applied to epsilon_t: SSA replicates MSE",
+     axes = F, type = "l", xlab = "Lag", ylab = "Filter weights")
+lines(mplot[, 2])
+axis(1, at = 1:L, labels = -1 + 1:L)
 axis(2)
 box()
 
-# B. Second case: target is gamma_conv_mse which is applied to epsilont
-gammak_generic<-gamma_conv_mse
-# There is a subtle change in the function-call since we now omit xi
-# By default (omission of xi), SSA assumes the data to be white noise
-# This is correct since gamma_conv_mse is the convolved target and is applied to epsilont 
-SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1)
 
-ssa_x=SSA_obj$ssa_x
-ssa_eps=SSA_obj$ssa_eps
-mplot<-cbind(ssa_eps,gamma_conv_mse)
-plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to xt: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
-lines(mplot[,2])
-axis(1,at=1:L,labels=-1+1:L)
+# =============================================================================
+# 4.B. Second Case: gamma_conv_mse — MSE Filter Expressed in Terms of epsilon_t
+# =============================================================================
+
+# Set the optimization target to the convolved MSE filter applied to epsilon_t
+gammak_generic <- gamma_conv_mse
+
+# Call SSA without supplying xi (i.e., xi is omitted from the function call).
+# By default, SSA treats the input as white noise (x_t = epsilon_t), which is
+# correct here since gamma_conv_mse is already expressed in terms of epsilon_t.
+SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1)
+
+# Extract SSA filters in both representations
+ssa_x   <- SSA_obj$ssa_x
+ssa_eps <- SSA_obj$ssa_eps
+
+# --- Plot 3: SSA (epsilon_t representation) vs. gamma_conv_mse ---
+# Both filters are in the epsilon_t domain; SSA should replicate gamma_conv_mse.
+mplot <- cbind(ssa_eps, gamma_conv_mse)
+plot(mplot[, 1],
+     main = "SSA vs. MSE filter applied to epsilon_t: SSA replicates MSE",
+     axes = F, type = "l", xlab = "Lag", ylab = "Filter weights")
+lines(mplot[, 2])
+axis(1, at = 1:L, labels = -1 + 1:L)
 axis(2)
 box()
 
-# Since we assume xt=epsilont (white noise) ssa_x and ssa_eps are identical in this case
-mplot<-cbind(ssa_x,gamma_conv_mse)
-plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to epsilont: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
-lines(mplot[,2])
-axis(1,at=1:L,labels=-1+1:L)
+# --- Plot 4: SSA (x_t representation) vs. gamma_conv_mse ---
+# When xi is omitted, SSA assumes x_t = epsilon_t, so ssa_x and ssa_eps are
+# identical. This plot confirms that result.
+mplot <- cbind(ssa_x, gamma_conv_mse)
+plot(mplot[, 1],
+     main = "SSA vs. MSE filter applied to x_t (white noise assumed): SSA replicates MSE",
+     axes = F, type = "l", xlab = "Lag", ylab = "Filter weights")
+lines(mplot[, 2])
+axis(1, at = 1:L, labels = -1 + 1:L)
 axis(2)
 box()
 
-# We could obtain the same result as above by setting
-xi_null<-NULL
-SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi_null)
 
-ssa_x=SSA_obj$ssa_x
-ssa_eps=SSA_obj$ssa_eps
-mplot<-cbind(ssa_eps,gamma_conv_mse)
-plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to xt: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
-lines(mplot[,2])
-axis(1,at=1:L,labels=-1+1:L)
+# -----------------------------------------------------------------------------
+# 4.B1. Equivalent call: explicitly passing xi = NULL
+# -----------------------------------------------------------------------------
+# Passing xi = NULL is equivalent to omitting xi entirely.
+# Both result in SSA treating the input as white noise (x_t = epsilon_t).
+xi_null <- NULL
+SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi_null)
+
+ssa_x   <- SSA_obj$ssa_x
+ssa_eps <- SSA_obj$ssa_eps
+
+# Results should be identical to those obtained in section B above
+mplot <- cbind(ssa_eps, gamma_conv_mse)
+plot(mplot[, 1],
+     main = "SSA vs. MSE filter (xi = NULL): SSA replicates MSE",
+     axes = F, type = "l", xlab = "Lag", ylab = "Filter weights")
+lines(mplot[, 2])
+axis(1, at = 1:L, labels = -1 + 1:L)
 axis(2)
 box()
 
-# Or we could obtain the same result by specifying the identity
-xi_id<-1
-SSA_obj<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi_id)
 
-ssa_x=SSA_obj$ssa_x
-ssa_eps=SSA_obj$ssa_eps
-# We do not have to re-scale the new filter
-mplot<-cbind(ssa_eps,gamma_conv_mse)
-plot(mplot[,1],main="Optimally scaled SSA and original MSE as applied to xt: SSA replicates MSE",axes=F,type="l",xlab="Lag-structure",ylab="filter-weights")
-lines(mplot[,2])
-axis(1,at=1:L,labels=-1+1:L)
+# -----------------------------------------------------------------------------
+# 4.B2. Equivalent call: explicitly passing xi = 1 (identity/scalar MA)
+# -----------------------------------------------------------------------------
+# Setting xi = 1 is the scalar identity for the MA representation,
+# meaning x_t = 1 * epsilon_t, i.e., x_t = epsilon_t (white noise).
+# This produces the same result as omitting xi or passing xi = NULL.
+xi_id <- 1
+SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi_id)
+
+ssa_x   <- SSA_obj$ssa_x
+ssa_eps <- SSA_obj$ssa_eps
+
+# No rescaling is needed since xi = 1 leaves the filter structure unchanged.
+# Results should again be identical to those in sections B and B1.
+mplot <- cbind(ssa_eps, gamma_conv_mse)
+plot(mplot[, 1],
+     main = "SSA vs. MSE filter (xi = 1, identity): SSA replicates MSE",
+     axes = F, type = "l", xlab = "Lag", ylab = "Filter weights")
+lines(mplot[, 2])
+axis(1, at = 1:L, labels = -1 + 1:L)
 axis(2)
 box()
+
+
 
 #================================================================
 # Summary
 #================================================================
 #
-# Filter Decomposition
-#   - Splitting the estimation problem into Gamma (target filter applied to x_t) and
-#     Xi (Wold decomposition of x_t) is a modelling convenience, not a necessity.
-#   - The fundamental object of interest — from a theoretical standpoint — is always
+# Convolution:
+#   - Splitting the estimation problem into Gamma (target filter applied to x_t)
+#     and Xi (Wold decomposition of x_t) is a modelling convenience, not a necessity.
+#   - The fundamental object of interest, from a theoretical standpoint, is always
 #     the convolved filter design, applied to epsilon_t:
 #       * The convolved design is required for deriving optimal filters and
 #         computing theoretical performance measures.
 #       * Once obtained, the optimal x_t-filter can be recovered via simple deconvolution.
 #       * The x_t-filter is practically convenient, as it can be applied directly
 #         to the observed data x_t (rather than to the unobserved innovations epsilon_t).
+#   - Therefore, one can specify either:
+#       (i) the convolved target, applied to epsilon_t (omitting the Wold decomposition xi in the SSA call),
+#           or
+#      (ii) the original target, applied to x_t, and inform SSA about the data-generating process
+#           by supplying the Wold decomposition xi.
+#   - In the background, SSA always operates with convolved designs (the theory assumes white noise data).
 #
-# SSA and the MSE Solution
+# Target Swap: 
+#   - The SSA criterion is indifferent to swapping acausal target and causal MSE predictor as targets 
+#       for SSA (see literature).
+#   - When targeting the acausal design, SSA acts as a predictor.
+#   - When targeting the causal MSE, SSA acts as a smoother for MSE:
+#       * customization of the MSE predictor by SSA
+#       * SSA remains as close as possible to the benchmark MSE while respecting the ht constraint
+#
+# Replication: 
 #   - SSA can exactly replicate the MSE solution under appropriate settings:
-#       * The MSE solution can be substituted for the effective target without
-#         affecting the SSA output.
-#       * The MSE filter can be supplied either in its x_t-form (gamma_mse) or
-#         in its convolved form (gamma_conv_mse), provided the function call is
-#         adjusted consistently.
+#       * Use the acausal target and impose the ht of MSE in the constraint
+#         (equivalently, rho1 equal to the first-order ACF of the MSE predictor)
+#       * Use the causal MSE as target with the same constraint
 #
-# Empirical vs. Theoretical Consistency
-#   - Theoretical criteria and holding-times (HT) align with empirical estimates
-#     when the model Xi is correctly specified.
+# Consistency:
+#   - Theoretical criteria (target correlation or sign accuracy) and holding times (HT)
+#     align with empirical estimates when the model xi (Wold decomposition) is correctly specified.
 #   - Substantial discrepancies between empirical and theoretical values indicate
-#     model misspecification.
+#     model misspecification (wrong xi, non-zero mean) or the absence of numerical convergence
+#     (the latter is rare and can be remedied by increasing the number of iterations).
 #
 #----------------------------------------------------------------
 # Final Remarks
@@ -944,9 +1124,18 @@ box()
 #
 #   - The constraint rho1 can be freely modified in the above example:
 #       * If rho1 = rho(MSE): SSA replicates the MSE solution (as shown here).
-#       * If rho1 > rho(MSE): SSA produces a smoother output — the typical
-#         application case in practice.
+#       * If rho1 > rho(MSE): SSA yields a smoother output — common in practical
+#         applications.
+#       * If rho1 < rho(MSE): SSA yields less smooth output — with more zero-crossings.
 #
-#   - See the following tutorials for more meaningful and practically
-#     relevant applications.
+#   - See the tutorials for practically (more) relevant applications.
 #================================================================
+
+
+
+
+
+
+
+
+

@@ -86,6 +86,21 @@
 
 #   SSA delineates the efficient Accuracy-Smoothness frontier, see Wildi (2026a), (2026b) 
 
+
+# ── BACKGROUND ────────────────────────────────────────────────────
+#   Wildi, M. (2024)
+#     Business Cycle Analysis and Zero-Crossings of Time Series:
+#     a Generalized Forecast Approach.
+#     https://doi.org/10.1007/s41549-024-00097-5
+
+# Theoretical background:
+#   Wildi, M. (2026a) Sign Accuracy, Mean-Squared Error and the Rate
+#     of Zero Crossings: a Generalized Forecast Approach.
+#     https://doi.org/10.48550/arXiv.2601.06547
+
+# ─────────────────────────────────────────────────────────────────
+
+
 #-----------------------------------------------------------------------
 # Make a clean-sheet, load packages and functions
 rm(list=ls())
@@ -287,9 +302,9 @@ box()
 # ============================================================
 
 
-######################################################################################################################
-######################################################################################################################
+# ==========================================================================
 # Example 1:
+# ==========================================================================
 # Target: HP-MSE (Mean Squared Error optimal concurrent HP filter under white noise assumption)
 
 
@@ -474,10 +489,9 @@ cor(yhat, MSE_nowcast, use = 'pairwise.complete.obs')
 
 
 
-##############################################################################################################
-##############################################################################################################
+# ==========================================================================
 # Example 2: SSA Targeting the Classic Concurrent HP Filter
-#
+# ==========================================================================
 # This example mirrors Example 1 with one key difference:
 #   - Example 1 targeted the HP-MSE filter (MSE-optimal under white noise assumption)
 #   - Example 2 targets the classic HP concurrent filter (implicitly assumes ARIMA(0,2,2) input)
@@ -755,10 +769,9 @@ box()
 # this tradeoff curve the filter is placed.
 
 
-###########################################################################################################
-###########################################################################################################
+# ==========================================================================
 # Example 3: Addressing Timing Lags via the Forecast Horizon Parameter
-#
+# ==========================================================================
 # Background:
 #   In Example 2 we observed that the SSA filter (with ht = 12) lags the classic HP
 #   concurrent filter by approximately half a time unit — the timing cost of imposing
@@ -1081,10 +1094,11 @@ box()
 #   1. Stronger stopband attenuation: amplitude closer to zero at high frequencies
 #   2. Phase-shift influence: via the amplitude-shift bijection for minimum-phase filters
 
-########################################################################################################
-##########################################################################################################
+
+
+# ==========================================================================
 # Example 4: Playing with the Target and Forecast Horizon
-#
+# ==========================================================================
 # Overview:
 #   This example builds on Example 1, but replaces the one-sided (causal) MSE target with the
 #   symmetric (two-sided) HP filter as the optimization target for SSA.
@@ -1289,10 +1303,9 @@ cor(mplot)
 
 
 
-######################################################################################################################
-######################################################################################################################
+# ==========================================================================
 # Example 5: Working with Autocorrelated Data (Instead of White Noise)
-#
+# ==========================================================================
 # Overview:
 #   Previous examples assumed white noise input (xt = epsilon_t). In practice, macroeconomic
 #   time series are autocorrelated (even after first differences). This example demonstrates how to correctly apply SSA when
@@ -1533,7 +1546,7 @@ box()
 
 
 ######################################################################################################################
-# 5.4 Filter Series and Compare Classic Concurrent HP with SSA
+# 5.5 Filter Series and Compare Classic Concurrent HP with SSA
 #
 # Overview:
 #   We now apply both the SSA filter and the classic HP-concurrent filter to a long simulated
@@ -1637,11 +1650,10 @@ abline(h=0)
 #   This is left as an exercise for the reader.
 
 
-######################################################################################################################
-######################################################################################################################
+# ==========================================================================
 # Example 6: Optimal One-Sided Filter for Tracking the Symmetric (Two-Sided) HP Filter
 #            with Autocorrelated Data
-#
+# ==========================================================================
 # Overview:
 #   This example extends Example 5 by changing the OPTIMIZATION TARGET from the classic
 #   HP-concurrent filter (one-sided) to the SYMMETRIC (two-sided) HP filter.
