@@ -28,370 +28,509 @@ source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 
-#----------------------------------------------------------------
-# Example 1: xt=epsilont white noise
-# This is based on example 1 of the previous tutorial, with added content 
-# Assume the following symmetric target filter (gamma does not have to be symmetric, see tutorials 2-5)
-gamma<-c(0.25,0.5,0.75,1,0.75,0.5,0.25)
+rm(list=ls())
 
-# Symmetric target filter
-plot(gamma,axes=F,type="l",xlab="Lag-structure",ylab="filter-coefficients",main="Simple signal extraction (smoothing) filter")
-axis(1,at=1:length(gamma),labels=(-(length(gamma)+1)/2)+1:length(gamma))
+# Load SSA-related functions
+source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
+# Load tau-statistic (quantifies lead/lag performance)
+source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
+# Load signal extraction functions (used in JBCY paper; depends on mFilter)
+source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+
+
+#==============================================================================================
+# Example 1: White noise input (x_t = ε_t)
+#==============================================================================================
+# This example extends Example 1 from the previous tutorial.
+
+# Define a symmetric target filter
+# (symmetry is not required in general; see Tutorials 2–5)
+gamma <- c(0.25,0.5,0.75,1,0.75,0.5,0.25)
+
+# Plot the symmetric (two-sided) target filter
+plot(gamma, axes=F, type="l",
+     xlab="Lag structure", ylab="Filter coefficients",
+     main="Simple signal extraction (smoothing) filter")
+axis(1, at=1:length(gamma),
+     labels=(-(length(gamma)+1)/2)+1:length(gamma))
 axis(2)
 box()
 
-# We can apply the filter to white noise: xt=epsilont
+# Simulate white noise input
 set.seed(231)
-len<-120
-# Scaling
-sigma<-1
-epsilon<-sigma*rnorm(len)
-x<-epsilon
-# No autocorrelation
+len <- 120
+sigma <- 1
+epsilon <- sigma * rnorm(len)
+x <- epsilon
+
+# Verify absence of autocorrelation
 acf(x)
 
-
-# We can filter the data: either by assuming a two-sided acausal design (side=2) or a causal one-sided design (side=1)
-y_sym<-filter(x,gamma,side=2)
-y_one_sided<-filter(x,gamma,side=1)
+# Apply filters:
+# side = 2 → symmetric (two-sided, acausal)
+# side = 1 → one-sided (causal, real-time)
+y_sym <- filter(x, gamma, side=2)
+y_one_sided <- filter(x, gamma, side=1)
 
 tail(cbind(y_sym,y_one_sided))
 
-# When the filter is two-sided (y_sym) the series is left-shifted and we do not observe the filter output 
-# towards the sample end (NAs). In contrast, we observe the one-sided filter `till the sample end, but it is right-shifted (delayed)
+# The symmetric filter is centered but undefined near the sample end (NAs).
+# The one-sided filter is available in real time but delayed (right-shifted).
+ts.plot(cbind(y_sym,y_one_sided),
+        col=c("black","black"), lty=1:2,
+        main="Two-sided vs one-sided filter")
 
-ts.plot(cbind(y_sym,y_one_sided),col=c("black","black"),lty=1:2,main="One-sided vs. two-sided")
+# ── NOWCASTING AT THE SAMPLE END ────────────────────────────────
+# In practice, the symmetric output y_sym is often required at
+# or near the sample boundary.
 
-# ── NOWCASTING AT THE SAMPLE END ──────────────────────────────────
-# In practice, estimates of the symmetric filter output (y_sym)
-# are often required at or near the sample boundary.
-#
 # Definition:
-#   • An estimate of y_sym at the sample end (t = len) is called
-#     a nowcast
-#
-# The nowcasting problem:
-#   • At t = len, the symmetric filter requires future observations
-#     x_{len+1}, x_{len+2}, x_{len+3} that are not yet available
-#   • These missing values must be replaced by forecasts
-#   • Substituting MSE-optimal forecasts yields the MSE-optimal
-#     estimate of y_sym at the sample end
-#
-# Special case — white noise input:
-#   • MSE forecasts of future white noise observations are zero
-#   • The optimal causal MSE nowcast therefore reduces to the
-#     one-sided truncated filter
-# ─────────────────────────────────────────────────────────────────
+#   • Nowcast: estimate of y_sym at t = len
 
-b_MSE<-gamma[((length(gamma)+1)/2):length(gamma)]
-plot(b_MSE,axes=F,type="l",xlab="Lag-structure",ylab="filter-coefficients",main="MSE-nowcast filter")
-axis(1,at=1:((length(gamma)+1)/2),labels=-1+1:((length(gamma)+1)/2))
+# Problem:
+#   • The symmetric filter at t = len depends on future values
+#     x_{len+1}, x_{len+2}, x_{len+3}, which are not observed
+#   • These must be replaced by forecasts
+
+# MSE principle:
+#   • Substitute missing future values with their MSE-optimal forecasts
+#   • This yields the MSE-optimal nowcast
+
+# Special case (white noise):
+#   • Optimal forecasts of future values are zero
+#   • ⇒ The MSE-optimal nowcast reduces to a truncated one-sided filter
+# ───────────────────────────────────────────────────────────────
+
+b_MSE <- gamma[((length(gamma)+1)/2):length(gamma)]
+
+plot(b_MSE, axes=F, type="l",
+     xlab="Lag structure", ylab="Filter coefficients",
+     main="MSE nowcast filter")
+axis(1, at=1:((length(gamma)+1)/2),
+     labels=-1+1:((length(gamma)+1)/2))
 axis(2)
 box()
 
-# Apply the one-sided MSE filter (side=1) to obtain the predictor yt,
-#   and the two-sided symmetric filter (side=2) to obtain the target zt.
+# Apply filters:
+#   y_mse = causal predictor (one-sided filter)
+#   y_sym = target (two-sided filter)
 y_mse <- filter(x, b_MSE, side=1)
 y_sym <- filter(x, gamma,  side=2)
 
-ts.plot(cbind(y_sym, y_mse), col=c("black","green"), lty=1:2,
-        main="Target (black) vs. MSE predictor (green)")
+ts.plot(cbind(y_sym, y_mse),
+        col=c("black","green"), lty=1:2,
+        main="Target (black) vs MSE predictor (green)")
 abline(h=0)
 
-# The MSE predictor appears noisier than the target. We quantify this by
-#   comparing the empirical holding times of both filters:
+# The MSE predictor appears noisier than the target.
+# We quantify this via holding time (ht):
 compute_empirical_ht_func(y_sym)
 compute_empirical_ht_func(y_mse)
 
-# The MSE predictor crosses zero more frequently than the target, generating
-#   excess zero-crossings that can be interpreted as spurious trading signals.
-# We verify this against the theoretical holding times:
-#   empirical values converge to theoretical values in large samples,
-#   in the absence of model misspecification.
+# Interpretation:
+#   - The predictor exhibits more frequent zero-crossings
+#   - These additional crossings can be interpreted as spurious signals
+
+# Compare with theoretical holding times
 compute_holding_time_func(gamma)$ht
 compute_holding_time_func(b_MSE)$ht
-# Result: the MSE predictor generates roughly 50% more zero-crossings than
-#   the target, implying that approximately half of its crossings are false alarms.
 
-# The MSE predictor also appears right-shifted relative to the target,
-#   indicating a lag. We measure this shift using the tau statistic
-#   (Wildi, M. (2024), https://doi.org/10.1007/s41549-024-00097-5).
-#
-# The target and MSE predictor are arranged column-wise:
-#   column 1 = target (y_sym), column 2 = MSE predictor (y_mse).
+# Result:
+#   - The MSE predictor generates substantially more crossings
+#   - Empirical estimates converge to theoretical values as sample size increases
+
+# ── TIMELINESS: LAG VIA TAU STATISTIC ──────────────────────────
+# The predictor is also right-shifted (lagging) relative to the target.
+
+# Arrange data: column 1 = target, column 2 = predictor
 data_mat <- cbind(y_sym, y_mse)
 
-# compute_min_tau_func shifts the series in column 2 against column 1
-#   across a range of leads and lags (up to max_lead steps).
-# For each shift, it sums the distances between the nearest zero-crossings
-#   of both series. The shift minimizing this sum estimates the lead
-#   (negative = left shift) or lag (positive = right shift) of the predictor.
-# The plot below suggests a lag of one time unit in the MSE predictor.
+# compute_min_tau_func:
+#   - shifts the predictor relative to the target
+#   - computes distances between nearest zero-crossings
+#   - identifies the shift minimizing total distance
+#   → estimate of lead (negative) or lag (positive)
 max_lead <- 4
 compute_min_tau_func(data_mat, max_lead)
 
-# Next, we can compute empirical and true or expected mean-square error
-mean((y_sym-y_mse)^2,na.rm=T)
-# The theoretical MSE can be obtained easily: since we replaced future epsilont by their forecast zero, the error between 
-# the MSE predictor and the target corresponds to the missing (future) innovations in the target and the MSE is the sum 
-# of the squared coefficients applied to these epsilont
-# a. Weights assigned to future innovations by symmetric filter
+# Result: approximately one-period lag of the MSE predictor
+
+# ── MEAN-SQUARE ERROR (MSE) ────────────────────────────────────
+
+# Empirical MSE
+mean((y_sym - y_mse)^2, na.rm=T)
+
+# Theoretical MSE:
+#   - Forecast errors arise from replacing future ε_t by zero
+#   - The error equals the contribution of omitted future innovations
+
+# Weights applied to future innovations
 gamma[1:3]
-# b. True (expected) MSE
-sigma^2*sum(gamma[1:3]^2)
 
-# We can also compute the percentage MSE which sets the error in relation to the signal or target
-sum(gamma[1:3]^2)/sum(gamma^2)
-# Outcome: the variance of the nowcast prediction error corresponds to 30% of the variance of the target
+# Expected MSE
+sigma^2 * sum(gamma[1:3]^2)
 
-#-----------------
-# Next, we examine the amplitude and phase-shift functions of the MSE predictor.
-#   - The amplitude function characterises the filter's noise suppression: an effective
-#       filter attenuates high-frequency components strongly.
-#   - The phase-shift function characterises the lag (or lead) of the predictor: an
-#       effective filter has a small phase shift across the passband.
-# Both functions are computed using amp_shift_func.
+# Relative MSE (scaled by variance of target)
+sum(gamma[1:3]^2) / sum(gamma^2)
 
-# Specify the number of equidistant frequency ordinates in [0, pi].
-# Negative frequencies are omitted as they are symmetric to positive frequencies.
+# Interpretation:
+#   - The nowcast error variance is about 30% of the target variance
+
+# ── FREQUENCY-DOMAIN ANALYSIS ──────────────────────────────────
+# The amplitude and phase-shift functions characterize filter properties:
+
+#   • Amplitude → noise suppression (frequency attenuation)
+#   • Phase shift → timeliness (lead/lag across frequencies)
+
 K <- 600
 amp_obj_mse <- amp_shift_func(K, as.vector(b_MSE), F)
 amp_mse   <- amp_obj_mse$amp
 shift_mse <- amp_obj_mse$shift
+amp_obj_target <- amp_shift_func(K, gamma, F)
+amp_target  <- amp_obj_target$amp
 
 par(mfrow=c(2,1))
-plot(amp_mse, type="l", axes=F, xlab="Frequency", ylab="",
-     main="Amplitude of MSE filter", col="green", ylim=c(0, max(amp_mse)))
+
+plot(amp_mse, type="l", axes=F,
+     xlab="Frequency", ylab="",
+     main="Amplitude of MSE filter",
+     col="green", ylim=c(0,max(amp_target)))
+lines(amp_target)
+mtext("Target amplitude",line=-1)
+mtext("MSE amplitude",line=-2,col="green")
 abline(h=0)
-axis(1, at=1+0:6*K/6, labels=expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
+axis(1, at=1+0:6*K/6,
+     labels=expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
 
-plot(shift_mse, type="l", axes=F, xlab="Frequency", ylab="",
-     main="Phase shift of MSE filter", col="green")
-axis(1, at=1+0:6*K/6, labels=expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
+plot(shift_mse, type="l", axes=F,
+     xlab="Frequency", ylab="",
+     main="Phase shift of MSE filter",
+     col="green")
+lines(rep(0,K+1))
+axis(1, at=1+0:6*K/6,
+     labels=expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
 
 # Interpretation:
-#   - Amplitude: the MSE filter acts as a lowpass, but with non-negligible noise leakage.
-#       High-frequency components are only partially attenuated, allowing them to pass
-#       through and generate the spurious zero-crossings observed above.
-#   - Phase shift: the shift in the passband is approximately one time unit, consistent
-#       with the lag identified previously via the tau statistic.
-#
-# A key advantage of frequency-domain diagnostics is that amplitude and phase-shift
-#   functions depend only on the filter coefficients, not on the data. They therefore
-#   provide a data-free and model-free characterisation of the predictor's properties.
-#
-# These findings will be revisited in later tutorials:
-#   - A faster SSA predictor (left-shifted) will exhibit a smaller phase shift
-#       across the passband (Tutorials 2, 3, and 5).
-#   - A smoother SSA predictor (larger ht) will typically show stronger attenuation
-#       at high frequencies, though Tutorial 4 presents an instructive counterexample.
+#   - Amplitude: 
+#       -Like the target, the MSE filter behaves as a low-pass filter
+#       -Amplitude of MSE smaller in passband (at lower frequencies): typical zero-shrinkage of MSE
+#       -Amplitude of MSE larger in stopband: typical noise leakage of MSE (more noisy zero-crossings)
+#   - Phase shift:
+#       -Shift of two-sided (symmartic) filter is zero
+#       -Shift of MSE: approximately one-period delay in the passband,
+#         consistent with above time-domain estimates (based on function compute_min_tau_func())
 
-#-----------
-# Finally, we derive the spectral density of the MSE predictor y_mse.
-#   - The input process epsilon_t is white noise and therefore has a flat spectral density.
-#   - By the convolution theorem, the spectral density of y_mse equals the squared
-#       amplitude of the filter b_MSE, scaled by the innovation variance sigma^2.
+# Advantage of frequency-domain diagnostics:
+#   - Depend only on filter coefficients (data-independent)
+#   - Provide a structural characterization of filter performance
+
+# Preview:
+#   - Faster SSA predictors → smaller phase shifts (Tutorials 2, 3, 5)
+#   - Smoother SSA predictors → stronger high-frequency attenuation
+#       (with exceptions; see Tutorial 4)
+
+# ── SPECTRAL DENSITY ───────────────────────────────────────────
+# For white noise input:
+#   - Input spectrum is flat
+#   - Output spectrum = sigma^2 × (amplitude)^2
+
 par(mfrow=c(1,1))
-plot(sigma^2 * amp_mse^2, type="l", axes=F, xlab="Frequency", ylab="",
-     main="Spectral density of MSE predictor", col="green",
-     ylim=c(0, max(sigma^2 * amp_mse^2)))
+
+plot(sigma^2 * amp_mse^2, type="l", axes=F,
+     xlab="Frequency", ylab="",
+     main="Spectral density of MSE predictor",
+     col="green",
+     ylim=c(0,max(sigma^2 * amp_mse^2)))
 abline(h=0)
-axis(1, at=1+0:6*K/6, labels=expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
+axis(1, at=1+0:6*K/6,
+     labels=expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
 
-# The spectral density will be used in later tutorials to assess whether standard
-#   business cycle analysis (BCA) filters - such as the HP, BK, Hamilton, and BN
-#   filters - generate spurious cycles. As we will show, some of them do.
+# This spectral representation will be used later to assess whether
+# standard business cycle filters (HP, BK, Hamilton, BN) introduce
+# spurious cyclical components.
 
-# Discussion:
-# The MSE predictor derived above is optimal in the mean-square error sense:
-#   no alternative filter design can outperform y_mse in terms of MSE.
-# However, y_mse exhibits two practical limitations:
-#   - It lags the target (right-shifted), reducing timeliness.
-#   - It is noisier than the target (smaller holding time ht), reducing smoothness.
-#
-# This raises several questions:
-#   - Can smoothness and timeliness be improved individually, or simultaneously?
-#   - What is the cost of such improvements in terms of MSE performance?
-#
-# The SSA framework addresses these questions formally and is introduced in the next example.
+# ── DISCUSSION ─────────────────────────────────────────────────
+# The MSE predictor is optimal in terms of mean-square error:
+#   no alternative linear filter achieves a lower MSE.
 
-#######################################################################################################
-######################################################################################################
-# Example 2: xt=ARMA (not white noise anymore) 
-# Same target as above
-gamma<-c(0.25,0.5,0.75,1,0.75,0.5,0.25)
-# New series
+# However, it exhibits two practical drawbacks:
+#   - Lag: the predictor is delayed relative to the target
+#   - Noise: the predictor has shorter holding time (more crossings)
+
+# This leads to key questions:
+#   - Can timeliness and smoothness be improved?
+#   - What is the MSE cost of such improvements?
+
+# The SSA framework addresses these trade-offs explicitly
+#   and is introduced in the next example.
+
+
+
+
+
+#==============================================================================================
+# Example 2: x_t follows an ARMA process (no longer white noise)
+#==============================================================================================
+# The target filter gamma remains the same as in Example 1.
+gamma <- c(0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25)
+
+# Generate a new time series from an ARMA(1,1) data generating process (DGP)
 set.seed(76)
-len<-1200
-# Specify ARMA parameters for the DGP (data generating process)
-a1<-0.4
-b1<-0.3
-sigma<-1
-epsilon<-sigma*rnorm(len)
-x<-epsilon
-# Let's do it by hand (without arima.sim)
-for (i in 2:len)
-{
-  x[i]<-a1*x[i-1]+epsilon[i]+b1*epsilon[i-1]
+len <- 1200
+
+# ARMA(1,1) parameters: AR coefficient (a1), MA coefficient (b1), innovation std dev (sigma)
+a1    <- 0.4
+b1    <- 0.3
+sigma <- 1
+
+# Draw standard normal innovations scaled by sigma
+epsilon <- sigma * rnorm(len)
+x       <- epsilon
+
+# Simulate the ARMA(1,1) process manually (without arima.sim) using the recursion:
+#   x_t = a1 * x_{t-1} + epsilon_t + b1 * epsilon_{t-1}
+for (i in 2:len) {
+  x[i] <- a1 * x[i - 1] + epsilon[i] + b1 * epsilon[i - 1]
 }
 
-# The empirical autocorrelation function: no more white noise
+# Inspect the empirical autocorrelation function (ACF):
+# x_t now exhibits serial dependence, confirming it is no longer white noise.
 acf(x)
 
-# Set filter length: should be sufficiently large for filter weights to decay to zero
-L<-50
+# Set the filter length L: must be large enough for the filter weights
+# to decay to (effectively) zero, ensuring negligible truncation error.
+L <- 50
 
-# The target filter gamma can be applied either to x_t directly, or to the
-#   innovation process epsilon_t. In the latter case, gamma must be convolved
-#   with the Wold decomposition (MA representation) of x_t.
-# We therefore first compute the MA coefficients of the Wold decomposition
-#   by inverting the ARMA model.
-
-xi<-c(1,ARMAtoMA(ar=a1,ma=b1,lag.max=L-1))
-par(mfrow=c(1,1))
-ts.plot(xi,main="Wold decomposition of ARMA(1,1)")
-
-# Note that we can replicate xt by relying on the MA-inversion (Wold-decomposition) of the ARMA:
-x_wold<-filter(epsilon,xi,side=1)
-ts.plot(cbind(x,x_wold),main="ARMA vs. Wold: both series overlap")
-
-# Let's now compute the convolution filter
-gamma_conv<-conv_two_filt_func(xi,gamma)$conv
-ts.plot(gamma_conv,main="Target filter as applied to epsilont")
-# This filter is not symmetric anymore!
-
-# Let's check that the output of both filters match
-# We here rely on the one-sided filters (since otherwise the filter function would shift the outputs differently)
-y_sym<-filter(x,gamma,side=1)
-y_conv<-filter(epsilon,gamma_conv,side=1)  
-
-# Perfect match
-ts.plot(cbind(y_sym,y_conv),main="Target applied to xt overlaps convolved target applied to epsilont")
-
-# Why express the target filter through its Wold convolution?
-# This representation serves four main purposes:
+# ── Wold (MA) representation ─────────────────────────────────────────────────
+# The target filter gamma can be applied either directly to x_t, or to the
+# innovation process epsilon_t. In the latter case, gamma must be convolved
+# with the Wold (infinite MA) representation of x_t.
 #
-# 1. Forecasting and backcasting: future innovations epsilon_{t+h} are unobserved
-#      and replaced by their optimal MSE forecast of zero. This yields the
-#      truncated filter and provides the MSE nowcast (or any forecast or backcast).
-# 2. Holding-time formula: the analytical expression for ht in
-#      Wildi, M. (2024) requires the input to be white noise. Working with epsilon_t satisfies
-#      this requirement directly.
-# 3. Spectral density: the spectral density of the predictor y_t follows
-#      immediately from the squared amplitude of the convolved filter.
-# 4. Expected MSE: the expected MSE of the predictor is straightforward
-#      to compute from the convolved filter coefficients.
+# We therefore compute the Wold MA coefficients by inverting the ARMA model,
+# retaining the first L terms.
+xi <- c(1, ARMAtoMA(ar = a1, ma = b1, lag.max = L - 1))
 
-# We begin by deriving the MSE nowcast.
-# Future innovations epsilon_{t+1}, epsilon_{t+2}, epsilon_{t+3} are set to
-#   zero, reflecting their optimal MSE forecast. The filter is zero-padded
-#   to retain the original length L.
-gamma_conv_mse<-c(gamma_conv[4:L],rep(0,3))
+par(mfrow = c(1, 1))
+ts.plot(xi, main = "Wold decomposition of ARMA(1,1)")
 
-ts.plot(gamma_conv_mse,main="MSE filter as applied to epsilont")
+# Verify the MA inversion: reconstructing x_t via the Wold representation
+# should reproduce the original ARMA series exactly.
+x_wold <- filter(epsilon, xi, side = 1)
+ts.plot(cbind(x, x_wold), main = "ARMA vs. Wold: both series overlap")
 
-# In practice, we require the MSE filter as applied directly to x_t rather than
-#   to epsilon_t. This is straightforward to obtain by deconvolving the Wold
-#   coefficients gamma_conv from the convolved MSE filter gamma_conv_mse,
-#   recovering the original filter coefficients in terms of x_t.
+# ── Convolving the target filter with the Wold coefficients ──────────────────
+# Compute the convolution of the target filter gamma with the Wold coefficients xi.
+# This yields gamma_conv: the target filter re-expressed in terms of epsilon_t.
+gamma_conv <- conv_two_filt_func(xi, gamma)$conv
+ts.plot(gamma_conv, main = "Target filter expressed in terms of epsilon_t (via Wold convolution)")
+# Note: the convolved filter is no longer symmetric (unlike the original gamma).
 
-gamma_mse<-deconvolute_func(gamma_conv_mse,xi)$dec_filt
+# ── Verify equivalence of filter outputs ─────────────────────────────────────
+# Confirm that applying gamma to x_t produces the same output as applying
+# gamma_conv to epsilon_t. One-sided filters are used here to avoid
+# edge-alignment issues introduced by the two-sided filter function.
+y_sym  <- filter(x,       gamma,      side = 1)
+y_conv <- filter(epsilon, gamma_conv, side = 1)
 
-ts.plot(gamma_mse,main="MSE filter as applied to xt")
+ts.plot(cbind(y_sym, y_conv),
+        main = "Target applied to x_t overlaps convolved target applied to epsilon_t")
 
-# Check that filter outputs are identical
+# ── Four purposes of the Wold convolution ────────────────────────────────────
+# Expressing the target filter through its Wold convolution serves four main purposes:
+#
+# 1. Forecasting / backcasting:
+#      Future innovations epsilon_{t+h} are unobserved and replaced by their
+#      optimal MSE forecast of zero. Truncating these terms in gamma_conv yields
+#      the MSE-optimal nowcast (or any forecast or backcast horizon).
+#
+# 2. Holding-time formula:
+#      The analytical holding-time formula in Wildi (2024,2026a) requires white-noise
+#      input. Working with epsilon_t satisfies this requirement directly.
+#
+# 3. Spectral density of the predictor:
+#      The spectral density of the filtered output y_t follows immediately from
+#      the squared amplitude function of the convolved filter gamma_conv.
+#
+# 4. Expected MSE:
+#      The expected MSE of the predictor is straightforward to compute from
+#      the squared coefficients of gamma_conv (see below).
 
-y_mse<-filter(x,gamma_mse,side=1)
-y_conv_mse<-filter(epsilon,gamma_conv_mse,side=1)
+# ── MSE-optimal nowcast filter ───────────────────────────────────────────────
+# Derive the MSE nowcast filter expressed in terms of epsilon_t.
+# Future innovations epsilon_{t+1}, epsilon_{t+2}, epsilon_{t+3} are unobservable
+# and set to zero (their optimal MSE forecast), i.e., we discard the first three entries
+# of gamma_conv
+gamma_conv_mse_unpadded <- gamma_conv[4:L]
+# zero-padded to preserve the original length L.
+gamma_conv_mse <- c(gamma_conv_mse_unpadded, rep(0, 3))
 
-# Same output
-ts.plot(cbind(y_conv_mse,y_mse),main="Optimal filter applied to xt is the same as convolved filter applied to epsilont")
+# Plot: 
+#   -the acausal target starts at lag=-3; 
+#   -the MSE starts at lag=0; 
+#   -for lags>=0 MSE and target overlap
+plot(c(gamma_conv,rep(0,3)), main = "Target and MSE nowcast filter expressed in terms of epsilon_t",type="l",axes=F,ylab="",xlab="")
+lines(c(rep(NA,3),gamma_conv_mse),col="green",lty=2)
+mtext("Target",line=-1)
+mtext("MSE",line=-2,col="green")
+axis(1, at = 1 + 0:10 * L / 10,
+     labels = -3+ 0:10 * L / 10)
+axis(2)
+box()
 
-# We can now proceed to comparisons of MSE and target
 
-y_sym<-filter(x,gamma,side=2)
+# ── Recover the MSE filter in terms of x_t ───────────────────────────────────
+# In practice the filter is generally applied to x_t, not epsilon_t.
+# Deconvolving the Wold coefficients xi from gamma_conv_mse recovers the
+# MSE filter coefficients expressed directly in terms of x_t.
+gamma_mse <- deconvolute_func(gamma_conv_mse, xi)$dec_filt
+# Plot: 
+#   -the acausal target starts at lag=-3; 
+#   -the MSE starts at lag=0; 
+#   -MSE assigns a larger weight to the most recent observation (lag 0)
+plot(c(gamma,rep(NA,L-7)), main = "Target and MSE nowcast filter expressed in terms of epsilon_t",type="l",axes=F,ylab="",xlab="",ylim=c(0,max(gamma_mse)))
+lines(c(rep(NA,3),gamma_mse[1:(L-3)]),col="green",lty=2)
+mtext("Target",line=-1)
+mtext("MSE",line=-2,col="green")
+axis(1, at = 1 + 0:10 * L / 10,
+     labels = -3+ 0:10 * L / 10)
+axis(2)
+box()
 
-ts.plot(cbind(y_sym,y_mse),col=c("black","green"),lty=1:2,main="Target (black) vs MSE (green)")
-abline(h=0)
 
-# We can see that the MSE is slightly noisier. Let's compute the empirical holding times of both filters
+# Verify equivalence: applying gamma_mse to x_t should match gamma_conv_mse applied to epsilon_t.
+y_mse      <- filter(x,       gamma_mse,      side = 1)
+y_conv_mse <- filter(epsilon, gamma_conv_mse, side = 1)
+
+ts.plot(cbind(y_conv_mse, y_mse),
+        main = "MSE filter applied to x_t equals convolved MSE filter applied to epsilon_t")
+
+
+# ── Visual comparison: target vs. MSE predictor ──────────────────────────────
+# Apply the symmetric target filter to x_t (two-sided, using both leads and lags).
+y_sym <- filter(x, gamma, side = 2)
+
+ts.plot(cbind(y_sym, y_mse), col = c("black", "green"), lty = 1:2,
+        main = "Target (black) vs. MSE predictor (green)")
+abline(h = 0)
+
+# ── Empirical holding times ───────────────────────────────────────────────────
+# Compute the empirical holding times (average number of periods between
+# consecutive zero-crossings) for the target and the MSE predictor.
 compute_empirical_ht_func(y_sym)
 compute_empirical_ht_func(y_mse)
-# The MSE filter crosses the zero line more often than the target (excess of 'noisy' alarms)
+# The MSE predictor crosses zero more frequently than the target,
+# indicating an excess of spurious (noisy) signals.
 
-# We compare the empirical holding times to their theoretical counterparts.
-#   In large samples, empirical values converge to theoretical values,
-#   provided the model is correctly specified.
-# However, a notable discrepancy between (above) empirical and expected numbers is observed here.
-#   This cannot be attributed to random sampling variation, as the series
-#   are sufficiently long for such deviations to be negligible.
+# ── Theoretical holding times ─────────────────────────────────────────────────
+# In large samples, empirical holding times converge to their theoretical
+# counterparts, provided the model is correctly specified.
+#
+# However, supplying gamma and gamma_mse (filters in terms of x_t) to the
+# holding-time formula produces incorrect results, because the formula
+# requires white-noise input.
 compute_holding_time_func(gamma)$ht
 compute_holding_time_func(gamma_mse)$ht
-# Solution: the holding-time formula requires white noise input. We must therefore
-#   supply the convolved filters - expressed in terms of epsilon_t - to obtain
-#   correct theoretical holding times (see purpose 2 of the Wold convolution above).
+
+# Correct approach: supply the convolved filters (expressed in terms of epsilon_t).
+# This satisfies the white-noise input requirement of the holding-time formula.
+# Note: empirical ht above converge to true ht for large sample size 
 compute_holding_time_func(gamma_conv)$ht
 compute_holding_time_func(gamma_conv_mse)$ht
 # Result: the MSE predictor generates approximately 40% more zero-crossings than
-#   the target in the long run, implying that a substantial share of its
-#   crossings are spurious signals.
+# the target in the long run, implying that a substantial share of its signals
+# are spurious.
 
-# We see, also, that the MSE is right shifted relative to the target (lagging)
-# Let's measure the shift at zero-crossings based on the tau statistic introduced in JBCY paper
-# For that purpose we compare target and MSE
-data_mat<-cbind(y_sym,y_mse)
-# The following plot suggest a lead of the target (a lag of the MSE) of one time-unit
-max_lead<-4
-compute_min_tau_func(data_mat,max_lead)
+# ── Timeliness: tau statistic ─────────────────────────────────────────────────
+# The MSE predictor appears right-shifted (lagging) relative to the target.
+# The tau statistic from the JBCY paper quantifies the average lead/lag at
+# zero-crossings by comparing target and predictor.
+data_mat <- cbind(y_sym, y_mse)
+max_lead  <- 4
+# The plot produced below suggests the target leads the MSE predictor by
+# approximately one time unit.
+compute_min_tau_func(data_mat, max_lead)
 
-# We now compute the empirical and theoretical mean-square errors.
-mean((y_sym - y_mse)^2, na.rm=T)
+# ── Mean-square error (MSE) ───────────────────────────────────────────────────
+# Empirical MSE: average squared difference between target and MSE predictor.
+mean((y_sym - y_mse)^2, na.rm = TRUE)
 
-# Theoretical MSE (see Example 1 for derivation):
+# Theoretical MSE: equals sigma^2 times the sum of squared coefficients
+# corresponding to the unobservable future innovations (lags 1 to 3 of gamma_conv).
 sigma^2 * sum(gamma_conv[1:3]^2)
 
-# We also compute the relative MSE, which expresses the filter error
-#   as a proportion of the target's variance:
+# Relative MSE: expresses the approximation error as a fraction of the
+# target output's total variance.
 sum(gamma_conv[1:3]^2) / sum(gamma_conv^2)
-
-# The relative MSE of approximately 17% is smaller than in Example 1,
-#   because x_t is smoother than epsilon_t and the target filter
-#   therefore poses an easier approximation problem.
+# The relative MSE (~17%) is smaller than in Example 1, because x_t is smoother
+# than white noise, making the target filter easier to approximate.
 #
-# Smoothness and timeliness of the MSE predictor can be improved via SSA,
-#   at the cost of increased MSE; this trade-off is explored in Tutorials 1-5.
+# Smoothness and timeliness of the MSE predictor can be improved via SSA
+# (Selective Spectral Analysis) at the cost of a higher MSE;
+# this trade-off is explored in Tutorials 1–5.
 
+# ── Frequency-domain diagnostics ─────────────────────────────────────────────
+# Examine the amplitude and phase-shift functions of the MSE predictor.
+# These characterise two key properties of the filter:
+#   • Noise suppression : how strongly the filter attenuates high-frequency components.
+#   • Timeliness        : the lag (or lead) introduced by the filter at each frequency.
+# Both are computed using gamma_mse (the MSE filter expressed in terms of x_t).
+K         <- 600
+amp_obj_mse <- amp_shift_func(K, as.vector(gamma_mse), FALSE)
+amp_mse     <- amp_obj_mse$amp
+shift_mse   <- amp_obj_mse$shift
 
+par(mfrow = c(2, 1))
 
-# Next, we examine the amplitude and phase-shift functions of the MSE predictor.
-# These frequency-domain diagnostics characterise two key properties of the filter:
-#   - Noise suppression: how strongly the filter attenuates high-frequency components.
-#   - Timeliness: how large a lag (or lead) the filter introduces.
-# Both are assessed using gamma_mse, the filter expressed in terms of x_t.
-K <- 600
-amp_obj_mse <- amp_shift_func(K, as.vector(gamma_mse), F)
-amp_mse   <- amp_obj_mse$amp
-shift_mse <- amp_obj_mse$shift
-
-par(mfrow=c(2,1))
-plot(amp_mse, type="l", axes=F, xlab="Frequency", ylab="",
-     main="Amplitude of MSE filter", col="green", ylim=c(0, max(amp_mse)))
-abline(h=0)
-axis(1, at=1+0:6*K/6, labels=expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
+# Amplitude function: values close to 1 indicate faithful signal replication;
+# values near 0 indicate strong attenuation.
+plot(amp_mse, type = "l", axes = FALSE, xlab = "Frequency", ylab = "",
+     main = "Amplitude function of the MSE filter", col = "green",
+     ylim = c(0, max(amp_mse)))
+abline(h = 0)
+axis(1, at = 1 + 0:6 * K / 6,
+     labels = expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
 
-plot(shift_mse, type="l", axes=F, xlab="Frequency", ylab="",
-     main="Phase shift of MSE filter", col="green")
-axis(1, at=1+0:6*K/6, labels=expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
+# Phase-shift function: positive values indicate a lag; negative values a lead.
+# Ideally the phase shift is zero (or small) in the signal pass-band.
+plot(shift_mse, type = "l", axes = FALSE, xlab = "Frequency", ylab = "",
+     main = "Phase-shift function of the MSE filter", col = "green")
+axis(1, at = 1 + 0:6 * K / 6,
+     labels = expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Interpretation:
 #   - Noise leakage at higher frequencies is more pronounced than in Example 1.

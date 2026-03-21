@@ -76,7 +76,7 @@
 #     nowcasting, and forecasting settings
 #
 # SSA explicitly targets key predictor characteristics:
-#   • MSE performance (Mean-Squared Error)
+#   • MSE performance (Mean-Squared Error) and sign accuracy
 #   • Noise suppression  (smoothness, wiggliness,
 #                         rate of zero-crossings)
 #   • It can also address Timeliness  `indirectly'   (lead, left-shift, reduced phase-lag)
@@ -222,10 +222,6 @@
 #   • Baxter-King (BK) filter        → Tutorial 4
 #   • Beveridge-Nelson (refined)     → Tutorial 5
 
-# ── INTERPRETABILITY ──────────────────────────────────────────────
-# Since SSA tracks the benchmark optimally, it inherits and
-# preserves the interpretability of the latter — including its
-# original economic meaning and content.
 
 # ── TYPICAL PLUG-ON CONFIGURATIONS IN THIS TUTORIAL SERIES ──────────────
 # In the tutorials, SSA plug-on applications are configured to:
@@ -248,6 +244,12 @@
 #   • Smoothness
 #   • MSE
 #   • Timeliness
+
+# ── INTERPRETABILITY ──────────────────────────────────────────────
+# Since SSA tracks the benchmark optimally, it inherits and
+# preserves the interpretability of the latter — including its
+# original economic meaning and content.
+
 # ─────────────────────────────────────────────────────────────────
 # =============================================================================
 # THEORETICAL FOUNDATION: THE SSA EFFICIENCY FRONTIER
@@ -332,6 +334,7 @@
 #     → SSA remains smoother and produces fewer crossings than
 #       the benchmark even at off-mean thresholds
 #     → See Tutorials 1–5 for empirical illustration
+#
 # ─────────────────────────────────────────────────────────────────
 # ─────────────────────────────────────────────────────────────────
 # ── M-SSA, MDFA AND DFP/PCS PREDICTORS: A COMPARATIVE OVERVIEW ─────────────
