@@ -558,14 +558,13 @@ axis(1, at = 1 + 0:6 * K / 6,
      labels = expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2); box()
 
-
 # ══════════════════════════════════════════════════════════════════════════════
-# 6.  Apply SSA — see Tutorial 2.1 (classic HP) for the full SSA workflow
+# 6. Apply SSA — refer to Tutorial 2.1 (classic HP) for the complete SSA workflow
 # ══════════════════════════════════════════════════════════════════════════════
 
-# We leave this as an exercise: given the similar amplitude and time-shift functions, 
-# rbn (trend or gap) customization by SSA will lead to similar outcomes as for HP (trend or gap)
-
+# This step is left as an exercise. Given the comparable amplitude and time-shift
+# characteristics, customizing rbn (trend or gap) via SSA is expected to yield
+# results similar to those obtained with the HP filter (trend or gap).
 
 
 

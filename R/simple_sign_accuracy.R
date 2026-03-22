@@ -1555,10 +1555,14 @@ spec_an_func<-function(SSA_obj,target,xi=NULL)
 
 
 
-# This function computes bk  in non-stationary I(1) case by imposing cointegration constraint
-# For given Lagrangian multiplier lambda the function derives bk based on cointegration solution
-# Target:  gamma_tilde is the MSE target as applied to epsilon_t; gamma_mse (this is the MSE target as applied to original data) is used for 
-#   computing Gamma(0) in the cointegration constraint only
+# This function computes bk  in non-stationary I(1) case by imposing the cointegration constraint
+# For given Lagrangian multiplier lambda the function derives bk based on cointegration solution, see formula 30 in Wildi 2026a
+# Target(s):  
+#   1. gamma_tilde is the MSE target as applied to epsilon_t 
+#     this is not the proper target since it is a stationary finite MA filter applied to epsilon_t
+#     its purpose is being the target for I-SSA optimization under the cointegration constraint (the constraint then integrates the unit-root within the predictor)
+#   2. gamma_mse: this is the MSE target as applied to original data in levels 
+#     this is used for computing Gamma(0) in the cointegration constraint only
 # For lambda=0 the SSA transformation is an identity, i.e., bk=gamma_tilde
 # Xi is the Wold decomposition, Sigma is the summation (integration) operator (it is only used for computing target correlation); 
 # M is the autocovariance generating matrix; B is used for setting-up cointegration constraint
@@ -1647,7 +1651,7 @@ compute_system_filters_func<-function(L,lambda_hp,a_vec,b_vec)
   xi<-ARMAtoMA(ar=a_vec,ma=b_vec,lag.max=L)
 
   
-# Compute all system matrices: all matrices are specified in Wildi (2025)
+# Compute all system matrices: all matrices are specified in Wildi (2026a)
   Xi<-NULL
   for (i in 1:L)
     Xi<-rbind(Xi,c(xi[i:1],rep(0,L-i)))#c(1,0,0),c(1,1,0),c(1,1,1)))
@@ -1664,7 +1668,7 @@ compute_system_filters_func<-function(L,lambda_hp,a_vec,b_vec)
   Delta<-solve(Sigma)
   Delta
   
-  
+# Convolve integration operator and Wold decomposition (section 5.3 in Wildi 2026a)  
   Xi_tilde<-(Sigma)%*%Xi
   
 # Compute gamma_mse: the optimal MSE filter applied to x_tilde the non stationary data
@@ -1676,6 +1680,8 @@ compute_system_filters_func<-function(L,lambda_hp,a_vec,b_vec)
   hp_xi_causal<-hp_xi[L:(length(hp_xi))]
 # 4. Deconvolute filt2 from filt1: filt1 is the convolution
   gamma_mse<-deconvolute_func(hp_xi_causal,xi_int[1:L])$dec_filt
+# Coefficients add to one (unit-root constraint inherited from hp_two)  
+  sum(gamma_mse)
 
   if (F)
   {
@@ -1684,7 +1690,11 @@ compute_system_filters_func<-function(L,lambda_hp,a_vec,b_vec)
     ts.plot(gamma_mse)
   }
   
-# Compute transformed MSE filter, see section 6.2 technical SSA paper  
+# Compute transformed MSE filter: convolution of MSE (applied to non-stationary x_tilde) with Xi_tilde
+# This is used as the target in the optimization criterion
+# It is the finite MA approaximation of the MSE filter: it is applied to epsilon_t
+# However, the finite MA representation cannot be used as predictor (the predictor is non-stationary, whereas the finite MA is stationary)
+# Its sole purpose is to serve as target in the constrained optimization, assuming the cointegration constraint is imposed (see formula 30 in Wildi 2026a).
   gamma_tilde<-Xi_tilde%*%gamma_mse
 # Autocovariance generating matrix, see theorem 1  
   M<-matrix(nrow=L,ncol=L)
