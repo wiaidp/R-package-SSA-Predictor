@@ -284,7 +284,7 @@ SSA_func<-function(L,forecast_horizon_vec,gammak_generic,rho1,xi=NULL,Sigma=NULL
     lambda_opt<-opt_obj$lambda_opt
     nu_opt=opt_obj$nu_opt
 # MSE as applied to epsilont    
-    gammak_mse=t(opt_obj$gammak_mse)
+    gammak_mse=as.vector(t(opt_obj$gammak_mse))
 # Objective function of SSA-criterion: correlation with MSE    
     crit_rhoyz<-c(crit_rhoyz,opt_obj$crit_rhoyz)
 # Lag-one acf of SSA-estimate (can be converted to holding-time: this should match the constraint)    

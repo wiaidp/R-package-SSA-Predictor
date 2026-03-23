@@ -225,6 +225,8 @@ sa_from_rho_func<-function(rho)
 MSSA_func<-function(split_grid,L,forecast_horizon_vec,grid_size,gammak_generic,rho1,with_negative_lambda=F,xi=NULL,lower_limit_nu="rhomax",Sigma=NULL,symmetric_target=F)
 { 
 #forecast_horizon_vec<-delta  gammak_generic<-gamma_target L<-101  L<-L_long rho1<-rho0
+  if (is.null(split_grid))
+    split_grid<-20
   if (is.vector(gammak_generic))
     gammak_generic<-matrix(gammak_generic,nrow=1)
   if (is.vector(xi))

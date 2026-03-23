@@ -1,9 +1,10 @@
 # ========================================================================
-# Tutorial 7: I-SSA Extension of SSA to non-stationary (I-ntegrated) processes
+# Tutorial 7: I-SSA 
+# Extension of SSA to non-stationary (I-ntegrated) processes
 # ========================================================================
 # Topics:
 #   - Introduction of I-SSA
-#   - Joint treatment of level nowcasting and recession signaling
+#   - Joint treatment of level nowcasting and growth-sign signaling
 #   - Maximal monotone predictors
 # ========================================================================
 
@@ -32,7 +33,7 @@
 #   - In levels: I-SSA yields a maximal monotone predictor
 #   - For I(2) processes: I-SSA minimizes curvature
 #
-# See: Wildi (2026a)
+# See: Wildi (2026a), sections 5.3-5.5
 
 
 # ────────────────────────────────────────────────────────────────
@@ -48,11 +49,11 @@
 # I-SSA Optimization Principle
 # ────────────────────────────────────────────────────────────────
 #   - Tracking:
-#       Optimal trend nowcast in levels (minimize MSE or maximize
-#       pseudo target correlation / pseudo sign accuracy)
+#       Optimal trend nowcast in LEVELS (minimize MSE or maximize
+#       pseudo target correlation or  pseudo sign accuracy)
 #
 #   - Smoothness:
-#       Control mean-crossing rate in first differences (HT constraint)
+#       Control mean-crossing rate in FIRST DIFFERENCES (HT constraint)
 #
 #   - Cointegration constraint:
 #       Ensures finite MSE between predictor and target

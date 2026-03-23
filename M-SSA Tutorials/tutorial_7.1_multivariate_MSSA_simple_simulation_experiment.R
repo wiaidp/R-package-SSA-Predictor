@@ -28,6 +28,22 @@
 #   -The rate of zero-crossings can be related to the lag-one ACF, see SSA- and M-SSA papers
 #   -Exercise 1 verifies pertinence of this mathematical trick
 
+# ────────────────────────────────────────────────────────────────
+# Background
+# ────────────────────────────────────────────────────────────────
+
+# Wildi, M. (2026b) The Accuracy-Smoothness Dilemma in Prediction: a Novel Multivariate M-SSA Forecast Approach.
+# https://doi.org/10.48550/arXiv.2602.13722. Published in Journal of Time Series Analysis (and arXiv)
+
+# Heinisch, K. and Van Norden, S. and Wildi, M. (2026) Smooth and Persistent Forecasts of German GDP: Balancing Accuracy and Stability.
+# IWH Discussion Papers, 1/2026, Halle Institute for Economic Research, 
+# https://doi.org/10.18717/dp99kr-7336.
+
+
+# ────────────────────────────────────────────────────────────────
+
+
+
 #-----------------------
 # Start with a clean sheet
 rm(list=ls())

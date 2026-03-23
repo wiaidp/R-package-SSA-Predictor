@@ -1,5 +1,11 @@
-# We here introduce to the M-SSA. see paper provide link???
-# Work in progress...
+# Tutorial 7.0: Introduction to Multivariate SSA M-SSA
+# We introduce the function MSSA_func() which extends SSA_func() to a multivariate framework
+# We here demonstrate that M-SSA replicates SSA in an univariate framework
+# For this exercise we rely on tutorial 2.1: customization of HP by SSA
+
+#-----------------------------------
+
+
 
 # Make a clean-sheet, load packages and functions
 rm(list=ls())
@@ -19,6 +25,11 @@ source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
 
 # Load signal extraction functions used for JBCY paper (relies on mFilter)
 source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+
+# Load  M-SSA functions
+# M-SSA functions
+source(paste(getwd(),"/R/functions_MSSA.r",sep=""))
+
 
 ##########################################################################################################
 # Example 1: we replicate SSA by M-SSA
@@ -103,71 +114,17 @@ gammak_generic<-hp_mse
 # SSA of HP-target
 SSA_obj_HP<-SSA_func(L,forecast_horizon,gammak_generic,rho1,xi)
 
+#-----------------------------------------------------------------
+# 1.3 Setting-up M-SSA
+# Numerical optimization controls: use default settings
+split_grid<-grid_size<-with_negative_lambda<-NULL
 
+# Call MSSA_func
+MSSA_obj<-MSSA_func(split_grid,L,forecast_horizon,grid_size,gammak_generic,rho1,with_negative_lambda,xi)
 
-# Since xt is white noise (xi=NULL) the two SSA filters ssa_eps and ssa_x are identical, see tutorial 1
-ssa_x<-SSA_obj_HP$ssa_x
-SSA_filt_HP<-SSA_example1<-ssa_eps<-SSA_obj_HP$ssa_eps
-
-
-
-#----------------------
-# 1.3 Plot
-colo<-c("black","brown","blue")
-par(mfrow=c(1,2))
-mplot<-cbind(hp_target,hp_mse)
-colnames(mplot)<-c("Symmetric","Concurrent")
-
-plot(mplot[,1],main=paste("HP(",lambda_monthly,")",sep=""),axes=F,type="l",xlab="Lag-structure",ylab="filter-weights",ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))),col=colo[1],lwd=2,lty=2)
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-lines(mplot[,2],col=colo[2],lwd=2,lty=1)
-mtext(colnames(mplot)[2],col=colo[2],line=-2)
-axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
-axis(2)
-box()
-
-mplot<-cbind(SSA_filt_HP,hp_mse)
-colnames(mplot)<-c(paste("SSA(",round(ht,1),",",forecast_horizon,")",sep=""),"HP")
-
-plot(mplot[,1],main=paste("Concurrent",sep=""),axes=F,type="l",xlab="",ylab="",ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))),col=colo[3],lwd=2)
-mtext(colnames(mplot)[1],col=colo[3],line=-1)
-lines(mplot[,2],col=colo[2],lwd=2)
-mtext(colnames(mplot)[2],col=colo[2],line=-2)
-axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
-axis(2)
-box()
-
-
-
-
-
-
-
-
-# We can replicate univariate models by specifying `diagonal' xi and Sigma as below
-if (F)
-{
-  xi<-xi_mat_uni_bi
-  Sigma<-Sigma_uni_bi
-  rho0<-rho0_uni_vec
-  ht_ssa_vec<-compute_holding_time_from_rho_func(rho0)$ht
-  
-}
-
-
-
-
-# Load  M-SSA functions
-# M-SSA functions
-source(paste(getwd(),"/R/functions_MSSA.r",sep=""))
-
-
-
-
-
-
-# Example 2: we illustrate a bivariate M-SSA based on a `bogus' design 
-#  -In principle the same as example 1 but we add an irrelevant (cross-sectionally uncorrelated white noise) series 
+# Plot and compare SSA and M-SSA: they coincide
+par(mfrow=c(1,1))
+ts.plot(cbind(MSSA_obj$bk_mat,SSA_obj_HP$ssa_x),col=c("blue","black"),main="M-SSA vs. SSA: both overlap")
 
 
 
