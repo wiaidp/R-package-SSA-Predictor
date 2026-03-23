@@ -1,439 +1,750 @@
-# Tutorial 7.1 proposes an introduction to M-SSA: 
-#   -An extension of the univariate SSA analyzed in the previous tutorials to a multivariate framework
+# ============================================================
+# Tutorial 7.1: M-SSA in a Multivariate Nowcast Simulation Framework
+# ============================================================
+#
+# Overview:
+#   - Demonstrates customization of the Hodrick-Prescott (HP) filter
+#     in a five-dimensional multivariate setting.
+#   - Extends Tutorial 2.1 (univariate HP customization) to the
+#     multivariate case via M-SSA.
+#
+# Simulation Design:
+#   - The tutorial is structured around a simulation exercise.
+#   - The model specification is derived from an application of M-SSA
+#     to forecasting German GDP
+#     (BIP: Brutto Inlands Produkt — Gross Domestic Product).
+#     Empirical data are available in Tutorial 7.3.
+#   - The data-generating process (DGP) is based on a VAR(1) model
+#     fitted to German macroeconomic data.
+#     See Tutorials 7.2 and 7.3 for full details.
+#
+# Objectives:
+#   - Demonstrate that M-SSA performs as expected when the DGP is assumed known.
+#
+#   Exercise 1:
+#     - Verifies that finite-sample performance converges to theoretical expectations,
+#       thereby confirming that the formulas derived in the M-SSA paper are valid.
+#
+#   Exercise 2:
+#     - Transcribes the paper's formulas into R code and provides
+#       additional performance checks under nearly asymptotic conditions.
+#
+#   Exercise 3:
+#     - Wraps the proposed code into compact, reusable R functions,
+#       which are subsequently used in Tutorials 7.2 and 7.3.
+#
+# Methodological Context:
+#   - As presented at the 2025 Conference on Real-Time Data Analysis,
+#     Methods, and Applications (Prague, 2025):
+#     SSA and M-SSA are "empirical forecasting" frameworks that extend
+#     the classical mean-square error (MSE) paradigm by additionally
+#     addressing:
+#       * Smoothness: controls the rate of zero-crossings of a
+#         (mean-centered) predictor/nowcast/forecast.
+#       * Timeliness: addresses phase delay (lag/right-shift) of a predictor.
+#
+#   - M-SSA extends these concepts to a multivariate setting, where
+#     multiple input series are combined to predict a single target variable.
+#
+#   - In this multivariate context, controlling zero-crossings is more
+#     complex, since each individual series contributes its own crossing
+#     behavior to the aggregated predictor.
+#
+#   - The mathematical solution to this challenge is both elegant and effective:
+#       * The lag-one autocorrelation function (ACF) for a multivariate
+#         design can be derived analytically (see the M-SSA paper).
+#       * The rate of zero-crossings is directly related to the lag-one ACF
+#         (see the SSA and M-SSA papers).
+#       * Exercise 1 empirically validates this theoretical relationship.
+#
+# ============================================================
+# References
+# ============================================================
+#
+# Wildi, M. (2026b). The Accuracy-Smoothness Dilemma in Prediction:
+#   A Novel Multivariate M-SSA Forecast Approach.
+#   Journal of Time Series Analysis (also available on arXiv).
+#   https://doi.org/10.48550/arXiv.2602.13722
+#
+# Heinisch, K., Van Norden, S., and Wildi, M. (2026).
+#   Smooth and Persistent Forecasts of German GDP:
+#   Balancing Accuracy and Stability.
+#   IWH Discussion Papers, 1/2026.
+#   Halle Institute for Economic Research.
+#   https://doi.org/10.18717/dp99kr-7336
+#
+# ============================================================
 
-# -This tutorial is built around a simulation exercise: the model specification is derived from an 
-#       application of M-SSA to forecasting German GDP (BIP: Brutto Inland Produkt): data available in tutorial 7.3
-#   -The data generating process (DGP) relies on a simple VAR(1) fitted to German macro-data, see 
-#     tutorials 7.2. and 7.3 for details
-
-# Purpose: demonstrate that M-SSA is `doing the job' when assuming the DGP to be known 
-# -Exercise 1 illustrates that sample performances are converging to theoretical expectations
-#   -Thereby, we can confirm that theory/formula as derived in the M-SSA paper are pertinent 
-# -Exercise 2 transcribes formula of the paper in R-code and provides additional performance checks (nearly asymptotic results) 
-# -Exercise 3 wraps the proposed code into compact R-functions which will be used in tutorials 7.2 and 7.3
-
-# -As discussed at a 2025-conference (Conference on Real-Time Data Analysis, Methods, and Applications, Prague, 2025)
-#   SSA and M-SSA are about `empirical forecasting`: the method addresses problems which might be relevant 
-#   to practitioners by extending the classic mean-square error (MSE) paradigm to address smoothness and
-#   timeliness, in addition to MSE: 
-#     -Smoothness concerns the number/rate/frequency of zero-crossings of a (centered) predictor/nowcast/forecast
-#     -Timeliness addresses retardation/lag/right-shift of a predictor
-# -M-SSA extends these concepts to a multivariate design, wherein multiple series can be used for predicting
-#   a specific target
-# -In such a case, controlling zero-crossings of the predictor is more complex because multiple time series
-#   are aggregated into a single predictor, whereby each individual series can 
-#   contribute its `own' crossings
-# -However, the mathematical trick for addressing this `seemingly complex` problem is neat, simple and effective: 
-#   -We know how to derive the lag-one ACF for a multivariate design, see, e.g., the M-SSA paper
-#   -The rate of zero-crossings can be related to the lag-one ACF, see SSA- and M-SSA papers
-#   -Exercise 1 verifies pertinence of this mathematical trick
-
-# ────────────────────────────────────────────────────────────────
-# Background
-# ────────────────────────────────────────────────────────────────
-
-# Wildi, M. (2026b) The Accuracy-Smoothness Dilemma in Prediction: a Novel Multivariate M-SSA Forecast Approach.
-# https://doi.org/10.48550/arXiv.2602.13722. Published in Journal of Time Series Analysis (and arXiv)
-
-# Heinisch, K. and Van Norden, S. and Wildi, M. (2026) Smooth and Persistent Forecasts of German GDP: Balancing Accuracy and Stability.
-# IWH Discussion Papers, 1/2026, Halle Institute for Economic Research, 
-# https://doi.org/10.18717/dp99kr-7336.
 
 
-# ────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------
+# Initialization
+# ------------------------------------------------------------
 
+# Clear the workspace to ensure a clean environment
+rm(list = ls())
 
+# ------------------------------------------------------------
+# Load Required Libraries
+# ------------------------------------------------------------
 
-#-----------------------
-# Start with a clean sheet
-rm(list=ls())
-
-# Load the required R-libraries
-
-# Standard filter package
+# mFilter: provides standard filtering tools, including the HP filter
 library(mFilter)
-# Multivariate time series: VARMA model for macro indicators: used here for simulation purposes only
+
+# MTS: supports multivariate time series analysis;
+#      used here to fit and simulate from VAR/VARMA models
 library(MTS)
 
+# ------------------------------------------------------------
+# Load M-SSA Source Files
+# ------------------------------------------------------------
 
-# Load the relevant M-SSA functionalities
-# M-SSA functions
-source(paste(getwd(),"/R/functions_MSSA.r",sep=""))
-# Load signal extraction functions used for JBCY paper (relies on mFilter)
-source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+# Core M-SSA functions (multivariate signal extraction and filter design)
+source(paste(getwd(), "/R/functions_MSSA.r", sep = ""))
 
-#-----------------------------------------------
+# Auxiliary signal extraction functions developed for the JBCY paper
+# (depends on the mFilter package)
+source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
+
+# ============================================================
 # Exercise 1
-# 1.1 Specify the data generating process (DGP): 
-# -The following model is obtained by fitting a simple VAR(1) to quarterly German macro data, see tutorials 7.2 and 7.3
-#   -Since the estimation span can be adjusted, the particular VAR may deviate from tutorials 7.2 and 7.3  
-#   -But we can rely on any multivariate model to demonstrate M-SSA
-# -Tutorials 7.2 and 7.3 consider a 5-dimensional design comprising BIP (i.e. GDP), industrial production, economic sentiment, spread and an ifo indicator
-#   -All series are log-transformed (except spread), differenced (no cointegration) and standardized (to account for grossly different scales)
-# -Data span: the quarterly series start at the introduction of the EURO and the in-sample span determined in
-#     tutorials 7.2 and 7.3 ends in Dec-2007, leaving the financial crisis entirely out-of-sample
-#   -As a consequence, the data span is relatively short (less than 20 years of quarterly data)
-#   -Therefore, a verification of (asymptotic) results remains challenging
-#     -Which justifies the simulation experiment herein
-#   -Overfitting is of concern, too.
-#   -We select a sparsely parametrized simple VAR(1) specification, based on library MTS (VARMA, R.Tsay),
-#     see tutorials 7.2 and 7.3
-#   -Note that M-SSA is fairly insensitive to overfitting and/or to the specification of the in-sample span
+# ============================================================
 
-# Dimension of the multivariate design: 
-n<-5
-# AR order: we exclude MA-terms because of invertibility issues (the VARMA(1,1) would not be always invertible)
-p<-1
-# AR(1) coefficient (we could just plug in any numbers, assuming stationarity)
-Phi<-matrix(rbind(c( 0.0000000,  0.00000000, 0.4481816,    0, 0.0000000),
-                  c(0.2387036, -0.33015450, 0.5487510,    0, 0.0000000),
-                  c(0.0000000,  0.00000000, 0.4546929,    0, 0.3371898),
-                  c(0.0000000,  0.07804158, 0.4470288,    0, 0.3276132),
-                  c(0.0000000,  0.00000000, 0.0000000,    0, 0.3583553)),nrow=n)
-colnames(Phi)<-rownames(Phi)<-c("BIP", "ip", "ifo_c","ESI", "spr_10y_3m") 
+# ------------------------------------------------------------
+# 1.1 Specify the Data-Generating Process (DGP)
+# ------------------------------------------------------------
+#
+# Model Origin:
+#   - The following VAR(1) model was obtained by fitting a parsimonious
+#     specification to quarterly German macroeconomic data.
+#     See Tutorials 7.2 and 7.3 for the full estimation procedure.
+#   - Since the estimation span can be adjusted, the specific VAR(1)
+#     coefficients below may differ slightly from those in Tutorials 7.2/7.3.
+#   - However, any valid multivariate stationary model can serve as the DGP
+#     to illustrate M-SSA.
+#
+# Variable Set (5-dimensional design):
+#   - BIP         : German GDP (Brutto Inlands Produkt)
+#   - ip          : Industrial production
+#   - ifo_c       : ifo business climate indicator
+#   - ESI         : Economic Sentiment Indicator
+#   - spr_10y_3m  : Interest rate spread (10-year vs. 3-month)
+#   - All series are log-transformed (except the spread),
+#     first-differenced (no cointegration assumed), and standardized
+#     to account for differences in scale.
+#
+# Data Span:
+#   - The quarterly series begin at the introduction of the Euro.
+#   - The in-sample estimation window (Tutorials 7.2/7.3) ends in December 2007,
+#     leaving the 2008 financial crisis entirely out-of-sample.
+#   - The resulting in-sample span is relatively short (< 20 years of quarterly data),
+#     which makes it challenging to verify asymptotic properties empirically.
+#     This motivates the simulation experiment conducted here.
+#
+# Model Specification Choices:
+#   - Overfitting is a concern given the short sample.
+#   - A sparsely parameterized VAR(1) is selected (no MA terms),
+#     partly because VARMA(1,1) models are not always invertible.
+#   - The sparse structure is reflected by the many zero entries in Phi below.
+#   - Note: M-SSA is relatively robust to overfitting and to the
+#     choice of in-sample estimation window.
+#   - Estimation is performed using the MTS package (VARMA, R. Tsay).
+#     See Tutorials 7.2 and 7.3 for details.
+
+# Dimension of the multivariate system
+n <- 5
+
+# AR order: MA terms are excluded due to potential invertibility issues
+#           in VARMA(1,1) specifications
+p <- 1
+
+# VAR(1) coefficient matrix Phi (n x n):
+#   - Row i contains the lagged coefficients for equation i.
+#   - Example: BIP (row 1) depends only on lagged ifo_c;
+#              ip (row 2) depends on lagged BIP, ip, and ifo_c; etc.
+#   - Zero entries reflect the sparse parameterization.
+#   - Cross-series dependencies beyond Phi are further shaped by the
+#     residual covariance matrix Sigma (see below).
+#   - For a complete picture of dynamic interdependencies,
+#     consult the impulse response functions (MA-inversion) further below.
+#   - M-SSA treats this model as the true DGP and derives optimal
+#     predictors accordingly.
+#   - A better-fitting model could, in principle, be substituted to
+#     yield improved predictors — but evaluating the VAR(1)'s fit is
+#     not the purpose of this tutorial; we accept it as given.
+Phi <- matrix(rbind(
+  c( 0.0000000,  0.00000000, 0.4481816,    0, 0.0000000),
+  c( 0.2387036, -0.33015450, 0.5487510,    0, 0.0000000),
+  c( 0.0000000,  0.00000000, 0.4546929,    0, 0.3371898),
+  c( 0.0000000,  0.07804158, 0.4470288,    0, 0.3276132),
+  c( 0.0000000,  0.00000000, 0.0000000,    0, 0.3583553)
+), nrow = n)
+colnames(Phi) <- rownames(Phi) <- c("BIP", "ip", "ifo_c", "ESI", "spr_10y_3m")
 Phi
-# According to Phi, BIP (first row) is related to lagged ifo_c; ip (indust-prod, second row) is related to lagged BIP, ip and ifo; and so on...
-#   -But additional dependencies are determined by Sigma below (sample cross correlation matrix of model residuals).
-#   -Therefore, a better understanding of the model can be obtained by looking at the impulse response function (MA-inversion) further down
-# In any case, M-SSA assumes this model to be true and derives optimal predictors under this assumption
-# A better model of the data (than the VAR(1)) could be plugged into M-SSA to eventually obtain even better predictors
-#   -To be clear: we do not discuss pertinence of the VAR(1) and accept this result `as is'
-# The sparse parametrization is reflected by multiple zeroes in Phi: see MTS-package for details
 
-# Covariance matrix (of noise terms)
-# Note: if Phi and Sigma are diagonal, then the VAR reduces to n univariate designs running in parallel
-Sigma<-matrix(rbind(c(0.755535544,  0.49500481, 0.11051024, 0.007546104, -0.16687913),
-                    c(0.495004806,  0.65832962, 0.07810020, 0.025101191, -0.25578971),
-                    c(0.110510236,  0.07810020, 0.66385111, 0.502140497,  0.08539719),
-                    c(0.007546104,  0.02510119, 0.50214050, 0.639843288,  0.05908741),
-                    c(-0.166879134, -0.25578971, 0.08539719, 0.059087406,  0.84463448)),nrow=n)
+# Residual covariance matrix Sigma (n x n):
+#   - Captures contemporaneous correlations among model innovations.
+#   - If both Phi and Sigma were diagonal, the VAR(1) would reduce to
+#     n independent univariate models running in parallel — which is
+#     precisely the univariate SSA setting.
+Sigma <- matrix(rbind(
+  c( 0.755535544,  0.49500481,  0.11051024,  0.007546104, -0.16687913),
+  c( 0.495004806,  0.65832962,  0.07810020,  0.025101191, -0.25578971),
+  c( 0.110510236,  0.07810020,  0.66385111,  0.502140497,  0.08539719),
+  c( 0.007546104,  0.02510119,  0.50214050,  0.639843288,  0.05908741),
+  c(-0.166879134, -0.25578971,  0.08539719,  0.059087406,  0.84463448)
+), nrow = n)
 
-# Simulate a series corresponding to 25 years of quarterly data    
-len<-100
+# ── Short simulation: 25 years of quarterly data (T = 100) ──────────────────
+# Used for visual inspection; mimics realistic empirical sample sizes.
+len <- 100
 set.seed(31)
-x_mat=VARMAsim(len,arlags=c(p),phi=Phi,sigma=Sigma)$series
+x_mat <- VARMAsim(len, arlags = c(p), phi = Phi, sigma = Sigma)$series
 
-# Use the original column names: GDP (BIP), industrial production, ifo, sentiment and spread
-colnames(x_mat)<-c("BIP", "ip", "ifo_c","ESI", "spr_10y_3m") 
-# Have a look at the data
-#   -We expect to see mutually (cross-section) correlated and (longitudinal) autocorrelated series
-#   -Can you glimpse `crises`, i.e., phases characterized by `striking' negative growth?
-par(mfrow=c(1,1))
-ts.plot(x_mat[(len-99):len,])
+# Attach original variable names
+colnames(x_mat) <- c("BIP", "ip", "ifo_c", "ESI", "spr_10y_3m")
 
-# Generate a very long series for our simulation experiment: to verify convergence of sample estimates to expectations    
-len<-100000
+# Plot the simulated series:
+#   - Expect mutually correlated (cross-sectional) and
+#     autocorrelated (longitudinal) behavior.
+#   - Look for "crisis episodes": sustained periods of negative growth.
+par(mfrow = c(1, 1))
+ts.plot(x_mat[(len - 99):len, ])
+
+# ── Long simulation: T = 100,000 observations ────────────────────────────────
+# Used to verify that finite-sample estimates converge to their
+# theoretical (asymptotic) counterparts, validating the M-SSA formulas.
+len <- 100000
 set.seed(871)
-x_mat=VARMAsim(len,arlags=c(p),phi=Phi,sigma=Sigma)$series
+x_mat <- VARMAsim(len, arlags = c(p), phi = Phi, sigma = Sigma)$series
 
-# Use the original column names: GDP (BIP), industrial production, ifo, sentiment and spread
-colnames(x_mat)<-c("BIP", "ip", "ifo_c","ESI", "spr_10y_3m") 
+# Attach original variable names
+colnames(x_mat) <- c("BIP", "ip", "ifo_c", "ESI", "spr_10y_3m")
 
-#-------------------------------------------------------------------
-# 1.2 Specify the acausal target: 
-# -We want to nowcast and to predict the output of a (two-sided) Hodrick Prescott (HP) filter
-#   -We do not want to suggest that HP is the single optimal design for this application (German macro data)
-#     see tutorials 2.0 and 2.1
-#   -Consequently, we could use alternative signals: see tutorials 3, 4 and 6
-#   -The point here is: we could plug any target into M-SSA and obtain optimal predictors by M-SSA
-#   -Given the above VAR(1) and given a target, M-SSA solves the corresponding prediction problem. 
-# -The sampling frequency of our data is quarterly and the classic HP-specification would be HP(1600) with lambda=1600 
-# -However, we here select a smaller lambda=160, see detailed discussions in tutorials 7.2 and 7.3
-#   -Briefly: the classic HP(1600) is too smooth (it removes too much relevant information) for the purpose of 
-#     predicting BIP
-#   -See also a corresponding critic by Phillips and Jin (2021)
-lambda_HP<-160
-# Filter length: roughly 4 years. 
-# Technical side-note: 
-#   -We provide only the right half of the two-sided filter to M-SSA: the left tail is obtained by `mirroring'
-#   -Therefore, the length of the filter (L=31) should be an odd number to obtain an exact replication of the HP 
-#     after `mirroring' (i.e., a symmetric design with a single peak at its center) 
-L<-31
-# HP filter: we use the R-package mFilter to compute HP in the following wrapper
-HP_obj<-HP_target_mse_modified_gap(L,lambda_HP)
 
-hp_symmetric=HP_obj$target
-hp_classic_concurrent=HP_obj$hp_trend
-hp_one_sided<-HP_obj$hp_mse
+# ------------------------------------------------------------
+# 1.2 Specify the Acausal (Two-Sided) Target Filter
+# ------------------------------------------------------------
+#
+# Target Signal:
+#   - The prediction target is the output of a two-sided
+#     Hodrick-Prescott (HP) filter applied to BIP.
+#   - HP is not necessarily the optimal signal design for this application;
+#     alternative targets could be substituted (see Tutorials 3, 4, and 6).
+#   - The key point is that M-SSA accepts any user-specified target filter
+#     and derives the corresponding optimal causal predictor, given the DGP.
+#
+# HP Parameter Choice:
+#   - The standard quarterly HP specification uses lambda = 1600.
+#   - Here we use lambda = 160, a less aggressive smoothing parameter.
+#   - Rationale: HP(1600) removes too much economically relevant variation
+#     for GDP prediction purposes (see Tutorials 7.2 and 7.3 for a full
+#     discussion; see also Phillips and Jin (2021) for a related critique).
+lambda_HP <- 160
 
-# We can see in the following plot that the truncation of the symmetric filter of length L=31 leaves room 
-#     for improvement (L is obviously too small)
-ts.plot(hp_symmetric,main=paste("Symmetric filter of length ",L,sep=""))
-# But we supply the right half of the two-sided filter to M-SSA: the two-sided filter is reconstructed internally by `mirroring'`
-#   -The right half is also of length L=31 and therefore the two-sided filter will be of 
-#     total length 2*L-1, after reconstruction (`mirroring`) 
-#   -Therefore, truncation is not a problem anymore (from a practical point of view at least)
-ts.plot(hp_one_sided,main=paste("Right tail of length ",L," of the two-sided filter of length ",2*L-1,sep=""),ylab="")
+# Filter length:
+#   - L = 31 corresponds to roughly 4 years of quarterly lags (one-sided).
+#   - Technical note: only the right half of the two-sided filter is passed
+#     to M-SSA; the full symmetric filter is reconstructed internally by
+#     "mirroring" (reflecting) the right half.
+#   - L must be odd so that the mirrored reconstruction yields a perfectly
+#     symmetric filter with a single peak at its center.
+L <- 31
 
-# Specifically, the two-sided filter will be reconstructed as follows in M-SSA
-#   This step suggests that L should be an odd number
-reconstructed_two_sided_hp<-c(hp_one_sided[L:2],hp_one_sided[1:L])
-ts.plot(reconstructed_two_sided_hp,main=paste("Reconstructed two-sided filter of length ",2*L-1,sep=""),ylab="")
-#-------------------------------------------------------------------
-# 1.3 MA inversion of VAR(1)
-#   -The M-SSA optimization criterion relies on the Wold-decomposition of a stationary process (see M-SSA paper)
-#   -We thus compute the MA-inversion of the VAR, based on package MTS
-xi_psi<-PSIwgt(Phi = Phi, Theta = NULL, lag = L, plot = F, output = F)
-xi_p<-xi_psi$psi.weight
-# We now transform the MA-inversion xi_p in a readable format (for M-SSA)
-#   -The first L entries, from left to right, are the weights of the first white noise (WN) series
-#   -The following L entries are the weights corresponding to the second WN series 
-xi<-matrix(nrow=n,ncol=n*L)
-for (i in 1:n)
-{
+# Compute the HP filter object using the mFilter-based wrapper:
+#   - hp_symmetric        : truncated symmetric (two-sided) HP filter of length L
+#   - hp_classic_concurrent : standard one-sided (concurrent) HP filter
+#   - hp_one_sided        : right half of the two-sided HP filter (length L),
+#                           used as input to M-SSA
+HP_obj               <- HP_target_mse_modified_gap(L, lambda_HP)
+hp_symmetric         <- HP_obj$target
+hp_classic_concurrent <- HP_obj$hp_trend
+hp_one_sided         <- HP_obj$hp_mse
+
+# Plot the truncated symmetric filter:
+#   - The truncation at length L = 31 is visibly imperfect,
+#     suggesting that L alone is insufficient for full filter representation.
+ts.plot(hp_symmetric,
+        main = paste("Symmetric filter of length ", L, sep = ""))
+
+# Plot the right half (one-sided) filter passed to M-SSA:
+#   - M-SSA reconstructs the full two-sided filter of length 2*L - 1
+#     by mirroring this one-sided input.
+#   - The extended length resolves the truncation issue noted above.
+ts.plot(hp_one_sided,
+        main = paste("Right tail of length ", L,
+                     " of the two-sided filter of length ", 2 * L - 1,
+                     sep = ""),
+        ylab = "")
+
+# Verify the mirroring reconstruction explicitly:
+#   - Reflects hp_one_sided around its first element to form
+#     the complete symmetric two-sided filter of length 2*L - 1.
+#   - This step confirms why L must be odd.
+reconstructed_two_sided_hp <- c(hp_one_sided[L:2], hp_one_sided[1:L])
+ts.plot(reconstructed_two_sided_hp,
+        main = paste("Reconstructed two-sided filter of length ",
+                     2 * L - 1, sep = ""),
+        ylab = "")
+
+
+# ------------------------------------------------------------
+# 1.3 MA Inversion of the VAR(1): Impulse Response Functions
+# ------------------------------------------------------------
+#
+# Background:
+#   - The M-SSA optimization criterion is grounded in the Wold decomposition
+#     of a stationary process (see the M-SSA paper for details).
+#   - The Wold decomposition requires the MA(∞) representation of the VAR(1),
+#     which is obtained here via MA inversion using the MTS package.
+
+# Compute MA-coefficient matrices (impulse response weights) up to lag L
+xi_psi <- PSIwgt(Phi = Phi, Theta = NULL, lag = L, plot = F, output = F)
+xi_p   <- xi_psi$psi.weight
+
+# Reformat the MA-inversion output into the layout expected by M-SSA:
+#   - The result xi is an (n x n*L) matrix.
+#   - Columns (i-1)*L + 1 through i*L contain the impulse response weights
+#     associated with the i-th white noise (innovation) series, for lags 1 to L.
+#   - That is, reading left to right: L weights for innovation 1,
+#     followed by L weights for innovation 2, ..., up to innovation n.
+xi <- matrix(nrow = n, ncol = n * L)
+for (i in 1:n) {
   for (j in 1:L)
-    xi[,(i-1)*L+j]<-xi_p[,i+(j-1)*n]
+    xi[, (i - 1) * L + j] <- xi_p[, i + (j - 1) * n]
 }
-# Plot the obtained MA inversion
 
-par(mfrow=c(1,n))
-for (i in 1:n)#i<-1
-{
-  mplot<-xi[i,1:min(10,L)]
-  
-  for (j in 2:n)
-  {
-    mplot<-cbind(mplot,xi[i,(j-1)*L+1:min(10,L)])
-    
+# ── Plot the impulse response functions ─────────────────────────────────────
+# Each panel shows how one target variable responds over time to shocks
+# originating from each of the n innovation series.
+par(mfrow = c(1, n))
+for (i in 1:n) {
+  # Collect the first min(10, L) impulse response weights for variable i,
+  # one block per innovation series
+  mplot <- xi[i, 1:min(10, L)]
+  for (j in 2:n) {
+    mplot <- cbind(mplot, xi[i, (j - 1) * L + 1:min(10, L)])
   }
-  colnames(mplot)<-colnames(x_mat)
+  colnames(mplot) <- colnames(x_mat)
   
-  colo<-rainbow(ncol(mplot))
-  ts.plot(mplot,col=colo,main=paste("MA inversion ",colnames(x_mat)[i],sep=""))
-  for (i in 1:ncol(mplot))
-  {
-    mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  colo <- rainbow(ncol(mplot))
+  ts.plot(mplot, col = colo,
+          main = paste("MA inversion: ", colnames(x_mat)[i], sep = ""))
+  for (i in 1:ncol(mplot)) {
+    mtext(colnames(mplot)[i], col = colo[i], line = -i)
   }
 }
-# The MA-inversion can be useful for understanding the VAR (explainability) and for narrative purposes 
-#   -As an example, the MA-inversion of spread (rightmost plot) relies only on lagged spread (spread is leading and the other series are not informative)
-#   -In general we see that lagging series rely on leading (in relative terms) series as explanatory variables
+# Interpretation:
+#   - The impulse response functions serve two purposes:
+#       (i)  Explainability: they reveal the dynamic structure of the VAR(1)
+#            and support economic narrative.
+#       (ii) Verification: they provide an intuitive check on model behavior.
+#   - Example: the rightmost panel (spread) shows that the spread responds
+#     only to its own lagged innovations, indicating that spread is a leading
+#     variable and is not contemporaneously driven by the other series.
+#   - More generally, the plots reveal which series act as leading indicators
+#     for others within the VAR(1) system.
 
-#-----------------------------------------------------------------
-# 1.4 Target for M-SSA: any acausal (prediction) or causal (smoothing) filter 
-# -A target must be specified for each one of the 5 series of the VAR
-#   -The target for each one of the five series is the two-sided HP applied to this series, 
-#       possibly shifted forward (prediction) or unshifted (nowcast) or shifted backward (backcast)
-# -M-SSA filters are structured/organized in vectors and matrices
-#   -The filter matrix has dimension n cross (n*L): n rows and n*L columns
-#   -The i-th row of the filter matrix collects the filters for the i-th target
-#   -Each row consists of n filters: a series specific filter is assigned to each of the n explanatory variables
-#   -Therefore the number of columns is n*L (each sub-filter has length(L))
-# We now specify the target filter accordingly: dimension n cross (n*L)
-# We start by the target for the first series
-gamma_target<-c(hp_one_sided,rep(0,(n-1)*L))
-# For the first series, the target is HP applied to the first series and then zeroes
-#   We delimit series by vertical lines in the plot
-#   Each series receives L filter coefficients
-par(mfrow=c(1,1))
+
+# ------------------------------------------------------------
+# 1.4 Target Filter Specification for M-SSA
+# ------------------------------------------------------------
+#
+# General Setup:
+#   - A target filter must be specified for each of the n = 5 series.
+#   - Here, the target for each series is the two-sided HP filter applied
+#     to that specific series (nowcast: unshifted).
+#   - Alternatively, the target could be shifted forward (forecast) or
+#     backward (backcast) to suit different prediction horizons.
+#
+# Filter Matrix Structure:
+#   - The target filter matrix has dimension n x (n*L):
+#       * n rows, one per target series.
+#       * n*L columns, comprising n blocks of L coefficients each.
+#   - Row i collects the filters applied to all n input series when
+#     predicting target series i.
+#   - Block j (columns (j-1)*L+1 through j*L) in row i contains
+#     the length-L sub-filter applied to input series j.
+#   - In the present setup, the off-diagonal blocks are zero:
+#     each series is targeted by HP applied to itself only.
+
+# ── Specify the target filter for series 1 (BIP / GDP) ──────────────────────
+# Row 1: HP coefficients for series 1, followed by zeros for series 2 to n.
+gamma_target <- c(hp_one_sided, rep(0, (n - 1) * L))
+
+# Visualize the target filter for series 1 (BIP):
+#   - Vertical lines delimit the L-coefficient block for each input series.
+#   - Only the first block is non-zero (HP applied to BIP).
+#   - Note: this is still the one-sided (right-tail) representation;
+#     the left tail will be obtained by mirroring, as described below.
+par(mfrow = c(1, 1))
 ts.plot(gamma_target)
-abline(v=(1:n)*L)
-# Note that the filter is one-sided yet and the right tail will be mirrored to the left, see below for further details
-# We now proceed to specify the targets of the remaining n-1 series
+abline(v = (1:n) * L)
+
+# ── Specify the target filters for series 2 to n ────────────────────────────
+# Each row i places hp_one_sided in block i and zeros elsewhere,
+# indicating that target series i is specified by HP applied to series i only.
 for (i in 2:n)
-  gamma_target<-rbind(gamma_target,c(rep(0,(i-1)*L),hp_one_sided,rep(0,(n-i)*L)))
-# The target of each series is just HP applied to this series (still one-sided yet)
-par(mfrow=c(1,1))
-ts.plot(t(gamma_target),col=rainbow(n))
-abline(v=(1:n)*L+1)
+  gamma_target <- rbind(gamma_target,
+                        c(rep(0, (i - 1) * L), hp_one_sided, rep(0, (n - i) * L)))
 
-# In the above plots, the target filters where one-sided
-# We now tell M-SSA that it has to mirror the above filters at their center points to obtain two-sided targets
-symmetric_target<-T
-# When symmetric_target==T, M-SSA is advised to compute a symmetric target by mirroring 
-#   the right tail to the left 
-# This is obtained as illustrated in the following plot: the reconstructed filter is of length 2L-1
-ts.plot(c(hp_one_sided[L:2],hp_one_sided[1:L]),main=paste("Reconstructed two-sided filter of length ",2*L-1,sep=""),ylab="")
-# Note that this procedure (mirroring) assumes L to be an odd number (see previous comments above)
-# Further down we will see another equivalent target specification based on supplying the two-sided filter directly
+# Visualize all n target filters overlaid:
+#   - Each color corresponds to one target series.
+#   - Vertical lines mark the boundaries between per-series filter blocks.
+#   - The diagonal structure confirms that each target relies only on
+#     its own HP filter, with zero weights assigned to the other series.
+par(mfrow = c(1, 1))
+ts.plot(t(gamma_target), col = rainbow(n))
+abline(v = (1:n) * L + 1)
 
-#--------------------------------------------------------------------------------
-# 1.5 Forecast horizon
-# delta=0 means a nowcast
-# delta>0 means a forecast
-# delta<0 means a backcast: clearly, this is not our main application case
-#   Note that for backcasts the filters may look weird because the HT in the constraint is too small (M-SSA will unsmooth the data)
+# ── Instruct M-SSA to reconstruct symmetric (two-sided) targets ─────────────
+# The filter rows in gamma_target are one-sided (right-tail only).
+# Setting symmetric_target = TRUE tells M-SSA to mirror each row at its
+# center point, producing the full symmetric two-sided target of length 2*L - 1.
+symmetric_target <- TRUE
 
-# Nowcast
-delta<-0
-# Or one year ahead forecast for quarterly data (try either one or anyone)
-delta<-4
+# Illustrate the mirroring procedure explicitly:
+#   - The one-sided right tail hp_one_sided[1:L] is reflected to form
+#     the full symmetric filter: [hp_one_sided[L:2], hp_one_sided[1:L]].
+#   - The resulting filter has length 2*L - 1 and is symmetric around lag 0.
+#   - Important: this mirroring is only exact when L is an odd number
+#     (see the earlier note in Section 1.2).
+ts.plot(c(hp_one_sided[L:2], hp_one_sided[1:L]),
+        main = paste("Reconstructed two-sided filter of length ",
+                     2 * L - 1, sep = ""),
+        ylab = "")
+
+# Note: an equivalent target specification — passing the full two-sided filter
+#       directly rather than relying on mirroring — is demonstrated further below.
 
 
-# -Specify the holding times (HT) in the M-SSA criterion, see previous tutorials
-#   -The HT is the mean duration between consecutive zero-crossings of the (centered) filter
-#   -A larger HT means less zero-crossings and consequently a smoother filter that generates less noisy alarms
-#   -But increasing HT affects the lag/retardation/right-shift of the filter: AST trilemma, see previous tutorials
-# -We have to specify a HT for each series
-# -The following numbers are derived from the Macro-application: 
-#   -We impose mean durations between 1.5 and 2 years between consecutive zero-crossings of the predictor
-#   -Imposing larger numbers would render M-SSA smoother (less zero-crossings)
-ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
-names(ht_mssa_vec)<-colnames(x_mat)
-# Compute corresponding lag-one ACF in HT constraint: see previous tutorials on the link between HT and lag-one ACF  
-rho0<-compute_rho_from_ht(ht_mssa_vec)$rho
+# ------------------------------------------------------------
+# 1.5 Forecast Horizon and M-SSA Optimization Settings
+# ------------------------------------------------------------
 
-# The following settings are default values controlling the numerical optimization algorithm
-#   -with_negative_lambda==T allows to extend the search to un-smoothing (generate more zero-crossings than benchmark): 
-#   -Default value is FALSE (smoothing only)
-with_negative_lambda<-F
-# Default setting for numerical optimization
-lower_limit_nu<-"rhomax"
-# Optimization with half-way triangulation: effective resolution is 2^split_grid. Much faster than brute-force grid-search.
-# 20 is a good value: fast and strong convergence in most applications
-# We can check if this number is large enough, see further down for details
-split_grid<-20
+# ── Forecast Horizon (delta) ─────────────────────────────────────────────────
+#
+# The parameter delta controls the prediction horizon:
+#   delta = 0  : nowcast (target aligned with the current period)
+#   delta > 0  : h-step-ahead forecast (target shifted forward by delta periods)
+#   delta < 0  : backcast (target shifted backward; rarely the primary use case)
+#
+# Caution for backcasts (delta < 0):
+#   - The holding-time (HT) constraint may be too restrictive relative to
+#     the backward shift, causing M-SSA to un-smooth the data.
+#   - The resulting filters may appear irregular or counterintuitive.
 
-# Now we can apply M-SSA
-MSSA_obj<-MSSA_func(split_grid,L,delta,grid_size,gamma_target,rho0,with_negative_lambda,xi,lower_limit_nu,Sigma,symmetric_target)
+# Select the desired prediction horizon:
+delta <- 0   # Nowcast
+delta <- 4   # One-year-ahead forecast (4 quarters for quarterly data)
+# Uncomment the relevant line; both are shown here for illustration.
 
-# In principle we could retrieve filters, apply to data and check performances
-#   -But M-SSA delivers a richer output, containing different filters and useful evaluation metrics
-#   -These will be analyzed further down, see exercise 2
-# So let's pick out the M-SSA filter
-bk_x_mat<-MSSA_obj$bk_x_mat
-colnames(bk_x_mat)<-colnames(x_mat)
-par(mfrow=c(1,n))
-for (i in 1:n)# i<-1
-{
-  mplot<-bk_x_mat[1:L,i]
-  for (j in 2:n)
-  {
-    mplot<-cbind(mplot,bk_x_mat[(j-1)*L+1:L,i])
+
+# ── Holding-Time (HT) Constraints ───────────────────────────────────────────
+#
+# The holding time (HT) is the expected mean duration between consecutive
+# zero-crossings of the (mean-centered) predictor output.
+#
+# Key properties:
+#   - A larger HT produces fewer zero-crossings, yielding a smoother predictor
+#     that generates fewer spurious signals (false alarms).
+#   - However, increasing the HT comes at the cost of greater phase delay
+#     (lag/right-shift), reflecting the Accuracy-Smoothness-Timeliness (AST)
+#     trilemma discussed in previous tutorials.
+#
+# One HT value must be specified per series (n values in total).
+# The values below are derived from the German macroeconomic application
+# (Tutorials 7.2 and 7.3) and correspond to mean durations of roughly
+# 1.5 to 2 years between consecutive zero-crossings of the predictor.
+# Increasing these values would produce a smoother (less reactive) predictor.
+ht_mssa_vec <- c(6.380160, 6.738270, 7.232453, 7.225927, 7.033768)
+names(ht_mssa_vec) <- colnames(x_mat)
+
+# Convert each HT value to the corresponding lag-one ACF (rho),
+# which is the form in which the smoothness constraint enters the M-SSA criterion.
+# See previous tutorials for the mathematical relationship between HT and rho.
+rho0 <- compute_rho_from_ht(ht_mssa_vec)$rho
+
+
+# ── Numerical Optimization Settings ─────────────────────────────────────────
+#
+# The following parameters control the behavior of the M-SSA optimizer.
+
+# Allow negative lambda values (un-smoothing):
+#   - If TRUE, the optimizer may produce filters with more zero-crossings
+#     than the benchmark (i.e., actively rougher predictors).
+#   - Default is FALSE: smoothing only (non-negative lambda).
+with_negative_lambda <- FALSE
+
+# Lower bound for the nu parameter in the optimization:
+#   - "rhomax" is the recommended default; it anchors the search
+#     to the feasible region of the smoothness constraint.
+lower_limit_nu <- "rhomax"
+
+# Grid resolution for the bisection-based optimization:
+#   - The algorithm uses a halving (triangulation) strategy,
+#     so effective resolution is 2^split_grid.
+#   - This is substantially faster than brute-force grid search.
+#   - split_grid = 20 provides a good balance between speed and precision
+#     for most applications.
+#   - Convergence quality can be verified further below.
+#   - Increase this parameter in the absence of convergence
+split_grid <- 20
+
+
+# ── Run M-SSA Optimization ───────────────────────────────────────────────────
+MSSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target,
+                      rho0, with_negative_lambda, xi,
+                      lower_limit_nu, Sigma, symmetric_target)
+
+
+# ── Inspect and Plot the M-SSA Filter Coefficients ───────────────────────────
+#
+# M-SSA returns a rich output object containing optimal filters and
+# performance metrics. These are examined in detail in Exercise 2.
+#
+# Here we extract and visualize the M-SSA filter matrix:
+#   - bk_x_mat has dimensions (n*L) x n.
+#   - Column i contains the stacked filter coefficients used to predict target i.
+#   - Each column is divided into n blocks of length L:
+#     block j contains the coefficients applied to input series j.
+bk_x_mat <- MSSA_obj$bk_x_mat
+colnames(bk_x_mat) <- colnames(x_mat)
+
+# Plot the filter coefficients for each target series:
+#   - Each panel shows the n sub-filters (one per input series) for target i.
+#   - Colors distinguish the contribution of each input series.
+par(mfrow = c(1, n))
+for (i in 1:n) {
+  # Assemble the sub-filter matrix for target i:
+  # each column contains the L coefficients for one input series
+  mplot <- bk_x_mat[1:L, i]
+  for (j in 2:n) {
+    mplot <- cbind(mplot, bk_x_mat[(j - 1) * L + 1:L, i])
   }
-  colnames(mplot)<-colnames(x_mat)
-  colo<-rainbow(n)
-  ts.plot(mplot,main=paste("MSSA applied to x ",colnames(x_mat)[i],sep=""),col=colo)
+  colnames(mplot) <- colnames(x_mat)
+  
+  colo <- rainbow(n)
+  ts.plot(mplot,
+          main = paste("M-SSA filter for target: ", colnames(x_mat)[i], sep = ""),
+          col = colo)
   for (i in 1:n)
-    mtext(colnames(mplot)[i],col=colo[i],line=-i)
+    mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-# The above outcome is intuitively appealing:
-#   -The M-SSA filters of all five series rely on spread (leading indicator)
-#   -The M-SSA filter of spread does not depend on other series
-#   -The weight distribution (longitudinal and cross sectional) reflects the dependency as modeled by the VAR(1)
-#   -Increased smoothness (larger HTs) is reflected by the (slower) decay of filter weights
-#----------------------------------------------
-# 1.6 We now apply M-SSA to the simulated data and verify important performance metrics
-#   -Select any of the series as your m-th target: m=1,...,n 
-m<-m_check<-3
-if (m>n)
-  print(paste("Warning: m should be smaller than n=",n,sep=""))
-bk<-NULL
-# Extract coefficients applied to m-th series    
-for (j in 1:n)#j<-2
-  bk<-cbind(bk,bk_x_mat[((j-1)*L+1):(j*L),m])
-colnames(bk)<-colnames(x_mat)
-# Plot
-par(mfrow=c(1,1))
-colo<-rainbow(ncol(bk))
-ts.plot((bk),main=paste("M-SSA filter coefficients applied to ",colnames(x_mat)[m],sep=""),col=colo)
+
+# Interpretation of the filter plots:
+#   - All five M-SSA filters assign notable weight to the spread series,
+#     consistent with spread acting as a leading indicator in the VAR(1).
+#   - The spread filter (rightmost panel) depends only on its own lags,
+#     as it is not driven by the other series within the VAR(1).
+#   - The longitudinal and cross-sectional weight distributions
+#     directly reflect the dependency structure encoded in the VAR(1).
+#   - Larger HT constraints (smoother predictors) manifest as a
+#     slower decay of filter coefficients across lags.
+
+
+
+# ------------------------------------------------------------
+# 1.6 Applying M-SSA to Simulated Data and Verifying Performance
+# ------------------------------------------------------------
+#
+# This section applies the M-SSA filter derived in 1.5 to the simulated
+# data and evaluates three key performance metrics:
+#   (1) Mean-square forecast error (MSE)
+#   (2) Target correlation (the M-SSA optimization criterion)
+#   (3) Smoothness: empirical vs. imposed holding time (HT)
+#
+# The long simulated series (len = 100,000) allows finite-sample estimates
+# to converge closely to their theoretical counterparts, thereby validating
+# the M-SSA formulas.
+
+# ── Select the Target Series ─────────────────────────────────────────────────
+# Choose the m-th series as the prediction target (m = 1, ..., n).
+m <- m_check <- 3
+if (m > n)
+  print(paste("Warning: m must be <= n =", n, sep = ""))
+
+# ── Extract and Plot the M-SSA Filter for Target m ───────────────────────────
+# Assemble the n sub-filters (one per input series) used to predict target m.
+# Each sub-filter has length L; bk is an (L x n) matrix.
+bk <- NULL
+for (j in 1:n)
+  bk <- cbind(bk, bk_x_mat[((j - 1) * L + 1):(j * L), m])
+colnames(bk) <- colnames(x_mat)
+
+# Visualize the sub-filter coefficients for target m:
+#   - Each colored line corresponds to one input series.
+#   - The relative magnitudes reflect each series' contribution
+#     to predicting target m, as encoded in the VAR(1).
+par(mfrow = c(1, 1))
+colo <- rainbow(ncol(bk))
+ts.plot(bk,
+        main = paste("M-SSA filter coefficients for target: ",
+                     colnames(x_mat)[m], sep = ""),
+        col = colo)
 for (i in 1:ncol(bk))
-  mtext(colnames(bk)[i],col=colo[i],line=-i)
-# Apply the j-th component of filter m to the j-th series and aggregate 
-#   -This is the predictor of the m-th target
-y<-rep(NA,len)
-for (j in L:len)#j<-L
-{
-  y[j]<-sum(apply(bk*(x_mat[j:(j-L+1),]),2,sum))
+  mtext(colnames(bk)[i], col = colo[i], line = -i)
+
+# ── Compute the M-SSA Predictor for Target m ─────────────────────────────────
+# At each time point j, apply each sub-filter to the corresponding input
+# series and sum across all n series to obtain the scalar predictor y[j].
+y <- rep(NA, len)
+for (j in L:len)
+  y[j] <- sum(apply(bk * (x_mat[j:(j - L + 1), ]), 2, sum))
+
+# ── Construct the Acausal (Two-Sided) Target Signal ───────────────────────────
+# Apply the two-sided HP filter to the m-th series to obtain the target z.
+# Only the right tail (hp_one_sided) is specified; the left tail is obtained
+# by mirroring, yielding a symmetric filter of length 2*L - 1.
+gammak <- hp_one_sided[1:L]
+
+par(mfrow = c(1, 1))
+ts.plot(gammak, main = "Right tail of the two-sided target filter")
+
+# Mirror the target filter at the center and apply to the  m-th series (target)
+z <- rep(NA, len)
+for (j in L:(len - L))
+  z[j] <- gammak %*% x_mat[j:(j - L + 1), m] +
+  gammak[-1] %*% x_mat[(j + 1):(j + L - 1), m]
+# z is the m-th target: it is obtained by applying the two-sided HP to the m-th series
+
+# ── Shift the Target by the Forecast Horizon delta ───────────────────────────
+# For delta > 0 (forecast): shift z forward so that the target leads the data.
+# For delta < 0 (backcast): shift z backward.
+# For delta = 0 (nowcast):  no shift applied.
+if (delta > 0) {
+  zdelta <- c(z[(delta + 1):len], rep(NA, delta))
+} else if (delta < 0) {
+  zdelta <- c(rep(NA, abs(delta)), z[1:(len - abs(delta))])
+} else {
+  zdelta <- z
 }
+names(zdelta) <- names(y) <- rownames(x_mat)
 
-# Apply acausal target filter to the m-th-series
-gammak<-hp_one_sided[1:L]
-par(mfrow=c(1,1))
-ts.plot(gammak,main="Right tail of two-sided target")
-z<-rep(NA,len)
-# Here the right tail of the filter is mirrored to obtain the acausal two-sided target filter
-for (j in L:(len-L))
-  z[j]<-gammak%*%x_mat[j:(j-L+1),m]+gammak[-1]%*%x_mat[(j+1):(j+L-1),m]
-# Shift z by delta    
-if (delta>0)
-{  
-  zdelta<-c(z[(delta+1):len],rep(NA,delta))
-} else
-{
-  if (delta<0)
-  {
-    zdelta<-c(rep(NA,abs(delta)),z[1:(len-abs(delta))])
-  } else
-  {
-    zdelta<-z
-  }
-}
-names(zdelta)<-names(y)<-rownames(x_mat)
+# ── Visual Inspection: Target vs. M-SSA Predictor ────────────────────────────
+# Plot the last 200 observations (equivalent to ~50 years of quarterly data).
+# Zero-crossings of the M-SSA predictor are marked by vertical dashed lines.
+mplot <- cbind(zdelta, y)[(len - 200):len, ]
+ts.plot(mplot,
+        col = c("black", "blue"),
+        main = "Target (black) and M-SSA predictor (blue): zero-crossings marked by vertical lines")
+abline(h = 0)
+abline(v = 1 + which(sign(mplot[2:nrow(mplot), 2] *
+                            mplot[1:(nrow(mplot) - 1), 2]) < 0),
+       lty = 3, col = "blue")
 
-# Plot last 200 observations of the long simulated span: 
-#   -Recall that the experimental design corresponds to quarterly economic data
-#   -We plot the last 200 observations of target and M-SSA predictor (delta>0), nowcast (delta=0) or backcast (delta<0)
-#   -200 observations correspond to 50 years of quarterly data 
-mplot<-cbind(zdelta,y)[(len-200):len,]
-ts.plot(mplot,col=c("black","blue"),main="Target (black) and M-SSA (blue): zero-crossings marked by blue vertical lines")
-abline(h=0)
-abline(v=1+which(sign(mplot[2:nrow(mplot),2]*mplot[1:(nrow(mplot)-1),2])<0),lty=3,col="blue")
-# Remarks:
-#   -We can recognize four artificial `recessions' (dips or local minima of target in black) over a time span 
-#     of roughly 150 observations
-#     -On average, a recession every 150/(4*4)~10 years (HP(160) seems quite right here!)
-#     -In general, recession durations are shorter than expansions: 
-#       -The VAR cannot render this stylized fact properly (Hamilton regime-switching model can map asymmetry)
-#   -The two-sided filter cannot reach the sample end
-#   -We marked zero-crossings by M-SSA (blue) by vertical dashed lines: M-SSA controls the expected duration 
-#     between consecutive zero-crossings, i.e. the holding time (HT)
+# Observations from the plot:
+#   - Approximately four artificial "recessions" (local minima of the target)
+#     appear over ~150 observations, implying roughly one recession per
+#     150 / (4 * 4) ≈ 10 years — consistent with the HP(160) parameterization.
+#   - True Recession durations are shorter than expansions, a stylized fact that
+#     the symmetric VAR(1) cannot capture; a Hamilton regime-switching model
+#     would be required for asymmetric cycle modeling.
+#   - The two-sided target filter cannot be evaluated near the sample boundaries
+#     (values remain NA at both ends).
+#   - The vertical dashed lines mark zero-crossings of the M-SSA predictor,
+#     whose mean spacing is controlled by the HT constraint. Increasing HT (rho0)
+#     in the M-SSA call will lead to fewer crossings.
 
 
-# We now compute the mean duration between consecutive zero-crossings: this is the sample holding time (HT)
-#   -M-SSA controls the expected (theoretical) HT to which the sample HT converges in very long samples, assuming a true model
-compute_empirical_ht_func(mplot[,2])
-# Compare with the imposed constraint (pretty good match on this short sample) 
+# ── Performance Metric 1: Empirical Holding Time ─────────────────────────────
+# Compute the sample mean duration between consecutive zero-crossings of y.
+# For large samples, this converges to the theoretically imposed HT.
+compute_empirical_ht_func(mplot[, 2])
+# Compare with the imposed HT constraint for series m:
 ht_mssa_vec[m]
+# Pretty close given a relatively short sample length
+
+# ── Performance Metric 2: Mean-Square Forecast Error (MSE) ───────────────────
+#
+# Technical notes:
+#   - M-SSA maximizes the target correlation between zdelta and y,
+#     which is equivalent to minimizing MSE up to affine transformations
+#     (static level and scale adjustments).
+#   - M-SSA computes the optimal scale adjustment internally (assuming a
+#     correctly specified model), so the blue line in the plot above is
+#     already optimally scaled.
+#   - Level adjustment is not applied by M-SSA, as the data are assumed
+#     zero-centered (consistent with the zero-crossing framework).
+#   - If an explicit level adjustment is needed, it can be obtained by
+#     regressing y on zdelta.
+#   - Design philosophy: M-SSA prioritizes dynamic forecasting properties
+#     (zero-crossings, phase lead, growth direction) over static calibration.
+mean((zdelta - y)^2, na.rm = TRUE)
 
 
-# We now compute performance measures for the entire sample
-# 1. Mean-square forecast error
-# Technical note: 
-#   -M-SSA maximizes the target correlation between zdelta and y
-#   -This is equivalent to minimizing MSE up to static scale and level parameters (the latter are ignored by the correlation)
-#   -Ex post calibration of static level and scale parameters can be obtained easily by linear regression 
-#     -Project y on zdelta
-#   -M-SSA also computes the best static scale adjustment internally, assuming the model is correctly specified
-#     -The blue line in the previous figure is optimally scaled
-#   -However, M-SSA does not provide any level adjustment, since the data is assumed to be zero-centered (zero-crossings)
-#   -The static level-adjustment must be provided explicitly, if desired
-# Background (philosophy): M-SSA emphasizes dynamic aspects of forecasting (zero-crossings, lead/advancement, growth).
-#   -Static (ex post) adjustments (of level/scale) are deemed less relevant
-# Back to the sample MSE performance metric:
-mean((zdelta-y)^2,na.rm=T)
+# ── Performance Metric 3: Target Correlation ─────────────────────────────────
+#
+# The target correlation is the M-SSA optimization criterion:
+#   - M-SSA maximizes this quantity subject to the HT (smoothness) constraint.
+#   - Maximizing target correlation is equivalent to minimizing MSE between
+#     the target and the M-SSA output, up to an affine transformation.
+#   - For large samples, the empirical correlation converges to the
+#     theoretical criterion value stored in MSSA_obj$crit_rhoy_target.
+#
+# Empirical target correlation (element [1,2] of the correlation matrix):
+cor(na.exclude(cbind(zdelta, y)))[1, 2]
 
-# 2. Target correlation: correlation between target and M-SSA: 
-#   -The sample estimate of the target correlation should converge to the true target correlation for 
-#       sufficiently long samples (assuming the model is not misspecified)
-#   -The true target correlation corresponds to the objective function of the M-SSA criterion
-#   -M-SSA maximizes the (true) target correlation under the HT constraint (noise suppression)
-#   -Maximizing the target correlation is equivalent to minimizing the mean square error between target and 
-#     M-SSA outputs, up to an affine transformation (static level and scale adjustments)
-#   -M-SSA determines the optimal scale of the affine transformation, i.e., the blue line in the previous figure is 
-#     also the optimal MSE-estimate under the imposed HT constraint (assuming the true level of the data is zero)
-#   -The sample correlation is the (1,2) element of the following correlation matrix 
-cor(na.exclude(cbind(zdelta,y)))[1,2]
-# The following MSSA_obj$crit_rhoy_target is a vector of criterion values (true target correlations)
-#   -One criterion value per series
-# The above sample target correlation converges to the corresponding criterion value for sufficiently long samples (large len)
+# Theoretical (criterion) target correlation for series m (see Wildi 2026b):
+#   - MSSA_obj$crit_rhoy_target is a length-n vector, one value per series.
+#   - The empirical value above should approach this for large len.
 MSSA_obj$crit_rhoy_target[m]
 
-# Smoothness (number of zero-crossings): 
-#   -M-SSA optimizes the target correlation under the holding time constraint
-# We now compare empirical and theoretical (imposed) HTs
+
+# ── Performance Metric 4: Smoothness — Empirical vs. Imposed HT ──────────────
+# Re-compute the empirical HT for the full predictor series y,
+# and compare with the corresponding imposed constraint.
+# For increasing sample size len, the empirical HT converges to the imposed HT.
 compute_empirical_ht_func(y)
 ht_mssa_vec[m]
-# Findings: the sample HT converges to the imposed HT for increasing sample size len
 
 
-#####################################################################################################################################
-# Summary: The above simulation experiment confirms that M-SSA maximizes the target correlation 
-#   subject to the HT constraint
-# -Both aspects, target correlation and HT, are deemed relevant in applications (`empirical' forecasting)
-# -Timeliness (lead/left-shift/advancement) could be obtained simply by increasing the forecast horizon, see
-#   e.g. tutorials 2.1 or 3 (AST trilemma)
-############################################################################################################################## 
+# ============================================================
+# Exercise 1 Summary
+# ============================================================
+#
+# The simulation experiment above confirms the following:
+#
+#   1. Target Correlation:
+#      M-SSA maximizes the correlation between the target signal and the
+#      predictor, subject to the imposed HT (smoothness) constraint.
+#      The empirical correlation converges to the theoretical criterion
+#      value for large samples.
+#
+#   2. Smoothness (Holding Time):
+#      The empirical mean duration between zero-crossings of the predictor
+#      converges to the imposed HT constraint for large samples.
+#
+#   3. Relevance for Empirical Forecasting:
+#      Both target correlation and holding time are meaningful in practice:
+#        - Target correlation governs forecast accuracy.
+#        - Holding time governs signal stability and alarm reliability.
+#
+#   4. Timeliness:
+#      Phase advancement (left-shift) can be achieved by increasing the
+#      forecast horizon delta (see Tutorials 2.1 and 3 on the AST trilemma).
+# ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Exercise 2
 # -Advanced results (intended after a dive into the M-SSA paper, which proposes expressions for expected performance measures)
