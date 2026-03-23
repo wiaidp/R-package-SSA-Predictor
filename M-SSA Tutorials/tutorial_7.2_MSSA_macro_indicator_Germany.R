@@ -905,7 +905,7 @@ for (i in 1:length(h_vec))  # i <- 1
   
   # --- Step 2: M-SSA for remaining indicators (IP, IFO, ESI, spread) ---
   # These series are available without a significant publication lag (or with a smaller lag than BIP).
-  # Therefore, delta does not include lag_vec<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a> — only the forecast horizon and excess are used.
+  # Therefore, delta does not include lag_vec[1] — only the forecast horizon and excess are used.
   delta <- h_vec[i] + f_excess
   
   # Re-run M-SSA with the reduced delta for the non-BIP indicators
@@ -948,6 +948,199 @@ tail(indicator_mat)
 target_shifted_mat <- NULL
 cor_mat <- matrix(ncol = length(h_vec), nrow = length(h_vec))
 
+for (i in 1:length(h_vec)) # i <- 1
+{
+  # --------------------------------------------------------------
+  # Compute the total forward-shift: forecast horizon + publication lag
+  # (accounts for the fact that data are not yet available at forecast time)
+  shift <- h_vec[i] + lag_vec[1]
+    
+# Apply a two-sided (symmetric) HP filter to BIP and all series,
+# then shift the result forward by shift (i.e., forecast horizon + publication lag)
+# to align the target with the predictors
+  filt_obj <- filter_func(x_mat, bk_x_mat, gammak_x_mse, gamma_target, symmetric_target, shift)
+  target_mat <- filt_obj$target_mat
+    
+# Extract the HP-filtered BIP series (first column) as the target
+  target <- target_mat[, "BIP"]
+    
+# Append the forward-shifted target to the collection matrix
+# (each column corresponds to one forecast horizon)
+  target_shifted_mat <- cbind(target_shifted_mat, target)
+    
+# ------------------------------------------------------------------
+# Plot: standardize and overlay the shifted target with all indicators
+  mplot <- scale(cbind(target, indicator_mat))
+  colnames(mplot)[1] <- paste("Target left-shifted by ", shift - lag_vec[1], sep = "")
+  par(mfrow = c(1, 1))
+  colo <- c("black", rainbow(ncol(indicator_mat)))
+  main_title <- paste("Standardized M-SSA predictors for forecast horizons ",
+                        paste(h_vec, collapse = ","), sep = "")
+    
+# Base plot: draw the shifted target in black
+  plot(mplot[, 1], main = main_title, axes = F, type = "l",
+       xlab = "", ylab = "", col = colo[1],
+       lwd = c(2, rep(1, ncol(data) - 1)),
+       ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+  mtext(colnames(mplot)[1], col = colo[1], line = -1)
+    
+# Overlay all M-SSA predictors in distinct colors
+  for (j in 1:ncol(mplot))
+  {
+    lines(mplot[, j], col = colo[j], lwd = 1, lty = 1)
+    mtext(colnames(mplot)[j], col = colo[j], line = -j)
+  }
+    
+  abline(h = 0) # Reference line at zero
+# Vertical dashed line marking the end of the in-sample estimation window
+  abline(v = which(rownames(mplot) == rownames(data_fit)[nrow(data_fit)]),
+         lwd = 2, lty = 2)
+  axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+       labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
+  axis(2)
+  box()
+    
+# ------------------------------------------------------------------
+# Compute the sample correlation between each M-SSA predictor and
+# the forward-shifted HP-BIP target for the current forecast horizon.
+# The resulting cor_mat will contain all (h x h) combinations of
+# forecast horizon (rows) and predictor horizon (columns).
+  for (j in 1:ncol(indicator_mat))
+    cor_mat[i, j] <- cor(na.exclude(cbind(target, indicator_mat[, j])))[1, 2]
+}
+colnames(target_shifted_mat)<-paste("target h=",h_vec,sep="")
+# ------------------------------------------------------------------
+# Sanity check on the forward-shift alignment:
+#   The target is shifted upward (into the future) by:
+#     publication lag (assumed to be 2 quarters) + forecast horizon
+#   relative to the predictor series shown in column 1.
+cbind(indicator_mat[, 1], target_shifted_mat)[(L - 10):(L + 6), ]
+
+# ------------------------------------------------------------------
+# Inspect the full correlation matrix between M-SSA predictors and
+# forward-shifted HP-BIP targets across all forecast horizons
+# Note: the empirical correlation is based on full sample: in-sample + out-of-sample spans
+colnames(cor_mat) <- paste("M-SSA: h=", h_vec, sep = "")
+rownames(cor_mat) <- paste("Shift of target: ", h_vec, sep = "")
+cor_mat
+# Key observations from cor_mat:
+#   - M-SSA predictors optimized for longer forecast horizons (left to right)
+#     tend to correlate more strongly with correspondingly more forward-shifted
+#     targets (top to bottom), producing a pronounced diagonal structure.
+#   - For a given forward-shift (row), the largest correlation typically lies
+#     on or near the diagonal element of that row.
+#   - This systematic pattern suggests that M-SSA predictors carry genuine
+#     information about future HP-filtered BIP trend growth.
+#   - Since future BIP trend growth reflects the low-frequency component of
+#     future BIP, the predictors are also informative about future BIP,
+#     provided BIP is not pure white noise.
+#   - In practice, (differenced) BIP is noisy, yet the occurrence of recessions
+#     confirms it is not white noise. However, assessing forecast accuracy
+#     directly for raw BIP is difficult (see Tutorial 7.3 for a more refined
+#     out-of-sample analysis).
+#   - For HP-filtered BIP, statistical significance of the diagonal pattern
+#     can be assessed via regression with HAC-adjusted standard errors,
+#     as carried out below.
+
+# ------------------------------------------------------------------
+# HAC-adjusted significance test for M-SSA predictors vs. HP-BIP targets
+# For each (i, j) combination, regress the i-th forward-shifted HP-BIP target
+# on the j-th M-SSA predictor and compute HAC-robust t-statistics and p-values.
+t_HAC_mat <- p_value_HAC_mat <- matrix(ncol = length(h_vec), nrow = length(h_vec))
+
+for (i in 1:length(h_vec)) # i <- 1
+{
+  for (j in 1:length(h_vec)) # j <- 1
+  {
+    # Regress the i-th forward-shifted HP-BIP target on the j-th M-SSA predictor
+    lm_obj <- lm(target_shifted_mat[, i] ~ indicator_mat[, j])
+    summary(lm_obj)
+    
+    # Classic OLS standard errors (for reference; replicates summary() output)
+    sd <- sqrt(diag(vcov(lm_obj)))
+    
+    # HAC-robust standard errors (Newey-West type) via the sandwich package
+    sd_HAC <- sqrt(diag(vcovHAC(lm_obj)))
+    
+    # Alternative way to obtain the same HAC-robust standard errors
+    sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
+    
+    # HAC-adjusted t-statistic for the slope coefficient
+    t_HAC_mat[i, j] <- summary(lm_obj)$coef[2, 1] / sd_HAC[2]
+      
+    # One-sided HAC-adjusted p-value:
+    #   We test whether the regression coefficient is *positive*, since an
+    #   effective predictor should co-move positively with future BIP trend growth.
+    p_value_HAC_mat[i, j] <- pt(t_HAC_mat[i, j], len - length(select_vec_multi),
+                                  lower = FALSE)
+  }
+}
+
+colnames(t_HAC_mat) <- colnames(p_value_HAC_mat) <- paste("M-SSA: h=", h_vec, sep = "")
+rownames(t_HAC_mat) <- rownames(p_value_HAC_mat) <- paste("Shift of target: ", h_vec, sep = "")
+
+# Inspect HAC-adjusted p-values:
+#   - Small p-values concentrate on (or near) the diagonal, confirming that
+#     each M-SSA predictor is most informative for its intended forecast horizon.
+#   - Statistical significance is maintained even at longer forecast horizons
+#     after HAC adjustment.
+#   - As expected, significance diminishes (p-values increase) as the
+#     forward-shift grows beyond the predictor's design horizon.
+p_value_HAC_mat
+
+# Note:
+#   - The analysis above uses the full sample, including the in-sample span.
+#   - A more detailed assessment of forecast performance and statistical
+#     significance, including out-of-sample results, is provided in Tutorial 7.3.
+
+# ==================================================================
+# Extension: Predictability of M-SSA indicators for raw (unfiltered) BIP
+# ==================================================================
+# The HP-BIP results above suggest predictability of future trend growth.
+# We now investigate whether the same predictors are informative about
+# future *raw* BIP (i.e., without HP filtering).
+
+t_HAC_mat_BIP <- p_value_HAC_mat_BIP <- matrix(ncol = length(h_vec), nrow = length(h_vec))
+BIP_target_mat <- NULL
+
+for (i in 1:length(h_vec)) # i <- 4
+{
+  # Construct the forward-shifted raw BIP series:
+  #   shift values into the future by (forecast horizon + publication lag)
+  #   and pad the end with NAs to preserve the original series length
+  shift <- h_vec[i] + lag_vec[1]
+    BIP_target <- c(x_mat[(1 + shift):nrow(x_mat), "BIP"], rep(NA, shift))
+    BIP_target_mat <- cbind(BIP_target_mat, BIP_target)
+    
+    # Regress each M-SSA predictor on the forward-shifted raw BIP target
+    for (j in 1:length(h_vec)) # j <- 5
+    {
+      lm_obj <- lm(BIP_target ~ indicator_mat[, j])
+      summary(lm_obj)
+      
+      # Classic OLS standard errors (replicates summary() output; for reference)
+      sd <- sqrt(diag(vcov(lm_obj)))
+      
+      # HAC-robust standard errors via the sandwich package
+      sd_HAC <- sqrt(diag(vcovHAC(lm_obj)))
+      
+      # Alternative computation of HAC-robust standard errors (identical result)
+      sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
+      
+      # HAC-adjusted t-statistic for the slope coefficient
+      t_HAC_mat_BIP[i, j] <- summary(lm_obj)$coef[2, 1] / sd_HAC[2]
+        
+        # One-sided HAC-adjusted p-value:
+        #   A positive coefficient indicates the predictor correctly anticipates
+        #   the direction of future BIP; negative signs are not of interest here.
+        p_value_HAC_mat_BIP[i, j] <- pt(t_HAC_mat_BIP[i, j],
+                                        len - length(select_vec_multi),
+                                        lower = FALSE)
+    }
+}
+
+colnames(t_HAC_mat_BIP) <- colnames(p_value_HAC_mat_BIP) <- paste("M-SSA: h=", h_vec, sep = "")
+rownames(t_HAC_mat_BIP) <- rownames(p_value_HAC_mat_BIP) <- paste("Shift of target: ", h_vec, sep = "")
 
 
 
@@ -1087,184 +1280,286 @@ for (i in 1:length(h_vec))# i<-4
 }
 colnames(t_HAC_mat_BIP)<-colnames(p_value_HAC_mat_BIP)<-paste("M-SSA: h=",h_vec,sep="")
 rownames(t_HAC_mat_BIP)<-rownames(p_value_HAC_mat_BIP)<-paste("Shift of target: ",h_vec,sep="")
-# p-values: 
-# -In contrast to HP-BIP, significance with respect to forward-shifted BIP is less conclusive: BIP is much noisier
-# -However, we still find evidence of the previously observed systematic pattern in the new correlation matrix
-#   -For increasing forward-shift of BIP (from top to bottom), the M-SSA indicators optimized for 
-#     larger forecast horizon (from left to right) tend to perform better
-# -These results could be altered by modifying the forecast excess 
-#   -f_excess=6 is a more aggressive setting
+
+# --------------------------------------------------------------
+# HAC-adjusted p-values for raw BIP predictability
+# Key findings:
+#   - In contrast to HP-BIP, significance with respect to forward-shifted raw BIP
+#     is less conclusive: raw BIP is substantially noisier than its HP-filtered counterpart.
+#   - Nevertheless, the systematic diagonal pattern observed earlier is still discernible:
+#     M-SSA predictors optimized for longer forecast horizons (left to right in the matrix)
+#     tend to perform better for correspondingly larger forward-shifts of BIP (top to bottom).
+#   - These results are sensitive to the choice of forecast excess:
+#     a more aggressive setting (e.g., f_excess = 6) may reinforce the pattern.
 p_value_HAC_mat_BIP
 
-# Technical Note: 
-# -Sometimes the HAC-adjustment seems to deliver inconsistent results (might be a problem in the R-package sandwich)
-#   -In particular, in some cases the adjusted variance is substantially smaller than the classic OLS estimate
-# -In tutorial 7.3 we account in a `pragmatic' way for this problem:
-#   -We compute the HAC-adjusted variance as well as the standard/classic OLS variance
-#   -We select the larger of the two when computing t-statistics and p-values
+# --------------------------------------------------------------
+# Technical Note on HAC Standard Errors:
+#   - In some cases, the HAC-adjusted variance estimate from the sandwich package
+#     can be smaller than the classic OLS variance estimate, which is theoretically
+#     inconsistent (HAC-adjusted errors should be at least as large under serial correlation).
+#   - This appears to be a numerical issue with the sandwich package in certain settings.
+#   - In Tutorial 7.3, this is handled pragmatically:
+#     the maximum of the HAC-adjusted and classic OLS variance estimates is used
+#     when computing t-statistics and p-values, ensuring conservatism.
 
-# We can now `visualize' the above target correlations by plotting and comparing predictors and forward-shifted targets
-# Select an entry of h_vec 
-k<-4
-# This is the corresponding horizon
+# --------------------------------------------------------------
+# Visual comparison: forward-shifted BIP vs. M-SSA predictor
+# Select the index into h_vec corresponding to the desired forecast horizon
+k <- 4
+# Display the corresponding forecast horizon (in quarters)
 h_vec[k]
-par(mfrow=c(1,1))
-# Scale the data for better visual interpretation of effect of excess forecast on M-SSA (red) vs. previous M-SSA (blue)
-mplot<-scale(cbind(BIP_target_mat[,k],indicator_mat[,k]))
-colnames(mplot)<-c(paste("BIP left-shifted by ",h_vec[k]," quarters",sep=""),"M-SSA predictor")
-colo<-c("black","blue")
-main_title<-"Standardized forward-shifted BIP vs. predictor"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
+
+par(mfrow = c(1, 1))
+
+# Standardize the forward-shifted BIP target and the selected M-SSA predictor
+# for direct visual comparison on a common scale
+mplot <- scale(cbind(BIP_target_mat[, k], indicator_mat[, k]))
+colnames(mplot) <- c(paste("BIP left-shifted by ", h_vec[k], " quarters", sep = ""),
+                     "M-SSA predictor")
+colo <- c("black", "blue")
+main_title <- "Standardized forward-shifted BIP vs. M-SSA predictor"
+
+# Base plot: forward-shifted BIP target in black
+plot(mplot[, 1], main = main_title, axes = F, type = "l",
+     xlab = "", ylab = "", col = colo[1],
+     lwd = c(2, rep(1, ncol(data) - 1)),
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+
+# Overlay the M-SSA predictor in blue
 for (i in 1:ncol(mplot))
 {
-  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  lines(mplot[, i], col = colo[i], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-abline(h=0)
-abline(v=which(rownames(mplot)==rownames(data_fit)[nrow(data_fit)]),lwd=2,lty=2)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+
+abline(h = 0) # Reference line at zero
+# Vertical dashed line marking the end of the in-sample estimation window
+abline(v = which(rownames(mplot) == rownames(data_fit)[nrow(data_fit)]),
+       lwd = 2, lty = 2)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
 
-# Sample correlation
+# Sample correlation between forward-shifted BIP and M-SSA predictor
 cor(na.exclude(mplot))
 
 
-#--------------------------------------------------------------------------------
-# Exercise 4: consider the full-length HP
-# -In the above exercises we relied on the truncated version of the two-sided HP filter: this filter cannot be obtained at the sample end
-# -Instead, we could rely on the common (full-length) HP filter and recompute HAC-adjusted t-statistics to verify 
-#   statistical significance (predictability) of M-SSA predictors
+# ==================================================================
+# Exercise 4: Full-Length HP Filter as Alternative Target
+# ==================================================================
+# Background:
+#   - The truncated two-sided HP filter used in
+#     previous exercises cannot be computed at the sample boundaries.
+#   - The full-length HP filter uses all available observations and does not
+#     produce NAs, but becomes increasingly asymmetric (one-sided) near the
+#     sample boundaries, degrading filter quality at the ends.
+#   - Here we recompute HAC-adjusted t-statistics using the full-length HP filter
+#     as the target, to verify robustness of the predictability findings.
 
-# 4.1. Compute full-length HP
-len<-nrow(x_mat)
-hp_obj<-hpfilter(rnorm(len),type="lambda", freq=lambda_HP)
-# Specify trend filters: the above function returns HP-gap
-fmatrix<-diag(rep(1,len))-hp_obj$fmatrix
-# Check: plot one-sided trend at start, two-sided in middle and one-sided at end
-ts.plot(fmatrix[,c(1,len/2,len)],col=c("red","black","green"),main="One-sided at start (red), two-sided (black) and one-sided at end (green)")
+# --------------------------------------------------------------
+# 4.1 Compute the full-length HP trend filter
 
-# Compute full-length HP trend output
-#   -Relies on full-length filter
-#   -Does not have NAs at start and end
-target_without_publication_lag<-t(fmatrix)%*%x_mat[,1]
-# Shift forward by publication lag (2 quarters)
-target<-c(target_without_publication_lag[(1+lag_vec[1]):length(target_without_publication_lag)],rep(NA,lag_vec[1]))
+len <- nrow(x_mat)
 
+# Obtain the HP filter matrix via mFilter; note: hpfilter() returns the GAP filter
+hp_obj <- hpfilter(rnorm(len), type = "lambda", freq = lambda_HP)
 
-# Plot:
-#   -Note that full-length HP becomes increasingly asymmetric towards the sample boundaries
-#   -The quality towards the sample boundaries degrades
-mplot<-scale(cbind(target,indicator_mat))
-rownames(mplot)<-rownames(x_mat)
-colnames(mplot)<-c("Full-length HP",colnames(indicator_mat))
-colo<-c("black",rainbow(ncol(indicator_mat)))
-main_title<-"Full-length HP"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
+# Recover the HP trend filter matrix by subtracting the gap filter from the identity
+fmatrix <- diag(rep(1, len)) - hp_obj$fmatrix
+
+# Diagnostic plot: compare filter weights at the start (one-sided/asymmetric),
+# the middle (approximately two-sided/symmetric), and the end (one-sided/asymmetric)
+ts.plot(fmatrix[, c(1, len / 2, len)],
+        col = c("red", "black", "green"),
+        main = "HP filter weights: one-sided at start (red), two-sided in middle (black), one-sided at end (green)")
+
+# Apply the full-length HP trend filter to BIP (first column of x_mat)
+# Result: smooth trend estimate over the full sample without boundary NAs
+target_without_publication_lag <- t(fmatrix) %*% x_mat[, 1]
+
+# Shift the HP trend forward by the publication lag (2 quarters)
+# to align the target with what is observable at forecast time
+target <- c(target_without_publication_lag[(1 + lag_vec[1]):length(target_without_publication_lag)],
+            rep(NA, lag_vec[1]))
+
+# --------------------------------------------------------------
+# Plot: full-length HP trend vs. all M-SSA predictors (standardized)
+# Note: filter becomes increasingly asymmetric near sample boundaries;
+#       interpret the trend estimate at the sample end with caution.
+mplot <- scale(cbind(target, indicator_mat))
+rownames(mplot) <- rownames(x_mat)
+colnames(mplot) <- c("Full-length HP", colnames(indicator_mat))
+colo <- c("black", rainbow(ncol(indicator_mat)))
+main_title <- "Standardized full-length HP trend vs. M-SSA predictors"
+
+# Base plot: full-length HP trend in black
+plot(mplot[, 1], main = main_title, axes = F, type = "l",
+     xlab = "", ylab = "", col = colo[1],
+     lwd = c(2, rep(1, ncol(data) - 1)),
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+
+# Overlay all M-SSA predictors
 for (i in 1:ncol(mplot))
 {
-  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  lines(mplot[, i], col = colo[i], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
-# Outcome:
-# -The HP is currently indicating an ongoing sharp decline towards the sample end
-# -In contrast, the M-SSA predictors envisage a possible recovery over 2025/2026
-# -M-SSA and HP are conflicting in terms of future outlooks
 
+# Key observations from the plot:
+#   - The full-length HP currently indicates a sharp ongoing decline towards the sample end.
+#   - In contrast, the M-SSA predictors suggest a possible recovery over 2025/2026.
+#   - The two approaches therefore provide conflicting signals about the near-term outlook.
 
-# Compute target correlations: 
+# Compute contemporaneous correlations between full-length HP target and M-SSA predictors
 cor(na.exclude(mplot))
-# -Note that the target (full-length HP applied to BIP) corresponds to a nowcast (shift=0)
-# -Accordingly, the correlation is maximized at horizon 0 by M-SSA (first row in the above matrix) 
+# Note: the full-length HP target here is a nowcast (shift = 0, publication lag already applied).
+#       Therefore, correlation is maximized at forecast horizon h = 0 (first column or first row of the matrix).
 
 
-# 4.2 In addition to a nowcast we can also analyze forward-shifts of the target
-target_shifted_mat<-NULL
+# --------------------------------------------------------------
+# 4.2 Forward-shifted targets based on the full-length HP trend
+# Construct a matrix of forward-shifted HP trend targets,
+# one column per forecast horizon in h_vec (up to 6 quarters ahead)
+target_shifted_mat <- NULL
 for (i in 1:length(h_vec))
 {
-# Forward shifts are specified by h_vec: up to 6 quarters ahead  
-  shift<-h_vec[i]
-  target_shifted_mat<-cbind(target_shifted_mat,c(target[(1+shift):length(target)],rep(NA,shift)))
+  # Shift the publication-lag-adjusted HP trend forward by h_vec[i] additional quarters
+  shift <- h_vec[i]
+  target_shifted_mat <- cbind(target_shifted_mat,
+                              c(target[(1 + shift):length(target)], rep(NA, shift)))
 }
 
-# Recompute correlations and HAC-adjusted t-statistics of regression of M-SSA indicators on shifted full-sample HP trend
-cor_mat<-p_value_HAC_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec))
-for (i in 1:length(h_vec))# i<-1
+# --------------------------------------------------------------
+# Recompute correlations and HAC-adjusted p-values using the full-length HP target
+# For each (i, j) pair: regress the i-th forward-shifted HP trend on the j-th M-SSA predictor
+cor_mat <- p_value_HAC_mat <- matrix(ncol = length(h_vec), nrow = length(h_vec))
+
+for (i in 1:length(h_vec)) # i <- 1
 {
-  for (j in 1:length(h_vec))# j<-1
+  for (j in 1:length(h_vec)) # j <- 1
   {
-    cor_mat[i,j]<-cor(na.exclude(cbind(target_shifted_mat[,i],indicator_mat[,j])))[1,2]
-    lm_obj<-lm(target_shifted_mat[,i]~indicator_mat[,j])
-    summary(lm_obj)
-    # This one replicates std in summary
-    sd<-sqrt(diag(vcov(lm_obj)))
-    # Here we use HAC  
-    sd_HAC<-sqrt(diag(vcovHAC(lm_obj)))
-    # This is the same as
-    sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
-    t_HAC_mat<-summary(lm_obj)$coef[2,1]/sd_HAC[2]
-# One-sided test    
-    p_value_HAC_mat[i,j]<-pt(t_HAC_mat, len-length(select_vec_multi), lower=FALSE)
+    # Sample correlation between i-th shifted HP target and j-th M-SSA predictor
+    cor_mat[i, j] <- cor(na.exclude(cbind(target_shifted_mat[, i], indicator_mat[, j])))[1, 2]
     
+    # Regression of shifted HP target on M-SSA predictor
+    lm_obj <- lm(target_shifted_mat[, i] ~ indicator_mat[, j])
+    summary(lm_obj)
+    
+    # Classic OLS standard errors (for reference; replicates summary() output)
+    sd <- sqrt(diag(vcov(lm_obj)))
+    
+    # HAC-robust standard errors (Newey-West type) via the sandwich package
+    sd_HAC <- sqrt(diag(vcovHAC(lm_obj)))
+    
+    # Alternative computation of identical HAC-robust standard errors
+    sqrt(diag(sandwich(lm_obj, meat. = meatHAC)))
+    
+    # HAC-adjusted t-statistic for the slope coefficient
+    t_HAC_mat <- summary(lm_obj)$coef[2, 1] / sd_HAC[2]
+      
+      # One-sided HAC-adjusted p-value:
+      #   We test for a *positive* slope, since effective predictors should
+      #   co-move positively with future HP-filtered BIP trend growth
+      p_value_HAC_mat[i, j] <- pt(t_HAC_mat, len - length(select_vec_multi), lower = FALSE)
   }
 }
-colnames(cor_mat)<-colnames(p_value_HAC_mat)<-paste("M-SSA: h=",h_vec,sep="")
-rownames(cor_mat)<-rownames(p_value_HAC_mat)<-paste("Shift of target: ",h_vec,sep="")
 
+colnames(cor_mat) <- colnames(p_value_HAC_mat) <- paste("M-SSA: h=", h_vec, sep = "")
+rownames(cor_mat) <- rownames(p_value_HAC_mat) <- paste("Shift of target: ", h_vec, sep = "")
+
+# Inspect correlation and significance matrices
 cor_mat
 p_value_HAC_mat
 
-# The full-length HP results confirm earlier findings
-#   -Confirmation of the systematic effect (left-right vs- top-bottom)
-#   -Correlations tend to be larger
-#   -p-values tend to be smaller (stronger effect)
+# Key findings from the full-length HP analysis:
+#   - The systematic diagonal pattern (larger h performs better at larger forward-shifts)
+#     is confirmed and is, if anything, stronger than with the truncated HP filter.
+#   - Correlations tend to be larger and p-values smaller compared to the truncated HP results,
+#     suggesting the full-length HP provides a cleaner target signal.
 
-# The above findings have been wrapped into a single function called compute_mssa_BIP_predictors_func
+
+# ==================================================================
+# Wrapper Function
+# ==================================================================
+# The above workflow has been encapsulated in compute_mssa_BIP_predictors_func,
+# which will be used in Tutorial 7.3.
 head(compute_mssa_BIP_predictors_func)
 
-# This function will be used in tutorial 7.3
-# The head of the function needs the following specifications:
-# x_mat: data 
-# lambda_HP: HP parameter
-# L: filter length
-# date_to_fit: in-sample span for the VAR
-# p,q: model orders of the VAR
-# ht_mssa_vec: HT constraints (larger means less zero-crossings)
-# h_vec: (vector of) forecast horizon(s) for M-SSA
-# f_excess: forecast excesses, see exercises 2 and 3 above
-# lag_vec: publication lag (target is forward shifted by forecast horizon plus publication lag)
-# select_vec_multi: names of selected indicators
+# Required input arguments:
+#   x_mat           : multivariate data matrix (series in columns, time in rows)
+#   lambda_HP       : HP smoothing parameter (controls trend adaptivity)
+#   L               : filter length for the band-pass/HP approximation
+#   date_to_fit     : end date of the in-sample estimation span for the VAR
+#   p, q            : VAR lag order (p) and MA order (q)
+#   ht_mssa_vec     : hard-thresholding (HT) constraints controlling zero-crossing frequency
+#                     (larger values enforce smoother, less oscillatory indicators)
+#   h_vec           : vector of forecast horizons (in quarters) for M-SSA optimization
+#   f_excess        : forecast excess controlling additional anticipation beyond h_vec
+#   lag_vec         : publication lag vector (target shifted forward by horizon + publication lag)
+#   select_vec_multi: names of the selected indicator series to include in the VAR
 
 
-#################################################################
-# Summary and main findings
-# -When targeting forecast horizons of a year or less, we need to focus on signals (HP-trends) 
-#   which allow for sufficient adaptivity (sufficiently strong dynamics over such a time interval) 
-#   -For this purpose we selected lambda_HP=160 
-#   -The increased adaptivity forces predictors to react to the forecast horizon by a commensurate left-shift (anticipation)
-#   -In tutorial 7.3 we shall look at even more adaptive designs
-# -Assuming a suitable choice for lambda_HP, the main construction principles behind M-SSA indicators leads to 
-#     forecast designs with predictive relevance
-#   -Timeliness: The left-shift can be controlled by the forecast horizon
-#   -Smoothness: noise-suppression (zero-crossings)) can be controlled effectively by the HT constraint
-# -Model misspecification (of the VAR) can be addressed by imposing a forecast `excess' to M-SSA
-# -Predicting HP-BIP (the trend component) seems easier than predicting BIP
-#   -HP-BIP is fairly exempted from erratic (unpredictable) high-frequency components of BIP
-# -The effect of the forecast horizon (hyperparameter) is statistically (and logically) consistent: 
-#   -Increasing the forecast horizon leads to improved performances at larger forward-shifts
-#   -The forecast horizon is commensurate to the observed `physical' forward-shift of the target 
-# -Performances with respect to BIP (instead of HP-BIP) are less conclusive, due in part to unpredictable high-frequency noise
-#   -However, the link between the forecast horizon and the physical-shift is still recognizable
-#   -More aggressive settings for the forecast excess may reinforce these findings (up to a point)
-# -Finally, a predictor of the low-frequency component of (future) HP-BIP is potentially informative about 
-#     future BIP (if the latter is not white noise).
-#---------------------------------------------------------------------------------------------------
+# ==================================================================
+# Summary and Main Findings
+# ==================================================================
+#
+# 1. Choice of HP smoothing parameter (lambda_HP):
+#    - For forecast horizons of one year or less, sufficient adaptivity is required.
+#    - lambda_HP = 160 was selected to allow the HP trend to respond adequately
+#      over short time intervals.
+#    - Increased adaptivity forces M-SSA predictors to anticipate the target by a
+#      left-shift commensurate with the forecast horizon.
+#    - Tutorial 7.3 explores even more adaptive (shorter-horizon) designs.
+#
+# 2. M-SSA design principles and predictive relevance:
+#    - Timeliness: the left-shift (anticipation) is directly controlled by the
+#      specified forecast horizon parameter.
+#    - Smoothness: noise suppression (zero-crossing frequency) is effectively
+#      controlled by the hard-thresholding (HT) constraint.
+#    - The pertinence of both properties is statistically verified by the diagonal pattern in cor_mat
+#      and the corresponding HAC-adjusted p-values.
+#
+# 3. Handling model misspecification:
+#    - Forecast excess (f_excess) allows M-SSA to compensate for VAR misspecification
+#      by imposing additional anticipation beyond the nominal forecast horizon.
+#
+# 4. HP-BIP vs. raw BIP as forecast target:
+#    - Predicting HP-filtered BIP (trend component) is substantially easier than
+#      predicting raw BIP, because HP-BIP is largely free of erratic high-frequency noise.
+#    - The link between forecast horizon and physical forward-shift is statistically
+#      and logically consistent in both cases, but cleaner for HP-BIP.
+#
+# 5. Consistency of forecast horizon hyperparameter:
+#    - Increasing the forecast horizon improves predictive performance at larger
+#      forward-shifts, and the relationship is commensurate (i.e., not arbitrary).
+#
+# 6. Predictability of raw BIP:
+#    - Results for raw BIP are less conclusive due to unpredictable high-frequency noise.
+#    - The systematic diagonal structure remains visible but weaker.
+#    - More aggressive forecast excess settings may reinforce these findings,
+#      though with diminishing returns beyond a certain point.
+#
+# 7. Practical implication:
+#    - A predictor that tracks the low-frequency component of future HP-BIP is also
+#      potentially informative about future raw BIP, provided raw BIP is not white noise.
+#      Empirical evidence (e.g., the existence of recessions) supports this assumption.
+# ==================================================================
+
+
+
+
+
+
+
 
 
 
