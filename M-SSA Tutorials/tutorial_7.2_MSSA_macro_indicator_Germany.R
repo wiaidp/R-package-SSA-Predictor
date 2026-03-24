@@ -204,6 +204,11 @@ tail(data_quarterly)
 # and exponentiation).
 
 # Load the pre-transformed macro data file (all transformations already applied)
+# Data source:
+#   - All series were provided by Katja Heinisch (IWH – Halle Institute for
+#     Economic Research), co-author of Heinisch, van Norden & Wildi (2026).
+#   - For variable definitions, data transformations, and original sources,
+#     see the data appendix of the cited paper.
 load(file = paste(getwd(), "\\Data\\macro", sep = ""))
 tail(data)
 
