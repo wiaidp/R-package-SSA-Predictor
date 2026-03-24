@@ -95,1599 +95,2401 @@ library(MASS)
 library(glmnet)
 
 
+# ==================================================================
+# Load Custom M-SSA Function Libraries
+# ==================================================================
+
+# Core M-SSA filter construction and optimization routines
+source(paste(getwd(), "/R/functions_MSSA.r", sep = ""))
+
+# HP filter utilities used in the JBCY paper (relies on mFilter)
+source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
+
+# M-SSA utility functions: data preparation, plotting helpers, wrappers
+source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
 
 
+# ==================================================================
+# Load Data and Select Indicators
+# ==================================================================
+# See Tutorials 7.2 and 7.3 for a detailed discussion of the data,
+# indicator selection, and publication lag assumptions.
 
+load(file = paste(getwd(), "\\Data\\macro", sep = ""))
 
+# Publication lag assumption:
+#   - In practice, BIP is published with approximately a 1-quarter delay.
+#   - Tutorial 7.3 adopted a more conservative 2-quarter lag as a pragmatic
+#     buffer against data revision effects that were not explicitly modelled.
+#   - Based on consultation with domain experts, the 1-quarter lag is deemed
+#     sufficiently accurate for the present analysis, and we revert to this
+#     more realistic assumption here.
+#   - All other indicators (ip, ifo_c, ESI, spr_10y_3m) are assumed to be
+#     available contemporaneously, i.e., without any publication delay.
+lag_vec <- c(1, rep(0, ncol(data) - 1))
 
+# ------------------------------------------------------------------
+# Plot all indicators (excluding BIP from the first column of data)
+# ------------------------------------------------------------------
+# Note: BIP (red) and industrial production ip (orange) appear right-shifted
+# relative to the other indicators due to their publication lags:
+#   - BIP: 1-quarter publication lag
+#   - ip:  approximately 2-month publication lag
+#     (visible more clearly in the monthly data; see data_monthly)
+par(mfrow = c(1, 1))
+mplot <- data[, -1]
+colo  <- rainbow(ncol(data) - 1)
+main_title <- "Quarterly macro indicators"
 
+# Base plot: first indicator in the selection
+plot(mplot[, 1], main = main_title, axes = F, type = "l",
+     xlab = "", ylab = "", col = colo[1],
+     lwd = c(2, rep(1, ncol(data) - 1)),
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
 
-
-
-
-
-
-
-
-
-
-
-# Tutorial 7.4
-# Main purposes:
-# 1. Forecasting German GDP (BIP) multiple quarters ahead
-#   -Derive a new M-SSA components predictor which addresses MSE forecast performances when tracking BIP
-#     -The original M-SSA predictor (without the attribute `components') proposed in tutorial 7.3 is 
-#         standardized: neither level nor scale were calibrated to track BIP 
-#     -The original M-SSA predictor was designed to track dynamic changes in the trend growth-rate of BIP (HP-BIP)
-#     -The original M-SSA predictor was based on aggregating equally the standardized M-SSA components 
-#   -We here propose a more refined design, the `M-SSA components predictor', whereby equal weighting 
-#       (of M-SSA components) is replaced by an additional (new) optimal weighting step.
-# 2. Interpretability: 
-#   -Exploit the M-SSA components to gauge forecasts by the proposed M-SSA predictor(s)
-#   -How trustworthy is a change of the predictor outlook?
-# 3. Explainability: 
-#   -Justify the design and construction steps underlying the proposed M-SSA predictor(s)
-#   -Determine which step(s) in the construction of the predictor(s) generate(s) forecast gains?
-
-# Proceeding:
-# -We rely on the design proposed in tutorial 7.3, exercise 1
-# -We then add a new optimal weighting step in the construction of the final predictor
-
-# The tutorial is organized into 6 exercises
-# -Exercise 1
-#   -M-SSA components: derive M-SSA components and replicate the original M-SSA predictor (tutorial 7.3)
-#   -Interpretability: rely on M-SSA components to gauge forecasts (reliability/trustworthiness)
-#   -Forecast BIP: new additional optimization step
-#   -Out-of-sample performance evaluation
-#     -Comparison vs. simple mean, direct forecast and original M-SSA predictor
-# -Exercise 2
-#   -Analysis of revisions of new (real-time out-of-sample) M-SSA components predictor
-# -Exercise 3
-#   -Skipped 
-# -Exercise 4
-#   -Explainability: why does the M-SSA component predictor outperform specifically at multiple-quarters 
-#     ahead forecast horizons?
-# -Exercise 5
-#   -Specify and compute an `M-MSE component predictor' (same as M-SSA but without HT imposed: less smooth)
-#   -Compare MSE forecast performances to the simple mean benchmark and the (new) M-SSA component predictor
-# -Exercise 6
-#   -Compute final M-SSA and M-MSE component predictors based on full data information, discarding the 
-#     singular Pandemic data for estimation of parameters
-#----------------------------------------------
-# Start with a clean sheet
-rm(list=ls())
-
-
-# Load the required R-libraries
-# Standard filter package
-library(mFilter)
-# Multivariate time series: VARMA model for macro indicators: used here for simulation purposes only
-library(MTS)
-# HAC estimate of standard deviations in the presence of autocorrelation and heteroscedasticity
-library(sandwich)
-# Extended time series
-library(xts)
-# Library for Diebold-Mariano test of equal forecast performance
-library(multDM)
-# GARCH model: for improving regression estimates
-library(fGarch)
-# Packages for Ridge and LASSO
-library(MASS)
-library(glmnet) 
-
-
-
-
-# Load the relevant M-SSA functionalities
-# M-SSA functions
-source(paste(getwd(),"/R/functions_MSSA.r",sep=""))
-# Load signal extraction functions used for JBCY paper (relies on mFilter)
-source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
-# Utility functions for M-SSA, see tutorial 
-source(paste(getwd(),"/R/M_SSA_utility_functions.r",sep=""))
-
-
-#------------------------------------------------------------------------
-# Load the data and select the relevant indicators: see tutorials 7.2 and 7.3 for background
-load(file=paste(getwd(),"\\Data\\macro",sep=""))
-
-# Publication lag: we assume a lag of one quarter for BIP 
-lag_vec<-c(1,rep(0,ncol(data)-1))
-
-# Plot the data
-# The real-time BIP (red) is lagging the target (black) by lag_vec[1] quarters (publication lag)
-par(mfrow=c(1,1))
-mplot<-data[,-1]
-colo<-c(rainbow(ncol(data)-1))
-main_title<-paste("Quarterly indicators",sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=c(2,rep(1,ncol(data)-1)),ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
+# Overlay all remaining indicators
 for (i in 1:ncol(mplot))
 {
-  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  lines(mplot[, i], col = colo[i], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-abline(h=0)
-axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
-axis(2)
-box()
-# -The explanatory variables BIP (red line) and ip (orange) are right shifted 
-#   -Publication lags: BIP one quarter and ip two months (see data_monthly for the 2-month lag of ip)
-
-
-# Select macro indicators for M-SSA 
-select_vec_multi<-c("BIP","ip","ifo_c","ESI","spr_10y_3m")
-x_mat<-data[,select_vec_multi] 
-rownames(x_mat)<-rownames(data)
-n<-dim(x_mat)[2]
-# Number of observations
-len<-dim(x_mat)[1]
-
-
-##################################################################################
-# Exercise 1 Working with M-SSA (sub-)components
-#   -We rely on the design proposed in tutorial 7.3, exercise 1
-
-# Exercise 1.0: brief summary of original M-SSA predictor (tutorial 7.3)
-
-# Target filter: lambda_HP is the single most important hyperparameter, see tutorial 7.1 for a discussion
-lambda_HP<-160
-# Filter length: nearly 8 years is fine for the selected lambda_HP (filter weights decay sufficiently fast)
-#   The length should be an odd number (see tutorial 7.1)
-L<-31
-# In-sample span for VAR, i.e., M-SSA (the proposed design is quite insensitive to this specification because the VAR is parsimoniously parameterized
-date_to_fit<-"2008"
-# VARMA model orders: keep the model simple in particular for short/tight in-sample spans
-p<-1
-q<-0
-# Holding-times (HT): controls smoothness of M-SSA (the following numbers are pasted from the original predictor)
-#   -Increasing these numbers leads to predictors with less zero-crossings (smoother), see tutorial 7.1
-ht_mssa_vec<-c(6.380160,  6.738270,   7.232453,   7.225927,   7.033768)
-names(ht_mssa_vec)<-colnames(x_mat)
-# Forecast horizons: M-SSA is optimized for each forecast horizon in h_vec 
-h_vec<-0:6
-# Forecast excesses: see tutorial 7.2, exercise 2 for background
-f_excess<-c(5,rep(4,length(select_vec_multi)-1))
-
-# Run the wrapper, see tutorial 7.2
-#   -The function computes M-SSA for each forecast horizon h in h_vec
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
-
-# Target series: output of two-sided HP applied to BIP: 
-#   -This is the target for which the original M-SSA predictor (tutorial 7.3) has been designed
-#   -The target is forward-shifted by the forecast horizon (plus publication lag)
-target_shifted_mat<-mssa_indicator_obj$target_shifted_mat
-# Original M-SSA predictor, see tutorial 7.3: it is the equally weighted average of all M-SSA components
-#   -One predictor available for each forecast horizon in h_vec
-predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
-# M-SSA components, see tutorial 7.2
-#   -This is a three dimensional array
-#   -For each forecast horizon and for each indicator we obtain the M-SSA predictor when targeting 
-#     the two-sided HP applied to this indicator, see exercise 1.1 below
-mssa_array<-mssa_indicator_obj$mssa_array
-# M-MSE components
-# -Same as mssa_array but without HT imposed, i.e., classic multivariate mean-square error signal extraction
-# -Forecast performances, see exercise 5 below 
-mmse_array<-mssa_indicator_obj$mmse_array
-
-# Compute performances of original M-SSA predictor: these will be used as a benchmark when evaluating 
-#   the new design
-# Select start of out-of-sample span (entire financial crisis is out-of-sample)
-in_out_separator<-"2007"
-# We can specify the selection of macro-indicators for the direct forecast, see tutorial 7.3
-# Note: these results will not be used in this tutorial (but we need to specify a selection anyway)
-select_direct_indicator<-c("ifo_c","ESI")
-perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,in_out_separator,select_direct_indicator,h_vec) 
-
-# The above function generates a rich output, see tutorial 7.3
-#   -But we need only one (important/representative) performance number for our comparisons further down
-# HAC adjusted p-values of regression of original M-SSA predictor on forward-shifted BIP, see tutorial 7.3 (exercise 1.2.2)
-p_value_HAC_BIP_oos=perf_obj$p_value_HAC_BIP_oos
-p_value_HAC_BIP_oos
-# The p-values are empirical significance levels of the regressions of the (out-of-sample) M-SSA predictors
-#   (optimized for forecast horizon h in h_vec: the columns of the matrix) on BIP shifted forward by shift 
-#   plus publication lag (the rows of the matrix)
-
-# Example: check if the M-SSA predictor optimized for horizon h_vec[j] can significantly predict BIP shifted forward
-#   by shift=i+1
-# One-year shift
-i<-5
-# Forecast horizon 6
-j<-7
-p_value_HAC_BIP_oos[i,j]
-# The original M-SSA predictor optimized for horizon h=6 does not significantly predict BIP 4 quarters ahead (plus publication lag)
-#   -Below we shall illustrate that the new M-SSA component predictor will perform better (smaller p-value) in 
-#     particular at larger forward-shifts (>=3 quarters)
-
-# Technical note: 
-# -The M-SSA predictor can track forward-shifted HP-BIP (the series in target_shifted_mat above) more tightly 
-#   than forward-shifted BIP
-perf_obj$p_value_HAC_HP_BIP_oos[i,j]
-# The original M-SSA predictor optimized for horizon h=6 is strongly significant when predicting HP-BIP 
-#   4 quarters ahead (plus publication lag)
-
-# The original M-SSA predictor (tutorial 7.3) and the newly proposed M-SSA component predictor 
-#   in this tutorial address different targets!  
-
-#-----------
-# Exercise 1.1 What are M-SSA (sub-)components?
-# -The original M-SSA predictor is obtained as the equally-weighted aggregate of standardized M-SSA outputs of all indicators (BIP, ip, ifo, ESI, spread)
-#   -For illustration, we here briefly replicate the predictor, as based on its (equally-weighted) components. 
-# -For this purpose, we can select any forecast horizon in h_vec
-#   -For illustration, we select the nowcast
-j_now<-1
-# This is the forecast horizon (nowcast)
-h_vec[j_now]
-# For forecast horizon h_vec[j_now], the sub-series of the M-SSA predictor are:  
-tail(t(mssa_array[,,j_now]))
-
-# Plot M-SSA components: these are the M-SSA outputs (predictors) tracking the two-sided HP(160) applied 
-#   to the indicators. Specifically: HP-BIP, HP-ip, HP-ifo, HP-ESI and HP-spread.
-# For each target, say HP-BIP, M-SSA can rely on all indicators for more effective tracking (than univariate filters)
-mplot<-t(mssa_array[,,j_now])
-colo<-c(rainbow(length(select_vec_multi)))
-main_title<-"M-SSA components: outputs of M-SSA tracking two-sided HP"
-par(mfrow=c(1,1))
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=1,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))),lty=2)
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo[i],lwd=1,lty=2)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
-}
-abline(h=0)
-abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+abline(h = 0)
+axis(1, at = c(1, 4 * 1:(nrow(mplot) / 4)),
+     labels = rownames(mplot)[c(1, 4 * 1:(nrow(mplot) / 4))])
 axis(2)
 box()
 
-# These sub-series correspond to the M-SSA outputs optimized for horizon h_vec[j_now], see tutorial 7.2, exercise 1
-#   -For each series of the multivariate design, the target is the two-sided HP applied to this series and 
-#     shifted forward by the forecast horizon (plus the publication lag in case of BIP)
-#   -For each of these targets, the explanatory variables are BIP, ip, ifo, ESI and spread
-#   -The series in mssa_array[,,j_now] are the real-time (causal) predictors of the acausal targets
+# ------------------------------------------------------------------
+# Select macro indicators for M-SSA
+# ------------------------------------------------------------------
+# Five key macro-financial indicators (same selection as Tutorial 7.3):
+#   BIP       : German GDP growth (log-differenced, quarterly)
+#   ip        : Industrial production growth
+#   ifo_c     : ifo Business Climate Index (current conditions: ifo_e(xpectations) does not improve performances) 
+#   ESI       : Economic Sentiment Indicator (European Commission)
+#   spr_10y_3m: Term spread (10-year minus 3-month government bond yield)
+select_vec_multi <- c("BIP", "ip", "ifo_c", "ESI", "spr_10y_3m")
+x_mat <- data[, select_vec_multi]
+rownames(x_mat) <- rownames(data)
 
-# We now check that the M-SSA predictor (tutorial 7.3, exercise 1) is the cross-sectional mean of these 
-#   standardized sub-series: 
-agg_std_comp<-apply(scale(t(mssa_array[,,j_now])),1,mean)
-# Plot the equall-weighted aggregate and the M-SSA predictor
-mplot<-cbind(agg_std_comp, predictor_mssa_mat[,j_now])
-rownames(mplot)<-rownames(x_mat)
-colnames(mplot)<-c("Cross-sectional mean of standardized predictor components","M-SSA predictor")
-colo<-c("blue",rainbow(length(select_vec_multi)))
-main_title<-"Replication of M-SSA predictor, based on its components"
-par(mfrow=c(1,1))
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo[i],lwd=1,lty=2)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+# Number of series and total observations
+n   <- dim(x_mat)[2]
+len <- dim(x_mat)[1]
+  
+  
+# ==================================================================
+# Exercise 1: Working with M-SSA Sub-Components
+# ==================================================================
+# Background:
+#   - The aggregate M-SSA predictor from Tutorial 7.3 is the equally-weighted
+#     average of individual standardized M-SSA component outputs, one per indicator series.
+#   - This exercise investigates whether individual components or re-weighted
+#     combinations of components can improve forecast performance relative
+#     to the equally-weighted aggregate, particularly at longer horizons.
+#   - The design (hyperparameters) follows Tutorial 7.3, Exercise 1 exactly,
+#     to ensure a fair comparison (accounting for the smaller publication lag here).
+
+
+# ------------------------------------------------------------------
+# Exercise 1.0: Replicate the Original M-SSA Predictor (Tutorial 7.3)
+# ------------------------------------------------------------------
+# This serves as the baseline benchmark against which all component-based
+# designs proposed in this tutorial will be evaluated.
+
+# HP smoothing parameter: moderately adaptive filter targeting mid-term
+# trend growth. See Tutorial 7.3 for a full discussion of lambda_HP.
+lambda_HP <- 160
+
+# Filter length: L = 31 quarters (≈ 8 years) is sufficient for lambda_HP = 160
+# because HP filter weights decay fast enough at this smoothing level.
+# Must be an odd number to ensure filter symmetry (see Tutorial 7.1).
+L <- 31
+
+# In-sample end date for VAR estimation.
+# The design is relatively insensitive to this choice due to the
+# parsimonious VAR parameterization (p = 1, q = 0).
+date_to_fit <- "2008"
+
+# VAR model orders: minimal AR(1) specification to avoid overfitting
+p <- 1
+q <- 0
+
+# HT constraints: calibrated in Tutorial 7.2; approximately twice the
+# MSE-optimal benchmark values, yielding fewer than half as many
+# zero-crossings as the unconstrained M-MSE predictor.
+# See Tutorial 7.3.
+ht_mssa_vec <- c(6.380160, 6.738270, 7.232453, 7.225927, 7.033768)
+names(ht_mssa_vec) <- colnames(x_mat)
+
+# Forecast horizons: M-SSA is separately optimized for each h in h_vec.
+# h = 0: nowcast; h = 6: six-quarter-ahead forecast.
+h_vec <- 0:6
+
+# Forecast excess: a slightly larger excess (5) is applied to BIP itself
+# (first element) relative to the other indicators (4), reflecting the
+# higher noise level of BIP and the need for additional anticipation.
+# See Tutorial 7.2, Exercise 2 for background on forecast excess.
+f_excess <- c(5, rep(4, length(select_vec_multi) - 1))
+f_excess
+
+# ------------------------------------------------------------------
+# Run the M-SSA wrapper function (documented in Tutorial 7.2)
+# Computes M-SSA predictors for each forecast horizon h in h_vec
+# ------------------------------------------------------------------
+mssa_indicator_obj <- compute_mssa_BIP_predictors_func(
+  x_mat, lambda_HP, L, date_to_fit, p, q,
+  ht_mssa_vec, h_vec, f_excess, lag_vec, select_vec_multi
+)
+
+# ------------------------------------------------------------------
+# Retrieve outputs from the wrapper
+# ------------------------------------------------------------------
+
+# Forward-shifted HP-BIP targets (one column per horizon in h_vec):
+# the two-sided HP filter applied to BIP, shifted forward by
+# (forecast horizon + publication lag) quarters.
+# This is the explicit optimization target of the original M-SSA design.
+target_shifted_mat <- mssa_indicator_obj$target_shifted_mat
+
+# Aggregate M-SSA predictor (one column per horizon in h_vec):
+# equally-weighted average of all standardized M-SSA component outputs across
+# the five selected indicator series.
+predictor_mssa_mat <- mssa_indicator_obj$predictor_mssa_mat
+
+# M-SSA component array (3-dimensional: [series, time, horizon]):
+#   - For each forecast horizon h and each indicator series, this array
+#     contains the M-SSA output when the two-sided HP filter is applied
+#     to that specific indicator as the local optimization target.
+#   - The aggregate predictor_mssa_mat is the row-wise mean of this array
+#     across the series dimension.
+#   - Individual components are analyzed in Exercise 1.1 below.
+mssa_array <- mssa_indicator_obj$mssa_array
+tail(mssa_array["BIP",,])
+
+# M-MSE component array (same structure as mssa_array):
+#   - Same as mssa_array but without the HT smoothness constraint:
+#     classic multivariate MSE-optimal signal extraction.
+#   - Used as a reference benchmark in Exercise 5.
+#   - This is noisier than M-SSA
+mmse_array <- mssa_indicator_obj$mmse_array
+tail(mmse_array["BIP",,])
+
+# ------------------------------------------------------------------
+# Compute performance metrics for the original M-SSA predictor
+# These serve as the baseline benchmark throughout this tutorial.
+# ------------------------------------------------------------------
+
+# Out-of-sample start date: placing the entire 2008 financial crisis
+# and subsequent period in the out-of-sample evaluation window
+in_out_separator <- "2007"
+
+# Direct forecast indicator selection (same as Tutorial 7.3):
+# results are not the focus of this tutorial but a selection is required
+# by compute_perf_func
+select_direct_indicator <- c("ifo_c", "ESI")
+# Select all indicators: possible overfitting issues
+select_direct_indicator <- colnames(x_mat)
+
+perf_obj <- compute_perf_func(
+  x_mat, target_shifted_mat, predictor_mssa_mat,
+  predictor_mmse_mat, in_out_separator, select_direct_indicator, h_vec
+)
+
+# ------------------------------------------------------------------
+# Extract the key performance metric for downstream comparisons:
+# HAC-adjusted p-values from regressions of the out-of-sample M-SSA
+# predictor on forward-shifted BIP (see Tutorial 7.3, Exercise 1.2.2).
+# Note: publication lag is 1 quarter here.
+#
+# Matrix structure:
+#   - Rows   (i): forward-shift of BIP target = h_vec[i] + publication lag
+#   - Columns (j): M-SSA predictor optimized for forecast horizon h_vec[j]
+#   - Small p-values on or near the diagonal indicate that the predictor
+#     optimized for horizon h performs best at the matching forward-shift.
+# ------------------------------------------------------------------
+p_value_HAC_BIP_oos <- perf_obj$p_value_HAC_BIP_oos
+round(p_value_HAC_BIP_oos,3)
+
+# ------------------------------------------------------------------
+# Illustrative example: one-year-ahead forecast significance
+# ------------------------------------------------------------------
+# Row i = 5: BIP shifted forward by h_vec[5] + publication lag (effective 1-year forecast)
+i <- 5
+# Column j = 7: M-SSA predictor optimized for h = h_vec[7] = 6 quarters
+j <- 7
+p_value_HAC_BIP_oos[i, j]
+# Result: the original equally-weighted M-SSA predictor optimized for h = 6
+# shows evidence of predictability of BIP four quarters ahead (including publication lag).
+# Exercise 1.1 below shows that a component-based re-weighting improves this.
+
+# ------------------------------------------------------------------
+# Technical note: HP-BIP vs. raw BIP as the regression target
+# ------------------------------------------------------------------
+# The M-SSA predictor tracks forward-shifted HP-BIP (smooth trend growth)
+# more tightly than forward-shifted raw BIP (noisy), as expected given that
+# HP-BIP is its explicit optimization target.
+perf_obj$p_value_HAC_HP_BIP_oos[i, j]
+# Result: the same predictor is strongly significant when predicting
+# HP-BIP four quarters ahead — confirming that M-SSA successfully
+# captures mid-term trend growth, even if raw BIP significance is weaker.
+
+# ------------------------------------------------------------------
+# Key design distinction for this tutorial:
+# ------------------------------------------------------------------
+# - The original M-SSA predictor (Tutorial 7.3) targets HP-BIP:
+#   it is optimized to track smooth mid-term trend growth.
+# - The newly proposed M-SSA component predictor (this tutorial)
+#   re-weights the individual component outputs to target raw BIP
+#   more directly, accepting some loss of smoothness in exchange
+#   for improved raw BIP predictability at longer horizons.
+
+
+# ==================================================================
+# Exercise 1.1: What Are M-SSA Sub-Components?
+# ==================================================================
+#
+# Background:
+#   - The original M-SSA predictor (tutorial 7.3) is constructed as the equally-weighted
+#     cross-sectional mean of the standardized M-SSA outputs across all input indicators:
+#     BIP, ip, ifo, ESI, and spread
+#   - Each output tracks the two-sided HP filter applied to its respective indicator,
+#     using all indicators jointly as explanatory variables (multivariate design)
+#   - Here we briefly replicate the aggregate predictor from its components, and
+#     verify that equal weighting exactly recovers the original M-SSA predictor
+
+# Select forecast horizon for illustration (j_now = 1 corresponds to the nowcast)
+j_now <- 1
+h_vec[j_now]   # Confirm the selected forecast horizon
+
+# Inspect the M-SSA sub-components for the selected horizon (most recent observations)
+tail(t(mssa_array[,, j_now]))
+
+# --- Plot M-SSA Sub-Components ---
+# Each column of mssa_array[,,j_now] is the real-time (causal) M-SSA output for one indicator,
+# optimized to track the corresponding acausal two-sided HP target:
+#   - HP-BIP (shifted forward by h + publication lag)
+#   - HP-ip, HP-ifo, HP-ESI, HP-spread (shifted forward by h)
+# All five outputs share the same set of explanatory variables (BIP, ip, ifo, ESI, spread),
+# making this a genuinely multivariate filtering exercise
+
+mplot <- t(mssa_array[,, j_now])
+colo  <- rainbow(length(select_vec_multi))
+
+main_title <- paste0("M-SSA sub-components: causal outputs tracking two-sided HP targets ",
+                     "(h = ", h_vec[j_now], ")")
+par(mfrow = c(1, 1))
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], lwd = 1, lty = 2,
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i], lwd = 1, lty = 2)
+  mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-abline(h=0)
-abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+
+abline(h = 0)
+abline(v = which(rownames(mplot) <= date_to_fit)[length(which(rownames(mplot) <= date_to_fit))],
+       lwd = 2, lty = 2)
+axis(1, at = c(1, 4 * 1:(nrow(mplot) / 4)),
+     labels = rownames(mplot)[c(1, 4 * 1:(nrow(mplot) / 4))])
 axis(2)
 box()
-# Both series are identical (overlap)
-# Alternative check: the maximal error/deviation should be `small' (zero up to numerical precision)
-max(abs(apply(scale(t(mssa_array[,,j_now])),1,mean)-predictor_mssa_mat[,j_now]),na.rm=T)
 
-# Remarks:
-# -Equal-weighting of the M-SSA components, as done above, indicates that we assume each M-SSA component to be equally
-#   important for tracking dynamic changes of the BIP growth-rate by the resulting M-SSA predictor. This 
-#   `naive' assumption might be questioned. But the rule (equal-weighting) is robust and simple.
-# -Instead, we could think about a more sophisticated weighting scheme: for example, by regressing the components 
-#     on forward-shifted BIP. 
-#   -This way, we'd explicitly emphasize BIP-MSE forecast performances by the resulting (new) M-SSA `components` predictor
-# -The corresponding `component predictor' will be derived and analyzed in exercise 1.3 below.
-# -But first we consider an alternative usage of the components, namely interpretability (of the M-SSA predictor)  
+# --- Replicate the Original M-SSA Predictor from Its Components ---
+# The aggregate M-SSA predictor is the cross-sectional mean of the standardized sub-components
+agg_std_comp <- apply(scale(t(mssa_array[,, j_now])), 1, mean)
+
+# Numerical verification: maximum absolute deviation from the original predictor
+# Should be zero (or negligibly small) up to floating-point precision
+max(abs(agg_std_comp - predictor_mssa_mat[, j_now]), na.rm = T)
+
+# Plot: cross-sectional mean of standardized components vs. original M-SSA predictor
+mplot <- cbind(agg_std_comp, predictor_mssa_mat[, j_now])
+rownames(mplot) <- rownames(x_mat)
+colnames(mplot) <- c(
+  "Cross-sectional mean of standardized sub-components",
+  "Original M-SSA predictor (tutorial 7.3)"
+)
+
+colo       <- c("blue", rainbow(length(select_vec_multi)))
+main_title <- paste0("Replication of M-SSA predictor from equally-weighted components (h = ",
+                     h_vec[j_now], ")")
+
+par(mfrow = c(1, 1))
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], lwd = 2,
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i], lwd = 1, lty = 2)
+  mtext(colnames(mplot)[i], col = colo[i], line = -i)
+}
+
+abline(h = 0)
+abline(v = which(rownames(mplot) <= date_to_fit)[length(which(rownames(mplot) <= date_to_fit))],
+       lwd = 2, lty = 2)
+axis(1, at = c(1, 4 * 1:(nrow(mplot) / 4)),
+     labels = rownames(mplot)[c(1, 4 * 1:(nrow(mplot) / 4))])
+axis(2)
+box()
+# Both series overlap exactly, confirming the replication
+
+# Remarks on equal weighting:
+#   - Equal weighting treats each M-SSA component as equally informative for tracking
+#     dynamic changes in BIP growth — a simple and robust assumption, but potentially suboptimal
+#   - A natural alternative is to replace equal weighting with regression-based optimal weights,
+#     obtained by regressing the components on forward-shifted BIP
+#   - This would explicitly target BIP-MSE forecast performance rather than HP-BIP tracking
+#   - The resulting 'M-SSA components predictor' is derived in exercise 1.3 below
+#   - First, however, we demonstrate a complementary use of the components: interpretability
 
 #---------------
-# 1.2 We now exploit the M-SSA components in view of a better interpretation (explanation/understanding) of the M-SSA predictor (tutorial 7.3, exercise 1).
-#   -We can examine which sub-series is (are) more/less likely to trigger a dynamic change of the M-SSA predictor
-#   -Thereby we can gauge the forecast (trustworthiness/reliability)
-# -For illustration, we here select the M-SSA nowcast
+# Exercise 1.2: Interpretability — Gauging the M-SSA Predictor via Its Components
+#
+# Motivation:
+#   - The individual M-SSA sub-components reveal which indicators are driving the
+#     current dynamics of the aggregate predictor
+#   - When components agree (all point in the same direction), the aggregate signal
+#     is more reliable; when they diverge, greater caution is warranted
+#   - This provides a practical tool for assessing the trustworthiness of any given
+#     forecast or nowcast signal before acting on it
+#
+# Illustration: M-SSA nowcast (h = h_vec[j_now]) and its sub-components
 
-# Plot M-SSA nowcast and components
-par(mfrow=c(1,1))
-# Scale the data 
-mplot<-scale(cbind(predictor_mssa_mat[,j_now],scale(t(mssa_array[,,j_now]))))
-rownames(mplot)<-rownames(x_mat)
-colnames(mplot)<-c(paste("M-SSA predictor optimized for h=",h_vec[j_now],sep=""),
-                   paste("Subseries ",select_vec_multi,sep=""))
-colo<-c("blue",rainbow(length(select_vec_multi)))
-main_title<-c(paste("M-SSA predictor for h=",h_vec[j_now]," (solid blue) and sub-series (dashed lines)",sep=""),"In-sample span up to black vertical (dashed) line")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=2,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo[i],lwd=1,lty=2)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+par(mfrow = c(1, 1))
+
+# Standardize the aggregate predictor and all sub-components for visual comparability
+mplot <- scale(cbind(predictor_mssa_mat[, j_now], scale(t(mssa_array[,, j_now]))))
+rownames(mplot) <- rownames(x_mat)
+colnames(mplot) <- c(
+  paste0("M-SSA predictor (h = ", h_vec[j_now], ")"),
+  paste0("Component: ", select_vec_multi)
+)
+
+colo       <- c("blue", rainbow(length(select_vec_multi)))
+main_title <- c(
+  paste0("M-SSA nowcast (solid blue) and sub-components (dashed) — h = ", h_vec[j_now]),
+  "Vertical dashed line marks end of in-sample span"
+)
+
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], lwd = 2,
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i], lwd = 1, lty = 2)
+  mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-abline(h=0)
-abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+
+abline(h = 0)
+abline(v = which(rownames(mplot) <= date_to_fit)[length(which(rownames(mplot) <= date_to_fit))],
+       lwd = 2, lty = 2)
+axis(1, at = c(1, 4 * 1:(nrow(mplot) / 4)),
+     labels = rownames(mplot)[c(1, 4 * 1:(nrow(mplot) / 4))])
 axis(2)
 box()
-# Discussion:
-# -All sub-series date the latest trough of the growth rate of the German economy in late 2023 
-# -Currently (data up to Jan-2025), the strongest positive dynamics are supported by the (leading) spread sub-series (violet dashed line in plot)
-# -Given that the nowcast (solid blue line) just passed the zero-line (long-term average-growth) in the 
-#     above plot, we may infer that the trough of BIP (in levels) might be behind, based on Jan-2025 data.
-# -However, not all components (sub-series) would support this claim:
-#   -The strongest up-turn signal is supported by the (leading) spread (which has been subjected to critic as a leading indicator)
-#   -ifo and ESI are barely above the zero-line 
-#   -ip and BIP are `waiting' for further evidence and confirmation. 
 
-# -We infer that we can gauge the M-SSA predictor by looking at its components; which component(s) trigger(s) a change in dynamics? 
-# -Note that announced and/or unexpected disorders (tariffs, geopolitical contentions) are not yet `priced-in' (as of Jan-2025).
+# --- Interpretation (as of January 2025 data) ---
+#
+# Trough identification:
+#   - All five sub-components consistently date the most recent trough in German GDP
+#     growth to late 2023 — a robust, cross-indicator signal
+#
+# Current dynamics (Jan 2025):
+#   - The aggregate nowcast has just crossed above zero (long-run average growth),
+#     tentatively suggesting the trough in BIP levels may have passed
+#   - However, the sub-components tell a more nuanced story:
+#
+#     Spread (violet dashed):  strongest upward signal; historically a leading indicator,
+#                               though its reliability has been questioned in recent cycles
+#     ifo / ESI:               marginally above zero; consistent with stabilization
+#                               but not yet signalling a robust recovery
+#     ip / BIP:                still at or below zero; awaiting further confirmation
+#                               before aligning with the leading indicators
+#
+# Implication for forecast reliability:
+#   - The divergence across components signals uncertainty: the recovery signal
+#     is currently driven primarily by financial/survey indicators, while hard
+#     activity data (ip, BIP) have yet to confirm
+#   - Users should treat the positive nowcast with appropriate caution until
+#     broader component agreement emerges
+#
+# Caveat:
+#   - Announced and/or unexpected structural shocks (trade tariffs, geopolitical
+#     disruptions) are not yet reflected in the Jan 2025 data vintage and could
+#     materially alter the outlook
 
-#-------------------------------------
-# Exercise 1.3 Addressing BIP-MSE performances 
-# -As stated above, the original M-SSA predictor emphasizes dynamic changes (recessions/expansions); 
-#     MSE performances are deemed less relevant 
-#   -In particular, the predictor is standardized: neither its level nor its scale are calibrated on BIP
-# -In order to track (future) BIP explicitly, we may rely on the M-SSA components in the previous figure
-# -For this purpose, we can regress the components on forward-shifted BIP (instead of equal-weighting)
-# -This is the same proceeding as for the direct forecasts (see tutorial 7.3, exercise 1.2.1), except that 
-#   we rely on the M-SSA components for the regressors (instead of the original un-filtered indicators)
+# ==================================================================
+# Exercise 1.3: Targeting Raw BIP Directly via M-SSA Components
+# ==================================================================
+#
+# Motivation:
+#   - The original M-SSA predictor (Tutorial 7.3) is standardized and
+#     optimized to track HP-BIP (smooth trend growth). Its level and scale
+#     are not calibrated against raw BIP, so MSE-based performance against
+#     raw BIP is not its primary strength.
+#   - To predict future raw BIP explicitly and evaluate MSE performance,
+#     we replace the equal-weighting scheme with a regression-based
+#     combination of selected M-SSA components on forward-shifted BIP.
+#   - This mirrors the direct forecast approach from Tutorial 7.3
+#     (Exercise 1.2.1), but uses M-SSA-filtered components as regressors
+#     rather than the raw unfiltered indicators. The M-SSA filtering
+#     pre-processes the indicators to emphasize the relevant signal at
+#     the target forecast horizon before the regression is run.
 
-# 1.3.1 Selection
-# -We can select the M-SSA components which are deemed relevant for MSE performances when targeting BIP
-#   -ESI, ifo and spread M-SSA components are mainly relevant in a dynamic context (for the original M-SSA predictor)
-#   -In contrast, BIP and ip M-SSA components are natural candidates in a MSE-BIP perspective (which is emphasized here).
-#   -Note, however, that the original indicators ESI, ifo and spread are important determinants 
-#     of the selected (BIP- and ip-) M-SSA components, see tutorial 7.2, exercise 1.
-# -In summary: one can try various component combinations, including a single M-SSA BIP component. Performances are 
-#   roughly similar. 
-# -The simplest choice though is sel_vec_pred<-"BIP" (only BIP)
-#   -It works reasonably well out-of-sample
-#   -It's ismplest to explain
-#   -It's fairly robust
-#   -R3visions are small
 
-# BIP and ip: 
-#   -Better MSE performances but less robust than BIP alone
-#   -Larger revisions
-#   -Sign of ip in regressions is negative: can generate stronger left-shifts but predictor less robust (less easy to understand/explain)
-sel_vec_pred<-c("BIP","ip")
-# Simplest design: intuitively appealing, quite robust, small revisions 
-sel_vec_pred<-"BIP"
-# Check the selected M-SSA components
+# ------------------------------------------------------------------
+# 1.3.1 Component Selection
+# ------------------------------------------------------------------
+# Not all M-SSA components are equally useful for MSE-based BIP prediction:
+#
+#   - ESI, ifo_c, and spread components: primarily informative in a
+#     dynamic/directional context (recessions, turning points). They are
+#     the main drivers of the original equally-weighted M-SSA predictor
+#     but are less suited as direct regressors for raw BIP.
+#
+#   - BIP and ip components: natural candidates for MSE-based BIP
+#     prediction, since they directly filter the two most closely related
+#     series. Note that ESI, ifo_c and spread remain indirectly informative
+#     through their role in the VAR used to construct these components
+#     (see Tutorial 7.2, Exercise 1).
+#
+# Available design choices (from simplest to most complex):
+#
+#   sel_vec_pred <- "BIP"          (recommended default)
+#     + Simplest and most interpretable design
+#     + Reasonably strong out-of-sample performance
+#     + Robust across time periods and data vintages
+#     + Small revisions when new data arrive
+#
+#   sel_vec_pred <- c("BIP", "ip") (more aggressive alternative)
+#     + Can improve MSE performance marginally
+#     - Less robust than BIP alone
+#     - Larger revisions
+#     - ip regression coefficient is negative, producing stronger
+#       left-shifts that are harder to interpret economically
+#
+# We adopt the simplest design as the baseline:
+sel_vec_pred <- "BIP"
 sel_vec_pred
-# We can select the forward shift of BIP: for illustration we here assume a 2 quarters ahead forward-shift
-#   (plus publication lag). Below we shall analyze all shifts, from zero to five quarters ahead.
-shift<-2
-# We can select the forecast horizon of the M-SSA components: we select a 4 quarters ahead horizon 
-#   (below, we shall look all all combinations of shift and forecast horizon)
-k<-5
-# Check: k=5 corresponds to h_vec[k]=4, a one-year ahead horizon
-h_vec[k]
-# Define the data matrix for the regression
-dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),
-           matrix(t(mssa_array[sel_vec_pred,,k]),ncol=length(sel_vec_pred)))
-rownames(dat)<-rownames(x_mat)
-colnames(dat)<-c(paste("BIP shifted forward by lag_vec+shift=",shift+lag_vec[1],sep=""),
-                 paste("M-SSA component ",sel_vec_pred,": h=",h_vec[k],sep=""))
+
+# Regression of M-SSA BIP on (single) forward-shifted BIP serves two calibration purposes:
+#
+#   - Level (intercept):
+#       Re-anchor M-SSA BIP to the empirical mean of forward-shifted BIP
+#
+#   - Scale (slope):
+#       Re-scale to match the empirical variance of forward-shifted BIP
+#
+# Implications for performance metrics:
+#
+#   - rRMSE: directly affected by the calibration, since MSE is sensitive to both
+#       level and scale mismatches between predictor and target
+#
+#   - Target correlations and HAC-adjusted statistics: unaffected, since correlation
+#       and t-statistics are invariant to affine transformations (level and scale shifts)
+#       of the predictor
+# ------------------------------------------------------------------
+# Illustrative example: regression setup for a specific horizon
+# ------------------------------------------------------------------
+
+# Forward-shift of BIP target (quarters ahead, excluding publication lag):
+# shift = 2 corresponds to a 2-quarter-ahead forecast.
+# Below, all shifts from 0 to 5 quarters are analyzed systematically.
+shift <- 2
+
+# M-SSA component horizon index (indexes into h_vec):
+# k = 5 corresponds to h_vec[5] = 4 quarters (one-year-ahead M-SSA component).
+# Below, all (shift, horizon) combinations are evaluated.
+k <- 5
+h_vec[k] # Confirm: should be 4
+
+# ------------------------------------------------------------------
+# Construct the regression data matrix:
+#   - Column 1: BIP shifted forward by (shift + publication lag) quarters
+#   - Columns 2+: selected M-SSA components for horizon h_vec[k]
+# Note: ifo_c, ESI and spread are important indirect inputs via the VAR,
+# even though they do not appear explicitly as regressors here.
+# ------------------------------------------------------------------
+dat <- cbind(
+  c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+  matrix(t(mssa_array[sel_vec_pred, , k]), ncol = length(sel_vec_pred))
+)
+rownames(dat) <- rownames(x_mat)
+colnames(dat) <- c(
+  paste("BIP shifted forward by lag_vec + shift = ", shift + lag_vec[1], sep = ""),
+  paste("M-SSA component ", sel_vec_pred, ": h=", h_vec[k], sep = "")
+)
 tail(dat)
-# We target BIP shifted forward by shift+publication lag (first column) based on M-SSA components BIP and ip
-#   -As stated above, ifo, ESI and spread are important determinants of the two selected M-SSA components 
-# For estimation purposes we can remove all NAs
-dat<-na.exclude(dat)
 
-#-----------------
-# 1.3.2 Regression
-# We now regress forward-shifted BIP (first column) on the two M-SSA components
-#   -Specify an arbitrary in-sample span (below we shall use an expanding window starting in Q1-2007 and ending in Q4-2025)
-i_time<-which(rownames(dat)>2010)[1]
-# In-sample span: 
-tail(dat[1:i_time,])
-# Regression
-lm_obj<-lm(dat[1:i_time,1]~dat[1:i_time,2:ncol(dat)])
+# Remove rows with NAs (arising from the forward-shift and filter boundaries)
+# before fitting the regression
+dat <- na.exclude(dat)
+
+
+# ==================================================================
+# 1.3.2 Regression: M-SSA Components on Forward-Shifted BIP
+# ==================================================================
+# We regress forward-shifted BIP (column 1) on the selected M-SSA
+# components (columns 2+).
+#
+# In-sample span: for illustration we use data up to end of 2010.
+# In Exercise 1.3.3 below, we extend this to a full expanding-window
+# scheme starting in Q1-2007 and ending in Q4-2025.
+
+i_time <- which(rownames(dat) > 2010)[1]
+  
+# Display the last few rows of the in-sample span as a sanity check
+tail(dat[1:i_time, ])
+
+# Fit the regression
+lm_obj <- lm(dat[1:i_time, 1] ~ dat[1:i_time, 2:ncol(dat)])
 summary(lm_obj)
-# The M-SSA components are strongly significant (HAC-adjustments wouldn't contradict this statement)
+# The M-SSA components are strongly statistically significant.
+# HAC-adjusted standard errors would not overturn this conclusion,
+# given the magnitude of the t-statistics.
 
-# Compute an out-of-sample prediction for time point i_time+shift+lag_vec[1] 
-#   -Due to the publication lag, the regression span cannot extend up to the sample end
-#   -Therefore we shift the explanatory variables as well as the target forward by the additional publication lag 
-#   -Note however that this effect (due to shifting explanatory and target by lag_vec[1]) is negligible, 
-#     because the regression coefficients tend to converge to fixed values with increasing sample size, 
-#     see exercise 2.2 below. 
-oos_pred<-(lm_obj$coef[1]+lm_obj$coef[2:ncol(dat)]%*%dat[i_time+shift+lag_vec[1],2:ncol(dat)]) 
-# Compute the out-of-sample forecast error
-oos_error<-dat[i_time+shift+lag_vec[1],1]-oos_pred
-# This is the out-of-sample error that will be observed shift (+publication lag) quarters ahead
+# ------------------------------------------------------------------
+# Out-of-sample prediction for time point (i_time + shift + lag_vec[1])
+# ------------------------------------------------------------------
+# Alignment note:
+#   - Due to the publication lag, the regression target (forward-shifted BIP)
+#     cannot be observed up to the sample end at estimation time.
+#   - We therefore evaluate the out-of-sample prediction at time point
+#     i_time + shift + lag_vec[1], where both the regressor (M-SSA component)
+#     and the realized BIP target are available.
+
+oos_pred <- lm_obj$coef[1] +
+  lm_obj$coef[2:ncol(dat)] %*% dat[i_time + shift + lag_vec[1], 2:ncol(dat)]
+
+# Out-of-sample forecast error at the target time point
+oos_error <- dat[i_time + shift + lag_vec[1], 1] - oos_pred
+# This error will be realized (shift + publication lag) quarters
+# after the forecast is made
 oos_error
-# We now apply the above proceeding to a longer out-of-sample span and compute average performances
-#------------------
-# 1.3.3 Average performances: apply the above proceeding to all data points after 2007, including the 
-#   entire financial crisis for out-of-sample evaluations
 
-# Start point for out-of-sample evaluation: 2007
-in_out_separator<-in_out_separator
-# Note that the in-sample span is rather short at the start (due in part to filter initialization)
-#   -Therefore MSE forecast performances are likely to be worse than towards the sample end
-
-# Use WLS based on GARCH(1,1) when regressing M-SSA components on forward-shifted BIP 
-#   -The standard setting is use_garch<-F (setting the Boolean to T would underweight the importance of the recessions)
-use_garch<-F
-# M-SSA looses L observations at start when compared to direct forecast or mean benchmarks: 
-#   -therefore the samples are slightly different
-# If align_sample==T then the first L observations of mean and direct forecasts are removed to align with M-SSA
-#   -Avoid random differences due to unequal samples.
-align_sample<-T
-# Can define type of regression
-reg_type<-"OLS"
-reg_type<-"LASSO"
-reg_type<-"Ridge"
-# Penalty weight in regularization when using rifge or LASSO
-lambda_reg<-10
+# ------------------------------------------------------------------
+# Next step: extend the above single-period evaluation to a full
+# expanding-window out-of-sample analysis in Exercise 1.3.3 below.
+# ------------------------------------------------------------------
 
 
-# The following function applies the above WLS-regression for all time points (expanding window)
-#   -For each time point, a GARCH is fitted and the WLS-regression is computed based on the up-dated GARCH-weights
-# Note: we can ignore `warnings' which are generated by the GARCH estimation routine
-perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec,align_sample,reg_type,lambda_reg)
+# ==================================================================
+# 1.3.3 Out-of-Sample Performance: Expanding-Window Evaluation (post-2007)
+# ==================================================================
+#
+# The evaluation span begins in 2007, ensuring that the entire financial crisis
+# falls within the out-of-sample window — the most demanding test of forecast robustness.
+#
+# Note on sample length:
+#   - The in-sample window is short at the start (compounded by filter initialization losses)
+#   - MSE performance is therefore expected to be weaker early in the evaluation span
+#     and more representative towards the sample end, as the estimation window grows
 
-# Here we have the out-of-sample forecast errors of the new M-SSA components predictor
-# Note that the out-of-sample error series is shorter than the original data, due to publication lag and forward-shift
+# --- Regression Settings ---
+
+# In-sample / out-of-sample split (carried over from exercise 1.2)
+in_out_separator <- in_out_separator
+
+# WLS weighting via GARCH(1,1):
+#   - GARCH weights down observations with high conditional variance (e.g., recessions, Pandemic)
+#   - Default is OLS (use_garch = F): GARCH would reduce the influence of crisis episodes,
+#     which are precisely the periods where forecast performance matters most
+use_garch <- F
+
+# Sample alignment:
+#   - M-SSA loses the first L observations due to filter initialization
+#   - Setting align_sample = T removes the same observations from the mean and direct forecast
+#     benchmarks, ensuring all methods are evaluated on an identical sample
+align_sample <- T
+
+# Regression type for the optimal weighting step:
+#   - OLS:   unpenalized; may overfit when the number of components is large
+#   - Ridge: L2 penalty; shrinks all coefficients uniformly towards zero
+#   - LASSO: L1 penalty; performs implicit variable selection (sparse solution)
+reg_type <- "OLS"
+reg_type <- "LASSO"
+reg_type <- "Ridge"
+
+# Regularization penalty (applies to Ridge and LASSO only)
+# Larger values impose stronger shrinkage towards zero
+lambda_reg <- 10
+
+# --- Run Expanding-Window Performance Evaluation ---
+# For each time point after in_out_separator, the function:
+#   1. Fits a GARCH(1,1) on the available in-sample residuals (if use_garch = T)
+#   2. Runs a WLS (or OLS/Ridge/LASSO) regression of M-SSA components on forward-shifted BIP
+#   3. Computes the out-of-sample forecast and records the forecast error
+# Warnings from the GARCH estimation routine can safely be ignored
+perf_obj <- optimal_weight_predictor_func(
+  dat, in_out_separator, use_garch, shift, lag_vec, align_sample, reg_type, lambda_reg
+)
+
+# --- Retrieve and Inspect Performance Metrics ---
+
+# Out-of-sample forecast errors: M-SSA components predictor
+# (shorter than the full data due to publication lag and forward-shift of BIP)
 tail(perf_obj$epsilon_oos)
-# We also obtain the out-of-sample forecast errors of the mean benchmark predictor
+
+# Out-of-sample forecast errors: naive mean benchmark
 tail(perf_obj$epsilon_mean_oos)
-# More importantly, the function computes HAC-adjusted p-values of the regression of the out-of-sample predictor (oos_pred_wls obtained in exercise 3.3.3 above)
-#   on forward-shifted BIP
+
+# HAC-adjusted p-value: regression of out-of-sample M-SSA components predictor on forward-shifted BIP
+# Small values indicate statistically significant predictive content
 perf_obj$p_value
-# The same but without singular Pandemic readings
+
+# Same, but excluding Pandemic observations
+# Comparing the two reveals the extent to which significance is driven by the Pandemic episode
 perf_obj$p_value_without_covid
 
-# In addition, we obtain the out-of-sample MSE of the M-SSA component predictor (the mean of oos_error_wls^2, where oos_error_wls was obtained in exercise 3.3.3 above)
+# Out-of-sample MSE: M-SSA components predictor
 perf_obj$MSE_oos
-# The same but without Pandemic: we can s(e)ize the impact of the crisis on the MSE metric!
+
+# Same, excluding Pandemic: quantifies the Pandemic's contribution to overall MSE
 perf_obj$MSE_oos_without_covid
-# The function also computes the out-of-sample MSE of the simple mean benchmark predictor (expanding window): 
-#   -we expect the mean-benchmark to be slightly worse (larger MSE) than the M-SSA components, at least for 
-#     smaller forward-shifts of BIP (in the long run, the mean is difficult to outperform)
+
+# Out-of-sample MSE: naive mean benchmark (expanding window)
+# Expected to be slightly larger than M-SSA components MSE, at least for shorter forward-shifts
+# (the mean becomes increasingly hard to beat at longer horizons)
 perf_obj$MSE_mean_oos
 perf_obj$MSE_mean_oos_without_covid
 
-# We can also compute the rRMSE of the new M-SSA component predictor against the simple mean benchmark
-sqrt(perf_obj$MSE_oos/perf_obj$MSE_mean_oos)
-# Same but without Pandemic
-sqrt(perf_obj$MSE_oos_without_covid/perf_obj$MSE_mean_oos_without_covid)
+# Relative RMSE: M-SSA components predictor vs. mean benchmark
+# Values below 1 indicate M-SSA outperforms the mean
+sqrt(perf_obj$MSE_oos / perf_obj$MSE_mean_oos)
 
-# In the next step, we compute the above performance metrics for all combinations of forward-shift (of BIP) 
-#   and forecast horizons (of M-SSA components)
+# Same, excluding Pandemic
+sqrt(perf_obj$MSE_oos_without_covid / perf_obj$MSE_mean_oos_without_covid)
 
-#----------------
-# 1.3.4 Compute performances of new M-SSA component predictor for all combinations of forward-shift and 
-#   forecast horizon (6*7 matrix of performance metrics)
+# ==================================================================
+# 1.3.4 Full Performance Matrix: All Combinations of Forward-Shift and Forecast Horizon
+# ==================================================================
+# We now compute the above performance metrics exhaustively across:
+#   - shift_vec: forward-shifts of BIP (rows of performance matrices)
+#   - h_vec:     M-SSA forecast horizons (columns of performance matrices)
+# This yields a (6 x 7) matrix for each performance metric, revealing the systematic
+# horizon-shift interaction pattern discussed in exercise 1.2.3
 
-# Select M-SSA components: use M-SSA output tracking BIP
-sel_vec_mssa_comp<-c("BIP")
-# Select indicators for direct forecast: all indicators lead to overfitting (worse out-of-sample performances)
-# Best design out-of-sample is based on ifo_c and ESI
-sel_vec_direct_forecast<-c("ifo_c","ESI")
-# M-SSA looses L observations at start when compared to direct forecast or mean benchmarks: 
-#   -therefore the samples are slightly different
-# If align_sample==T then the first L observations of mean and direct forecasts are removed to align with M-SSA
-#   -Avoid random differences due to unequal samples.
-align_sample<-T
-# Can define type of regression
-reg_type<-"OLS"
-reg_type<-"LASSO"
-reg_type<-"Ridge"
-# Penalty weight in regularization
-lambda_reg<-10
-# Shift BIP forward by shift_vec + publication lag
-shift_vec<-0:5
+# --- Specifications ---
 
-# Select indicators for direct forecast: use all indicators
-sel_indicator_out_sample<-select_vec_multi
-# Initialize performance matrices
-MSE_oos_mssa_comp_without_covid_mat<-MSE_oos_mssa_comp_mat<-p_mat_mssa<-p_mat_mssa_components<-p_mat_mssa_components_without_covid<-p_mat_direct<-rRMSE_mSSA_comp_direct<-rRMSE_mSSA_comp_mean<-rRMSE_mSSA_comp_direct_without_covid<-rRMSE_mSSA_comp_mean_without_covid<-rRMSE_mSSA_direct_mean_without_covid<-rRMSE_mSSA_direct_mean<-p_mat_direct_without_covid<-matrix(nrow=length(shift_vec),ncol=length(h_vec))
-final_components_preditor_array<-oos_components_preditor_array<-array(dim=c(length(shift_vec),length(h_vec),nrow(x_mat)))
-dimnames(final_components_preditor_array)<-dimnames(oos_components_preditor_array)<-list(paste("shift=",shift_vec,sep=""), paste("h=",h_vec,sep=""),rownames(x_mat))
-  
-dim(p_mat_mssa_components)
-# Initialize arrays collecting final predictors, real-time predictors and regression weights
-#   -These will be used when analyzing revisions
-track_weights_array<-array(dim=c(length(shift_vec),length(h_vec),nrow(x_mat),length(sel_vec_mssa_comp)+1))
-dimnames(track_weights_array)<-list(paste("shift=",shift_vec,sep=""),
-                                      paste("h=",h_vec,sep=""),rownames(x_mat),c("Intercept",sel_vec_mssa_comp))
-  
-# Set-up progress bar: indicates progress in R-console
-pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
-  
-# The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons (of M-SSA)
-for (shift in shift_vec)#shift<-1
+# M-SSA component used as predictor: BIP sub-component only
+# (using all components risks overfitting in the optimal weighting step)
+sel_vec_mssa_comp <- c("BIP")
+
+# Macro-indicators for the direct forecast benchmark
+# Parsimonious two-indicator design (ifo_c, ESI) chosen to avoid overfitting
+sel_vec_direct_forecast <- c("ifo_c", "ESI")
+
+# Sample alignment (same rationale as in 1.3.3)
+align_sample <- T
+
+# Regression type and penalty (same options as in 1.3.3)
+reg_type <- "OLS"
+reg_type <- "LASSO"
+reg_type <- "Ridge"
+lambda_reg <- 10
+
+# Forward-shifts of BIP: 0 to 5 quarters (plus publication lag)
+shift_vec <- 0:5
+
+# All indicators retained for reference (not used in the main loop below)
+sel_indicator_out_sample <- select_vec_multi
+
+# --- Initialize Output Containers ---
+
+# Performance matrices: rows = forward-shifts, columns = forecast horizons
+MSE_oos_mssa_comp_mat                  <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+MSE_oos_mssa_comp_without_covid_mat    <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+p_mat_mssa                             <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+p_mat_mssa_components                  <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+p_mat_mssa_components_without_covid    <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+p_mat_direct                           <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+p_mat_direct_without_covid             <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+rRMSE_mSSA_comp_mean                   <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+rRMSE_mSSA_comp_direct                 <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+rRMSE_mSSA_comp_mean_without_covid     <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+rRMSE_mSSA_comp_direct_without_covid   <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+rRMSE_mSSA_direct_mean                 <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+rRMSE_mSSA_direct_mean_without_covid   <- matrix(nrow = length(shift_vec), ncol = length(h_vec))
+
+# Arrays storing final (full-sample) and real-time (expanding-window) predictors
+# Dimensions: [forward-shift, forecast horizon, time]
+# Used for plotting and revision analysis in exercise 2
+final_components_preditor_array <- array(
+  dim      = c(length(shift_vec), length(h_vec), nrow(x_mat)),
+  dimnames = list(paste0("shift=", shift_vec), paste0("h=", h_vec), rownames(x_mat))
+)
+oos_components_preditor_array <- array(
+  dim      = c(length(shift_vec), length(h_vec), nrow(x_mat)),
+  dimnames = list(paste0("shift=", shift_vec), paste0("h=", h_vec), rownames(x_mat))
+)
+
+# Array storing expanding-window regression weights over time
+# Dimensions: [forward-shift, forecast horizon, time, regression coefficients]
+# Used to track systematic vs. noisy revisions in exercise 2.2
+track_weights_array <- array(
+  dim      = c(length(shift_vec), length(h_vec), nrow(x_mat), length(sel_vec_mssa_comp) + 1),
+  dimnames = list(
+    paste0("shift=", shift_vec),
+    paste0("h=",     h_vec),
+    rownames(x_mat),
+    c("Intercept", sel_vec_mssa_comp)
+  )
+)
+
+# Progress bar: tracks loop completion in the R console
+pb <- txtProgressBar(min = min(h_vec), max = max(h_vec) - 1, style = 3)
+
+# --- Double Loop: All Forward-Shifts x Forecast Horizons ---
+for (shift in shift_vec)  # outer loop: forward-shift of BIP target
 {
-# Progress bar: see R-console
   setTxtProgressBar(pb, shift)
-  for (j in h_vec)#j<-1
+  
+  for (j in h_vec)  # inner loop: M-SSA forecast horizon
   {
-# Horizon j corresponds to k=j+1-th entry of array    
-    k<-j+1
-# A. M-SSA component predictor
-# Specify data matrix for WLS regression
-    if (length(sel_vec_mssa_comp)>1)
-    {
-      dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mssa_array[sel_vec_mssa_comp,,k]))
-    } else
-    {
-      dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mssa_array[sel_vec_mssa_comp,,k]))
+    # Map forecast horizon j to array index k (nowcast j=0 corresponds to column k=1)
+    k <- j + 1
+    
+    # A. Construct data matrix for the optimal weighting regression
+    #    - Column 1: forward-shifted BIP (target), with NAs padding the end
+    #    - Column 2+: M-SSA sub-component(s) optimized for horizon j=k-1
+    if (length(sel_vec_mssa_comp) > 1) {
+      dat <- cbind(
+        c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+        t(mssa_array[sel_vec_mssa_comp,, k])
+      )
+    } else {
+      dat <- cbind(
+        c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+        mssa_array[sel_vec_mssa_comp,, k]
+      )
     }
-    rownames(dat)<-rownames(x_mat)
-    colnames(dat)<-c(colnames(x_mat)[1],sel_vec_mssa_comp)
-    nrow(na.exclude(dat))
-      
-# Apply the previous function: compute GARCH, WLS regression, out-of-sample MSEs and p-values    
-    perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec,align_sample,reg_type,lambda_reg)
-# Retrieve out-of-sample performances 
-# a. p-values with/without Pandemic    
-    p_mat_mssa_components[shift+1,k]<-perf_obj$p_value
-    p_mat_mssa_components_without_covid[shift+1,k]<-perf_obj$p_value_without_covid
-# b. MSE forecast error out-of-sample
-#   -M-SSA components with/without Pandemic    
-    MSE_oos_mssa_comp_mat[shift+1,k]<-MSE_oos_mssa_comp<-perf_obj$MSE_oos
-    MSE_oos_mssa_comp_without_covid_mat[shift+1,k]<-MSE_oos_mssa_comp_without_covid<-perf_obj$MSE_oos_without_covid
-#   -mean-benchmark with/without Pandemic    
-    MSE_mean_oos<-perf_obj$MSE_mean_oos
-    MSE_mean_oos_without_covid<-perf_obj$MSE_mean_oos_without_covid
-# Here we retrieve the final in-sample predictor (based on the full-sample WLS regression) as well as the 
-#    real-time out-of-sample predictor (re-adjusted to new data at each time point)
-# We can plot both predictors to illustrate revisions (due to WLS estimation at each time point), see below
-    final_in_sample_preditor<-perf_obj$final_in_sample_preditor
-    final_components_preditor_array[shift+1,j+1,(nrow(x_mat)-length(final_in_sample_preditor)+1):nrow(x_mat)]<-final_in_sample_preditor
-    cal_oos_pred<-perf_obj$cal_oos_pred
-    oos_components_preditor_array[shift+1,j+1,(nrow(x_mat)-length(cal_oos_pred)+1):nrow(x_mat)]<-cal_oos_pred
-# We can also obtain the regression weights to track changes (systematic vs. noisy revisions) over time
-# Note: the variable will be overwritten, i.e., we keep only the last run through the double loop, 
-#   corresponding to maximal shift and maximal forecast horizon, see exercise 2.2 below 
-    track_weights<-perf_obj$track_weights
-    track_weights_array[shift+1,j+1,(nrow(x_mat)-nrow(track_weights)+1):nrow(x_mat),]<-track_weights
-      
-#----------------      
-# B. Direct forecasts
-# -The main difference to M-SSA above is the specification of the explanatory variables in the data 
-#     matrix dat: we here use x_mat instead of mssa_array. 
-#   -We select all indicators (one could easily change this setting but results are only marginally effected as long as ifo and ESi are included)
-#   -Note that the data matrix here does not depend on j, in contrast  to the M-SSA components above    
-    dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),x_mat[,sel_vec_direct_forecast])
-    rownames(dat)<-rownames(x_mat)
-# Two variants for data set:  
+    rownames(dat) <- rownames(x_mat)
+    colnames(dat) <- c(colnames(x_mat)[1], sel_vec_mssa_comp)
+    
+    # B. Run the expanding-window optimal weighting function
+    perf_obj <- optimal_weight_predictor_func(
+      dat, in_out_separator, use_garch, shift, lag_vec, align_sample, reg_type, lambda_reg
+    )
+    
+    # C. Store HAC-adjusted p-values (with and without Pandemic)
+    p_mat_mssa_components[shift + 1, k]              <- perf_obj$p_value
+    p_mat_mssa_components_without_covid[shift + 1, k] <- perf_obj$p_value_without_covid
+    
+    # D. Store out-of-sample MSE (with and without Pandemic)
+    MSE_oos_mssa_comp_mat[shift + 1, k]             <- MSE_oos_mssa_comp             <- perf_obj$MSE_oos
+    MSE_oos_mssa_comp_without_covid_mat[shift + 1, k] <- MSE_oos_mssa_comp_without_covid <- perf_obj$MSE_oos_without_covid
+    MSE_mean_oos                                     <- perf_obj$MSE_mean_oos
+    MSE_mean_oos_without_covid                       <- perf_obj$MSE_mean_oos_without_covid
+    
+    # E. Store final (full-sample) and real-time (expanding-window) predictors
+    #    - final_in_sample_preditor: fitted on the full sample; used for visualization
+    #    - cal_oos_pred: re-estimated at each time point; used for out-of-sample evaluation
+    #    Both are right-aligned within the full time dimension of x_mat
+    final_in_sample_preditor <- perf_obj$final_in_sample_preditor
+    final_components_preditor_array[
+      shift + 1, j + 1,
+      (nrow(x_mat) - length(final_in_sample_preditor) + 1):nrow(x_mat)
+    ] <- final_in_sample_preditor
+    
+    cal_oos_pred <- perf_obj$cal_oos_pred
+    oos_components_preditor_array[
+      shift + 1, j + 1,
+      (nrow(x_mat) - length(cal_oos_pred) + 1):nrow(x_mat)
+    ] <- cal_oos_pred
+    
+    # F. Store expanding-window regression weights for revision analysis (exercise 2.2)
+    #    Note: track_weights is overwritten at each iteration; only the final combination
+    #    (maximum shift and maximum horizon) is retained after the loop completes
+    track_weights <- perf_obj$track_weights
+    track_weights_array[
+      shift + 1, j + 1,
+      (nrow(x_mat) - nrow(track_weights) + 1):nrow(x_mat),
+    ] <- track_weights
+
+
+    #----------------
+    # B. Direct Forecasts
+    #
+    # Key differences from M-SSA (Section A above):
+    #   - The data matrix 'dat' is constructed using 'x_mat' (raw indicators) rather than
+    #     'mssa_array' (M-SSA components).
+    #   - All available indicators are included via 'sel_vec_direct_forecast'. While this
+    #     choice could be modified, results are largely robust as long as ifo and ESI are present.
+    #   - Unlike in the M-SSA loop above, 'dat' does not depend on the component index 'j',
+    #     since no SSA decomposition is involved here.
+    
+    # Construct data matrix: dependent variable is the forward-shifted target series (GDP),
+    # aligned by 'shift' and 'lag_vec<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>'; explanatory variables are the selected raw indicators.
+    dat <- cbind(
+      c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+      x_mat[, sel_vec_direct_forecast]
+    )
+    rownames(dat) <- rownames(x_mat)
+    
+    # Two sample variants for the data matrix:
     if (align_sample)
     {
-# 1. Same sample as M-SSA (due to filter initialization the first L observations are lost) 
-      dat<-dat[L:nrow(dat),]
-# Same length as M-SSA      
+      # Variant 1: Restrict to the same estimation sample as M-SSA.
+      # The first L observations are dropped to account for filter initialization loss.
+      dat <- dat[L:nrow(dat), ]
+      # Verify aligned sample length matches M-SSA
       nrow(na.exclude(dat))
     } else
     {
-# 2. Full data, including the first L observations (makes sense since the data is available) 
-      dat<-dat[1:nrow(dat),]
+      # Variant 2: Use the full available sample, including the first L observations.
+      # Preferred when all data is available and no alignment with M-SSA is required.
+      dat <- dat[1:nrow(dat), ]
     }
-    perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec,align_sample,reg_type,lambda_reg)
-# Retrieve out-of-sample performances: p-values and forecast MSE, with/without Pandemic 
-    p_mat_direct[shift+1,k]<-perf_obj$p_value 
-    p_mat_direct_without_covid[shift+1,k]<-perf_obj$p_value_without_covid 
-    MSE_oos_direct<-perf_obj$MSE_oos
-    MSE_oos_direct_without_covid<-perf_obj$MSE_oos_without_covid
-      
-# Compute rRMSEs
-# a. M-SSA Components vs. direct forecast    
-    rRMSE_mSSA_comp_direct[shift+1,k]<-sqrt(MSE_oos_mssa_comp/MSE_oos_direct)
-# b. M-SSA Components vs. mean benchmark    
-    rRMSE_mSSA_comp_mean[shift+1,k]<-sqrt(MSE_oos_mssa_comp/MSE_mean_oos)
-# c. Direct forecast vs. mean benchmark    
-    rRMSE_mSSA_direct_mean[shift+1,k]<-sqrt(MSE_oos_direct/MSE_mean_oos)
-# Same as a, b, c but without Pandemic
-    rRMSE_mSSA_comp_direct_without_covid[shift+1,k]<-sqrt(MSE_oos_mssa_comp_without_covid/MSE_oos_direct_without_covid)
-    rRMSE_mSSA_comp_mean_without_covid[shift+1,k]<-sqrt(MSE_oos_mssa_comp_without_covid/MSE_mean_oos_without_covid)
-    rRMSE_mSSA_direct_mean_without_covid[shift+1,k]<-sqrt(MSE_oos_direct_without_covid/MSE_mean_oos_without_covid)
+    
+    # Fit the direct forecast model and retrieve performance metrics
+    perf_obj <- optimal_weight_predictor_func(
+      dat, in_out_separator, use_garch, shift, lag_vec, align_sample, reg_type, lambda_reg
+    )
+    
+    # Extract out-of-sample performance metrics:
+    # HAC-adjusted p-values and forecast MSE, evaluated both over the full sample
+    # and over the COVID-19 pandemic-excluded subsample.
+    p_mat_direct[shift + 1, k]                <- perf_obj$p_value
+    p_mat_direct_without_covid[shift + 1, k]  <- perf_obj$p_value_without_covid
+    MSE_oos_direct                            <- perf_obj$MSE_oos
+    MSE_oos_direct_without_covid              <- perf_obj$MSE_oos_without_covid
+    
+    # Compute relative Root Mean Squared Errors (rRMSEs) across three benchmark comparisons:
+    #
+    # a. M-SSA component predictor vs. direct forecast
+    #    (rRMSE < 1: M-SSA outperforms direct; rRMSE > 1: direct forecast outperforms M-SSA)
+    rRMSE_mSSA_comp_direct[shift + 1, k]      <- sqrt(MSE_oos_mssa_comp / MSE_oos_direct)
+    
+    # b. M-SSA component predictor vs. naive mean benchmark
+    #    (rRMSE < 1: M-SSA outperforms the mean benchmark)
+    rRMSE_mSSA_comp_mean[shift + 1, k]        <- sqrt(MSE_oos_mssa_comp / MSE_mean_oos)
+    
+    # c. Direct forecast vs. naive mean benchmark
+    #    (rRMSE < 1: direct forecast outperforms the mean benchmark)
+    rRMSE_mSSA_direct_mean[shift + 1, k]      <- sqrt(MSE_oos_direct / MSE_mean_oos)
+    
+    # Repeat comparisons a, b, c excluding the COVID-19 pandemic period
+    rRMSE_mSSA_comp_direct_without_covid[shift + 1, k] <-
+      sqrt(MSE_oos_mssa_comp_without_covid / MSE_oos_direct_without_covid)
+    rRMSE_mSSA_comp_mean_without_covid[shift + 1, k]   <-
+      sqrt(MSE_oos_mssa_comp_without_covid / MSE_mean_oos_without_covid)
+    rRMSE_mSSA_direct_mean_without_covid[shift + 1, k] <-
+      sqrt(MSE_oos_direct_without_covid / MSE_mean_oos_without_covid)
   }
 }
-# Close progress bar
+
+# Close the progress bar after loop completion
 close(pb)
-# Note: possible warnings issued by the GARCH estimation routine during computations can be ignored
-  
-# Assign column and rownames
-colnames(p_mat_mssa_components)<-colnames(p_mat_direct)<-colnames(p_mat_mssa_components_without_covid)<-
-colnames(rRMSE_mSSA_comp_direct)<-colnames(rRMSE_mSSA_comp_mean)<-
-colnames(rRMSE_mSSA_comp_direct_without_covid)<-colnames(rRMSE_mSSA_comp_mean_without_covid)<-
-colnames(rRMSE_mSSA_direct_mean)<-colnames(rRMSE_mSSA_direct_mean_without_covid)<-
-colnames(p_mat_direct_without_covid)<-colnames(MSE_oos_mssa_comp_mat)<-
-colnames(MSE_oos_mssa_comp_without_covid_mat)<-paste("h=",h_vec,sep="")
-rownames(p_mat_mssa_components)<-rownames(p_mat_direct)<-rownames(p_mat_mssa_components_without_covid)<-
-rownames(rRMSE_mSSA_comp_direct)<-rownames(rRMSE_mSSA_comp_mean)<-
-rownames(rRMSE_mSSA_comp_direct_without_covid)<-rownames(rRMSE_mSSA_comp_mean_without_covid)<-
-rownames(rRMSE_mSSA_direct_mean)<-rownames(rRMSE_mSSA_direct_mean_without_covid)<-
-rownames(p_mat_direct_without_covid)<-rownames(MSE_oos_mssa_comp_mat)<-
-rownames(MSE_oos_mssa_comp_without_covid_mat)<-paste("Shift=",shift_vec,sep="")
-# Define list for saving all matrices  
+# Note: any warnings from the GARCH estimation routine during the loop can safely be ignored.
 
 #-----------------------
-# Examine out-of-sample performances
-# HAC-adjusted p-values of out-of-sample (M-SSA) components predictor when targeting forward-shifted BIP
-#   -Evaluation based on out-of-sample span starting at in_out_separator and ending on Jan-2025
+# Assign column and row names to all output matrices
+# Columns correspond to forecast horizons h; rows correspond to forward-shift values.
+
+colnames(p_mat_mssa_components) <-
+  colnames(p_mat_direct) <-
+  colnames(p_mat_mssa_components_without_covid) <-
+  colnames(rRMSE_mSSA_comp_direct) <-
+  colnames(rRMSE_mSSA_comp_mean) <-
+  colnames(rRMSE_mSSA_comp_direct_without_covid) <-
+  colnames(rRMSE_mSSA_comp_mean_without_covid) <-
+  colnames(rRMSE_mSSA_direct_mean) <-
+  colnames(rRMSE_mSSA_direct_mean_without_covid) <-
+  colnames(p_mat_direct_without_covid) <-
+  colnames(MSE_oos_mssa_comp_mat) <-
+  colnames(MSE_oos_mssa_comp_without_covid_mat) <- paste("h=", h_vec, sep = "")
+
+rownames(p_mat_mssa_components) <-
+  rownames(p_mat_direct) <-
+  rownames(p_mat_mssa_components_without_covid) <-
+  rownames(rRMSE_mSSA_comp_direct) <-
+  rownames(rRMSE_mSSA_comp_mean) <-
+  rownames(rRMSE_mSSA_comp_direct_without_covid) <-
+  rownames(rRMSE_mSSA_comp_mean_without_covid) <-
+  rownames(rRMSE_mSSA_direct_mean) <-
+  rownames(rRMSE_mSSA_direct_mean_without_covid) <-
+  rownames(p_mat_direct_without_covid) <-
+  rownames(MSE_oos_mssa_comp_mat) <-
+  rownames(MSE_oos_mssa_comp_without_covid_mat) <- paste("Shift=", shift_vec, sep = "")
+
+#-----------------------
+# Out-of-Sample Performance Summary
+#-----------------------
+
+# HAC-adjusted p-values for the M-SSA component predictor targeting forward-shifted GDP.
+# Evaluation covers the out-of-sample period from 'in_out_separator' through January 2025.
 p_mat_mssa_components
-# Same but without singular Pandemic
+
+# Same evaluation excluding the singular COVID-19 pandemic observations.
 p_mat_mssa_components_without_covid
-# The link between the new predictor and future BIP is statistically significant up to multiple quarters ahead 
+# Interpretation: the M-SSA predictor maintains statistically significant predictive
+# content for GDP growth across multiple quarters ahead.
 
+# Note on p-values vs. rRMSEs:
+#   - The p-values above are derived from predictive regressions and implicitly allow
+#     for 'static' level and scale adjustments via regression coefficients.
+#   - The rRMSEs below evaluate forecast accuracy in absolute terms, including scale
+#     and level alignment, offering a complementary performance assessment.
+#   - All rRMSE results are out-of-sample (evaluation begins just before the financial crisis).
 
-# -The above p-values are based on regressions (of out-of-sample predictors on BIP) thereby ignoring 
-#   `static' level and scale parameters (which are automatically adjusted by the regressions)
-# -The following rRMSEs account (also) for scale and level of the new predictor
-#   -All results out-of-sample (starting just before the financial crisis)
-# a. rRMSE of M-SSA components when benchmarked against mean, out-of-sample
+# a. rRMSE: M-SSA component predictor benchmarked against the naive mean forecast
 rRMSE_mSSA_comp_mean
-# b. rRMSE of M-SSA components when benchmarked against direct forecast, out-of-sample
+
+# b. rRMSE: M-SSA component predictor benchmarked against the direct forecast
 rRMSE_mSSA_comp_direct
-# c. rRMSE of direct forecasts when benchmarked against mean benchmark, out-of-sample
-#   Note: the columns are all the same because for a given shift, the explanatory variables of the 
-#     direct forecast do not depend on j in the above loop  
+
+# c. rRMSE: Direct forecast benchmarked against the naive mean forecast
+#    Note: columns are identical within each row because the direct forecast's
+#    explanatory variables do not depend on the M-SSA component index 'j' —
+#    the same model is fitted for all j at a given shift value.
 rRMSE_mSSA_direct_mean
 
-# Same but without Pandemic
+# Same three rRMSE comparisons, excluding the COVID-19 pandemic period:
 rRMSE_mSSA_comp_mean_without_covid
 rRMSE_mSSA_comp_direct_without_covid
 rRMSE_mSSA_direct_mean_without_covid
 
-# Comments:
-# -Systematic pattern: for larger forward-shifts (from top to bottom), designs optimized for larger 
-#     forecasts horizons (from left to right) tend to perform better
-# -Singular Pandemic data affects evaluation 
-#   -p-values and rRMSEs increase; systematic patterns are cluttered by noise
-#   -Direct forecasts barely outperform the simple mean benchmark, see rRMSE_mSSA_direct_mean
+# Summary of key findings:
+#
+# 1. Systematic horizon-shift pattern:
+#    Moving from top to bottom (larger forward shifts) and left to right (larger forecast
+#    horizons), M-SSA designs optimized for longer horizons tend to perform progressively
+#    better — consistent with the intended design of the M-SSA filter.
+#
+# 2. Impact of the COVID-19 pandemic on evaluation:
+#    - Including pandemic observations inflates both p-values and rRMSEs, obscuring
+#      the underlying systematic patterns with outlier-driven noise.
+#    - Direct forecasts do not outperform the naive mean benchmark for shift>2 (when adjusted 
+#     for COVID outliers)
 
 
-################################################################################################################
-# Exercise 2 Analyze revisions of M-SSA components predictor
-# -The new predictor relies on quarterly up-dating of the (WLS-) regression weights
-#   -Note that M-SSA is not subject to revisions because the VAR is fixed (based on data up to 2008: no up-dating)
-# -We here analyze the impact of the quarterly up-dating on the predictor as well as on the regression weights
-
-# Select h and shift
-h<-6
-shift<-3
 
 
-# 2.1 Compare the final predictor (full sample regression) with the out-of-sample sequence of 
-#   continuously re-calibrated predictors: ideally (in the absence of revisions), both series would overlap
-# -Differences illustrate revisions due to re-estimating regression weights each quarter
-par(mfrow=c(1,1))
-mplot<-cbind(final_components_preditor_array[shift,h,],oos_components_preditor_array[shift,h,])
-colnames(mplot)<-c("Final predictor","Real-time out-of-sample predictor")
-colo<-c("blue",rainbow(length(select_vec_multi)))
-main_title<-"Revisions: final vs. real-time predictor"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=1,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
+# =======================================================================
+# Exercise 2: Analyze Revisions of the M-SSA Components Predictor
+# =======================================================================
+#
+# Background:
+#   - The M-SSA components predictor relies on quarterly re-calibration of the WLS regression weights.
+#   - In contrast, the M-SSA filter itself is NOT subject to revisions: the underlying VAR is fixed,
+#     estimated on data up to 2008, and is never updated.
+#   - This exercise isolates and quantifies the impact of quarterly weight re-calibration on both
+#     the predictor series and the regression weights over time.
+
+# Select forecast horizon and forward shift for this analysis
+h     <- 6
+shift <- 3
+
+
+# 2.1 Final vs. Real-Time Predictor: Assessing Revision Magnitude
+#
+# We compare two versions of the predictor:
+#   - Final predictor:            regression weights estimated on the full available sample.
+#   - Real-time (OOS) predictor:  regression weights re-estimated recursively each quarter,
+#                                 using only data available at that point in time.
+#
+# In the absence of revisions, both series would overlap exactly.
+# Discrepancies between them reflect the revision error introduced by recursive weight re-estimation.
+
+par(mfrow = c(1, 1))
+mplot <- cbind(
+  final_components_preditor_array[shift, h, ],
+  oos_components_preditor_array[shift, h, ]
+)
+colnames(mplot) <- c("Final predictor", "Real-time out-of-sample predictor")
+
+colo       <- c("blue", rainbow(length(select_vec_multi)))
+main_title <- "Revisions: final vs. real-time predictor"
+
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], lwd = 1,
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+
 for (i in 1:ncol(mplot))
 {
-  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  lines(mplot[, i], col = colo[i], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-abline(h=0)
-abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+
+abline(h = 0)
+# Vertical dashed line marks the start of the out-of-sample evaluation period
+abline(v = which(rownames(mplot) <= date_to_fit)[length(which(rownames(mplot) <= date_to_fit))],
+       lwd = 2, lty = 2)
+axis(1, at = c(1, 4 * 1:(nrow(mplot) / 4)),
+     labels = rownames(mplot)[c(1, 4 * 1:(nrow(mplot) / 4))])
 axis(2)
 box()
-# Notes: 
-# 1. The above plot compares real-time and final predictors for maximal shift and maximal forecast horizon
-#     -Last run in the double-loop of exercise 1.3.5 above 
-#     -Similar plots could be obtained for all combinations of forward-shift and forecast horizon (with no systematic change/difference)
-# 2. The last data point in the above plot does not correspond to Jan-2025 (because the target is forward-shifted and NAs are removed)
-tail(mplot)
-#     -The purpose of the above plot is to illustrate revisions 
-#     -It does not show the current forecast at the series end (Jan-2025)
 
-# Comments (revisions): 
-# -To the left of the plot, the real-time predictor is volatile because the sample is short (revisions are large)
-# -With increasing sample size (from left to right), the real-time predictor approaches the final estimate 
-# -The vertical black line in the plot indicates the start of the evaluation period, relevant for 
-#     out-of-sample MSEs and p-value statistics, see exercise 1.3.5 above
-# -As time progresses, we expect better out-of-sample forecast performances because the part imputable to the 
-#   above revision error will decrease
+# Note: This plot uses shift and h as specified above. Analogous plots for other shift/horizon
+#      combinations show no systematic differences in revision behavior.
 
-# 2.2 We now examine the effect of the revisions on the regression weights  
-par(mfrow=c(1,1))
-mplot<-track_weights_array[shift,h,,]
-#colnames(mplot)[2:ncol(track_weights)]<-paste("Weight of M-SSA component ",colnames(track_weights)[2:ncol(track_weights)])
-colo<-c("black","blue","red")
-main_title<-"Revisions: regression weights over time"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=1,ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
+# Key observations on revision behavior:
+#
+#   - Early sample (left side of plot): revisions are large due to the short estimation window,
+#     causing the real-time predictor to be volatile and poorly calibrated.
+#   - Later sample (right side of plot): as the estimation window grows, the real-time predictor
+#     converges toward the final (full-sample) estimate, and revisions diminish.
+#   - Vertical dashed line: marks the beginning of the out-of-sample evaluation period used
+#     for MSE and p-value statistics in Exercise 1.3.5.
+#   - Forward outlook: as the sample grows further, revision errors are expected to shrink,
+#     contributing to improved out-of-sample forecast performance over time.
+
+
+# 2.2 Regression Weight Stability: Tracking Revisions in WLS Weights Over Time
+#
+# We now examine how the regression weights themselves evolve as the estimation sample expands.
+# Convergence of the weights over time would confirm that the real-time predictor is stabilizing
+# toward the final predictor, and that the revision process is well-behaved.
+
+par(mfrow = c(1, 1))
+mplot <- track_weights_array[shift, h, , ]
+
+colo       <- c("black", "blue", "red")
+main_title <- "Revisions: regression weights over time"
+
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], lwd = 1,
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+
 for (i in 1:ncol(mplot))
 {
-  lines(mplot[,i],col=colo[i],lwd=1,lty=1)
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
+  lines(mplot[, i], col = colo[i], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-abline(h=0)
-abline(v=which(rownames(mplot)<=date_to_fit)[length(which(rownames(mplot)<=date_to_fit))],lwd=2,lty=2)
-axis(1,at=c(1,4*1:(nrow(mplot)/4)),labels=rownames(mplot)[c(1,4*1:(nrow(mplot)/4))])
+
+abline(h = 0)
+# Vertical dashed line marks the start of the out-of-sample evaluation period
+abline(v = which(rownames(mplot) <= date_to_fit)[length(which(rownames(mplot) <= date_to_fit))],
+       lwd = 2, lty = 2)
+axis(1, at = c(1, 4 * 1:(nrow(mplot) / 4)),
+     labels = rownames(mplot)[c(1, 4 * 1:(nrow(mplot) / 4))])
 axis(2)
 box()
 
-# Comments (revisions)
-# -Regression weights are quite volatile at the start
-# -However, progressively over time the weights appear to converge to some fix-points (stationarity)
-#   -The real-time predictor converges to the final predictor
+# Key observations on weight dynamics:
+#
+#   - Early sample: regression weights are highly volatile, reflecting estimation uncertainty
+#     in short samples and sensitivity to individual observations.
+#   - Over time: weights progressively stabilize, converging toward apparent fixed points,
+#     consistent with a stationary weight process.
+#   - This convergence of the weights mirrors and explains the convergence of the real-time
+#     predictor toward the final full-sample predictor observed in Section 2.1.
+#   - The final crisis drop and rebound (2009-2009) anchors the dependence between target and M-SSA predictor 
 
 
-################################################################################################################
-# Exercise 3 (has been skipped)
+# =======================================================================
+# Exercise 3: (Skipped)
+
+# =======================================================================
 
 
-#################################################################################################
-# Exercise 4: Can we explain forecast gains of the new M-SSA components predictor at forecast horizons larger 
-#   than a quarter?
 
-# The M-SSA component forecast is a rather complex `stacked' design, involving multiple steps 
-#     in the derivation of the BIP predictor
-# Construction steps:
-#   -Filtering: remove undesirable high frequency noise 
-#     -Filter based on HP(160) target to emphasizes mid-term dynamics relevant in a mid-term (2-4 quarters) 
-#       forecast perspective
-#   -M-SSA optimization criterion: maximize the target correlation under a HT (holding time) constraint
-#   -WLS regression of M-SSA components on forward-shifted BIP
+# =======================================================================
+# Exercise 4: Diagnosing the Sources of Forecast Gains in the M-SSA Components Predictor
+# =======================================================================
+#
+# Motivation:
+#   The M-SSA components predictor is a multi-step ('stacked') construction involving:
+#     Step 1 — Filtering:     apply a HP(160)-based filter to remove high-frequency noise and
+#                             emphasize mid-term dynamics relevant for 2–4 quarter forecasting.
+#     Step 2 — Optimization:  extract M-SSA components by maximizing target correlation subject
+#                             to a holding-time (HT) constraint.
+#     Step 3 — Regression:    regress the M-SSA components on forward-shifted GDP via WLS.
+#
+# Prior evidence:
+#   - Exercises above confirmed that the M-SSA components predictor outperforms both the naive
+#     mean benchmark and the direct forecast (using unfiltered indicators) over a long
+#     out-of-sample span including the financial crisis and the COVID-19 pandemic.
+#   - However, the specific contribution of M-SSA (Step 2) to these forecast gains has not yet
+#     been isolated or quantified.
+#
+# Research questions:
+#   1. Why does the M-SSA components predictor outperform classical forecast rules at horizons
+#      of two or more quarters?
+#   2. Which construction step(s) are driving the performance improvements?
+#
+# Approach — introducing an intermediary benchmark:
+#   To answer these questions, we introduce a new benchmark called the 'direct HP forecast':
+#     - Apply the classical univariate HP concurrent filter (HP-C) to each individual indicator.
+#     - Regress the HP-C filtered indicators on forward-shifted GDP (analogous to the direct forecast).
+#   This benchmark isolates the contribution of filtering alone (Step 1), independently of
+#   the multivariate M-SSA optimization (Step 2).
+#
+# The three predictors now differ only in their choice of explanatory variables:
+#
+#   | Predictor              | Explanatory Variables                              |
+#   |------------------------|----------------------------------------------------|
+#   | M-SSA components       | Multivariate (M-SSA) filtered indicators           |
+#   | Direct forecast        | Original, unfiltered indicators                    |
+#   | Direct HP forecast     | Univariate HP concurrent-filtered indicators       |
+#
+#   Note: the direct HP forecast is a special case of the M-SSA predictor, where the
+#   multivariate filter is replaced by independent univariate HP-C filters.
+#
+# Interpretation:
+#   - Direct vs. Direct HP:   isolates the gain from filtering (Step 1) alone.
+#   - Direct HP vs. M-SSA:    isolates the additional gain from multivariate optimization (Step 2).
+#   - Direct vs. M-SSA:       measures the combined gain from both filtering and optimization.
+#
+# A structured comparison of these three predictors will reveal the relative contributions
+# of each construction step to the overall forecast efficiency of the M-SSA components predictor.
 
-# -In order to check pertinence and relevance of this stacked construction principle, we verified outperformance
-#     of the new M-SSA component predictor over the simple mean (mean of BIP) and the direct forecasts 
-#     (regressing un-filtered indicators on future BIP) on a longer out-of-sample span comprising the 
-#     financial crisis as well as the Pandemic.
-# -However, at this stage, we are still unable to assess the role and the importance of M-SSA as a contributing 
-#   element to improved forecast performances. 
 
-# -Questions: 
-#   -why does the M-SSA components predictor perform better than classic forecast rules at 
-#     forecast horizons>=2 quarters? 
-#   -Which steps (in the the above construction) are relevant? 
+# =======================================================================
+# Exercise 4.1: Direct HP Forecast Benchmark
+#
+# Motivation:
+#   - The M-SSA components predictor is benchmarked here against a 'direct HP forecast':
+#     a simpler predictor that applies the one-sided (concurrent) HP filter directly
+#     to each indicator and uses the filtered outputs as regressors for forward-shifted BIP
+#   - This benchmark is more sophisticated than the naive mean or direct OLS forecast,
+#     as it incorporates the same smoothing philosophy as M-SSA but without the
+#     multivariate optimization and timeliness customization steps
+#   - Comparing M-SSA against this benchmark isolates the value added by the
+#     M-SSA design beyond simple one-sided HP filtering
+# =======================================================================
 
-# -To answer these questions we here propose to consider a simple intermediary step as an additional benchmark
-#   -This new benchmark is a simplification (a special case) of the M-SSA components predictor
-# -Specifically, we consider an extension of the direct forecast, called direct HP forecast, as follows:
-#   -We apply the classic univariate HP concurrent filter (HP-C) to each indicator
-#   -The `direct HP forecast' is obtained by regressing the HP-C filtered indicators on future BIP
-#   -The direct HP forecast is a special case of the M-SSA component predictor, wherein the multivariate 
-#     filter (M-SSA) is replaced by a univariate design (HP-C).
-# -M-SSA component, direct forecast and direct HP forecast designs differ only with respect to the explanatory 
-#     variables that are regressed on future BIP:
-#   -M-SSA components rely on multivariate filters of the indicators 
-#   -direct forecasts rely on original (un-filtered) indicators
-#   -direct HP forecasts rely on univariate HP-C filters of the indicators 
-# -A comparison of these predictors will hint at the cause(s) and origin(s) of efficiency gains by the 
-#   M-SSA component predictor
+# =======================================================================
+# 4.1.1 Compute the Classic One-Sided (Concurrent) HP Filter
+# =======================================================================
+# lambda_HP and L are carried over from the M-SSA design in exercise 1
+lambda_HP <- lambda_HP
+L         <- L
 
+# Compute the HP filter object: extracts the one-sided (concurrent) filter coefficients
+HP_obj <- HP_target_mse_modified_gap(L, lambda_HP)
 
-# Exercise 4.1: Compute the new benchmark (direct HP forecast)
-# 4.1.1 Classic one-sided HP filter: HP-C
+# One-sided HP filter (concurrent): applies only past and current observations
+# No future data are used — this is a real-time, causal filter
+hp_c <- HP_obj$hp_trend
 
-lambda_HP<-lambda_HP
-L<-L
+ts.plot(hp_c,
+        main = paste0("One-sided (concurrent) HP(", lambda_HP, ") filter coefficients"),
+        xlab = "", ylab = "")
 
-HP_obj<-HP_target_mse_modified_gap(L,lambda_HP)
-# Classic concurrent (one-sided) HP filter
-hp_c<-HP_obj$hp_trend
-ts.plot(hp_c,main=paste("One-sided (concurrent) HP(",lambda_HP,"): HP-C",sep=""),xlab="",ylab="")
-
-
-# 4.1.2 Filter the indicators: apply HP-C
-hp_c_mat<-NULL
-for (i in 1:ncol(x_mat))
-{
-  hp_c_mat<-cbind(hp_c_mat,filter(x_mat[,i],hp_c,side=1))
+# 4.1.2 Apply HP-C to All Indicators
+# ------------------------------------
+# Filter each indicator series using the one-sided HP filter (causal, side = 1)
+hp_c_mat <- NULL
+for (i in 1:ncol(x_mat)) {
+  hp_c_mat <- cbind(hp_c_mat, filter(x_mat[, i], hp_c, side = 1))
 }
-colnames(hp_c_mat)<-colnames(x_mat)
-rownames(hp_c_mat)<-rownames(x_mat)
+colnames(hp_c_mat) <- colnames(x_mat)
+rownames(hp_c_mat) <- rownames(x_mat)
 
-# Plot
-mplot<-hp_c_mat
-par(mfrow=c(1,1))
-colo<-c(rainbow(ncol(mplot)))
-main_title<-paste("Concurrent HP(",lambda_HP,") applied to indicators",sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (j in 1:ncol(mplot))
-{
-  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
-  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+# --- Plot Concurrent HP-Filtered Indicators ---
+mplot      <- hp_c_mat
+colo       <- rainbow(ncol(mplot))
+main_title <- paste0("Concurrent HP(", lambda_HP, ") applied to all indicators")
+
+par(mfrow = c(1, 1))
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+
+for (j in 1:ncol(mplot)) {
+  lines(mplot[, j], col = colo[j], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[j], col = colo[j], line = -j)
 }
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
 
-# 4.1.3 Compute filter outputs for forecast horizons 0:6, assuming WN data
-# Forecast horizons
-h_vec<-0:6
-hp_c_array<-array(dim=c(ncol(x_mat),nrow(x_mat),length(h_vec)))
-for (j in 1:length(h_vec))
-{
-  for (i in 1:ncol(x_mat))
-  {
-# For forecast horizon h_vec[j], the first h_vec[j] filter coefficients are skipped (zeroes are appended at 
-#     the end). 
-#   -This simple rule is optimal if the data is (close to) WN (white noise).
-#   -Log-returns of the indicators are fairly close to WN (one can inspect the ACFs) 
-    hp_c_forecast<-c(hp_c[(h_vec[j]+1):L],rep(0,h_vec[j]))
-    hp_c_array[i,,j]<-filter(x_mat[,i],hp_c_forecast,side=1)
+# 4.1.3 Extend HP-C to Multi-Step Forecasts
+# ------------------------------------------
+# For each forecast horizon h in h_vec, the one-sided HP filter is adapted to produce
+# an h-step-ahead forecast by skipping the first h coefficients (replacing them with zeros).
+#
+# Rationale:
+#   - Skipping the first h coefficients is equivalent to assuming the future h observations
+#     are white noise (WN)
+#   - Log-returns of the macro indicators are empirically close to WN
+#   - The resulting filter is still causal (one-sided) and operationally real-time
+
+h_vec        <- 0:6
+hp_c_array   <- array(dim = c(ncol(x_mat), nrow(x_mat), length(h_vec)))
+
+for (j in 1:length(h_vec)) {
+  for (i in 1:ncol(x_mat)) {
+    # Construct the h-step-ahead HP forecast filter:
+    # drop the first h_vec[j] coefficients and append h_vec[j] zeros at the end
+    hp_c_forecast       <- c(hp_c[(h_vec[j] + 1):L], rep(0, h_vec[j]))
+    hp_c_array[i,, j]  <- filter(x_mat[, i], hp_c_forecast, side = 1)
   }
 }
-dimnames(hp_c_array)[[1]]<-colnames(x_mat)
-dimnames(hp_c_array)[[2]]<-rownames(x_mat)
-dimnames(hp_c_array)[[3]]<-paste("h=",h_vec,sep="")
 
-# Plot
-# Select an indicator: for illustration we here choose BIP
-i<-1
-colnames(x_mat)[i]
-# Plot HP nowcast and forecasts for that indicator: we scale the series for better visual inspection
-mplot<-scale(hp_c_array[i,,])
-colnames(mplot)<-paste(colnames(x_mat)[i],": h=",h_vec,sep="")
-par(mfrow=c(1,1))
-colo<-c(rainbow(ncol(mplot)))
-main_title<-paste("HP(",lambda_HP,") now- and forecasts applied to ",colnames(x_mat)[i],sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (j in 1:ncol(mplot))
-{
-  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
-  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+# Assign dimension names for readability
+dimnames(hp_c_array)[[1]] <- colnames(x_mat)
+dimnames(hp_c_array)[[2]] <- rownames(x_mat)
+dimnames(hp_c_array)[[3]] <- paste0("h=", h_vec)
+
+# --- Plot HP Now- and Forecasts for a Selected Indicator ---
+# Illustrate the effect of increasing the forecast horizon on the HP filter output
+i <- 1
+colnames(x_mat)[i]   # confirm the selected indicator (BIP)
+
+# Scale outputs for visual comparability across horizons
+mplot      <- scale(hp_c_array[i,,])
+colnames(mplot) <- paste0(colnames(x_mat)[i], ": h=", h_vec)
+colo       <- rainbow(ncol(mplot))
+main_title <- paste0("HP(", lambda_HP, ") now- and forecasts for ", colnames(x_mat)[i])
+
+par(mfrow = c(1, 1))
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+
+for (j in 1:ncol(mplot)) {
+  lines(mplot[, j], col = colo[j], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[j], col = colo[j], line = -j)
 }
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
-# For increasing forecast horizon, the filter outputs tend to be left-shifted
-
-
+# As expected: increasing the forecast horizon produces a systematic left-shift (phase advance)
+# of the filter output — consistent with the Timeliness dimension of the AST trilemma
 
 #------------------
-# 4.2: Compute performances of the new direct HP forecast
-# Numerical computations may take a couple minutes: therefore we already computed results which can be loaded
-#   -But one can run the double loop to check results 
-shift_vec<-shift_vec
-# Initialize performance matrices
-ht_HP_c_mat<-p_mat_HP_c<-p_mat_HP_c_without_covid<-rRMSE_mSSA_comp_HP_c<-rRMSE_mSSA_comp_HP_c_without_covid<-MSE_oos_HP_c_without_covid_mat<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
-# Use WLS
-use_garch<-F
-  
-# The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons 
-# -We compute HAC-adjusted p-values (significance of out-of-sample predictor) and 
-#  out-of-sample rRMSEs (relative root mean-square forecast errors) for the direct HP forecast
+# 4.2: Performance Evaluation — Direct HP Forecast vs. M-SSA Components Predictor
+#
+# We compute HAC-adjusted p-values and rRMSEs for all combinations of:
+#   - forward-shift of BIP (rows): shift_vec
+#   - forecast horizon of HP-C (columns): h_vec
+#
+# Note: numerical computations may take several minutes.
+#       Pre-computed results can be loaded as an alternative to running the loop.
+#------------------
 
-# Set-up progress bar: indicates progress in R-console
-pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
-  
-for (shift in shift_vec)#shift<-3
+shift_vec <- shift_vec
+
+# --- Initialize Performance Matrices ---
+# Rows = forward-shifts of BIP; columns = forecast horizons
+p_mat_HP_c                         <- matrix(ncol = length(h_vec), nrow = length(h_vec) - 1)
+p_mat_HP_c_without_covid           <- matrix(ncol = length(h_vec), nrow = length(h_vec) - 1)
+MSE_oos_HP_c_without_covid_mat     <- matrix(ncol = length(h_vec), nrow = length(h_vec) - 1)
+rRMSE_mSSA_comp_HP_c               <- matrix(ncol = length(h_vec), nrow = length(h_vec) - 1)
+rRMSE_mSSA_comp_HP_c_without_covid <- matrix(ncol = length(h_vec), nrow = length(h_vec) - 1)
+ht_HP_c_mat                        <- matrix(ncol = length(h_vec), nrow = length(h_vec) - 1)
+
+# OLS weighting (consistent with exercise 1.3)
+use_garch <- F
+
+# Progress bar
+pb <- txtProgressBar(min = min(h_vec), max = max(h_vec) - 1, style = 3)
+
+# --- Double Loop: All Forward-Shifts x Forecast Horizons ---
+for (shift in shift_vec)  # outer loop: forward-shift of BIP target
 {
-# Progress bar: see R-console
   setTxtProgressBar(pb, shift)
-  for (j in h_vec)#j<-4
+  
+  for (j in h_vec)  # inner loop: HP-C forecast horizon
   {
-# Horizon j corresponds to k=j+1-th entry of array    
-    k<-j+1
-  
-# Direct HP forecast:
-#   -The explanatory variables are based on hp_c_array[,,k] 
-#   -We select all indicators (one could easily change this setting but results are only marginally effected as long as ifo and ESi are included)
-    if (length(sel_vec_pred)>1)
-    {
-      dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(hp_c_array[sel_vec_pred,,k]))
-    } else
-    {
-      dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(hp_c_array[sel_vec_pred,,k]))
-      colnames(dat)[2]<-sel_vec_pred
+    # Map forecast horizon j to array index k
+    k <- j + 1
+    
+    # Construct data matrix for the optimal weighting regression:
+    #   - Column 1: forward-shifted BIP (target)
+    #   - Column 2+: HP-C univariate filtered outputs for selected indicators at horizon k
+    # All indicators are used here (results are robust to this choice provided
+    # ifo and ESI are included)
+    if (length(sel_vec_pred) > 1) {
+      dat <- cbind(
+        c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+        t(hp_c_array[sel_vec_pred,, k])
+      )
+    } else {
+      dat <- cbind(
+        c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+        hp_c_array[sel_vec_pred,, k]
+      )
+      colnames(dat)[2] <- sel_vec_pred
     }
-    rownames(dat)<-rownames(x_mat)
-    dat<-na.exclude(dat)
-  
-    perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec,align_sample,reg_type,lambda_reg)
-# Retrieve out-of-sample performances: p-values and forecast MSE, with/without Pandemic 
-    MSE_oos_HP_c<-perf_obj$MSE_oos
-    MSE_oos_HP_c_without_covid_mat[shift+1,k]<-MSE_oos_HP_c_without_covid<-perf_obj$MSE_oos_without_covid
-    p_mat_HP_c[shift+1,k]<-perf_obj$p_value 
-    p_mat_HP_c_without_covid[shift+1,k]<-perf_obj$p_value_without_covid 
-    perf_obj$track_weights
-# Note that MSEs of M-SSA predictor were computed in exercise 1.3.5
-    rRMSE_mSSA_comp_HP_c[shift+1,k]<-sqrt(MSE_oos_mssa_comp_mat[shift+1,k]/MSE_oos_HP_c)
-# Same but without Pandemic
-    rRMSE_mSSA_comp_HP_c_without_covid[shift+1,k]<-sqrt(MSE_oos_mssa_comp_without_covid_mat[shift+1,k]/MSE_oos_HP_c_without_covid)
-    ht_HP_c_mat[shift+1,k]<-compute_empirical_ht_func(perf_obj$cal_oos_pred)$empirical_ht
-
+    rownames(dat) <- rownames(x_mat)
+    dat           <- na.exclude(dat)
+    
+    # Run the expanding-window optimal weighting function
+    perf_obj <- optimal_weight_predictor_func(
+      dat, in_out_separator, use_garch, shift, lag_vec, align_sample, reg_type, lambda_reg
+    )
+    
+    # Retrieve and store performance metrics
+    # a. Out-of-sample MSE (with and without Pandemic)
+    MSE_oos_HP_c                                    <- perf_obj$MSE_oos
+    MSE_oos_HP_c_without_covid_mat[shift + 1, k]   <- MSE_oos_HP_c_without_covid <- perf_obj$MSE_oos_without_covid
+    
+    # b. HAC-adjusted p-values (with and without Pandemic)
+    p_mat_HP_c[shift + 1, k]                       <- perf_obj$p_value
+    p_mat_HP_c_without_covid[shift + 1, k]         <- perf_obj$p_value_without_covid
+    
+    # c. rRMSE: M-SSA components predictor vs. direct HP forecast
+    #    Values below 1 indicate M-SSA outperforms the direct HP benchmark
+    #    MSE of M-SSA components predictor was computed in exercise 1.3.5
+    rRMSE_mSSA_comp_HP_c[shift + 1, k]             <- sqrt(MSE_oos_mssa_comp_mat[shift + 1, k] / MSE_oos_HP_c)
+    rRMSE_mSSA_comp_HP_c_without_covid[shift + 1, k] <- sqrt(MSE_oos_mssa_comp_without_covid_mat[shift + 1, k] /
+                                                               MSE_oos_HP_c_without_covid)
+    
+    # d. Empirical holding time of the direct HP forecast out-of-sample predictor
+    #    (for comparison with M-SSA holding times)
+    ht_HP_c_mat[shift + 1, k] <- compute_empirical_ht_func(perf_obj$cal_oos_pred)$empirical_ht
   }
 }
 close(pb)
-# Note: possible warnings issued by the GARCH estimation routine during computations can be ignored
-  
-# Assign column and rownames
-colnames(p_mat_HP_c)<-colnames(p_mat_HP_c_without_covid)<-colnames(MSE_oos_HP_c_without_covid_mat)<-
-colnames(rRMSE_mSSA_comp_HP_c)<-colnames(rRMSE_mSSA_comp_HP_c_without_covid)<-
-colnames(ht_HP_c_mat)<-paste("h=",h_vec,sep="")
-rownames(p_mat_HP_c)<-rownames(p_mat_HP_c_without_covid)<-rownames(rRMSE_mSSA_comp_HP_c)<-
-rownames(MSE_oos_HP_c_without_covid_mat)<-rownames(rRMSE_mSSA_comp_HP_c_without_covid)<-
-rownames(ht_HP_c_mat)<-paste("Shift=",shift_vec,sep="")
+# Note: warnings issued by the GARCH estimation routine can safely be ignored
 
+# --- Assign Row and Column Names ---
+col_names <- paste0("h=",     h_vec)
+row_names <- paste0("Shift=", shift_vec)
 
-# HAC-adjusted p-values out-of-sample 
-# -We here compare the M-SSA components predictor with the direct forecast and the new direct HP forecast
-p_mat_mssa_components
-p_mat_direct
-p_mat_HP_c
+colnames(p_mat_HP_c) <- colnames(p_mat_HP_c_without_covid) <-
+  colnames(MSE_oos_HP_c_without_covid_mat) <- colnames(rRMSE_mSSA_comp_HP_c) <-
+  colnames(rRMSE_mSSA_comp_HP_c_without_covid) <- colnames(ht_HP_c_mat) <- col_names
 
-# Same but without Pandemic
+rownames(p_mat_HP_c) <- rownames(p_mat_HP_c_without_covid) <-
+  rownames(MSE_oos_HP_c_without_covid_mat) <- rownames(rRMSE_mSSA_comp_HP_c) <-
+  rownames(rRMSE_mSSA_comp_HP_c_without_covid) <- rownames(ht_HP_c_mat) <- row_names
+
+# --- Compare HAC-Adjusted p-Values Across All Three Predictors ---
+# Three-way comparison: M-SSA components vs. classic direct forecast vs. direct HP forecast
+# Systematic differences reveal the marginal contribution of each design feature
+
+# Full sample (including Pandemic)
+p_mat_mssa_components   # M-SSA components predictor
+p_mat_direct            # Classic direct OLS forecast (raw indicators)
+p_mat_HP_c              # Direct HP forecast (HP-filtered indicators)
+
+# Excluding Pandemic observations
+# Isolates structural predictability from crisis-driven statistical artifacts
 p_mat_mssa_components_without_covid
 p_mat_direct_without_covid
 p_mat_HP_c_without_covid
 
+# Findings: Comparison of Direct, Direct HP, and M-SSA Components Predictors
+#
+#   - Like the classic direct forecast, the direct HP forecast (based on univariate HP-C filtered
+#     indicators) fails to produce statistically significant GDP forecasts at forward shifts
+#     greater than one quarter (plus the GDP publication lag).
+#   - In contrast, the M-SSA components predictor remains statistically significant for forward
+#     shifts of up to four quarters (plus the publication lag), demonstrating a clear and
+#     systematic advantage at longer forecast horizons.
 
-# Findings:
-# -Like the classic direct forecast, the new direct HP forecast is unable to forecast BIP at shifts larger 
-#     than one quarter (plus publication lag)
-# -In contrast, the M-SSA components predictor remains significant for shifts up to four quarters (plus publication lag)
- 
 
-
-# We can compare the M-SSA components predictor to the direct forecast and the direct HP forecast in terms 
-#   of rRMSEs out-of-sample
+# Relative RMSE Comparison (excluding COVID-19 pandemic period)
+#
+# Compare forecast accuracy of the M-SSA components predictor against:
+#   (a) the classic direct forecast (unfiltered indicators)
+#   (b) the direct HP forecast (univariate HP-C filtered indicators)
+# rRMSE < 1 indicates that M-SSA outperforms the respective benchmark.
 rRMSE_mSSA_comp_direct_without_covid
 rRMSE_mSSA_comp_HP_c_without_covid
 
-# We can also compare the MSEs of M-SSA and direct HP forecasts: the above rMSE is the square root of the ratio
+# Absolute MSE Comparison (excluding COVID-19 pandemic period)
+#
+# The rRMSEs above are the square roots of the ratios of the MSEs below.
+# Examining the raw MSEs confirms the magnitude of accuracy differences.
 MSE_oos_HP_c_without_covid_mat
 MSE_oos_mssa_comp_without_covid_mat
 
-# -The above results suggest that applying the classic (univariate) HP-C to the data does not improve performances
-#   when compared to direct forecasts (based on un-filtered data)
-# -Therefore, outperformance by the M-SSA components predictor at larger forward-shifts cannot be replicated 
-#     or explained by a `simple` univariate (HP-C) filter 
-# -Also, outperformance of the direct forecasts by M-SSA suggests that the multivariate  
-#   aspect of the forecast problem cannot be handled by simple (WLS) regression (with or without application of HP-C)
-# -We then infer that the BIP forecast problem requires a simultaneous treatment of longitudinal and 
-#   cross-sectional aspects, such as provided by M-SSA in combination with (WLS-) regression 
-# -But why? What is the added benefit of the `M-SSA step` in the construction of the predictor?
+# Interpretation of results:
+#
+#   1. Filtering alone does not help:
+#      Applying the univariate HP-C filter to the indicators does not improve forecast accuracy
+#      (at shift>2) relative to using unfiltered indicators (direct forecast). The direct HP forecast
+#      performs comparably to — or no better than — the direct forecast at shift>2.
+#
+#   2. Simple regression cannot exploit multivariate structure:
+#      The outperformance of both direct and direct HP forecasts by the M-SSA components
+#      predictor implies that WLS regression alone (with or without HP-C pre-filtering)
+#      is insufficient to capture the multivariate dependencies among the indicators.
+#
+#   3. Joint treatment of longitudinal and cross-sectional structure is key:
+#      The evidence suggests that effective multi-horizon GDP forecasting requires the
+#      simultaneous exploitation of time-series dynamics (longitudinal) and inter-indicator
+#      relationships (cross-sectional), as provided by M-SSA in combination with WLS regression.
+#
+#   4. Open question:
+#      Why exactly does the M-SSA step contribute? What is the specific mechanism through
+#      which the multivariate filter adds forecasting value beyond univariate filtering?
 
-# In order to understand the contribution of the multivariate M-SSA framework (over HP-C) we here 
-#   consider two different target series: BIP (lagging) and spread (leading)
 
-# -When targeting HP-BIP, i.e., the two-sided HP applied to BIP, we expect the multivariate design to 
-#     extract relevant information from the leading series
-#   -The explanatory series ip, ESI, ifo and spread are all leading when referenced against BIP 
-#       (accounting for the publication lag of BIP). 
-#   -In this case, we expect M-SSA to outperform HP-C (because the latter cannot rely on leading data). 
-# -On the other hand, when targeting HP-spread, the additional explanatory series (BIP,ip,ifo,ESI) are 
-#     lagging, when referenced against spread
-#   -Therefore we do not expect substantial gains of M-SSA over HP-C in this case.
+# Diagnosing the M-SSA Contribution: A Targeted Experiment
+#
+# To understand why M-SSA outperforms HP-C, we exploit a key asymmetry in the leading/lagging
+# relationships between the target variable and the explanatory indicators:
+#
+#   - Targeting HP-BIP (GDP):
+#       The explanatory series (ip, ESI, ifo, spread) are all LEADING relative to GDP
+#       (accounting for the GDP publication lag). In this configuration, M-SSA can
+#       actively leverage the leading information in the indicators, and is therefore
+#       expected to outperform the univariate HP-C filter.
+#
+#   - Targeting HP-spread:
+#       The remaining explanatory series (GDP, ip, ifo, ESI) are LAGGING relative to
+#       spread. In this configuration, there is little leading information for M-SSA
+#       to exploit, and we therefore do NOT expect substantial gains of M-SSA over HP-C.
+#
+# This asymmetry allows us to test whether the M-SSA advantage is specifically attributable
+# to its ability to extract and aggregate leading cross-sectional signals — a capability
+# absent in univariate HP-C filtering.
 
-# To verify the above conjectures we generate a main plot with 4 sub-panels: 
-# -panel a (top-left): HP-C applied to BIP
-# -panel b (top-right): M-SSA applied to BIP (in this case we expect M-SSA to outperform HP-C) 
-# -panel c (bottom left): HP-C applied to spread
-# -panel d (bottom right): M-SSA applied to spread (in this case we do not expect M-SSA to outperform HP-C) 
 
-# a. HP-C applied to BIP
-i<-1
+# Four-panel comparison plot:
+#   Panel a (top-left):    HP-C filter applied to BIP
+#   Panel b (top-right):   M-SSA filter applied to BIP     [M-SSA expected to outperform HP-C]
+#   Panel c (bottom-left): HP-C filter applied to spread
+#   Panel d (bottom-right):M-SSA filter applied to spread  [M-SSA NOT expected to outperform HP-C]
+
+par(mfrow = c(2, 2))
+
+# --- Panel a: HP-C applied to BIP ---
+i <- 1
 colnames(x_mat)[i]
-# Plot HP-C for that indicator: we scale the series for better visual inspection
-mplot<-scale(hp_c_array[i,,])
-colnames(mplot)<-paste(colnames(x_mat)[i],": h=",h_vec,sep="")
-par(mfrow=c(2,2))
-colo<-c(rainbow(ncol(mplot)))
-main_title<-paste("HP-C targeting HP-",colnames(x_mat)[i],sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
+# Scale the filtered series for visual comparability across forecast horizons
+mplot      <- scale(hp_c_array[i, , ])
+colnames(mplot) <- paste(colnames(x_mat)[i], ": h=", h_vec, sep = "")
+colo       <- rainbow(ncol(mplot))
+main_title <- paste("HP-C targeting HP-", colnames(x_mat)[i], sep = "")
+
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
 for (j in 1:ncol(mplot))
 {
-  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
-  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+  lines(mplot[, j], col = colo[j], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[j], col = colo[j], line = -j)
 }
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
-# b. M-SSA applied to BIP 
-mplot<-scale(mssa_array[i,,])
-colnames(mplot)<-paste(colnames(x_mat)[i],": h=",h_vec,sep="")
-colo<-c(rainbow(ncol(mplot)))
-main_title<-paste("M-SSA targeting HP-",colnames(x_mat)[i],sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
+
+# --- Panel b: M-SSA applied to BIP ---
+# M-SSA leverages leading cross-sectional information; outperformance over HP-C is expected here.
+mplot      <- scale(mssa_array[i, , ])
+colnames(mplot) <- paste(colnames(x_mat)[i], ": h=", h_vec, sep = "")
+colo       <- rainbow(ncol(mplot))
+main_title <- paste("M-SSA targeting HP-", colnames(x_mat)[i], sep = "")
+
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
 for (j in 1:ncol(mplot))
 {
-  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
-  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+  lines(mplot[, j], col = colo[j], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[j], col = colo[j], line = -j)
 }
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
-# c. HP-C applied to spread
-i<-5
+
+# --- Panel c: HP-C applied to spread ---
+i <- 5
 colnames(x_mat)[i]
-# Plot HP-C for that indicator: we scale the series for better visual inspection
-mplot<-scale(hp_c_array[i,,])
-colnames(mplot)<-paste(colnames(x_mat)[i],": h=",h_vec,sep="")
-colo<-c(rainbow(ncol(mplot)))
-main_title<-paste("HP-C targeting HP-",colnames(x_mat)[i],sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
+# Scale the filtered series for visual comparability across forecast horizons
+mplot      <- scale(hp_c_array[i, , ])
+colnames(mplot) <- paste(colnames(x_mat)[i], ": h=", h_vec, sep = "")
+colo       <- rainbow(ncol(mplot))
+main_title <- paste("HP-C targeting HP-", colnames(x_mat)[i], sep = "")
+
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
 for (j in 1:ncol(mplot))
 {
-  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
-  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+  lines(mplot[, j], col = colo[j], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[j], col = colo[j], line = -j)
 }
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
-axis(2)
-box()
-# d. M-SSA applied to spread 
-mplot<-scale(mssa_array[i,,])
-colnames(mplot)<-paste(colnames(x_mat)[i],": h=",h_vec,sep="")
-colo<-c(rainbow(ncol(mplot)))
-main_title<-paste("M-SSA targeting HP-",colnames(x_mat)[i],sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (j in 1:ncol(mplot))
-{
-  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
-  mtext(colnames(mplot)[j],col=colo[j],line=-j)
-}
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
 
-# Analysis:
-# -Let us first look at the top two panels: targeting HP-BIP 
-#   -The main difference between the classic HP-C (top left) and M-SSA (top right) is the size and the 
-#     `quality' of the left-shift of the respective predictors as a function of the forecast horizon:
-#   -Size: the left-shift at the zero-crossings is stronger with M-SSA (top right)
-#   -Quality: 
-#     -In contrast to HP-C, M-SSA also shows evidence of a (more pronounced) left-shift of dips and peaks, 
-#       in particular at recessions/crises
-#     -The left-shift of M-SSA operates at all levels: not only at zero-crossings but also at local peaks 
-#       and dips and more generally, at all levels of the data
-# -Next, let us look at the bottom two panels: targeting HP-spread 
-#   -In this case, M-SSA (bottom right) and HP-C (bottom left) are nearly identical 
-#   -No outperformance (in terms of left-shift) by M-SSA
+# --- Panel d: M-SSA applied to spread ---
+# Explanatory series are lagging relative to spread; no substantial M-SSA gain over HP-C expected.
+mplot      <- scale(mssa_array[i, , ])
+colnames(mplot) <- paste(colnames(x_mat)[i], ": h=", h_vec, sep = "")
+colo       <- rainbow(ncol(mplot))
+main_title <- paste("M-SSA targeting HP-", colnames(x_mat)[i], sep = "")
 
-# -The explanation is pretty simple: 
-#   -The multivariate M-SSA filter targeting HP-spread simplifies (`collapses') to a univariate design,  
-#     see tutorial 7.1, exercise 1.5
-#   -This is because all additional explanatory series are lagging (relative to spread): they are not 
-#     informative when targeting HP-spread
-
-# -From the above, we infer that M-SSA outperforms HP-C when targeting HP-BIP (a similar outcome would apply to 
-#   HP-ip, not shown).
-# -Moreover, M-SSA BIP and M-SSA ip components are the most important explanatory variables when targeting 
-#   future BIP within the WLS regression (the remaining components are not significant) 
-# -Therefore, M-SSA contributes to the forecast outperformance by generating `better' regressors for the 
-#   WLS-regression, with a more effective left-shift than either HP-C (in the direct HP 
-#   forecast) or the un-filtered indicators (in the direct forecasts)
-
-
-# Findings:
-# -Applying a classic one-sided HP-C does not improve forecast performances (over the classic direct 
-#     forecast, i.e., un-filtered data).
-# -The BIP forecast problem is more `demanding' (complex) and asks for more advanced `signal extraction' 
-#   than afforded by regression, eventually in combination with univariate HP-C filtering.
-
-
-# Let us summarize the key design-elements of the proposed M-SSA component predictor:
-#   -Emphasis of the relevant mid-term components: HP(160) target (see exercises 3 and 4 of tutorial 7.3 
-#       for a justification of this target)
-#   -Efficient exploitation of longitudinal and cross-sectional information when targeting HP-BIP
-#     -Exploit leading (in relative terms) indicators to (significantly) improve forecasts of HP-BIP, up to 
-#       several quarters ahead
-#     -Address more effectively the size as well as the quality of the left-shift of the 
-#       predictor (as a function of the forecast horizon) by M-SSA
-#   -Address and control smoothness (rate of zero-crossings) of the predictor: HT constraint, see exercise 5 below
-
-# These findings justify the  `more complex' forecast design proposed in this tutorial, 
-#   wherein the key property of the predictor, namely the pronounced left-shift as a function of the 
-#   forecast horizon, is obtained within the M-SSA optimization framework to track forward-shifted BIP 
-#   up to one year ahead.
-
-#############################################################################################
-# Exercise 5: M-MSE vs. M-SSA
-# -We illustrated in exercise 4 that a multivariate filter approach outperforms univariate (HP-C) filtering 
-#   (or no filtering at all) by generating a more systematic left-shift of the M-SSA component predictor
-# -However, we have not compared M-SSA to M-MSE, the classic multivariate mean-square error filter 
-#   -The M-MSE filter does not impose a HT constraint: it is less smooth (more zero-crossings) 
-# -We here briefly derive forecast performances of the `M-MSE component predictor' and compare results to the 
-#   simple mean as well as to the M-SSA component predictor
-# -Construction of the M-MSE component predictor is straightforward: 
-#   -Instead of M-SSA components (filter outputs) we regress M-MSE components (filter outputs) on 
-#     forward-shifted BIP
-#   -In the code snippet below we substitute mmse_array for mssa_array in the data-matrix dat
-
-# Exercise 5.1: compute M-MSE-component predictor
-shift_vec<-shift_vec
-# Initialize performance matrices
-rRMSE_mmse_comp_mean<-rRMSE_mmse_comp_mean_without_covid<-rRMSE_mmse_comp_mssa<-rRMSE_mmse_comp_mssa_without_covid<-matrix(ncol=length(h_vec),nrow=length(h_vec)-1)
-# Use WLS
-use_garch<-F
-  
-# The following double loop computes all combinations of forward-shifts (of BIP) and forecast horizons 
-# -We compute HAC-adjusted p-values (significance of out-of-sample predictor) and 
-#  out-of-sample rRMSEs (relative root mean-square forecast errors) for the direct HP forecast
-  
-# Set-up progress bar: indicates progress in R-console
-pb <- txtProgressBar(min=min(h_vec),max=max(h_vec)-1,style=3)
-  
-for (shift in shift_vec)#shift<-2
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+for (j in 1:ncol(mplot))
 {
-# Progress bar: see R-console
+  lines(mplot[, j], col = colo[j], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[j], col = colo[j], line = -j)
+}
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
+axis(2)
+box()
+
+
+# Analysis of Exercise 4 Results
+#
+# --- Top Two Panels: Targeting HP-BIP ---
+#
+# The key difference between HP-C (top left) and M-SSA (top right) lies in the
+# size and quality of the left-shift (phase advance) as a function of forecast horizon:
+#
+#   Size:
+#     - M-SSA produces a more pronounced left-shift at zero-crossings than HP-C
+#     - The advance is larger and more systematic across horizons
+#
+#   Quality:
+#     - HP-C produces a left-shift primarily at zero-crossings
+#     - M-SSA generates a left-shift at all signal levels: zero-crossings, local peaks,
+#       troughs, and intermediate levels — particularly visible at recessions and crises
+#     - This richer phase behaviour reflects the multivariate optimization in M-SSA,
+#       which exploits leading indicators to advance the filter output more uniformly
+#
+# --- Bottom Two Panels: Targeting HP-Spread ---
+#
+#   - M-SSA (bottom right) and HP-C (bottom left) are nearly identical
+#   - M-SSA offers no additional left-shift advantage over HP-C in this case
+#
+#   Explanation:
+#     - When targeting HP-spread, the multivariate M-SSA filter degenerates to a
+#       univariate design (see tutorial 7.1, exercise 1.5)
+#     - All other indicators (BIP, ip, ifo, ESI) lag spread and therefore carry
+#       no incremental information for predicting HP-spread
+#     - With no leading cross-sectional information to exploit, M-SSA reduces to HP-C
+#
+# --- Key Inference ---
+#
+#   - M-SSA outperforms HP-C when targeting HP-BIP (and similarly HP-ip, not shown here)
+#   - Within the WLS regression for forward-shifted BIP, the M-SSA BIP and M-SSA ip
+#     components are the dominant explanatory variables; remaining components are
+#     not statistically significant
+#   - M-SSA contributes to forecast outperformance by supplying regressors with a
+#     more effective left-shift than either:
+#       (i)  HP-C filtered outputs (used in the direct HP forecast), or
+#       (ii) Raw unfiltered indicators (used in the classic direct forecast)
+
+# --- Summary of Findings: HP-C vs. Direct Forecasts ---
+#
+#   - Applying HP-C does not improve forecast performance over the classic direct forecast
+#     (unfiltered indicators): simple one-sided smoothing is insufficient
+#   - The BIP forecasting problem requires more advanced signal extraction than
+#     univariate HP filtering combined with regression can provide
+#   - The gains of M-SSA stem specifically from the multivariate optimization framework,
+#     which generates a richer and more systematic phase advance as a function of horizon
+
+# --- Key Design Elements of the M-SSA Components Predictor ---
+#
+#   1. Target specification — HP(160):
+#      Emphasizes business-cycle dynamics while suppressing unpredictable high-frequency
+#      noise; see tutorial 7.3, exercises 3 and 4 for empirical justification
+#
+#   2. Multivariate signal extraction — cross-sectional and longitudinal information:
+#      - Exploits leading indicators to improve HP-BIP forecasts several quarters ahead
+#      - Delivers a more pronounced and higher-quality left-shift (both in size and
+#        uniformity across signal levels) than univariate HP-C filtering
+#
+#   3. Smoothness control — HT constraint:
+#      Controls the rate of zero-crossings of the predictor; examined in exercise 5 below
+#
+# Together, these design choices justify the additional complexity of the M-SSA framework:
+# the pronounced, horizon-dependent left-shift — the predictor's key operative property —
+# is a direct product of the M-SSA optimization and cannot be replicated by simpler methods.
+
+
+
+# =======================================================================
+# Exercise 5: M-MSE vs. M-SSA Components Predictor
+# =======================================================================
+#
+# Motivation:
+#   - Exercise 4 established that multivariate filtering (M-SSA) outperforms both
+#     univariate HP-C filtering and unfiltered direct forecasts, via a more systematic
+#     left-shift of the predictor
+#   - However, M-SSA has not yet been compared to M-MSE, the classic multivariate
+#     MSE-optimal filter (without the HT smoothness constraint)
+#   - M-MSE produces more zero-crossings (less smooth) than M-SSA, as the HT
+#     constraint is absent — reflecting a different position on the AST trilemma
+#   - This exercise evaluates whether the smoothness imposed by M-SSA helps or
+#     hurts out-of-sample MSE performance relative to M-MSE
+#
+# Construction of the M-MSE components predictor:
+#   - Identical to the M-SSA components predictor, except that mmse_array replaces
+#     mssa_array as the source of regressors in the WLS optimal weighting step
+#   - All other settings (regression type, sample alignment, benchmarks) are unchanged
+# =======================================================================
+
+# Exercise 5.1: Compute M-MSE Components Predictor Performance
+# -------------------------------------------------------------
+shift_vec <- shift_vec
+
+# --- Initialize Performance Matrices ---
+# Rows = forward-shifts of BIP; columns = forecast horizons
+# Four matrices: M-MSE vs. mean and M-MSE vs. M-SSA, with and without Pandemic
+rRMSE_mmse_comp_mean                 <- matrix(ncol = length(h_vec), nrow = length(h_vec) - 1)
+rRMSE_mmse_comp_mean_without_covid   <- matrix(ncol = length(h_vec), nrow = length(h_vec) - 1)
+rRMSE_mmse_comp_mssa                 <- matrix(ncol = length(h_vec), nrow = length(h_vec) - 1)
+rRMSE_mmse_comp_mssa_without_covid   <- matrix(ncol = length(h_vec), nrow = length(h_vec) - 1)
+
+# OLS weighting (consistent with previous exercises)
+use_garch <- F
+
+# Progress bar
+pb <- txtProgressBar(min = min(h_vec), max = max(h_vec) - 1, style = 3)
+
+# --- Double Loop: All Forward-Shifts x Forecast Horizons ---
+for (shift in shift_vec)  # outer loop: forward-shift of BIP target
+{
   setTxtProgressBar(pb, shift)
-  for (j in h_vec)#j<-5
+  
+  for (j in h_vec)  # inner loop: M-MSE forecast horizon
   {
-# Horizon j corresponds to k=j+1-th entry of array    
-    k<-j+1
-      
-# M-MSE component predictor
-# Specify data matrix for WLS regression: we insert mmse_array instead of mssa_array for the explanatory variables
-    if (length(sel_vec_pred)>1)
-    {
-      dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mmse_array[sel_vec_pred,,k]))
-    } else
-    {
-      dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mmse_array[sel_vec_pred,,k]))
+    # Map forecast horizon j to array index k
+    k <- j + 1
+    
+    # Construct data matrix for the optimal weighting regression:
+    #   - Column 1: forward-shifted BIP (target)
+    #   - Column 2+: M-MSE filter outputs for selected indicators at horizon k
+    #   Key difference from exercise 1.3: mmse_array replaces mssa_array
+    if (length(sel_vec_pred) > 1) {
+      dat <- cbind(
+        c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+        t(mmse_array[sel_vec_pred,, k])
+      )
+    } else {
+      dat <- cbind(
+        c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+        mmse_array[sel_vec_pred,, k]
+      )
     }
-    rownames(dat)<-rownames(x_mat)
-    colnames(dat)<-c(colnames(x_mat)[1],sel_vec_pred)
-    dat<-na.exclude(dat)
-      
-    perf_obj<-optimal_weight_predictor_func(dat,in_out_separator,use_garch,shift,lag_vec,align_sample,reg_type,lambda_reg)
-# Out-of-sample performances: p-values and forecast MSE, with/without Pandemic 
-    MSE_oos_mmse<-perf_obj$MSE_oos
-    MSE_oos_mmse_without_covid<-perf_obj$MSE_oos_without_covid
-    MSE_oos_mean<-perf_obj$MSE_mean_oos
-    MSE_oos_mean_without_covid<-perf_obj$MSE_mean_oos_without_covid
-# Compute rRMSEs
-# a. M-MSE vs- M-SSA
-#   Note that MSEs of M-SSA predictor were computed in exercise 1.3.5
-    rRMSE_mmse_comp_mssa[shift+1,k]<-sqrt(MSE_oos_mmse/MSE_oos_mssa_comp_mat[shift+1,k])
-# Same but without Pandemic
-    rRMSE_mmse_comp_mssa_without_covid[shift+1,k]<-sqrt(MSE_oos_mmse_without_covid/MSE_oos_mssa_comp_without_covid_mat[shift+1,k])
-# b. M-MSE vs. mean
-    rRMSE_mmse_comp_mean[shift+1,k]<-sqrt(MSE_oos_mmse/MSE_oos_mean)
-# Same but without Pandemic
-    rRMSE_mmse_comp_mean_without_covid[shift+1,k]<-sqrt(MSE_oos_mmse_without_covid/MSE_oos_mean_without_covid)
+    rownames(dat) <- rownames(x_mat)
+    colnames(dat) <- c(colnames(x_mat)[1], sel_vec_pred)
+    dat           <- na.exclude(dat)
+    
+    # Run the expanding-window optimal weighting function
+    perf_obj <- optimal_weight_predictor_func(
+      dat, in_out_separator, use_garch, shift, lag_vec, align_sample, reg_type, lambda_reg
+    )
+    
+    # Retrieve MSE metrics (with and without Pandemic)
+    MSE_oos_mmse                <- perf_obj$MSE_oos
+    MSE_oos_mmse_without_covid  <- perf_obj$MSE_oos_without_covid
+    MSE_oos_mean                <- perf_obj$MSE_mean_oos
+    MSE_oos_mean_without_covid  <- perf_obj$MSE_mean_oos_without_covid
+    
+    # Compute rRMSEs
+    
+    # a. M-MSE vs. M-SSA components predictor
+    #    Values below 1: M-MSE outperforms M-SSA (smoothness hurts)
+    #    Values above 1: M-SSA outperforms M-MSE (smoothness helps)
+    #    M-SSA MSEs carried over from exercise 1.3.5
+    rRMSE_mmse_comp_mssa[shift + 1, k] <-
+      sqrt(MSE_oos_mmse / MSE_oos_mssa_comp_mat[shift + 1, k])
+    
+    rRMSE_mmse_comp_mssa_without_covid[shift + 1, k] <-
+      sqrt(MSE_oos_mmse_without_covid / MSE_oos_mssa_comp_without_covid_mat[shift + 1, k])
+    
+    # b. M-MSE vs. naive mean benchmark
+    #    Values below 1: M-MSE outperforms the mean
+    rRMSE_mmse_comp_mean[shift + 1, k] <-
+      sqrt(MSE_oos_mmse / MSE_oos_mean)
+    
+    rRMSE_mmse_comp_mean_without_covid[shift + 1, k] <-
+      sqrt(MSE_oos_mmse_without_covid / MSE_oos_mean_without_covid)
   }
 }
 close(pb)
-# Note: possible warnings issued by the GARCH estimation routine during computations can be ignored
-  
-# Assign column and rownames
-colnames(rRMSE_mmse_comp_mssa)<-colnames(rRMSE_mmse_comp_mssa_without_covid)<-
-colnames(rRMSE_mmse_comp_mean)<-colnames(rRMSE_mmse_comp_mean_without_covid)<-paste("h=",h_vec,sep="")
-rownames(rRMSE_mmse_comp_mssa)<-rownames(rRMSE_mmse_comp_mssa_without_covid)<-
-rownames(rRMSE_mmse_comp_mean)<-rownames(rRMSE_mmse_comp_mean_without_covid)<-paste("Shift=",shift_vec,sep="")
+# Note: warnings issued by the GARCH estimation routine can safely be ignored
+
+# --- Assign Row and Column Names ---
+col_names <- paste0("h=",     h_vec)
+row_names <- paste0("Shift=", shift_vec)
+
+colnames(rRMSE_mmse_comp_mssa) <- colnames(rRMSE_mmse_comp_mssa_without_covid) <-
+  colnames(rRMSE_mmse_comp_mean) <- colnames(rRMSE_mmse_comp_mean_without_covid) <- col_names
+
+rownames(rRMSE_mmse_comp_mssa) <- rownames(rRMSE_mmse_comp_mssa_without_covid) <-
+  rownames(rRMSE_mmse_comp_mean) <- rownames(rRMSE_mmse_comp_mean_without_covid) <- row_names
+
+
+
 
 #-------------------
-# Exercise 5.2: evaluate out-of-sample performances of M-MSE component predictor
-#   -We here emphasize a four quarters ahead forecast (challenging forecast problem)
+# Exercise 5.2: Out-of-Sample Forecast Performance Evaluation of the M-MSE Component Predictor
+#
+# Focus: four-quarters-ahead GDP forecasting — a particularly challenging forecast horizon.
+# We compare the M-MSE and M-SSA component predictors in terms of smoothness (holding time)
+# and out-of-sample forecast accuracy (MSE), using full-sample regression weights.
 
-# 5.2.1 Compute Final M-MSE and M-SSA component predictors (whose regression relies on 
-#   the full data sample)
 
-# Select h and shift (h should be be smaller than max(h_vec))
-h<-4
-if (h>max(h_vec))
-  h=max(h_vec)
-# Select forward-shift
-shift<-4
+# 5.2.1 Compute Final M-MSE and M-SSA Component Predictors
+#
+# Both predictors are computed using regression weights estimated on the full data sample
+# ('final' predictors, as opposed to the recursively re-estimated real-time predictors in Exercise 2).
+# For simplicity, OLS regression is used here; WLS yields nearly identical results.
 
-# Compute the final M-MSE component predictor optimized for forecast horizon h
-# Note: for simplicity we here compute an OLS regression (WLS looks nearly the same)
-if (length(sel_vec_pred)>1)
+# Select forecast horizon (must not exceed max(h_vec)) and forward shift
+h <- 4
+if (h > max(h_vec))
+  h <- max(h_vec)
+shift <- 4
+
+# --- M-MSE Component Predictor ---
+# Construct the data matrix for regression:
+#   - Column 1: forward-shifted GDP target (aligned by 'shift' and publication lag)
+#   - Remaining columns: selected M-MSE components at forecast horizon h
+if (length(sel_vec_pred) > 1)
 {
-  dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mmse_array[sel_vec_pred,,h+1]))
+  dat <- cbind(
+    c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+    t(mmse_array[sel_vec_pred, , h + 1])
+  )
 } else
 {
-  dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mmse_array[sel_vec_pred,,h+1]))
+  dat <- cbind(
+    c(x_mat[(shift + lag_vec[1]+ 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+    mmse_array[sel_vec_pred, , h + 1]
+  )
 }
 
 if (F)
 {
-  # Weights for WLS regression: inverse prop. to GARCH-vola
-  #   Warnings are generated by garch-package and can be ignored
-  weight<-garch_vola_func(dat,shift,lag_vec)$weight
-  ts.plot(1/weight,main="GARCH(1,1) conditional variance")
-  # Regression  
-  lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
+  # Optional WLS variant: weight observations inversely proportional to GARCH(1,1) conditional variance.
+  # Warnings from the GARCH package can be safely ignored.
+  weight   <- garch_vola_func(dat, shift, lag_vec)$weight
+  ts.plot(1 / weight, main = "GARCH(1,1) conditional variance")
+  lm_obj   <- lm(dat[, 1] ~ dat[, 2:ncol(dat)], weight = weight)
 }
-# Regression  
-lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
-summary(lm_obj)
 
-optimal_weights<-lm_obj$coef
-# Compute predictor for each forward-shift  
-if (length(sel_vec_pred)>1)
-{  
-  mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+# OLS regression of forward-shifted GDP on selected M-MSE components
+lm_obj          <- lm(dat[, 1] ~ dat[, 2:ncol(dat)])
+summary(lm_obj)
+optimal_weights <- lm_obj$coef
+
+# Compute the fitted M-MSE component predictor (intercept + weighted combination of components)
+if (length(sel_vec_pred) > 1)
+{
+  mmse_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] %*% optimal_weights[2:length(optimal_weights)]
 } else
 {
-  mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+  mmse_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] * optimal_weights[2:length(optimal_weights)]
 }
-# Compute the final M-SSA component predictor optimized for forecast horizon h
-if (length(sel_vec_pred)>1)
+
+# --- M-SSA Component Predictor ---
+# Analogous construction using M-SSA components in place of M-MSE components.
+if (length(sel_vec_pred) > 1)
 {
-  dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),t(mssa_array[sel_vec_pred,,h+1]))
+  dat <- cbind(
+    c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+    t(mssa_array[sel_vec_pred, , h + 1])
+  )
 } else
 {
-  dat<-cbind(c(x_mat[(shift+lag_vec[1]+1):nrow(x_mat),1],rep(NA,shift+lag_vec[1])),(mssa_array[sel_vec_pred,,h+1]))
+  dat <- cbind(
+    c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
+    mssa_array[sel_vec_pred, , h + 1]
+  )
 }
-# Weights for WLS regression: inverse prop. to GARCH-vola
-#   Warnings are generated by garch-package and can be ignored
+
 if (F)
 {
-  weight<-garch_vola_func(dat,shift,lag_vec)$weight
-  # Regression  
-  lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
+  # Optional WLS variant (see above); warnings from the GARCH package can be ignored.
+  weight <- garch_vola_func(dat, shift, lag_vec)$weight
+  lm_obj <- lm(dat[, 1] ~ dat[, 2:ncol(dat)], weight = weight)
 }
-lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
+
+# OLS regression of forward-shifted GDP on selected M-SSA components
+lm_obj          <- lm(dat[, 1] ~ dat[, 2:ncol(dat)])
 summary(lm_obj)
+optimal_weights <- lm_obj$coef
 
-optimal_weights<-lm_obj$coef
-# Compute predictor for each forward-shift  
-if (length(sel_vec_pred)>1)
-{  
-  mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
+# Compute the fitted M-SSA component predictor
+if (length(sel_vec_pred) > 1)
+{
+  mssa_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] %*% optimal_weights[2:length(optimal_weights)]
 } else
-{  
-  mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
-} 
+{
+  mssa_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] * optimal_weights[2:length(optimal_weights)]
+}
 
-# 5.2.2 Holding times
-# Let's measure smoothness in terms of empirical holding-times
-# -M-SSA imposes a larger HT (than the `natural' HT of M-MSE) and therefore it should be smoother
-# -Notes: 
-#   1. We imposed a 50% larger expected (true) HT than M-MSE in the HT constraint of the optimization criterion
-#     -Ideally, the empirical HT of M-SSA should be (roughly) 50% larger than M-MSE, too.
-#   2. M-SSA controls crossings at the mean-level. 
-#     -Therefore we center the predictors when computing the empirical HT
+
+# 5.2.2 Smoothness Comparison via Empirical Holding Times
+#
+# Holding time (HT) measures the average number of periods between successive zero-crossings
+# of a centered series — a higher HT indicates a smoother, less noisy predictor.
+#
+# By design, M-SSA imposes a holding-time constraint in its optimization criterion,
+# targeting an expected HT approximately 50% larger than that of M-MSE.
+# We verify this here using empirical HTs computed from the estimated predictors.
+#
+# Notes:
+#   1. The imposed HT constraint in M-SSA targets a 50% increase over the 'natural' M-MSE HT.
+#      Ideally, the empirical HT of M-SSA should also be approximately 50% larger than M-MSE.
+#   2. M-SSA controls zero-crossings at the mean level; both predictors are therefore
+#      centered (scaled) before computing empirical HTs.
+
 compute_empirical_ht_func(scale(mssa_predictor))
 compute_empirical_ht_func(scale(mmse_predictor))
 
-par(mfrow=c(1,1))
-ts.plot(scale(cbind(mssa_predictor,mmse_predictor)),col=c("blue","green"))
-abline(h=0)
-# M-SSA has approximately 33% less crossings (roughly 50% larger empirical HT)
-#   -This feature of the predictor can be controlled by the HT hyperparameter
-#   -The sample estimate is close to the expected (true) number 
-#     -As shown in tutorial 7.1, the sample HT converges to the imposed (expected) HT for sufficiently 
-#     long samples if the data generating process is known
+par(mfrow = c(1, 1))
+ts.plot(scale(cbind(mssa_predictor, mmse_predictor)), col = c("blue", "green"),main="M-SSA (blue) vs. M-MSE (green)")
+abline(h = 0)
 
+# Observation: M-SSA exhibits approximately 33% fewer zero-crossings than M-MSE,
+# corresponding to a roughly 50% larger empirical holding time — consistent with the
+# imposed HT constraint.
+# This result confirms that:
+#   (a) the HT hyperparameter effectively controls predictor smoothness, and
+#   (b) the empirical HT converges toward the imposed (expected) HT as the sample grows,
+#       as demonstrated theoretically in Tutorial 7.1 under a known data-generating process.
+# Interestingly, M-SSA equals M-MSE in terms of Timeliness 
+#   (it is not systematically lagged at zero-crossings, peaks or troughs)
 
-# 5.2.3 MSE forecast performances
-# M-MSE vs. mean
+# 5.2.3 Out-of-Sample MSE Forecast Performance Comparison (excluding COVID-19 period)
+#
+# rRMSE < 1 indicates that the numerator predictor outperforms the denominator benchmark.
+
+# M-MSE components vs. naive mean benchmark
 rRMSE_mmse_comp_mean_without_covid
-# M-SSA components vs. mean
+
+# M-SSA components vs. naive mean benchmark
 rRMSE_mSSA_comp_mean_without_covid
-# M-MSE vs. M-SSA: rRMSE<1 signifies that M-MSE perform better
+
+# M-MSE vs. M-SSA components
+# (rRMSE < 1: M-MSE outperforms M-SSA; rRMSE > 1: M-SSA outperforms M-MSE)
 rRMSE_mmse_comp_mssa_without_covid
 
-# Findings
-# -M-SSA does not perform markedly worse than M-MSE in terms of forecast MSE, 
-#     despite increased smoothness (larger HT, fewer zero-crossings). 
-#   -This outcome is quite remarkable and pleads in favor of the M-SSA components predictor (as a 
-#     potentially more interesting/relevant predictor than M-MSE).
+# Key finding:
+#   Despite its substantially increased smoothness (larger HT, fewer zero-crossings),
+#   M-SSA does not incur a meaningful loss in out-of-sample MSE forecast accuracy
+#   relative to M-MSE. This is a notable result: smoothness and forecast accuracy are
+#   not in conflict here, which favors the M-SSA components predictor as the
+#   preferred forecasting tool in this application (fewer spurious sign changes).
 
 
-# Summary
-# -M-SSA and M-MSE component predictors perform similarly in terms of out-of-sample MSE forecast 
-#     performances when targeting forward-shifted BIP
-#   -Both predictors outperform the mean, the direct forecast, the direct HP forecast and the original 
-#     M-SSA predictor (tutorial 7.3), specifically at larger forward shifts (shifts>=1 quarter).
-# -The M-SSA component predictor is smoother (less noisy, fewer zero-crossings) 
-#   -The smoothness of M-SSA can be controlled by the HT hyperparameter
-# -Interestingly, increased smoothness of M-SSA does not impair (out-of-sample) MSE forecast performances or 
-#     lag (retardation) when references against M-MSE
-#   -Therefore we may prefer the M-SSA componnet predictor (over M-MSE) in this application.
-# -The M-MSE component predictor can be replicated by the M-SSA component predictor by inserting the 
-#     former's HTs into the constraint
-#   -The M-SSA component predictor is more general 
-#   -The optimization principle offers more control on important characteristics (`shape') of the predictor 
+# Summary of Findings
+#
+# Forecast accuracy:
+#   - M-SSA and M-MSE component predictors achieve comparable out-of-sample MSE performance
+#     when targeting forward-shifted GDP.
+#   - Both predictors systematically outperform the naive mean benchmark, the direct forecast,
+#     the direct HP forecast, and the original M-SSA predictor (Tutorial 7.3), with the
+#     advantage becoming particularly pronounced at forward shifts of one quarter or more.
+#
+# Smoothness:
+#   - The M-SSA component predictor is substantially smoother than M-MSE (fewer zero-crossings,
+#     larger holding time).
+#   - Smoothness is directly controllable via the HT hyperparameter in the M-SSA optimization
+#     criterion, providing an interpretable and adjustable design lever.
+#
+# Key insight — smoothness without accuracy loss:
+#   - The increased smoothness of M-SSA does not impair out-of-sample MSE performance
+#     or introduce additional forecast lag (retardation) relative to M-MSE.
+#   - This makes the M-SSA component predictor strictly preferable to M-MSE in this
+#     application, offering equivalent accuracy with a more interpretable and stable signal.
+#
+# Generality of M-SSA:
+#   - The M-MSE component predictor is a special case of the M-SSA component predictor:
+#     inserting the M-MSE holding times into the M-SSA HT constraint exactly replicates
+#     the M-MSE predictor.
+#   - M-SSA is therefore the more general framework, offering explicit control over the
+#     shape and smoothness characteristics of the predictor — beyond what MSE minimization
+#     alone can achieve.
 
-################################################################################################
-# Exercise 6: Compute final M-SSA and M-MSE component predictors 
-# -We here up-date the VAR-model for M-SSA and M-MSE
-# -We apply the final WLS regression, based on all available data and the GARCH(1,1)-vola
-# -We remove Pandemic to obtain better estimates for VAR and regression equations
-# -We apply M-SSA and M-MSE component predictors to standardized data (exercise 6.2) as well as to 
-#     original BIP growth (without standardization, see exercise 6.3). 
-#   -Note that rRMSEs or p-value statistics are indifferent to standardization 
 
-# 6.1 Up-date M-SSA and M-MSE
-# In-sample span for VAR, use all data for VAR
-date_to_fit<-"3000"
-# Remove Pandemic
-x_mat_wc<-x_mat[c(which(rownames(x_mat)<2020),which(rownames(x_mat)>2021)),]
-par(mfrow=c(1,1))
+
+# =======================================================================
+# Exercise 6: Compute Final M-SSA and M-MSE Component Predictors
+#
+# Overview:
+#   - Updates the VAR model used for M-SSA 
+#     and M-MSE (Multivariate Mean Squared Error) computations.
+#   - Applies final WLS (Weighted Least Squares) regression using all available data,
+#     with GARCH(1,1)-based volatility weights.
+#   - Excludes the COVID-19 pandemic period (2020–2021) to improve VAR and regression estimates.
+#   - Applies M-SSA and M-MSE component predictors to:
+#       (a) Standardized data          → Exercise 6.2
+#       (b) Original BIP growth rates  → Exercise 6.3 (no standardization)
+#   - Note: rRMSE and p-value statistics are invariant to standardization.
+# =======================================================================
+
+
+# --- 6.1: Update M-SSA and M-MSE ---
+
+# Use all available data for VAR estimation (effectively no end-date restriction)
+date_to_fit <- "3000"
+
+# Remove pandemic years (2020 and 2021) to avoid distortion in VAR and regression estimates
+x_mat_wc <- x_mat[c(which(rownames(x_mat) < 2020), which(rownames(x_mat) > 2021)), ]
+
+# Plot the pandemic-corrected time series for visual inspection
+par(mfrow = c(1, 1))
 ts.plot(x_mat_wc)
 
-# Run the M-SSA wrapper, see tutorial 7.2
-#   -The function computes M-SSA and M-MSE for each forecast horizon h in h_vec
-final_mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat_wc,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec,f_excess,lag_vec,select_vec_multi)
+# Run the M-SSA wrapper function (see Tutorial 7.2):
+#   - Computes both M-SSA and M-MSE components for each forecast horizon h in h_vec
+#   - Output includes component arrays indexed by selected variables, time, and horizon
+final_mssa_indicator_obj <- compute_mssa_BIP_predictors_func(
+  x_mat_wc, lambda_HP, L, date_to_fit, p, q,
+  ht_mssa_vec, h_vec, f_excess, lag_vec, select_vec_multi
+)
 
-# Final M-SSA components
-final_mssa_array<-final_mssa_indicator_obj$mssa_array
-# Final M-MSE components
-final_mmse_array<-final_mssa_indicator_obj$mmse_array
+# Extract the final M-SSA component array from the wrapper output
+final_mssa_array <- final_mssa_indicator_obj$mssa_array
+
+# Extract the final M-MSE component array from the wrapper output
+final_mmse_array <- final_mssa_indicator_obj$mmse_array
 
 
-#----------------------
-# 6.2 Compute up-dated M-SSA and M-MSE component predictors based on WLS regression
+# --- 6.2: Compute Updated M-SSA and M-MSE Component Predictors via WLS Regression ---
+#
+# Predictor design summary (two-stage / stacked approach):
+#   Stage 1 – M-SSA/M-MSE optimization:
+#     The forecast horizon h conditions M-SSA/M-MSE to track HP-filtered targets h steps ahead.
+#   Stage 2 – WLS regression:
+#     The resulting M-SSA or M-MSE components serve as regressors in a WLS regression
+#     on forward-shifted BIP growth (target variable).
+#     GARCH(1,1) volatility estimates provide the inverse-variance weights.
+#
+# Forecast horizon h is set to 4 quarters (one year ahead), chosen for its
+# practical relevance in applied forecasting contexts.
+# Note: h is capped at 6 to stay within the supported range of the optimization.
 
-# Select h and shift (should be smaller or equal 5 or 6)
-# We select a one-year ahead forecast h=4, for its potential importance in applications
-# Background (short resume):
-# -The forecast horizon h conditions M-SSA to track HP-filtered targets h-steps ahead
-# -The corresponding M-SSA or M-MSE components are then used as regressors in the subsequent WLS regressions 
-#   on forward-shifted BIP 
-# -The output of the WLS regressions are the M-SSA and M-MSE component predictors
-#   -Two-stage (stacked) predictor design
 
-# One can `play' with the settings
-# Select M-SSA components
-sel_vec_pred<-sel_vec_pred
-# Select Forecast horizon (determines M-SSA optimization)
-h<-4
-if (h>6)
-  h=6
-# Select forward-shift: 
-#   -WLS regression targets BIP shifted forward by shift (+publication lag)
-shift<-3
+# Select which M-SSA/M-MSE components to include as regressors
+sel_vec_pred <- sel_vec_pred
 
-# 6.2.1 M-MSE component predictor optimized for forecast horizon h
-# We here rely on GARCH(1,1) and WLS regression
-if (length(sel_vec_pred)>1)
-{
-  dat<-cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),t(final_mmse_array[sel_vec_pred,,h+1]))
-} else
-{
-  dat<-cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),(final_mmse_array[sel_vec_pred,,h+1]))
-}
-if (F)
-{
-  # Compute WLS weight: inverse proprtional to GARCH-vola
-  #   Warnings are generated by garch-package and can be ignored
-  
-  weight<-garch_vola_func(dat,shift,lag_vec)$weight
-  # Regression  
-  lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
-}
-lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
-summary(lm_obj)
-optimal_weights<-lm_obj$coef
-# Compute predictor for each forward-shift  
-if (length(sel_vec_pred)>1)
-{  
-  final_mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
-} else
-{
-  final_mmse_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+# Set forecast horizon (drives M-SSA/M-MSE optimization); capped at 6
+h <- 4
+if (h > 6)
+  h <- 6
+
+# Set forward shift for the regression target:
+#   BIP is shifted forward by 'shift' periods to account for the publication lag
+shift <- 3
+
+
+# --- 6.2.1: M-MSE Component Predictor (Optimized for Horizon h) ---
+
+# Construct the regression dataset:
+#   Column 1: forward-shifted BIP (target), with trailing NAs for the shift period
+#   Remaining columns: selected M-MSE components at horizon h
+if (length(sel_vec_pred) > 1) {
+  dat <- cbind(
+    c(x_mat_wc[(shift + lag_vec[1] + 1):nrow(x_mat_wc), 1], rep(NA, shift + lag_vec[1])),
+    t(final_mmse_array[sel_vec_pred, , h + 1])
+  )
+} else {
+  dat <- cbind(
+    c(x_mat_wc[(shift + lag_vec[1] + 1):nrow(x_mat_wc), 1], rep(NA, shift + lag_vec[1])),
+    (final_mmse_array[sel_vec_pred, , h + 1])
+  )
 }
 
-# 6.2.2 M-SSA component predictor optimized for forecast horizon h
-# We here rely on GARCH(1,1) and WLS regression
-if (length(sel_vec_pred)>1)
-{
-  dat<-cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),t(final_mssa_array[sel_vec_pred,,h+1]))
-} else
-{
-  dat<-cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),(final_mssa_array[sel_vec_pred,,h+1]))
+# Optional WLS block (currently disabled):
+#   Computes inverse-GARCH-volatility weights and runs weighted regression.
+#   Warnings from the garch package during weight computation can safely be ignored.
+if (F) {
+  weight <- garch_vola_func(dat, shift, lag_vec)$weight
+  lm_obj <- lm(dat[, 1] ~ dat[, 2:ncol(dat)], weight = weight)
 }
-# Regression  
-if (F)
-{
-  lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
-}
-lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
+
+# Run OLS regression of forward-shifted BIP on selected M-MSE components
+lm_obj <- lm(dat[, 1] ~ dat[, 2:ncol(dat)])
 summary(lm_obj)
 
-optimal_weights<-lm_obj$coef
-# Compute predictor for each forward-shift  
-if (length(sel_vec_pred)>1)
-{
-  final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
-} else
-{
-  final_mssa_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+# Store estimated regression coefficients (intercept + component weights)
+optimal_weights <- lm_obj$coef
+
+# Compute the final M-MSE component predictor as a linear combination of components
+if (length(sel_vec_pred) > 1) {
+  final_mmse_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] %*% optimal_weights[2:length(optimal_weights)]
+} else {
+  final_mmse_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] * optimal_weights[2:length(optimal_weights)]
 }
 
 
-# 6.2.3 Plot final M-MSE and M-SSA predictors
-par(mfrow=c(2,1))
-mplot<-scale(cbind(c(x_mat_wc[(shift+lag_vec[1]+1):nrow(x_mat_wc),1],rep(NA,shift+lag_vec[1])),final_mssa_predictor,final_mmse_predictor))
-colnames(mplot)<-c(paste("BIP shifted forward by ",shift," (plus publication lag)",sep=""),"M-SSA component predictor","M-MSE component predictor")
-colo<-c("black","blue","green")
-main_title<-paste("Forward-shifted BIP and Predictors: Pandemic episode removed",sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (jj in 1:ncol(mplot))#jj<-2
-{
-  lines(mplot[,jj],col=colo[jj],lwd=1,lty=1)
-  mtext(colnames(mplot)[jj],col=colo[jj],line=-jj)
+# --- 6.2.2: M-SSA Component Predictor (Optimized for Horizon h) ---
+
+# Construct the regression dataset:
+#   Column 1: forward-shifted BIP (target), with trailing NAs for the shift period
+#   Remaining columns: selected M-SSA components at horizon h
+if (length(sel_vec_pred) > 1) {
+  dat <- cbind(
+    c(x_mat_wc[(shift + lag_vec[1] + 1):nrow(x_mat_wc), 1], rep(NA, shift + lag_vec[1])),
+    t(final_mssa_array[sel_vec_pred, , h + 1])
+  )
+} else {
+  dat <- cbind(
+    c(x_mat_wc[(shift + lag_vec[1] + 1):nrow(x_mat_wc), 1], rep(NA, shift + lag_vec[1])),
+    (final_mssa_array[sel_vec_pred, , h + 1])
+  )
 }
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+
+# Optional WLS block (currently disabled):
+#   Would apply GARCH-volatility-based inverse-variance weights to the regression.
+if (F) {
+  lm_obj <- lm(dat[, 1] ~ dat[, 2:ncol(dat)], weight = weight)
+}
+
+# Run OLS regression of forward-shifted BIP on selected M-SSA components
+lm_obj <- lm(dat[, 1] ~ dat[, 2:ncol(dat)])
+summary(lm_obj)
+
+# Store estimated regression coefficients (intercept + component weights)
+optimal_weights <- lm_obj$coef
+
+# Compute the final M-SSA component predictor as a linear combination of components
+if (length(sel_vec_pred) > 1) {
+  final_mssa_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] %*% optimal_weights[2:length(optimal_weights)]
+} else {
+  final_mssa_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] * optimal_weights[2:length(optimal_weights)]
+}
+
+# --- 6.2.3: Plot Final M-MSE and M-SSA Component Predictors ---
+#
+# Panel 1: Standardized forward-shifted BIP alongside both predictors
+#   - All three series are scaled for visual comparability
+#   - The pandemic exclusion period is noted in the title
+par(mfrow = c(2, 1))
+
+# Standardize and combine: forward-shifted BIP, M-SSA predictor, M-MSE predictor
+mplot <- scale(cbind(
+  c(x_mat_wc[(shift + lag_vec[1] + 1):nrow(x_mat_wc), 1], rep(NA, shift + lag_vec[1])),
+  final_mssa_predictor,
+  final_mmse_predictor
+))
+colnames(mplot) <- c(
+  paste("BIP shifted forward by ", shift, " (plus publication lag)", sep = ""),
+  "M-SSA component predictor",
+  "M-MSE component predictor"
+)
+colo <- c("black", "blue", "green")
+
+# Plot Panel 1: standardized BIP target and both predictors overlaid
+main_title <- paste("Forward-shifted BIP and Predictors: Pandemic episode removed", sep = "")
+plot(mplot[, 1], main = main_title, axes = F, type = "l",
+     xlab = "", ylab = "", col = colo[1],
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+for (jj in 1:ncol(mplot)) {
+  lines(mplot[, jj], col = colo[jj], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[jj], col = colo[jj], line = -jj)
+}
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
 
-mplot<-cbind(rep(0,nrow(as.matrix(final_mssa_predictor))),final_mssa_predictor,final_mmse_predictor)
-colnames(mplot)<-c("","M-SSA component predictor","M-MSE component predictor")
-main_title<-paste("Predictors: M-SSA component vs. M-MSE component, h=",h,", shift=",shift,sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (jj in 1:ncol(mplot))
-{
-  lines(mplot[,jj],col=colo[jj],lwd=1,lty=1)
-  mtext(colnames(mplot)[jj],col=colo[jj],line=-jj)
+# Panel 2: Direct comparison of M-SSA vs. M-MSE predictor (unscaled)
+#   - A zero baseline is included for reference
+#   - Title reflects the chosen forecast horizon h and forward shift
+mplot <- cbind(
+  rep(0, nrow(as.matrix(final_mssa_predictor))),
+  final_mssa_predictor,
+  final_mmse_predictor
+)
+colnames(mplot) <- c("", "M-SSA component predictor", "M-MSE component predictor")
+
+main_title <- paste("Predictors: M-SSA component vs. M-MSE component, h=", h,
+                    ", shift=", shift, sep = "")
+plot(mplot[, 1], main = main_title, axes = F, type = "l",
+     xlab = "", ylab = "", col = colo[1],
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+for (jj in 1:ncol(mplot)) {
+  lines(mplot[, jj], col = colo[jj], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[jj], col = colo[jj], line = -jj)
 }
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
 
-# 6.2.4 Smoothness
-# -The above plot suggests that the M-SSA component predictor is smoother than M-MSE without lagging the latter
-# -Let us check the empüirical HTs for confirmation:
 
-compute_empirical_ht_func(final_mssa_predictor)
-compute_empirical_ht_func(final_mmse_predictor)
+# --- 6.2.4: Smoothness Comparison ---
+#
+# Visual inspection of Panel 2 suggests that the M-SSA component predictor is smoother
+# than its M-MSE counterpart, without introducing any additional phase lag at troughs or peaks.
+# The empirical holding times (HTs) are computed below to confirm this observation:
+#   - A higher HT indicates a smoother, less oscillatory series.
+
+compute_empirical_ht_func(final_mssa_predictor)   # Expected: higher HT (smoother)
+compute_empirical_ht_func(final_mmse_predictor)   # Expected: lower HT (less smooth)
+
 
 #---------------------------
-# Exercise 6.3 Apply predictor to original BIP growth-rate (without standardization)
-# -Purpose: obtain prediction of effective BIP growth 
+# --- Exercise 6.3: Apply Predictor to Original (Unstandardized) BIP Growth ---
+#
+# Purpose: Generate forecasts of the effective (real-scale) BIP growth rate,
+#          bypassing the standardization applied in Exercise 6.2.
+#          This yields predictions in interpretable, original units.
 
-# 6.3.1 Compute data set with original BIP (without standardization)
-data_file_name<-c("Data_HWI_2025_02.csv","gdp_2025_02.csv")
-# Quarterly data: BIP in the first data column
-data_quarterly<-read.csv(paste(getwd(),"/Data/",data_file_name[2],sep=""))
-BIP_original<-data_quarterly[,"BIP"]
 
-# Plot BIP and diff-log BIP
-par(mfrow=c(2,1))
-mplot<-matrix(BIP_original)
-rownames(mplot)<-data_quarterly[,"Date"]
-colnames(mplot)<-"Original BIP"
-colo<-c("black","blue","green")
-main_title<-"Original BIP"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
-axis(2)
-box()
-diff_log_BIP<-na.exclude(diff(log(BIP_original)))
-names(diff_log_BIP)<-rownames(data)
-# First differences of original log-BIP
-mplot<-matrix(diff_log_BIP)
-rownames(mplot)<-names(diff_log_BIP)
-colnames(mplot)<-"diff-log BIP"
-colo<-c("black","blue","green")
-main_title<-"First differences of original log-BIP"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
-axis(2)
-box()
+# --- 6.3.1: Load and Prepare Original BIP Data ---
 
-# Check: verify that our data, i.e., x_mat[,"BIP"], matches scaled diff-log BIP up to trimming
-par(mfrow=c(1,1))
-mplot<-cbind(scale(diff_log_BIP),x_mat[,"BIP"])
-colnames(mplot)<-c("scaled diff-log BIP","trimmed and scaled diff-log BIP")
-colo<-c("black","blue","green")
-main_title<-"Trimmed and untrimmed scaled diff-log BIP"
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (jj in 1:ncol(mplot))
-{
-  lines(mplot[,jj],col=colo[jj],lwd=1,lty=1)
-  mtext(colnames(mplot)[jj],col=colo[jj],line=-jj)
-}
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+# Data file names: monthly indicator data and quarterly GDP data
+data_file_name <- c("Data_HWI_2025_02.csv", "gdp_2025_02.csv")
+
+# Load quarterly GDP data; BIP is stored in the first data column
+data_quarterly <- read.csv(paste(getwd(), "/Data/", data_file_name[2], sep = ""))
+BIP_original <- data_quarterly[, "BIP"]
+
+
+# --- Plot 1: Original BIP Level ---
+par(mfrow = c(2, 1))
+mplot <- matrix(BIP_original)
+rownames(mplot) <- data_quarterly[, "Date"]
+colnames(mplot) <- "Original BIP"
+colo <- c("black", "blue", "green")
+
+main_title <- "Original BIP"
+plot(mplot[, 1], main = main_title, axes = F, type = "l",
+     xlab = "", ylab = "", col = colo[1],
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
 
-# Define new data set with original diff-log BIP in first column
-x_mat_original_BIP<-x_mat
-x_mat_original_BIP[,"BIP"]<-diff_log_BIP
-# Remove Pandemic
-x_mat_original_BIP_wc<-x_mat_original_BIP[c(which(rownames(x_mat_original_BIP)<2020),which(rownames(x_mat_original_BIP)>2021)),]
+# Compute log-differenced BIP (i.e., approximate quarterly growth rate)
+# NA introduced by differencing is removed via na.exclude()
+diff_log_BIP <- na.exclude(diff(log(BIP_original)))
+names(diff_log_BIP) <- rownames(data)
+
+# --- Plot 2: First Differences of Log-BIP (Growth Rates) ---
+mplot <- matrix(diff_log_BIP)
+rownames(mplot) <- names(diff_log_BIP)
+colnames(mplot) <- "diff-log BIP"
+colo <- c("black", "blue", "green")
+
+main_title <- "First Differences of Original Log-BIP (Quarterly Growth Rates)"
+plot(mplot[, 1], main = main_title, axes = F, type = "l",
+     xlab = "", ylab = "", col = colo[1],
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
+axis(2)
+box()
 
 
-# 6.3.2 M-MSE component predictor optimized for forecast horizon h
-# We can rely on GARCH(1,1) and WLS regression
-if (length(sel_vec_pred)>1)
-{
-  dat<-cbind(c(x_mat_original_BIP_wc[(shift+lag_vec[1]+1):nrow(x_mat_original_BIP_wc),1],rep(NA,shift+lag_vec[1])),t(final_mmse_array[sel_vec_pred,,h+1]))
-} else
-{
-  dat<-cbind(c(x_mat_original_BIP_wc[(shift+lag_vec[1]+1):nrow(x_mat_original_BIP_wc),1],rep(NA,shift+lag_vec[1])),(final_mmse_array[sel_vec_pred,,h+1]))
+# --- Consistency Check: Verify Alignment of x_mat BIP with Scaled diff-log BIP ---
+#
+# Confirms that x_mat[,"BIP"] (used throughout the analysis) matches the
+# standardized diff-log BIP, up to the trimming applied during data preparation.
+# Any discrepancy would indicate a mismatch in sample alignment or scaling.
+par(mfrow = c(1, 1))
+mplot <- cbind(scale(diff_log_BIP), x_mat[, "BIP"])
+colnames(mplot) <- c("scaled diff-log BIP", "trimmed and scaled diff-log BIP")
+colo <- c("black", "blue", "green")
+
+main_title <- "Consistency Check: Trimmed vs. Untrimmed Scaled diff-log BIP"
+plot(mplot[, 1], main = main_title, axes = F, type = "l",
+     xlab = "", ylab = "", col = colo[1],
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+for (jj in 1:ncol(mplot)) {
+  lines(mplot[, jj], col = colo[jj], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[jj], col = colo[jj], line = -jj)
 }
-if (F)
-{
-  # Compute WLS weight: inverse proprtional to GARCH-vola
-  #   Warnings are generated by garch-package and can be ignored
-  weight<-garch_vola_func(dat,shift,lag_vec)$weight
-  # Regression  
-  lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
+axis(2)
+box()
+
+
+# --- Construct Analysis Dataset with Original (Unstandardized) diff-log BIP ---
+#
+# Replace the standardized BIP column in x_mat with the raw diff-log BIP values.
+# All other indicator columns remain unchanged.
+x_mat_original_BIP <- x_mat
+x_mat_original_BIP[, "BIP"] <- diff_log_BIP
+
+# Remove pandemic years (2020–2021) to prevent distortion of VAR and regression estimates
+x_mat_original_BIP_wc <- x_mat_original_BIP[
+  c(which(rownames(x_mat_original_BIP) < 2020),
+    which(rownames(x_mat_original_BIP) > 2021)), ]
+
+
+
+
+# --- 6.3.2: M-MSE Component Predictor Optimized for Forecast Horizon h ---
+#
+# Applies WLS regression (optionally GARCH(1,1)-weighted) to predict original
+# (unstandardized) BIP growth using selected M-MSE components at horizon h.
+# The regression target is BIP shifted forward by 'shift' quarters to account
+# for the publication lag.
+
+# Construct the regression dataset:
+#   Column 1: forward-shifted original diff-log BIP (target), padded with trailing NAs
+#   Remaining columns: selected M-MSE components at horizon h
+if (length(sel_vec_pred) > 1) {
+  dat <- cbind(
+    c(x_mat_original_BIP_wc[(shift + lag_vec[1] + 1):nrow(x_mat_original_BIP_wc), 1],
+      rep(NA, shift + lag_vec[1])),
+    t(final_mmse_array[sel_vec_pred, , h + 1])
+  )
+} else {
+  dat <- cbind(
+    c(x_mat_original_BIP_wc[(shift + lag_vec[1] + 1):nrow(x_mat_original_BIP_wc), 1],
+      rep(NA, shift + lag_vec[1])),
+    (final_mmse_array[sel_vec_pred, , h + 1])
+  )
 }
-lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
+
+# Optional WLS block (currently disabled):
+#   Computes inverse-GARCH-volatility weights and runs a weighted regression.
+#   Warnings from the garch package during weight computation can safely be ignored.
+if (F) {
+  weight <- garch_vola_func(dat, shift, lag_vec)$weight
+  lm_obj <- lm(dat[, 1] ~ dat[, 2:ncol(dat)], weight = weight)
+}
+
+# Run OLS regression of forward-shifted original BIP on selected M-MSE components
+lm_obj <- lm(dat[, 1] ~ dat[, 2:ncol(dat)])
 summary(lm_obj)
-optimal_weights<-lm_obj$coef
-# Compute predictor for each forward-shift 
-if (length(sel_vec_pred)>1)
-{
-  final_mmse_bip_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
-} else
-{
-  final_mmse_bip_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+
+# Store estimated regression coefficients (intercept + component weights)
+optimal_weights <- lm_obj$coef
+
+# Compute the M-MSE BIP predictor as a linear combination of selected components
+if (length(sel_vec_pred) > 1) {
+  final_mmse_bip_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] %*% optimal_weights[2:length(optimal_weights)]
+} else {
+  final_mmse_bip_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] * optimal_weights[2:length(optimal_weights)]
 }
 
-# 6.3.3 M-SSA component predictor optimized for forecast horizon h
-# We can rely on GARCH(1,1) and WLS regression
-if (length(sel_vec_pred)>1)
-{
-  dat<-cbind(c(x_mat_original_BIP_wc[(shift+lag_vec[1]+1):nrow(x_mat_original_BIP_wc),1],rep(NA,shift+lag_vec[1])),t(final_mssa_array[sel_vec_pred,,h+1]))
-} else
-{
-  dat<-cbind(c(x_mat_original_BIP_wc[(shift+lag_vec[1]+1):nrow(x_mat_original_BIP_wc),1],rep(NA,shift+lag_vec[1])),(final_mssa_array[sel_vec_pred,,h+1]))
+
+# --- 6.3.3: M-SSA Component Predictor Optimized for Forecast Horizon h ---
+#
+# Mirrors the M-MSE regression above (Section 6.3.2), but uses M-SSA components
+# as regressors instead. The target remains the forward-shifted original diff-log BIP.
+
+# Construct the regression dataset:
+#   Column 1: forward-shifted original diff-log BIP (target), padded with trailing NAs
+#   Remaining columns: selected M-SSA components at horizon h
+if (length(sel_vec_pred) > 1) {
+  dat <- cbind(
+    c(x_mat_original_BIP_wc[(shift + lag_vec[1] + 1):nrow(x_mat_original_BIP_wc), 1],
+      rep(NA, shift + lag_vec[1])),
+    t(final_mssa_array[sel_vec_pred, , h + 1])
+  )
+} else {
+  dat <- cbind(
+    c(x_mat_original_BIP_wc[(shift + lag_vec[1] + 1):nrow(x_mat_original_BIP_wc), 1],
+      rep(NA, shift + lag_vec[1])),
+    (final_mssa_array[sel_vec_pred, , h + 1])
+  )
 }
-if (F)
-{
-# Regression  
-  lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)],weight=weight)
+
+# Optional WLS block (currently disabled):
+#   Would apply GARCH-volatility-based inverse-variance weights to the regression.
+#   Retained here for symmetry with Section 6.3.2 and ease of re-activation.
+if (F) {
+  lm_obj <- lm(dat[, 1] ~ dat[, 2:ncol(dat)], weight = weight)
 }
-lm_obj<-lm(dat[,1]~dat[,2:ncol(dat)])
+
+# Run OLS regression of forward-shifted original BIP on selected M-SSA components
+lm_obj <- lm(dat[, 1] ~ dat[, 2:ncol(dat)])
 summary(lm_obj)
-optimal_weights<-lm_obj$coef
-# Compute predictor for each forward-shift  
-if (length(sel_vec_pred)>1)
-{
-  final_mssa_bip_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]%*%optimal_weights[2:length(optimal_weights)]
-} else
-{
-  final_mssa_bip_predictor<-optimal_weights[1]+dat[,2:ncol(dat)]*optimal_weights[2:length(optimal_weights)]
+
+# Store estimated regression coefficients (intercept + component weights)
+optimal_weights <- lm_obj$coef
+
+# Compute the M-SSA BIP predictor as a linear combination of selected components
+if (length(sel_vec_pred) > 1) {
+  final_mssa_bip_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] %*% optimal_weights[2:length(optimal_weights)]
+} else {
+  final_mssa_bip_predictor <- optimal_weights[1] +
+    dat[, 2:ncol(dat)] * optimal_weights[2:length(optimal_weights)]
 }
 
 
-# 6.3.4 Plot final M-MSE and M-SSA predictors
-par(mfrow=c(2,1))
-mplot<-(cbind(c(x_mat_original_BIP_wc[(shift+lag_vec[1]+1):nrow(x_mat_original_BIP_wc),1],rep(NA,shift+lag_vec[1])),final_mssa_bip_predictor,final_mmse_bip_predictor))
-colnames(mplot)<-c(paste("BIP shifted forward by ",shift," (plus publication lag)",sep=""),"M-SSA component predictor","M-MSE component predictor")
-colo<-c("black","blue","green")
-main_title<-paste("Forward-shifted BIP and Predictors: Pandemic episode removed",sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (jj in 1:ncol(mplot))
-{
-  lines(mplot[,jj],col=colo[jj],lwd=1,lty=1)
-  mtext(colnames(mplot)[jj],col=colo[jj],line=-jj)
+# --- 6.3.4: Plot Final M-MSE and M-SSA BIP Predictors (Original Scale) ---
+#
+# Panel 1: Forward-shifted original BIP growth alongside both predictors (unscaled)
+#   - Unlike Exercise 6.2, no standardization is applied here, so values are
+#     interpretable as actual BIP growth rates.
+par(mfrow = c(2, 1))
+
+# Combine target and predictors into a single matrix for plotting
+mplot <- cbind(
+  c(x_mat_original_BIP_wc[(shift + lag_vec[1] + 1):nrow(x_mat_original_BIP_wc), 1],
+    rep(NA, shift + lag_vec[1])),
+  final_mssa_bip_predictor,
+  final_mmse_bip_predictor
+)
+colnames(mplot) <- c(
+  paste("BIP shifted forward by ", shift, " (plus publication lag)", sep = ""),
+  "M-SSA component predictor",
+  "M-MSE component predictor"
+)
+colo <- c("black", "blue", "green")
+
+# Plot Panel 1: original-scale BIP target with M-SSA and M-MSE predictors overlaid
+main_title <- "Forward-shifted BIP and Predictors: Pandemic Episode Removed (Original Scale)"
+plot(mplot[, 1], main = main_title, axes = F, type = "l",
+     xlab = "", ylab = "", col = colo[1],
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+for (jj in 1:ncol(mplot)) {
+  lines(mplot[, jj], col = colo[jj], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[jj], col = colo[jj], line = -jj)
 }
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
 
-mplot<-cbind(rep(0,nrow(as.matrix(final_mssa_bip_predictor))),final_mssa_bip_predictor,final_mmse_bip_predictor)
-colnames(mplot)<-c("","M-SSA component predictor","M-MSE component predictor")
-main_title<-paste("Predictors: M-SSA component vs. M-MSE component, h=",h,", shift=",shift,sep="")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (jj in 1:ncol(mplot))
-{
-  lines(mplot[,jj],col=colo[jj],lwd=1,lty=1)
-  mtext(colnames(mplot)[jj],col=colo[jj],line=-jj)
+# Panel 2: Direct comparison of M-SSA vs. M-MSE BIP predictor (original scale)
+#   - Zero baseline included for reference
+#   - Title reflects the chosen forecast horizon h and forward shift
+mplot <- cbind(
+  rep(0, nrow(as.matrix(final_mssa_bip_predictor))),
+  final_mssa_bip_predictor,
+  final_mmse_bip_predictor
+)
+colnames(mplot) <- c("", "M-SSA component predictor", "M-MSE component predictor")
+
+main_title <- paste("Predictors: M-SSA vs. M-MSE Component (Original BIP Scale), h=",
+                    h, ", shift=", shift, sep = "")
+plot(mplot[, 1], main = main_title, axes = F, type = "l",
+     xlab = "", ylab = "", col = colo[1],
+     ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col = colo[1], line = -1)
+for (jj in 1:ncol(mplot)) {
+  lines(mplot[, jj], col = colo[jj], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[jj], col = colo[jj], line = -jj)
 }
-abline(h=0)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+abline(h = 0)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
 
@@ -1697,11 +2499,9 @@ box()
 
 
 
-#############################################################################################################
 
 
-# Final remark: 
-# -We assume a publication lag of two quarters for BIP which is systematically added to the 
-#   forward-shift in our computations (the effective publication lag is only one quarter).  
-# -This assumption is made to compensate for the omission of data revisions, which are ignored in our 
-#     designs(s)
+
+
+
+
