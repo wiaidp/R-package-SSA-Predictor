@@ -1,3 +1,117 @@
+#######################################################################################
+# Tutorial 7.4: M-SSA Components Predictor for German GDP Forecasting
+#######################################################################################
+#
+# Overview:
+#   This tutorial extends the M-SSA framework from tutorial 7.3 in three directions:
+#
+#   1. Forecasting (MSE-optimal):
+#      - The original M-SSA predictor (tutorial 7.3) was designed to track the smoothed
+#        trend growth rate of BIP (HP-BIP), using equally-weighted, standardized components
+#      - It was not calibrated to minimize MSE when targeting raw BIP directly
+#      - Here we introduce the 'M-SSA components predictor': an extended design that
+#        replaces equal weighting with an optimal (MSE-minimizing) weighting step,
+#        allowing explicit targeting of raw BIP
+#
+#   2. Interpretability:
+#      - Use the individual M-SSA components to assess the reliability and
+#        trustworthiness of the aggregate predictor's current outlook
+#      - Key question: when the predictor signals a turning point, do the
+#        individual components agree or diverge?
+#
+#   3. Explainability:
+#      - Decompose forecast performance to identify which construction steps
+#        generate the observed gains over simpler benchmarks
+#      - Key question: at which forecast horizon, and through which mechanism,
+#        does the M-SSA components predictor outperform?
+#
+#######################################################################################
+# Structure: 6 Exercises
+#######################################################################################
+#
+# Exercise 1:
+#   - Derive M-SSA components and replicate the original M-SSA predictor (tutorial 7.3)
+#   - Use components to assess forecast reliability (interpretability)
+#   - Introduce the new optimal weighting step to directly target BIP (MSE sense)
+#   - Out-of-sample performance evaluation vs. mean, direct forecast, and
+#     original M-SSA predictor
+#
+# Exercise 2:
+#   - Analyze real-time revisions of the new M-SSA components predictor
+#   - Assess how the predictor's outlook changes as new data arrive
+#
+# Exercise 3:
+#   - Skipped
+#
+# Exercise 4:
+#   - Explainability: identify why the M-SSA components predictor outperforms
+#     specifically at multiple-quarters-ahead forecast horizons
+#   - Decompose the source of forecast gains across construction steps
+#
+# Exercise 5:
+#   - Introduce the 'M-MSE components predictor': same framework as M-SSA but
+#     without the holding-time (HT) constraint (less smooth, more reactive)
+#   - Compare MSE forecast performance against the mean benchmark and the
+#     M-SSA components predictor
+#
+# Exercise 6:
+#   - Compute final M-SSA and M-MSE components predictors using full data,
+#     with Pandemic observations excluded from parameter estimation to avoid
+#     distortion by singular outlier dynamics
+#
+#######################################################################################
+
+# Start with a clean workspace
+rm(list = ls())
+
+# --- Load Required R Libraries ---
+
+# HP and other standard time series filters
+library(mFilter)
+
+# Multivariate time series: VARMA estimation for macro indicator dynamics
+# Used here primarily for VAR-based simulation and spectrum computation
+library(MTS)
+
+# HAC-consistent standard errors (Newey-West) for inference under
+# heteroscedasticity and autocorrelation
+library(sandwich)
+
+# Extended time series objects (xts): flexible date-indexed data handling
+library(xts)
+
+# Diebold-Mariano test for equal predictive accuracy across competing forecasts
+library(multDM)
+
+# GARCH models: used to improve regression estimates under conditional
+# heteroscedasticity (e.g., crisis-driven volatility clustering)
+library(fGarch)
+
+# Ridge regression: regularized OLS for the optimal weighting step
+library(MASS)
+
+# LASSO and elastic net regression: sparse regularization alternative
+# for the optimal weighting step
+library(glmnet)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Tutorial 7.4
 # Main purposes:
 # 1. Forecasting German GDP (BIP) multiple quarters ahead
