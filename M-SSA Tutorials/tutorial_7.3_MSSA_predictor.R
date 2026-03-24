@@ -1294,192 +1294,243 @@ length(which(p_value_HAC_WN_oos  < 0.01))
 #      components, which is precisely what HP-BIP captures and what M-SSA
 #      is optimized to predict.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #######################################################################################
-# Exercise 3: More adaptive design
-# -Exercise 1 above illustrates that HP-BIP can be forecasted several quarters ahead by the M-SSA predictor
-# -But predicting BIP is more challenging
-# -However, we cannot exclude (a priori) that the target specification, HP(160) is `too smooth'
-#   -Maybe relevant information is being suppressed by the filter.
-# -To verify this conjecture, we now analyze a more adaptive design by selecting lambda_HP=16 `small`
+# Exercise 3: More Adaptive Target Design — HP(16)
+#
+# Motivation:
+#   - Exercise 1 established that M-SSA can predict HP-BIP several quarters ahead
+#   - Predicting raw BIP is harder, due to its high-frequency noise component
+#   - However, it is possible that HP(160) suppresses genuinely predictable dynamics,
+#     i.e., the target may be 'too smooth' relative to the information in the data
+#   - To test this conjecture, we replace HP(160) with the more adaptive HP(16) target
+#
+# Research question:
+#   Does a more adaptive target (smaller lambda_HP) allow M-SSA to predict raw BIP
+#   more reliably than the HP(160) design from Exercise 1?
+#######################################################################################
 
-# Question: does the more flexible design allow to predict BIP (not HP-BIP) more reliably?
+# 3.1 Run M-SSA with Adaptive Target HP(16)
+# ------------------------------------------
 
-# 3.1 Run more adaptive M-SSA design
-lambda_HP<-16
-# Notes: 
-# -For adaptive designs, a pronounced left-shift might lead to phase-reversal which is undesirable
-# -Therefore we use forecast horizons up to 4 quarters and no forecast excess
-#   -Phase-reversal would be fine (optimal) if the data were in agreement with the implicit assumptions 
-#     underlying the HP filter (which is not the case, see tutorial 2.0)
-f_excess_adaptive<-rep(0,length(select_vec_multi))
-h_vec_adaptive<-0:4
+# Smaller lambda_HP => less smoothing => target tracks BIP more closely
+lambda_HP <- 16
 
-# Run the M-SSA predictor function
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L,date_to_fit,p,q,ht_mssa_vec,h_vec_adaptive,f_excess_adaptive,lag_vec,select_vec_multi)
+# Forecast horizon and excess adjustments for adaptive designs:
+#   - A pronounced left-shift at large horizons can cause phase-reversal (the predictor
+#     moves in the opposite direction to the target), which is undesirable in practice
+#   - Phase-reversal would be theoretically optimal only if BIP followed the implicit
+#     data-generating process assumed by the HP filter — which it does not (see tutorial 2.0)
+#   - To guard against phase-reversal, we cap the forecast horizon at 4 and set f_excess = 0
+f_excess_adaptive <- rep(0, length(select_vec_multi))
+h_vec_adaptive    <- 0:4
 
-# Forward-shifted HP-BIP
-target_shifted_mat=mssa_indicator_obj$target_shifted_mat
-# M-SSA indicators
-predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
-# M-MSE
-predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
+# Run the M-SSA wrapper with the adaptive HP(16) design
+mssa_indicator_obj <- compute_mssa_BIP_predictors_func(
+  x_mat, lambda_HP, L, date_to_fit, p, q,
+  ht_mssa_vec, h_vec_adaptive, f_excess_adaptive, lag_vec, select_vec_multi
+)
 
-# 3.2 Compute performances
-# For the direct predictor we can specify the macro-indicators in the expanding-window regressions
-#   -Note: too complex designs lead to overfitting and thus worse out-of-sample performances
-select_direct_indicator<-c("ifo_c","ESI")
+# Retrieve outputs
+target_shifted_mat <- mssa_indicator_obj$target_shifted_mat   # Forward-shifted HP(16)-BIP target
+predictor_mssa_mat <- mssa_indicator_obj$predictor_mssa_mat   # Aggregate M-SSA predictors
+predictor_mmse_mat <- mssa_indicator_obj$predictor_mmse_mat   # M-MSE benchmark predictors
 
-perf_obj<-compute_perf_func(x_mat,target_shifted_mat,predictor_mssa_mat,predictor_mmse_mat,in_out_separator,select_direct_indicator,h_vec_adaptive) 
+# 3.2 Compute Forecast Performance
+# ---------------------------------
+# Macro-indicator selection for the direct forecast benchmark
+# Parsimonious specification to avoid overfitting in out-of-sample evaluation
+select_direct_indicator <- c("ifo_c", "ESI")
 
-p_value_HAC_HP_BIP_full=perf_obj$p_value_HAC_HP_BIP_full
-t_HAC_HP_BIP_full=perf_obj$t_HAC_HP_BIP_full
-cor_mat_HP_BIP_full=perf_obj$cor_mat_HP_BIP_full
-p_value_HAC_HP_BIP_oos=perf_obj$p_value_HAC_HP_BIP_oos
-t_HAC_HP_BIP_oos=perf_obj$t_HAC_HP_BIP_oos
-cor_mat_HP_BIP_oos=perf_obj$cor_mat_HP_BIP_oos
-p_value_HAC_BIP_full=perf_obj$p_value_HAC_BIP_full
-t_HAC_BIP_full=perf_obj$t_HAC_BIP_full
-cor_mat_BIP_full=perf_obj$cor_mat_BIP_full
-p_value_HAC_BIP_oos=perf_obj$p_value_HAC_BIP_oos
-t_HAC_BIP_oos=perf_obj$t_HAC_BIP_oos
-cor_mat_BIP_oos=perf_obj$cor_mat_BIP_oos
-rRMSE_MSSA_HP_BIP_direct=perf_obj$rRMSE_MSSA_HP_BIP_direct
-rRMSE_MSSA_HP_BIP_mean=perf_obj$rRMSE_MSSA_HP_BIP_mean
-rRMSE_MSSA_BIP_direct=perf_obj$rRMSE_MSSA_BIP_direct
-rRMSE_MSSA_BIP_mean=perf_obj$rRMSE_MSSA_BIP_mean
-target_BIP_mat=perf_obj$target_BIP_mat
+perf_obj <- compute_perf_func(
+  x_mat, target_shifted_mat, predictor_mssa_mat, predictor_mmse_mat,
+  in_out_separator, select_direct_indicator, h_vec_adaptive
+)
 
-# We now examine performances when targeting specifically BIP (we already know that HP-BIP can be predicted)
-# A. Full sample
+# Retrieve performance measures (same structure as Exercise 1)
+
+# HAC-adjusted p-values and t-statistics: target = HP(16)-BIP
+p_value_HAC_HP_BIP_full <- perf_obj$p_value_HAC_HP_BIP_full
+t_HAC_HP_BIP_full       <- perf_obj$t_HAC_HP_BIP_full
+p_value_HAC_HP_BIP_oos  <- perf_obj$p_value_HAC_HP_BIP_oos
+t_HAC_HP_BIP_oos        <- perf_obj$t_HAC_HP_BIP_oos
+
+# Target correlations: target = HP(16)-BIP
+cor_mat_HP_BIP_full <- perf_obj$cor_mat_HP_BIP_full
+cor_mat_HP_BIP_oos  <- perf_obj$cor_mat_HP_BIP_oos
+
+# HAC-adjusted p-values and t-statistics: target = raw BIP
+p_value_HAC_BIP_full <- perf_obj$p_value_HAC_BIP_full
+t_HAC_BIP_full       <- perf_obj$t_HAC_BIP_full
+p_value_HAC_BIP_oos  <- perf_obj$p_value_HAC_BIP_oos
+t_HAC_BIP_oos        <- perf_obj$t_HAC_BIP_oos
+
+# Target correlations: target = raw BIP
+cor_mat_BIP_full <- perf_obj$cor_mat_BIP_full
+cor_mat_BIP_oos  <- perf_obj$cor_mat_BIP_oos
+
+# Relative RMSE: target = HP(16)-BIP
+rRMSE_MSSA_HP_BIP_direct <- perf_obj$rRMSE_MSSA_HP_BIP_direct
+rRMSE_MSSA_HP_BIP_mean   <- perf_obj$rRMSE_MSSA_HP_BIP_mean
+
+# Relative RMSE: target = raw BIP
+rRMSE_MSSA_BIP_direct <- perf_obj$rRMSE_MSSA_BIP_direct
+rRMSE_MSSA_BIP_mean   <- perf_obj$rRMSE_MSSA_BIP_mean
+
+# Forward-shifted raw BIP (evaluation target)
+target_BIP_mat <- perf_obj$target_BIP_mat
+
+# 3.3 Evaluation: Does the Adaptive Design Better Predict Raw BIP?
+# ----------------------------------------------------------------
+# We focus on raw BIP as the target (HP-BIP predictability was already established in Exercise 1)
+
+# Target correlations: full sample
 cor_mat_BIP_full
-# B. Out-of-sample 
-cor_mat_BIP_oos
-# These numbers are larger than in exercise 1, suggesting that the more adaptive design here is better able to
-#   track forward-shifted BIP
 
-# Are the results significant?
+# Target correlations: out-of-sample
+cor_mat_BIP_oos
+# Correlations are somewhat larger than in Exercise 1, suggesting the adaptive HP(16) design
+# tracks forward-shifted BIP marginally better — consistent with the conjecture that HP(160)
+# may suppress some predictable high-frequency dynamics
+
+# Statistical significance: does the improvement hold up formally?
 p_value_HAC_BIP_full
 p_value_HAC_BIP_oos
-
-# We cannot see systematic improvements (smaller p-values) when using a more adaptive target HP(16) for M-SSA
+# Despite marginally better correlations, there is no systematic reduction in p-values
+# relative to Exercise 1 — the improvement in raw BIP predictability is not statistically
+# robust, likely because the additional adaptive dynamics are dominated by noise
 
 ##################################################################################
-# Exercise 4
-# As a complement to exercise 3 above, we now briefly analyze the rather inflexible classic
-#   quarterly HP(1600) design as a target for M-SSA, to back-up our previous discussion 
-#   with empirical facts
+# Exercise 4: Overly Smooth Design — Classic HP(1600)
+#
+# Motivation:
+#   - As a counterpoint to Exercise 3, we now evaluate the classic HP(1600) target
+#   - This design is standard in the business-cycle literature but has been criticized
+#     for being 'too smooth' (Phillips and Jin, 2021)
+#   - The goal is to empirically confirm that HP(1600) is suboptimal for short- to
+#     medium-term GDP forecasting (1–5 quarters ahead)
+##################################################################################
 
-lambda_HP<-1600
-# Given a slower decay (stronger smoothing), we may consider longer filters
-L_long<-2*L-1
-# Or just keep it fixed (faster numerical optimization if filters are shorter)
-L_long<-L
-# We also use the larger HTs of exercise 1.5
-ht_mssa_vec_long<-ht_mssa_vec_long
-# Run the wrapper  
-mssa_indicator_obj<-compute_mssa_BIP_predictors_func(x_mat,lambda_HP,L_long,date_to_fit,p,q,ht_mssa_vec_long,h_vec,f_excess,lag_vec,select_vec_multi)
+lambda_HP <- 1600
 
-target_shifted_mat=mssa_indicator_obj$target_shifted_mat
-predictor_mssa_mat<-mssa_indicator_obj$predictor_mssa_mat
-predictor_mmse_mat<-mssa_indicator_obj$predictor_mmse_mat
-mssa_array<-mssa_indicator_obj$mssa_array
+# Filter length options:
+#   - HP(1600) weights decay more slowly, in principle favouring a longer filter
+#   - However, longer filters increase computational cost
+#   - We retain L for consistency and speed
+L_long <- 2 * L - 1   # longer option (commented out below)
+L_long <- L            # retained for computational efficiency
 
-# Plot 
-mplot<-predictor_mssa_mat
-colnames(mplot)<-colnames(predictor_mssa_mat)
-par(mfrow=c(1,1))
-colo<-c(rainbow(ncol(predictor_mssa_mat)))
-main_title<-c(paste("Standardized M-SSA predictors for forecast horizons ",paste(h_vec,collapse=","),sep=""),"Vertical line delimites in-sample and out-of-sample spans")
-plot(mplot[,1],main=main_title,axes=F,type="l",xlab="",ylab="",col=colo[1],ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))))
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-for (j in 1:ncol(mplot))
-{
-  lines(mplot[,j],col=colo[j],lwd=1,lty=1)
-  mtext(colnames(mplot)[j],col=colo[j],line=-j)
+# Retain the doubled HT constraints from Exercise 1.4
+ht_mssa_vec_long <- ht_mssa_vec_long
+
+# Run M-SSA with HP(1600) target
+mssa_indicator_obj <- compute_mssa_BIP_predictors_func(
+  x_mat, lambda_HP, L_long, date_to_fit, p, q,
+  ht_mssa_vec_long, h_vec, f_excess, lag_vec, select_vec_multi
+)
+
+# Retrieve outputs
+target_shifted_mat <- mssa_indicator_obj$target_shifted_mat
+predictor_mssa_mat <- mssa_indicator_obj$predictor_mssa_mat
+predictor_mmse_mat <- mssa_indicator_obj$predictor_mmse_mat
+mssa_array         <- mssa_indicator_obj$mssa_array
+
+# --- Plot M-SSA Predictors (HP(1600) Design) ---
+mplot <- predictor_mssa_mat
+colnames(mplot) <- colnames(predictor_mssa_mat)
+
+par(mfrow = c(1, 1))
+colo <- rainbow(ncol(predictor_mssa_mat))
+
+main_title <- c(
+  paste("Standardized M-SSA predictors [HP(1600)] for forecast horizons ",
+        paste(h_vec, collapse = ","), sep = ""),
+  "Vertical line delimits in-sample and out-of-sample spans"
+)
+
+plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
+     col = colo[1], ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+
+for (j in 1:ncol(mplot)) {
+  lines(mplot[, j], col = colo[j], lwd = 1, lty = 1)
+  mtext(colnames(mplot)[j], col = colo[j], line = -j)
 }
-abline(h=0)
-abline(v=which(rownames(mplot)>date_to_fit)[1]-1,lty=2)
-axis(1,at=c(1,12*1:(nrow(mplot)/12)),labels=rownames(mplot)[c(1,12*1:(nrow(mplot)/12))])
+
+abline(h = 0)
+abline(v = which(rownames(mplot) > date_to_fit)[1] - 1, lty = 2)
+axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
+     labels = rownames(mplot)[c(1, 12 * 1:(nrow(mplot) / 12))])
 axis(2)
 box()
 
-# Discussion:
-# -The stronger smoothing by HP(1600) emphasizes long-term dynamics which are less relevant in a one-year forecast perspective
-#   -See a critic by Phillips and Jin (2021), suggesting that HP(1600) is `too smooth' (insufficiently flexible)
-# -As a result, increasing the forecast horizon has only marginal effects on the M-SSA predictor
-#   -The left-shift of the M-SSA predictors is less pronounced
-# -Stated otherwise: increasing the forecast horizon has only a marginal effect on the `phase' of the filter
-#   -the right tail of the HP(1600) corresponds to an AR(2) with a comparatively long periodicity
-#   -advancing the filter by a full year has only small/marginal effects on the phase (when compared to HP(160) or HP(16)) 
-
-# Further comments:
-# -One can scroll back the plots generated in the plot-panel
-# -Doing so would show that the two-sided filter (black-line in previous plots) behaves strangely after the 
-#     financial crisis
-#   -To a good extent, some of the anomalies are due to the singular Pandemic readings
-#   -HP(1600) is more sensitive to the Pandemic than the previous (more adaptive) designs
+# --- Interpretation ---
+#
+# 1. Over-smoothing effect:
+#    - HP(1600) emphasizes very long-term trend dynamics, suppressing the business-cycle
+#      fluctuations that are most relevant for 1–5 quarter ahead forecasting
+#    - This is consistent with the Phillips and Jin (2021) critique of HP(1600) as
+#      insufficiently flexible for business-cycle analysis
+#
+# 2. Reduced timeliness gain:
+#    - Increasing the forecast horizon has only a marginal effect on the phase of the
+#      M-SSA predictor — the left-shift is far less pronounced than with HP(160) or HP(16)
+#    - This is because the HP(1600) right-tail corresponds to an AR(2) with a long periodicity;
+#      advancing the filter by one year produces only a small phase change at such low frequencies
+#
+# 3. Pandemic sensitivity:
+#    - Scrolling back through the plot panel reveals that the two-sided HP(1600) filter
+#      behaves anomalously around the financial crisis and especially after the Pandemic
+#    - HP(1600) is more sensitive to extreme outliers (Pandemic readings) than the more
+#      adaptive HP(160) or HP(16) designs, due to its greater reliance on distant observations
 
 ##########################################################################################################
-# Findings overall:
+# Summary of Findings Across Exercises 1–4
+##########################################################################################################
 
-# A. Classic direct predictors:
-#   -Classic direct predictors often do not perform better (out-of-sample) than the simple mean benchmark at 
-#     forward-shifts of 2 quarters or more
-#   -Classic direct predictors tend to be more sensitive (than M-SSA) to singular episodes (Pandemic)
+# A. Classic Direct Forecasts
+#    - Direct OLS predictors rarely outperform the naive mean benchmark beyond a 2-quarter forward-shift
+#    - They are more sensitive to singular episodes (e.g., the Pandemic) than M-SSA,
+#      which benefits from smoothing and multivariate information aggregation
+#    - They do not `left-shift' as h increases and therefore they miss turning points
 
-# B. M-SSA
-#   -Classic business-cycle designs (lambda_HP=1600) smooth out recessions and hide  
-#     dynamics potentially relevant in a short- to mid-term forecast exercise (1-5 quarters ahead)
-#   -Fairly adaptive designs (lambda_HP=160) show a (logically and) statistically consistent forecast pattern, 
-#       suggesting that M-SSA outperforms both the mean and the direct forecasts out-of-sample when targeting HP-BIP
-#     -This result suggests that M-SSA is informative about forward-shifted BIP too, although corresponding 
-#       performance statistics are less conclusive, see exercise 1 (cluttered by noise)
-#   -More adaptive (lambda_HP=16) or less adaptive designs (lambda_HP=1600) do not track forward-shifted BIP 
-#       systematically better, see exercises 4 and 5
-#   -The proposed M-SSA predictor relies on a simple equally-weighted aggregation of (standardized) 
-#       M-SSA components
-#     -A better optimal weighting of these components is proposed in tutorial 7.4: M-SSA components predictor
-#     -The new M-SSA components predictor can address MSE forecast performances when targeting BIP, explicitly
-#     -Moreover, the components can be used for interpretation purposes, see also tutorial 7.4 
+# B. M-SSA: Sensitivity to Target Specification (lambda_HP)
+#
+#    - HP(1600) [over-smooth]: suppresses recession dynamics; increasing the forecast horizon
+#        has only marginal effects on the predictor phase — not well suited for 1–5 quarter forecasting
+#
+#    - HP(160) [recommended]: achieves a good balance between noise suppression and adaptivity;
+#        M-SSA with this target exhibits a logically consistent and statistically significant
+#        forecast pattern, outperforming both the mean and direct forecasts out-of-sample
+#        when targeting HP-BIP; performance on raw BIP is positive but less conclusive (noise-dominated)
+#
+#    - HP(16) [over-adaptive]: marginally better raw BIP correlations than HP(160), but the
+#        improvement is not statistically robust; risk of phase-reversal at longer horizons
+#
+#    - Aggregation: the current M-SSA predictor uses equally-weighted averaging of standardized
+#        components; tutorial 7.4 introduces an optimally weighted M-SSA components predictor
+#        that directly targets BIP in an MSE sense and supports component-level interpretation
+
+# C. Statistical Significance
+#    - HAC adjustments (Newey-West) do not fully eliminate finite-sample size distortions,
+#        particularly in the presence of crisis-driven heteroscedasticity
+#    - Exercise 2 suggests the residual bias is modest: p-values below 1% are rare under
+#        simulated white noise
+#    - A conservative correction is applied throughout: t-statistics are derived from the
+#        maximum of HAC and OLS standard errors, reducing the risk of spurious significance
+# See line 8: using max(sd[2], sd_HAC[2]) 
+head(HAC_ajusted_p_value_func, 20)
+
+# D. Publication Lag 
+#    - All reported forward-shifts are measured relative to the current quarter plus the
+#        publication lag (lag_vec[1] = 2 quarters, reflecting a conservative assumption)
+#    - The official publication lag for German GDP is one quarter, but BIP is subject to
+#        revisions — which are ignored here
+#
+# E. Data Revisions
+#    - M-SSA assigns relatively low weight to BIP (which is subject to strongest revisions)
+#    - HP smoothing further mitigates the impact of data revisions on the target
 
 
-# C. Statistical significance
-#   -HAC-adjustments (of test-statistics) seem unable to account fully for the observed data-idiosyncrasies
-#   -However, exercise 2 suggests that biases are relatively small
-#     -p-values smaller than one percent are rare in the case of simulated white noise
-#   -The original (finite sample) bias has been reduced further by a simple trick
-#     -Compute standard errors (of regressors) based on OLS (classic) and HAC (R-package sandwich)
-#     -Compute the max of both standard errors
-#     -Derive t-statistics based on the max standard error (conservative setting)
-#     -See our R-code in the following function: we use sd_max when computing the t-statistic in the following function
-head(HAC_ajusted_p_value_func,20)
 
-# Final notes on the publication lag and data revisions
-#   -All results relate to forward-shifts augmented by the publication lag
-#   -According to feedback, our setting for the publication lag, i.e., lag_vec[1]=2, is too large (reflecting some prudence)
-#     -The official/effective publication lag of BIP is one quarter
-#     -But BIP is revised and we here ignore revisions
-#     -On the other hand, the weight M-SSA assigns to BIP is rather weak (other, timely indicators are more important); 
-#       moreover, data revisions affect mainly the so-called `direct forecasts'; 
-#       finally, smoothing by HP mitigates the effect of data revisions
-# In summary: we expect that performances at an indicated forward-shift of k quarters (in all the above evaluations) 
-#   are likely to be representative of performances at effectively k+1 quarters ahead. 
+
+
 
