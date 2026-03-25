@@ -221,7 +221,7 @@ len <- dim(x_mat)[1]
 #   - The standard quarterly HP specification uses lambda = 1600.
 #   - Here we use lambda = 160, a less aggressive smoothing parameter.
 #   - Rationale: HP(1600) removes too much economically relevant variation
-#     for GDP prediction purposes (see Tutorials 7.2 and 7.3 for a full
+#     for BIP prediction purposes (see Tutorials 7.2 and 7.3 for a full
 #     discussion; see also Phillips and Jin (2021) for a related critique).
 lambda_HP <- 160
 
@@ -598,10 +598,10 @@ box()
 # ==================================================================
 #
 # Motivation:
-#   - The original M-SSA predictor (Tutorial 7.3) is standardized and
-#     optimized to track HP-BIP (smooth trend growth). Its level and scale
-#     are not calibrated against raw BIP, so MSE-based performance against
-#     raw BIP is not its primary strength.
+#   - The original M-SSA predictor (Tutorial 7.3) is either standardized (default) 
+#     or scaled to track centered HP-BIP (smooth trend growth). In any case, 
+#     its level and scale are not calibrated against raw BIP, so MSE-based 
+#     performance against raw BIP is not its primary strength.
 #   - To predict future raw BIP explicitly and evaluate MSE performance,
 #     we replace the equal-weighting scheme with a regression-based
 #     combination of selected M-SSA components on forward-shifted BIP.
@@ -615,7 +615,9 @@ box()
 # =================================================================
 # 1.3.1 Component Selection
 # =================================================================
-# Not all M-SSA components are equally useful for MSE-based BIP prediction:
+# Not all M-SSA components are equally useful for MSE-based BIP prediction 
+#   in particular in short in-sample spans (~40 observations when accounting 
+#   for filter initialization `burn-in'):
 #
 #   - ESI, ifo_c, and spread components: primarily informative in a
 #     dynamic/directional context (recessions, turning points). They are
@@ -625,12 +627,12 @@ box()
 #   - BIP and ip components: natural candidates for MSE-based BIP
 #     prediction, since they directly filter the two most closely related
 #     series. Note that ESI, ifo_c and spread remain indirectly informative
-#     through their role in the VAR used to construct these components
+#     through their role in the VAR (and hence M-SSA) used to construct these components
 #     (see Tutorial 7.2, Exercise 1).
 #
 # Available design choices (from simplest to most complex):
 #
-#   sel_vec_pred <- "BIP"          (recommended default)
+#   sel_vec_pred <- "BIP"          (recommended default in short samples)
 #     + Simplest and most interpretable design
 #     + Reasonably strong out-of-sample performance
 #     + Robust across time periods and data vintages
@@ -638,7 +640,7 @@ box()
 #
 #   sel_vec_pred <- c("BIP", "ip") (more aggressive alternative)
 #     + Can improve MSE performance marginally
-#     - Less robust than BIP alone
+#     - Less robust than BIP alone in short samples
 #     - Larger revisions
 #     - ip regression coefficient is negative, producing stronger
 #       left-shifts that are harder to interpret economically
@@ -657,12 +659,12 @@ sel_vec_pred
 #
 # Implications for performance metrics:
 #
-#   - rRMSE: directly affected by the calibration, since MSE is sensitive to both
+#   - MSE/rRMSE: directly affected by the calibration, since MSE is sensitive to both
 #       level and scale mismatches between predictor and target
 #
-#   - Target correlations and HAC-adjusted statistics: unaffected, since correlation
-#       and t-statistics are invariant to affine transformations (level and scale shifts)
-#       of the predictor
+#   - Target correlations and HAC-adjusted statistics: less affected (correlation
+#       and t-statistics are invariant to affine transformations of the predictor)
+
 # ------------------------------------------------------------------
 # Illustrative example: regression setup for a specific horizon
 # ------------------------------------------------------------------
@@ -719,27 +721,44 @@ tail(dat[1:i_time, ])
 # Fit the regression
 lm_obj <- lm(dat[1:i_time, 1] ~ dat[1:i_time, 2:ncol(dat)])
 summary(lm_obj)
-# The M-SSA components are strongly statistically significant.
+# The M-SSA component is strongly statistically significant (p=0.00469).
 # HAC-adjusted standard errors would not overturn this conclusion,
 # given the magnitude of the t-statistics.
 
 # ------------------------------------------------------------------
 # Out-of-sample prediction for time point (i_time + shift + lag_vec[1])
 # ------------------------------------------------------------------
-# Alignment note:
-#   - Due to the publication lag, the regression target (forward-shifted BIP)
-#     cannot be observed up to the sample end at estimation time.
-#   - We therefore evaluate the out-of-sample prediction at time point
-#     i_time + shift + lag_vec[1], where both the regressor (M-SSA component)
-#     and the realized BIP target are available.
 
+# Alignment note:
+#   Due to the GDP publication lag and the forward shift of the target series, the
+#   out-of-sample prediction at each iteration is made for time point:
+#       i_time + shift + lag_vec[1]
+#
+# Concrete example (forward-shift = 4 quarters, publication lag = 1 quarter):
+#   - Forecast date:       Q1-2024  (the point at which the prediction is made)
+#   - Forecast target:     Q1-2025  (one year ahead, i.e., shift = 4 quarters forward)
+#   - Last available GDP:  Q4-2023  (one quarter publication lag)
+#   - Last usable in-sample regression equation:
+#                          Q4-2022  (because the regression target is forward-shifted by
+#                                    shift = 4 quarters, the last equation with a realized
+#                                    target is dated 4 quarters before Q4-2023)
+#   - Total lag between forecast date and last usable regression equation:
+#                          5 quarters = shift (4) + publication lag (1)
+#   - Total lag between observation of forecast error (Q2-2025 due to publication lag) 
+#     and last usable in-sample regression equation: 
+#                         10 quarters = 2*shift (8) + 2* publication lag (2)
+#
+# Out-of-sample predictor for time point i_time + shift + lag_vec[1]
 oos_pred <- lm_obj$coef[1] +
   lm_obj$coef[2:ncol(dat)] %*% dat[i_time + shift + lag_vec[1], 2:ncol(dat)]
 
 # Out-of-sample forecast error at the target time point
+#   Note that the first column dat[,1] is BIP forward-shifted by shift+lag_vec[1]. 
+#   So dat[i_time + shift + lag_vec[1], 1] represents BIP forward-shifted by
+#   2*(shift + lag_vec[1]) with respect to the last available in-sample regression equation
 oos_error <- dat[i_time + shift + lag_vec[1], 1] - oos_pred
-# This error will be realized (shift + publication lag) quarters
-# after the forecast is made
+# This error will be realized 2*(shift + lag_vec[1]) quarters after 
+# the last available in-sample regression equation
 oos_error
 
 # ------------------------------------------------------------------
@@ -753,7 +772,7 @@ oos_error
 # ==================================================================
 #
 # The evaluation span begins in 2007, ensuring that the entire financial crisis
-# falls within the out-of-sample window — the most demanding test of forecast robustness.
+# falls within the out-of-sample window — a demanding test of forecast robustness.
 #
 # Note on sample length:
 #   - The in-sample window is short at the start (compounded by filter initialization losses)
@@ -834,7 +853,7 @@ sqrt(perf_obj$MSE_oos_without_covid / perf_obj$MSE_mean_oos_without_covid)
 # 1. HAC-Adjusted P-values, e.g., perf_obj$p_value
 #
 #   Procedure:
-#     - The out-of-sample predictor is regressed on the forward-shifted target (GDP or HP-GDP)
+#     - The out-of-sample predictor is regressed on the forward-shifted target (BIP or HP-BIP)
 #       over the entire out-of-sample span in a single full-sample regression.
 #     - This regression implicitly calibrates the standardized predictor to the level and
 #       scale of the target series before assessing predictive content.
@@ -872,15 +891,15 @@ sqrt(perf_obj$MSE_oos_without_covid / perf_obj$MSE_mean_oos_without_covid)
 #   Scope:
 #     - This procedure extends the M-SSA forecasting framework to settings where level and
 #       scale form an integral part of the forecast task — for example, when forecasting
-#       effective GDP growth rates rather than a standardized signal.
+#       effective BIP growth rates rather than a standardized signal.
 #
 #   Application:
-#     - Researchers focused on the dynamic pattern of GDP — i.e., the directional signal
+#     - Researchers focused on the dynamic pattern of BIP — i.e., the directional signal
 #       (expansion vs. contraction phases, turning points, cyclical swings) — may regard
 #       HAC-adjusted p-values as the more relevant performance metric, since these directly
 #       measure the predictor's ability to track the temporal dynamics of the target,
 #       independently of level and scale.
-#     - Researchers focused on effective GDP growth forecasting — where accurate level and
+#     - Researchers focused on effective BIP growth forecasting — where accurate level and
 #       scale calibration are integral to the forecast task — will find MSE and rRMSE to be
 #       the more appropriate metrics, as these jointly penalize both dynamic and static
 #       forecast errors.
@@ -1202,9 +1221,9 @@ rRMSE_mSSA_direct_mean_without_covid
 #      This corresponds to the diagonal (and just above) of the performance matrices.
 #
 #    - Clarity of the pattern depends on the target series:
-#        (i)  HP-GDP (low-noise target): the diagonal pattern is strong, clean, and
+#        (i)  HP-BIP (low-noise target): the diagonal pattern is strong, clean, and
 #             consistent across all shift values.
-#        (ii) Raw GDP (high-noise target): the pattern is present but partially obscured
+#        (ii) Raw BIP (high-noise target): the pattern is present but partially obscured
 #             by the high-frequency noise in the unfiltered target series.
 #
 #    - This regularity reflects a coherent and interpretable internal structure:
@@ -1347,24 +1366,24 @@ box()
 #               zero throughout the sample — confirming that no systematic level adjustment
 #               is required.
 #         (ii)  The regression weight reflects the scale difference between the M-SSA
-#               output (a filtered estimate of HP-BIP) and the standardized GDP growth rate
+#               output (a filtered estimate of HP-BIP) and the standardized BIP growth rate
 #               target. The consistently large weight value is therefore expected, as it
 #               rescales the HP-BIP filtered signal to the amplitude of the (standardized) BIP growth target.
 #         (iii) When predicting original BIP growth, the regression would account for corresponding 
 #               `static' level and scale adjustments. 
 #
 #   - Anchoring role of the financial crisis (2008-2009):
-#     - The sharp GDP contraction and subsequent rebound during the financial crisis constitute
+#     - The sharp BIP contraction and subsequent rebound during the financial crisis constitute
 #       a structurally influential event that anchors the statistical dependence between the
-#       forward-shifted GDP target and the M-SSA components predictor.
+#       forward-shifted BIP target and the M-SSA components predictor.
 #     - The importance of this event is directly visible in the plot: the regression weight
 #       (blue) undergoes a pronounced and persistent upward shift following 2008, reflecting
-#       the strong and lasting realignment between the M-SSA predictor and the GDP target
+#       the strong and lasting realignment between the M-SSA predictor and the BIP target
 #       that is established by the crisis episode.
-#     - In the absence of such pronounced cyclical dynamics, GDP log-differences would behave
+#     - In the absence of such pronounced cyclical dynamics, BIP log-differences would behave
 #       approximately as white noise around a fixed trend growth rate, leaving little systematic
-#       low-frequency variation for M-SSA to exploit — and thus providing negligible predictive
-#       content at horizons beyond one quarter.
+#       low-frequency (growth/cycle) variation for M-SSA to exploit — and thus providing negligible predictive
+#       content at horizons at (or beyond) one quarter.
 #
 #   - Value of M-SSA during strong cyclical swings:
 #     - During episodes of large cyclical swings — such as recession contractions and recovery
@@ -1372,7 +1391,7 @@ box()
 #       precisely the signal it is designed to extract.
 #     - This dynamic tracking is what establishes and reinforces M-SSA as a reliable predictor,
 #       particularly during periods of abnormally large and persistent BIP movements that
-#       deviate substantially from the trend growth path.
+#       deviate substantially from the mean trend growth path.
 
 
 
@@ -2396,7 +2415,7 @@ final_mmse_array<-final_mssa_indicator_obj$mmse_array
 mssa_mat<-mmse_mat<-NULL
 # Note on regression design:
 #   The M-SSA and M-MSE component predictors used here are each optimized for forecast
-#   horizon h = shift, and are regressed on GDP forward-shifted by the same value of shift.
+#   horizon h = shift, and are regressed on BIP forward-shifted by the same value of shift.
 #   This corresponds to selecting the diagonal entries of the performance matrices computed
 #   in Exercise 1, where rows index forward shifts and columns index forecast horizons —
 #   ensuring that filter horizon and target horizon are aligned.
