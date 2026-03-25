@@ -1384,9 +1384,9 @@ box()
 
 
 
-# =======================================================================
+# =======================================================================================
 # Exercise 4: Diagnosing the Sources of Forecast Gains in the M-SSA Components Predictor
-# =======================================================================
+# =======================================================================================
 #
 # Motivation:
 #   The M-SSA components predictor is a multi-step ('stacked') construction involving:
@@ -1400,14 +1400,14 @@ box()
 #                           -Subject to a smoothness constraint (holding-time (HT) constraint).
 #     Step 3 — Regression:  Regress the M-SSA components on forward-shifted BIP via OLS.
 #                           -Link M-SSA directly with BIP (instead of smoothed HP-BIP)
-#                           -Calibrate (standardized) M-SSA to original level and scale of BIP (log differences)
+#                           -Calibrate M-SSA to original level and scale of BIP (log differences)
 # 
 #
 # Prior evidence:
 #   - Exercises above confirmed that the M-SSA components predictor outperforms both the naive
 #     mean benchmark and the direct forecast (using unfiltered indicators) over a long
 #     out-of-sample span including the financial crisis and the COVID-19 pandemic.
-#   - However, the specific contribution of M-SSA (Step 2) to these forecast gains has not yet
+#   - However, the specific contribution of M-SSA (Step 2 above) to these forecast gains has not yet
 #     been isolated or quantified.
 #
 # Research questions:
@@ -1489,11 +1489,9 @@ rownames(hp_c_mat) <- rownames(x_mat)
 mplot      <- hp_c_mat
 colo       <- rainbow(ncol(mplot))
 main_title <- paste0("Concurrent HP(", lambda_HP, ") applied to all indicators")
-
 par(mfrow = c(1, 1))
 plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
      col = colo[1], ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
-
 for (j in 1:ncol(mplot)) {
   lines(mplot[, j], col = colo[j], lwd = 1, lty = 1)
   mtext(colnames(mplot)[j], col = colo[j], line = -j)
@@ -1558,17 +1556,17 @@ axis(1, at = c(1, 12 * 1:(nrow(mplot) / 12)),
 axis(2)
 box()
 # As expected: increasing the forecast horizon produces a systematic left-shift (phase advance)
-# of the filter output — consistent with the Timeliness dimension of the AST trilemma
+# of the (HP-C) filter output —.
 
-# =================================================================
+# ===============================================================================
 # 4.2: Performance Evaluation — Direct HP Forecast vs. M-SSA Components Predictor
-# =================================================================
+# ===============================================================================
 # We compute HAC-adjusted p-values and rRMSEs for all combinations of:
 #   - forward-shift of BIP (rows): shift_vec
 #   - forecast horizon of HP-C (columns): h_vec
 #
-# Note: numerical computations may take several minutes.
-#       Pre-computed results can be loaded as an alternative to running the loop.
+# Note: numerical computations may take some time
+#   A progress bar pops up
 #------------------
 
 shift_vec <- shift_vec
@@ -1670,6 +1668,7 @@ p_mat_mssa_components_without_covid
 p_mat_direct_without_covid
 p_mat_HP_c_without_covid
 
+# ------------------------------------------------------------------------------------
 # Findings: Comparison of Direct, Direct HP, and M-SSA Components Predictors
 #
 #   - Like the classic direct forecast, the direct HP forecast (based on univariate HP-C filtered
@@ -1678,7 +1677,7 @@ p_mat_HP_c_without_covid
 #   - In contrast, the M-SSA components predictor remains statistically significant for forward
 #     shifts of up to four or five quarters (plus the publication lag), demonstrating a clear and
 #     systematic advantage at longer forecast horizons.
-
+# ------------------------------------------------------------------------------------
 
 # Relative RMSE Comparison (excluding COVID-19 pandemic period)
 #
@@ -1695,6 +1694,8 @@ rRMSE_mSSA_comp_HP_c_without_covid
 # Examining the raw MSEs confirms the magnitude of accuracy differences.
 MSE_oos_HP_c_without_covid_mat
 MSE_oos_mssa_comp_without_covid_mat
+
+# =================================================================
 
 # Interpretation of results:
 #
@@ -1713,9 +1714,12 @@ MSE_oos_mssa_comp_without_covid_mat
 #      simultaneous exploitation of time-series dynamics (longitudinal) and inter-indicator
 #      relationships (cross-sectional), as provided by M-SSA in combination with OLS regression.
 #
-#   4. Open question:
+#   4. Open questions:
 #      Why exactly does the M-SSA step contribute? What is the specific mechanism through
-#      which the multivariate filter adds forecasting value beyond univariate filtering?
+#      which the multivariate filter adds forecasting value beyond univariate filtering? And what 
+#      is the role of the HT constraint in M-SSA?
+
+# =================================================================
 
 
 
@@ -1922,7 +1926,7 @@ box()
 #   - Key questions:
 #       (i)   Can M-SSA outperform M-MSE in out-of-sample forecast accuracy?
 #       (ii)  Can M-SSA provide additional/alternative foresight?
-#       (iii) How is this related to enhanced smoothness?
+#       (iii) How is this related to enhanced smoothness (larger HT)?
 #   - These questions are addressed in the final two exercises.
 
 
@@ -2212,7 +2216,7 @@ box()
 #   (a) the HT hyperparameter effectively controls predictor smoothness, and
 #   (b) the empirical HT converges toward the imposed (expected) HT as the sample grows,
 #       as demonstrated theoretically in Tutorial 7.1 under a known data-generating process.
-#   (c) This convergence occurs if the (VAR model is not (or only marginally) misspecified
+#   (c) This convergence occurs if the (VAR) model is not (or only marginally) misspecified
 #   (d) If the (VAR) model is misspecified, then sample HT and expected HT differ but M-SSA
 #       remains smoother than M-MSE.
 # Interestingly, M-SSA is as fast as M-MSE at troughs and peaks: 
@@ -2238,13 +2242,6 @@ box()
 #     criterion, providing an interpretable and adjustable design lever.
 #
 # Key insight — smoothness without accuracy loss:
-#   - The increased smoothness of M-SSA does not impair out-of-sample MSE performance
-#     or introduce substantial forecast lag (retardation) relative to M-MSE.
-#   - This makes the M-SSA component predictor preferable to M-MSE in this
-#     application, offering equivalent accuracy with a less noisy signal.
-#   - Exercise 6 will illustrate and quantify gains due to M-SSA generating less false alarms (crossings)
-
-# Key insight — smoothness without accuracy loss:
 #   - The increased smoothness of M-SSA does not impair out-of-sample MSE forecast accuracy
 #     or introduce substantial forecast lag (retardation) relative to M-MSE.
 #   - This makes the M-SSA component predictor preferable to M-MSE in this application:
@@ -2263,10 +2260,11 @@ box()
 
 
 # =======================================================================
-# Exercise 6: Compute Final M-SSA and M-MSE Component Predictors
-#
+# Exercise 6: Compute Final M-SSA and M-MSE Component Predictors — Alarm Performance Analysis
+
+
 # Overview:
-#   This exercise extends the analysis of Exercises 4 and 5 in two directions:
+#   This exercise extends the analysis of Exercises 4 and 5 in three directions:
 #
 #   1. Model updating:
 #      Both the VAR model (used for M-SSA and M-MSE filter computation) and the
