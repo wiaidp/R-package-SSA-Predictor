@@ -3,7 +3,7 @@
 #######################################################################################
 #
 # Overview:
-#   This tutorial extends the M-SSA framework from tutorial 7.3 in three directions:
+#   This tutorial extends the M-SSA framework from tutorial 7.3 in four directions:
 #
 #   1. Forecasting (MSE-optimal):
 #      - The original M-SSA predictor (tutorial 7.3) was designed to track the smoothed
@@ -25,6 +25,8 @@
 #      - Key question: at which forecast horizon, and through which mechanism,
 #        does the M-SSA components predictor outperform?
 #
+#   4. M-SSA Smoothing:
+#      - Added value of increased smoothness in terms of zero-crossing rate (Holding Time HT)
 #######################################################################################
 # Structure: 6 Exercises
 #######################################################################################
@@ -46,18 +48,25 @@
 # Exercise 4:
 #   - Explainability: identify why the M-SSA components predictor outperforms
 #     specifically at multiple-quarters-ahead forecast horizons
-#   - Decompose the source of forecast gains across construction steps
+#   - Decompose the source of forecast gains across construction steps:
+#     Can univariate filters compete with M-SSA? 
 #
 # Exercise 5:
 #   - Introduce the 'M-MSE components predictor': same framework as M-SSA but
 #     without the holding-time (HT) constraint (less smooth, more reactive)
-#   - Compare MSE forecast performance against the mean benchmark and the
-#     M-SSA components predictor
+#   - Compare forecast performance against the mean benchmark and the
+#     M-SSA components predictor: 
+#     -Does the multivariate M-MSE compete with M-SSA?
+#     -Does the HT constraint of M-SSA pay off? 
+#     -If yes: in which terms?
 #
 # Exercise 6:
 #   - Compute final M-SSA and M-MSE components predictors using full data,
 #     with Pandemic observations excluded from parameter estimation to avoid
 #     distortion by singular outlier dynamics
+#   - Identify and quantify the contribution of the larger holding-time (HT) 
+#     constraint in M-SSA to forecast gains relative to M-MSE.
+#
 #
 # ============================================================
 # References
@@ -811,12 +820,71 @@ perf_obj$MSE_oos_without_covid
 perf_obj$MSE_mean_oos
 perf_obj$MSE_mean_oos_without_covid
 
-# Relative RMSE: M-SSA components predictor vs. mean benchmark
+# Relative Root MSE (rRMSE): M-SSA components predictor vs. mean benchmark
 # Values below 1 indicate M-SSA outperforms the mean
 sqrt(perf_obj$MSE_oos / perf_obj$MSE_mean_oos)
 
-# Same, excluding Pandemic
+# Same, excluding Pandemic: 
+#   COVID tends to distort efficiency gains (underestimation of effective gains)
 sqrt(perf_obj$MSE_oos_without_covid / perf_obj$MSE_mean_oos_without_covid)
+
+#-----------------------------------------------------------------------------------
+# Technical Note: Performance Metrics
+#
+# 1. HAC-Adjusted P-values, e.g., perf_obj$p_value
+#
+#   Procedure:
+#     - The out-of-sample predictor is regressed on the forward-shifted target (GDP or HP-GDP)
+#       over the entire out-of-sample span in a single full-sample regression.
+#     - This regression implicitly calibrates the standardized predictor to the level and
+#       scale of the target series before assessing predictive content.
+#
+#   Interpretation:
+#     - After level and scale calibration, the HAC-adjusted p-value measures how much of
+#       the dynamic variation in the target is explained by the predictor.
+#     - A small p-value indicates that the predictor captures the temporal pattern of the
+#       target significantly better than chance.
+#
+#   Consistency with M-SSA design:
+#     - This metric is well-aligned with the M-SSA optimization criterion, which deliberately
+#       abstracts from level and scale calibration:
+#         (i)  M-SSA maximizes target correlation — equivalently, sign accuracy — subject
+#              to a sign-change rate constraint (holding time).
+#         (ii) M-SSA emphasizes dynamic properties (up/down swings) of the predictor
+#              and treats level and scale as static nuisance parameters to be handled separately 
+#              (e.g., through regression).
+#
+#
+# 2. MSE and rRMSE, e.g., perf_obj$MSE_oos
+#
+#   Procedure:
+#     - Unlike the HAC p-value approach, level and scale calibration of M-SSA is performed in a
+#       truly out-of-sample fashion: regression coefficients are re-estimated recursively,
+#       using only data available at each point in time, and forecast errors are computed
+#       on the held-out observation (to be predicted).
+#     - The MSE is then derived from the out-of-sample MSE.
+#
+#   Interpretation:
+#     - MSE and rRMSE jointly account for both dynamic accuracy (up/down swings) and
+#       static accuracy (level and scale calibration), providing a more comprehensive
+#       assessment of forecast performance than p-values alone.
+#
+#   Scope:
+#     - This procedure extends the M-SSA forecasting framework to settings where level and
+#       scale form an integral part of the forecast task — for example, when forecasting
+#       effective GDP growth rates rather than a standardized signal.
+#
+#   Application:
+#     - Researchers focused on the dynamic pattern of GDP — i.e., the directional signal
+#       (expansion vs. contraction phases, turning points, cyclical swings) — may regard
+#       HAC-adjusted p-values as the more relevant performance metric, since these directly
+#       measure the predictor's ability to track the temporal dynamics of the target,
+#       independently of level and scale.
+#     - Researchers focused on effective GDP growth forecasting — where accurate level and
+#       scale calibration are integral to the forecast task — will find MSE and rRMSE to be
+#       the more appropriate metrics, as these jointly penalize both dynamic and static
+#       forecast errors.
+#-----------------------------------------------------------------------------------
 
 # ==================================================================
 # 1.3.4 Full Performance Matrix: All Combinations of Forward-Shift and Forecast Horizon
@@ -1107,18 +1175,52 @@ rRMSE_mSSA_comp_direct_without_covid
 rRMSE_mSSA_direct_mean_without_covid
 
 # =================================================================
-# Summary of key findings:
+# Summary of Key Findings:
 #
-# 1. Systematic horizon-shift pattern:
-#    Moving from top to bottom (larger forward shifts) and left to right (larger forecast
-#    horizons), M-SSA designs optimized for longer horizons tend to perform progressively
-#    better — consistent with the intended design of the M-SSA filter.
+# Preliminary Notes:
+#   a. The M-SSA filter relies on a VAR model estimated on the in-sample period ending
+#      before the 2008 financial crisis; the VAR is fixed and never updated.
+#   b. All forecast performances are evaluated out-of-sample over the period 2008–2025.
 #
-# 2. Impact of the COVID-19 pandemic on evaluation:
-#    - Including pandemic observations inflates both p-values and rRMSEs, obscuring
-#      the underlying systematic patterns with outlier-driven noise.
-#    - Direct forecasts do not outperform the naive mean benchmark for shift>2 (when adjusted 
-#     for COVID outliers)
+# 1. Forecasting BIP vs. HP-BIP:
+
+#    - HP-BIP is substantially easier to forecast than raw BIP, because the two-sided
+#      HP filter removes unpredictable high-frequency noise, leaving a smoother and more
+#      systematic cyclical signal for the predictor to track.
+#    - A statistically significant (HAC-adjusted) predictive link is detected up to
+#      approximately one year ahead between the M-SSA smoothed predictor and:
+#        (i)  Forward-shifted HP-BIP — a very strong and robust link across horizons.
+#        (ii) Forward-shifted raw BIP — a weaker but still detectable link, reflecting
+#             the additional noise present in the unfiltered target series.
+#
+# 2. Systematic Horizon-Shift Pattern:
+
+#    - In the performance matrices, rows index forward shifts (target lead time) and columns
+#      index forecast horizons h (the horizon for which each M-SSA filter is optimized).
+#      For a given row (fixed shift), forecast performance tends to improve as h increases
+#      from left to right, peaking when h aligns with — or slightly exceeds — the shift value.
+#      This corresponds to the diagonal (and just above) of the performance matrices.
+#
+#    - Clarity of the pattern depends on the target series:
+#        (i)  HP-GDP (low-noise target): the diagonal pattern is strong, clean, and
+#             consistent across all shift values.
+#        (ii) Raw GDP (high-noise target): the pattern is present but partially obscured
+#             by the high-frequency noise in the unfiltered target series.
+#
+#    - This regularity reflects a coherent and interpretable internal structure:
+#      each M-SSA design is effective at the horizon for which it was optimized,
+#      confirming that the optimization criterion successfully encodes horizon-specific
+#      information into the filter design — and that this encoding is empirically
+#      recoverable from out-of-sample forecast evaluation (at least in the absence of strong noise).
+
+# 3. Impact of the COVID-19 Pandemic on Out-of-Sample Evaluation:
+#    - Including pandemic observations (2020–2021) in the validation sample inflates both
+#      p-values and rRMSEs, obscuring the underlying systematic horizon-shift patterns
+#      with a small number of extreme outlier-driven observations.
+#    - When pandemic observations are included, direct forecasts fail to outperform the
+#      naive mean benchmark at forward shifts greater than two quarters — a result driven
+#      primarily by the distorting influence of the pandemic episode rather than by a
+#      genuine deterioration in predictor quality.
 # =================================================================
 
 
@@ -1151,27 +1253,25 @@ shift <- 3
 # In the absence of revisions, both series would overlap exactly.
 # Discrepancies between them reflect the revision error introduced by recursive weight re-estimation.
 
+#-------------------------
+# Plot
 par(mfrow = c(1, 1))
 mplot <- cbind(
   final_components_preditor_array[shift, h, ],
   oos_components_preditor_array[shift, h, ]
 )
 colnames(mplot) <- c("Final predictor", "Real-time out-of-sample predictor")
-
 colo       <- c("blue", rainbow(length(select_vec_multi)))
 main_title <- "Revisions: final vs. real-time predictor"
-
 plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
      col = colo[1], lwd = 1,
      ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
 mtext(colnames(mplot)[1], col = colo[1], line = -1)
-
 for (i in 1:ncol(mplot))
 {
   lines(mplot[, i], col = colo[i], lwd = 1, lty = 1)
   mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-
 abline(h = 0)
 # Vertical dashed line marks the start of the out-of-sample evaluation period
 abline(v = which(rownames(mplot) <= date_to_fit)[length(which(rownames(mplot) <= date_to_fit))],
@@ -1180,9 +1280,10 @@ axis(1, at = c(1, 4 * 1:(nrow(mplot) / 4)),
      labels = rownames(mplot)[c(1, 4 * 1:(nrow(mplot) / 4))])
 axis(2)
 box()
+#--------------------------
 
 # Note: This plot uses shift and h as specified above. Analogous plots for other shift/horizon
-#      combinations show no systematic differences in revision behavior.
+#      combinations show similar revision behavior.
 
 # Key observations on revision behavior:
 #
@@ -1202,9 +1303,10 @@ box()
 # Convergence of the weights over time would confirm that the real-time predictor is stabilizing
 # toward the final predictor, and that the revision process is well-behaved.
 
+#------------------------
+# Plot
 par(mfrow = c(1, 1))
 mplot <- track_weights_array[shift, h, , ]
-
 colo       <- c("black", "blue", "red")
 main_title <- "Revisions: regression weights over time"
 
@@ -1212,13 +1314,11 @@ plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
      col = colo[1], lwd = 1,
      ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
 mtext(colnames(mplot)[1], col = colo[1], line = -1)
-
 for (i in 1:ncol(mplot))
 {
   lines(mplot[, i], col = colo[i], lwd = 1, lty = 1)
   mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-
 abline(h = 0)
 # Vertical dashed line marks the start of the out-of-sample evaluation period
 abline(v = which(rownames(mplot) <= date_to_fit)[length(which(rownames(mplot) <= date_to_fit))],
@@ -1227,7 +1327,7 @@ axis(1, at = c(1, 4 * 1:(nrow(mplot) / 4)),
      labels = rownames(mplot)[c(1, 4 * 1:(nrow(mplot) / 4))])
 axis(2)
 box()
-
+#------------------------
 
 
 # Key observations on weight dynamics:
@@ -1236,17 +1336,35 @@ box()
 #     reflecting estimation uncertainty in short samples and sensitivity to individual observations.
 #
 #   - Over time: weights progressively stabilize, converging toward apparent fixed points,
-#     consistent with a stationary weight process.
+#     consistent with a (more or less) stationary weight process.
 #     - This convergence of the weights mirrors and explains the convergence of the real-time
 #       predictor toward the final full-sample predictor observed in Section 2.1.
+#     - The regression weight (blue) and intercept (black) jointly perform the static
+#       level and scale calibration of the M-SSA predictor to the target series:
+#         (i)   The intercept captures the level offset between the M-SSA output and the
+#               target. Since M-SSA is centered (optimized for HP-BIP, which has zero mean (HP applied to standardized BIP)),
+#               and the target is standardized BIP growth, the intercept remains close to
+#               zero throughout the sample — confirming that no systematic level adjustment
+#               is required.
+#         (ii)  The regression weight reflects the scale difference between the M-SSA
+#               output (a filtered estimate of HP-BIP) and the standardized GDP growth rate
+#               target. The consistently large weight value is therefore expected, as it
+#               rescales the HP-BIP filtered signal to the amplitude of the (standardized) BIP growth target.
+#         (iii) When predicting original BIP growth, the regression would account for corresponding 
+#               `static' level and scale adjustments. 
 #
 #   - Anchoring role of the financial crisis (2008-2009):
-#     - The sharp BIP contraction and subsequent rebound during the financial crisis constitute
+#     - The sharp GDP contraction and subsequent rebound during the financial crisis constitute
 #       a structurally influential event that anchors the statistical dependence between the
-#       forward-shifted BIP target and the M-SSA components predictor.
-#     - In the absence of such pronounced cyclical dynamics, BIP log-differences would behave
+#       forward-shifted GDP target and the M-SSA components predictor.
+#     - The importance of this event is directly visible in the plot: the regression weight
+#       (blue) undergoes a pronounced and persistent upward shift following 2008, reflecting
+#       the strong and lasting realignment between the M-SSA predictor and the GDP target
+#       that is established by the crisis episode.
+#     - In the absence of such pronounced cyclical dynamics, GDP log-differences would behave
 #       approximately as white noise around a fixed trend growth rate, leaving little systematic
-#       variation for M-SSA to exploit — and thus providing negligible predictive content.
+#       low-frequency variation for M-SSA to exploit — and thus providing negligible predictive
+#       content at horizons beyond one quarter.
 #
 #   - Value of M-SSA during strong cyclical swings:
 #     - During episodes of large cyclical swings — such as recession contractions and recovery
