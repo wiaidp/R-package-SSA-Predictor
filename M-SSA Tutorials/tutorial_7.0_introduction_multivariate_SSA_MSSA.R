@@ -29,6 +29,25 @@
 #     example
 # =============================================================================
 
+# ============================================================
+# References
+# ============================================================
+#
+# Wildi, M. (2026b). The Accuracy-Smoothness Dilemma in Prediction:
+#   A Novel Multivariate M-SSA Forecast Approach.
+#   Journal of Time Series Analysis, http://doi.org/10.1111/jtsa.70058 
+#   arXiv: https://doi.org/10.48550/arXiv.2602.13722
+#
+# Heinisch, K., Van Norden, S., and Wildi, M. (2026).
+#   Smooth and Persistent Forecasts of German GDP:
+#   Balancing Accuracy and Stability.
+#   IWH Discussion Papers, 1/2026.
+#   Halle Institute for Economic Research.
+#   https://doi.org/10.18717/dp99kr-7336
+#
+# ============================================================
+
+
 # -----------------------------------------------------------------------------
 # Environment Setup: clear workspace, load required packages and source files
 # -----------------------------------------------------------------------------

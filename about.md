@@ -46,15 +46,17 @@ Wildi, M. (2026a) Sign Accuracy, Mean-Squared Error and the Rate of Zero Crossin
 
 
 
-Wildi, M. (2026b) The Accuracy-Smoothness Dilemma in Prediction: a Novel Multivariate M-SSA Forecast Approach.
+Wildi, M. (2026b) The Accuracy-Smoothness Dilemma in Prediction: a Novel Multivariate M-SSA Forecast Approach. Journal of Time Series Analysis.
 
-&#x20;    https://doi.org/10.48550/arXiv.2602.13722. Published in Journal of Time Series Analysis (and arXiv)
+&#x20;    http://doi.org/10.1111/jtsa.70058
+
+arXiv: https://doi.org/10.48550/arXiv.2602.13722.  
 
 
 
-Heinisch, K. and Van Norden, S. and Wildi, M. (2026) Smooth and Persistent Forecasts of German GDP: Balancing Accuracy and Stability. 
+Heinisch, K. and Van Norden, S. and Wildi, M. (2026) Smooth and Persistent Forecasts of German GDP: Balancing Accuracy and Stability.
 
-&#x20;    IWH Discussion Papers, 1/2026, Halle Institute for Economic Research,  
+&#x20;    IWH Discussion Papers, 1/2026, Halle Institute for Economic Research,
 
 &#x20;    https://doi.org/10.18717/dp99kr-7336.
 
@@ -66,11 +68,7 @@ Working paper versions are available in the 'Papers' folder of this GitHub repos
 
 detailed technical results, whereas published versions are more streamlined, occasionally moving proofs to online appendices.
 
-The last cited article (Heinisch et al., 2026) applies M-SSA to forecasting German GDP multiple quarters ahead. 
+The last cited article (Heinisch et al., 2026) applies M-SSA to forecasting German GDP multiple quarters ahead.
 
 This application serves as one of the main empirical showcase of the M-SSA in this tutorial.
-
-
-
-
 

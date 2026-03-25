@@ -36,15 +36,15 @@ The project directory is organized into five sub-folders:
 
 
 
-1\.Data
+1.Data
 
-2\.M-SSA Tutorials
+2.M-SSA Tutorials
 
-3\.Papers
+3.Papers
 
-4\.R
+4.R
 
-5\.Results
+5.Results
 
 
 
@@ -229,8 +229,4 @@ Positioning of the Approaches:
 
 
 \-Current research aims at unifying M-SSA and DFP/PCS to combine their respective strengths into a single, more comprehensive time-domain prediction framework.
-
-
-
-
 
