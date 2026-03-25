@@ -2269,31 +2269,41 @@ box()
 #   1. Model updating:
 #      Both the VAR model (used for M-SSA and M-MSE filter computation) and the
 #      OLS regression model (used to construct the component predictors) are re-estimated
-#      on the full available sample, replacing the fixed 2008 estimation cutoff used earlier.
-#      Note: the COVID-19 pandemic period (2020–2021) is excluded throughout to prevent
-#      outlier-driven distortion of both the VAR and regression estimates.
+#      on the full available sample, replacing the fixed 2008 estimation cutoff used in
+#      earlier exercises.
+#      Notes:
+#        - The COVID-19 pandemic period (2020–2021) is excluded throughout to prevent
+#          outlier-driven distortion of both the VAR and regression estimates.
+#        - The longer estimation sample now available allows the final regression step to
+#          include multiple M-SSA components as regressors (rather than restricting to
+#          M-SSA-BIP alone, as in earlier exercises). In the shorter in-sample span used
+#          previously, this broader regressor set was avoided to guard against overfitting;
+#          the extended sample provides sufficient observations to support a richer
+#          regression specification without this concern.
 #
 #   2. Smoothness gains — true vs. false alarms:
 #      The exercise quantifies the practical benefit of M-SSA's additional smoothness
 #      over M-MSE by analyzing the trade-off between true alarms (correctly signaled
 #      turning points) and false alarms (spurious zero-crossings).
 #      This is formalized via ROC curves and AUC statistics, providing a forecast quality
-#      metric that complements — and goes beyond — the MSE comparisons of previous Exercises.
+#      metric that complements — and goes beyond — the MSE and HAC-adjusted p-value comparisons 
+#      of previous Exercises.
 #
 #   3. Forecast applications:
 #      The final M-SSA and M-MSE component predictors are applied to two data variants:
-#        (a) Standardized GDP and indicators (as used throughout)  → Exercise 6.2
-#        (b) Original (unstandardized) GDP growth rates            → Exercise 6.3
+#        (a) Standardized BIP and indicators (as used throughout)  → Exercise 6.2
+#        (b) Original (unstandardized) BIP growth rates            → Exercise 6.3
 #      Application (b) translates the predictor output to an interpretable economic scale,
-#      enabling direct communication of effective GDP growth forecasts.
+#      enabling direct communication of effective BIPP growth forecasts.
 # =======================================================================
-# 6.1: Update M-SSA and M-MSE 
+# 6.1: Full-Sample M-SSA and M-MSE 
 # =======================================================================
 # Use all available data for VAR estimation (effectively no end-date restriction)
 #   Choose any year larger than 2026
 date_to_fit <- "3000"
 
 # Remove pandemic years (2020 and 2021) to avoid distortion in VAR and regression estimates
+#   Termination _wc: without COVID
 x_mat_wc <- x_mat[c(which(rownames(x_mat) < 2020), which(rownames(x_mat) > 2021)), ]
 
 # Plot the pandemic-corrected time series for visual inspection
@@ -2320,7 +2330,7 @@ tail(final_mssa_array["BIP",,])
 tail(final_mssa_array["ifo_c",,])
 
 # =======================================================================
-# 6.2 Compute Full-Sample Predictors
+# 6.2 Compute Full-Sample Predictors (Regressions)
 # =======================================================================
 
 # For each predictor, we use all five indicators
@@ -2377,9 +2387,10 @@ for (h in 0:max(h_vec))
 }
 colnames(direct_hp_forecast_mat)<-paste("h=",h_vec,sep="")
 
-#-------------------------------------------------
-# 6.2.3 M-SSA and M-MSE
-#-------------------------------------------------
+#---------------------------------------------------------------------
+# 6.2.3 M-SSA and M-MSE Component Predictors: 
+#   Use All M-SSA Indicators
+#---------------------------------------------------------------------
 final_mssa_array<-final_mssa_indicator_obj$mssa_array
 final_mmse_array<-final_mssa_indicator_obj$mmse_array
 mssa_mat<-mmse_mat<-NULL
@@ -2402,7 +2413,7 @@ for (h in 0:max(h_vec))
 colnames(mssa_mat)<-colnames(mmse_mat)<-paste("shift=",h_vec,sep="")
 
 #-------------------------------------------------
-# 6.2.4. Forward-Shifted HP-BIP
+# 6.2.4. Forward-Shifted HP-BIP (Smooth Acausal Target)
 #-------------------------------------------------
 
 forward_shifted_HP_BIP_mat<-NULL
@@ -2411,7 +2422,7 @@ hp_bip<-c(rep(NA,lag_vec[1]),filter(data_roc[(1+lag_vec[1]):nrow(data_roc),"BIP"
 
 for (h in 0:max(h_vec))
 {
-  # Shift HP-BIP forward by forecast horizon
+# Shift HP-BIP forward by forecast horizon
   forward_shifted_HP_BIP_mat<-cbind(forward_shifted_HP_BIP_mat,c(hp_bip[(1+h):length(hp_bip)],rep(NA,h)))
 }
 rownames(forward_shifted_HP_BIP_mat)<-rownames(data_roc)
@@ -2500,15 +2511,51 @@ box()
 compute_empirical_ht_func( mssa_mat[,shift+1])   # Expected: higher HT (smoother)
 compute_empirical_ht_func( mmse_mat[,shift+1])   # Expected: lower HT (less smooth)
 
+# What is the benefit of a larger HT?
 
 # =======================================================================
 # 6.3 ROC and AUC: True vs. False Alarms
 # =======================================================================
-# We aim at predicting the sign of future BIP or future HP-BIP
-# For this purpose we compare full-sample direct forecasts, direct HP predictors, and
-#   M-MSE and M-SSA component predictors
-# We then compute the ROC curve and the AUC (Area Under the Curve) statistics for
-#   forecast horizons one quarter and one year.
+# Directional Forecast Evaluation: ROC and AUC Analysis
+#
+# Objective:
+#   We assess the ability of each predictor to correctly forecast the sign (direction)
+#   of future BIP growth and future HP-BIP — i.e., to distinguish expansion phases
+#   from contraction phases at different forecast horizons.
+#
+# Predictors compared:
+#   All predictors are estimated on the full sample and evaluated on the same out-of-sample
+#   span for comparability:
+#     - Direct forecast         (unfiltered indicators)
+#     - Direct HP forecast      (univariate HP-C filtered indicators)
+#     - M-MSE component predictor
+#     - M-SSA component predictor
+#
+# Evaluation methodology:
+#   For each predictor, we compute:
+#     - The ROC (Receiver Operating Characteristic) curve, tracing the trade-off between
+#       true alarm rate and false alarm rate across all possible decision thresholds.
+#     - The AUC (Area Under the ROC Curve) statistic, summarizing overall directional
+#       forecast accuracy in a single scalar measure (AUC = 1: perfect; AUC = 0.5: no better than chance).
+#   Evaluation is conducted at two forecast horizons:
+#     - One quarter ahead  (short horizon)
+#     - One year ahead     (long horizon)
+#
+# Prior expectations:
+#   1. Short horizon (one quarter ahead):
+#      The direct forecast is expected to perform well — possibly best — at this horizon,
+#      since unfiltered indicators retain high-frequency information relevant for
+#      near-term directional prediction.
+#   2. Long horizon (one year ahead):
+#      M-SSA and M-MSE component predictors are expected to outperform the direct and
+#      direct HP forecasts, as their multivariate filtering is specifically designed to
+#      extract the low-frequency cyclical signal relevant at longer horizons.
+#
+# Key question:
+#   Beyond the MSE comparison of Exercise 5, what is the specific advantage — in terms
+#   of directional forecast accuracy and false alarm reduction — of imposing a larger
+#   holding-time (HT) constraint in M-SSA relative to M-MSE?
+
 
 #-------------------------------------------------
 # 6.3.1 Target: Forward-Shifted BIP
