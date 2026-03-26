@@ -757,8 +757,8 @@ oos_pred <- lm_obj$coef[1] +
 #   So dat[i_time + shift + lag_vec[1], 1] represents BIP forward-shifted by
 #   2*(shift + lag_vec[1]) with respect to the last available in-sample regression equation
 oos_error <- dat[i_time + shift + lag_vec[1], 1] - oos_pred
-# This error will be realized 2*(shift + lag_vec[1]) quarters after 
-# the last available in-sample regression equation
+# This error will be observed 2*(shift + lag_vec[1]) quarters after 
+# the last available in-sample regression equation in t=i_time
 oos_error
 
 # ------------------------------------------------------------------
