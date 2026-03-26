@@ -948,7 +948,12 @@ sqrt(perf_obj$MSE_oos_without_covid / perf_obj$MSE_mean_oos_without_covid)
 #   This alignment between the optimization horizon and the evaluation shift defines
 #   the expected diagonal pattern in the performance matrices, and serves as an
 #   internal out-of-sample validation of the M-SSA design principle.
-# Exercise 
+
+# Exercise 1.0 above demonstrated that a clear diagonal pattern emerges in the
+# (equally-weighted) M-SSA output when the smooth HP-filtered BIP serves as the optimization
+# target. However, this pattern becomes obscured when the raw (unfiltered)
+# BIP is used as the target instead, as the noise present in the unfiltered
+# series contaminates the M-SSA output and blurs the underlying structure.
 
 
 # --- Specifications ---
@@ -1019,33 +1024,6 @@ track_weights_array <- array(
     c("Intercept", sel_vec_mssa_comp)
   )
 )
-
-
-
-# Run the performance evaluation function
-perf1_obj <- compute_perf_func(
-  x_mat, target_shifted_mat, mssa_array["spr_10y_3m",,], mmse_array["BIP",,],
-  in_out_separator, select_direct_indicator, h_vec
-)
-
-perf1_obj$cor_mat_HP_BIP_oos
-perf1_obj$p_value_HAC_HP_BIP_oos
-
-
-perf1_obj$cor_mat_BIP_oos
-perf1_obj$p_value_HAC_BIP_oos
-
-
-# Run the performance evaluation function
-perf2_obj <- compute_perf_func(
-  x_mat, target_shifted_mat, predictor_mssa_mat, predictor_mmse_mat,
-  in_out_separator, select_direct_indicator, h_vec
-)
-
-perf2_obj$cor_mat_HP_BIP_oos
-perf2_obj$p_value_HAC_HP_BIP_oos
-
-
 
 
 # Progress bar: tracks loop completion in the R console
