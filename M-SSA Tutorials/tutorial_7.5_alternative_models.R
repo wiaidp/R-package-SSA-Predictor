@@ -1,3 +1,6 @@
+# Currently under construction
+
+
 # Tutorial 7.5
 # Almost the same as tutorial 7.4 but we propose a different multivariate model
 #   -BVAR(3) instead of VAR(1)
@@ -321,7 +324,7 @@ rRMSE_mSSA_direct_mean_without_covid
 # -Singular Pandemic data affects evaluation 
 #   -p-values and rRMSEs increase; systematic patterns are cluttered by noise
 #   -Direct forecasts barely outperform the simple mean benchmark, see rRMSE_mSSA_direct_mean
-
+# Outperforms direct forecasts even for small h
 
 ################################################################################################################
 # Exercise 2 Analyze revisions of M-SSA components predictor

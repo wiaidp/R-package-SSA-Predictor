@@ -85,7 +85,18 @@
 #   https://doi.org/10.18717/dp99kr-7336
 #
 # ============================================================
-
+######################################################################################
+######################################################################################
+# Concluding Remark:
+#   The M-SSA framework presented here relies on a deliberately simple VAR(1)
+#   specification. While this parsimonious model already delivers meaningful
+#   forecasting performance, it leaves room for further refinement.
+#   Tutorial 7.5 introduces a more sophisticated BVAR(3) model — a Bayesian
+#   VAR with three lags — which incorporates prior information to regularize
+#   parameter estimation and better capture the dynamic interdependencies
+#   among the indicator series. The richer BVAR(3) specification is shown
+#   to yield further improvements in out-of-sample forecasting performance
+#   relative to the VAR(1) baseline established here.
 #######################################################################################
 
 # Start with a clean workspace
