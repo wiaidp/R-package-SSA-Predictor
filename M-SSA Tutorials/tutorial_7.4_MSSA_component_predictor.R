@@ -327,6 +327,7 @@ target_shifted_mat <- mssa_indicator_obj$target_shifted_mat
 # equally-weighted average of all standardized M-SSA component outputs across
 # the five selected indicator series.
 predictor_mssa_mat <- mssa_indicator_obj$predictor_mssa_mat
+tail(predictor_mssa_mat)
 
 # M-SSA component array (3-dimensional: [series, time, horizon]):
 #   - For each forecast horizon h and each indicator series, this array
@@ -336,7 +337,19 @@ predictor_mssa_mat <- mssa_indicator_obj$predictor_mssa_mat
 #     across the series dimension.
 #   - Individual components are analyzed in Exercise 1.1 below.
 mssa_array <- mssa_indicator_obj$mssa_array
+# Inspect the most recent M-SSA outputs for two selected indicator series
 tail(mssa_array["BIP",,])
+tail(mssa_array["ifo_c",,])
+# Averaging the individual M-SSA components across all indicator series
+# yields the aggregate predictor_mssa_mat:
+tail(predictor_mssa_mat)
+# In the absence of strong prior information favouring any single indicator,
+# equal-weight averaging is a robust and well-established strategy for
+# combining predictors. However, rather than imposing equal weights a priori,
+# one could instead derive 'optimal' weights via linear regression — allowing
+# the data to determine each indicator's relative contribution to forecasting
+# the target variable. This regression-based weighting scheme is the central
+# methodological topic of the present tutorial.
 
 # M-MSE component array (same structure as mssa_array):
 #   - Same as mssa_array but without the HT smoothness constraint:
@@ -361,9 +374,11 @@ in_out_separator <- "2007"
 select_direct_indicator <- c("ifo_c", "ESI")
 # Select all indicators: possible overfitting issues
 select_direct_indicator <- colnames(x_mat)
+# Equally weighted combination
+predictor<-predictor_mssa_mat
 
 perf_obj <- compute_perf_func(
-  x_mat, target_shifted_mat, predictor_mssa_mat,
+  x_mat, target_shifted_mat, predictor,
   predictor_mmse_mat, in_out_separator, select_direct_indicator, h_vec
 )
 
@@ -379,8 +394,23 @@ perf_obj <- compute_perf_func(
 #   - Small p-values on or near the diagonal indicate that the predictor
 #     optimized for horizon h performs best at the matching forward-shift.
 # ------------------------------------------------------------------
+# Targeting forward-shifted HP-GDP:
+#   p_value_HAC_HP_BIP_oos are the HAC-adjusted p-values obtained from a regression of 
+#   the smooth HP-BIP, shifted forward by shift=0,...,5, on the predictors in predictor_mssa_mat,
+#   optimized for h=0,...,6 (out-of-sample). 
+p_value_HAC_HP_BIP_oos <- perf_obj$p_value_HAC_HP_BIP_oos
+round(p_value_HAC_HP_BIP_oos, 3)
+#   Result: P-values are smallest along the diagonal (h = shift), confirming a tight
+#   alignment between the optimization horizon and the evaluation forward shift.
+
+
+# Targeting forward-shifted raw GDP:
+#   The diagonal pattern is less sharp due to higher noise in the unfiltered target.
+#   However, for shift >= 2, p-values tend to decrease from left to right (increasing h),
+#   suggesting that M-SSA filters optimized for longer horizons track forward-shifted
+#   BIP more effectively than shorter-horizon designs.
 p_value_HAC_BIP_oos <- perf_obj$p_value_HAC_BIP_oos
-round(p_value_HAC_BIP_oos,3)
+round(p_value_HAC_BIP_oos, 3)
 
 # ------------------------------------------------------------------
 # Illustrative example: one-year-ahead forecast significance
@@ -483,11 +513,9 @@ colnames(mplot) <- c(
   "Cross-sectional mean of standardized sub-components",
   "Original M-SSA predictor (tutorial 7.3)"
 )
-
 colo       <- c("blue", rainbow(length(select_vec_multi)))
 main_title <- paste0("Replication of M-SSA predictor from equally-weighted components (h = ",
                      h_vec[j_now], ")")
-
 par(mfrow = c(1, 1))
 plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
      col = colo[1], lwd = 2,
@@ -497,7 +525,6 @@ for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i], lwd = 1, lty = 2)
   mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-
 abline(h = 0)
 abline(v = which(rownames(mplot) <= date_to_fit)[length(which(rownames(mplot) <= date_to_fit))],
        lwd = 2, lty = 2)
@@ -538,13 +565,11 @@ colnames(mplot) <- c(
   paste0("M-SSA predictor (h = ", h_vec[j_now], ")"),
   paste0("Component: ", select_vec_multi)
 )
-
 colo       <- c("blue", rainbow(length(select_vec_multi)))
 main_title <- c(
   paste0("M-SSA nowcast (solid blue) and sub-components (dashed) — h = ", h_vec[j_now]),
   "Vertical dashed line marks end of in-sample span"
 )
-
 plot(mplot[, 1], main = main_title, axes = F, type = "l", xlab = "", ylab = "",
      col = colo[1], lwd = 2,
      ylim = c(min(na.exclude(mplot)), max(na.exclude(mplot))))
@@ -553,7 +578,6 @@ for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i], lwd = 1, lty = 2)
   mtext(colnames(mplot)[i], col = colo[i], line = -i)
 }
-
 abline(h = 0)
 abline(v = which(rownames(mplot) <= date_to_fit)[length(which(rownames(mplot) <= date_to_fit))],
        lwd = 2, lty = 2)
@@ -787,7 +811,7 @@ in_out_separator <- in_out_separator
 # Sample alignment:
 #   - M-SSA loses the first L observations due to filter initialization
 #   - Setting align_sample = T removes the same observations from the mean and direct forecast
-#     benchmarks, ensuring all methods are evaluated on an identical sample
+#     benchmarks, ensuring all methods are evaluated on an identical evalution sample
 align_sample <- T
 
 # Regression type for the optimal weighting step:
@@ -816,7 +840,7 @@ perf_obj <- optimal_weight_predictor_func(
 # (shorter than the full data due to publication lag and forward-shift of BIP)
 tail(perf_obj$epsilon_oos)
 
-# Out-of-sample forecast errors: naive mean benchmark
+# Out-of-sample forecast errors of naive mean benchmark
 tail(perf_obj$epsilon_mean_oos)
 
 # HAC-adjusted p-value: regression of out-of-sample M-SSA components predictor on forward-shifted BIP
@@ -855,7 +879,7 @@ sqrt(perf_obj$MSE_oos_without_covid / perf_obj$MSE_mean_oos_without_covid)
 #   Procedure:
 #     - The out-of-sample predictor is regressed on the forward-shifted target (BIP or HP-BIP)
 #       over the entire out-of-sample span in a single full-sample regression.
-#     - This regression implicitly calibrates the standardized predictor to the level and
+#     - This regression implicitly calibrates the (standardized or HP-BIP scaled) predictor to the level and
 #       scale of the target series before assessing predictive content.
 #
 #   Interpretation:
@@ -866,7 +890,7 @@ sqrt(perf_obj$MSE_oos_without_covid / perf_obj$MSE_mean_oos_without_covid)
 #
 #   Consistency with M-SSA design:
 #     - This metric is well-aligned with the M-SSA optimization criterion, which deliberately
-#       abstracts from level and scale calibration:
+#       abstracts from `static' level and scale calibration:
 #         (i)  M-SSA maximizes target correlation — equivalently, sign accuracy — subject
 #              to a sign-change rate constraint (holding time).
 #         (ii) M-SSA emphasizes dynamic properties (up/down swings) of the predictor
@@ -906,22 +930,37 @@ sqrt(perf_obj$MSE_oos_without_covid / perf_obj$MSE_mean_oos_without_covid)
 #-----------------------------------------------------------------------------------
 
 # ==================================================================
-# 1.3.4 Full Performance Matrix: All Combinations of Forward-Shift and Forecast Horizon
+# 1.3.4 Full Performance Matrix: 
+#       All Combinations of Forward-Shift and Forecast Horizon
 # ==================================================================
-# We now compute the above performance metrics exhaustively across:
-#   - shift_vec: forward-shifts of BIP (rows of performance matrices)
-#   - h_vec:     M-SSA forecast horizons (columns of performance matrices)
-# This yields a (6 x 7) matrix for each performance metric, revealing the systematic
-# horizon-shift interaction pattern discussed in exercise 1.2.3
+# We now compute the above performance metrics exhaustively across all combinations of:
+#   - shift_vec: forward shifts of the GDP target (rows of the performance matrices)
+#   - h_vec:     M-SSA forecast horizons, i.e., the horizon for which each filter is
+#                optimized in-sample (columns of the performance matrices)
+#
+# This yields a (6 x 7) performance matrix for each metric, providing a comprehensive
+# view of the horizon-shift interaction pattern across the full grid of design choices.
+#
+# Consistency check:
+#   By construction, an M-SSA filter optimized in-sample for horizon h should deliver
+#   its best out-of-sample forecast performance when predicting HP-BIP or BIP at a
+#   forward shift of shift = h (or shift ≈ h for near-diagonal entries).
+#   This alignment between the optimization horizon and the evaluation shift defines
+#   the expected diagonal pattern in the performance matrices, and serves as an
+#   internal out-of-sample validation of the M-SSA design principle.
+# Exercise 
+
 
 # --- Specifications ---
 
 # M-SSA component used as predictor: BIP sub-component only
-# (using all components risks overfitting in the optimal weighting step)
+# Using all components risks overfitting in the optimal weighting step given the short in-sample span
+# In exercise 6 we include all M-SSA components in a longer (full-sample) estimation
 sel_vec_mssa_comp <- c("BIP")
 
 # Macro-indicators for the direct forecast benchmark
 # Parsimonious two-indicator design (ifo_c, ESI) chosen to avoid overfitting
+# The two series are well-known nowcast indicators
 sel_vec_direct_forecast <- c("ifo_c", "ESI")
 
 # Sample alignment (same rationale as in 1.3.3)
@@ -980,6 +1019,34 @@ track_weights_array <- array(
     c("Intercept", sel_vec_mssa_comp)
   )
 )
+
+
+
+# Run the performance evaluation function
+perf1_obj <- compute_perf_func(
+  x_mat, target_shifted_mat, mssa_array["spr_10y_3m",,], mmse_array["BIP",,],
+  in_out_separator, select_direct_indicator, h_vec
+)
+
+perf1_obj$cor_mat_HP_BIP_oos
+perf1_obj$p_value_HAC_HP_BIP_oos
+
+
+perf1_obj$cor_mat_BIP_oos
+perf1_obj$p_value_HAC_BIP_oos
+
+
+# Run the performance evaluation function
+perf2_obj <- compute_perf_func(
+  x_mat, target_shifted_mat, predictor_mssa_mat, predictor_mmse_mat,
+  in_out_separator, select_direct_indicator, h_vec
+)
+
+perf2_obj$cor_mat_HP_BIP_oos
+perf2_obj$p_value_HAC_HP_BIP_oos
+
+
+
 
 # Progress bar: tracks loop completion in the R console
 pb <- txtProgressBar(min = min(h_vec), max = max(h_vec) - 1, style = 3)
