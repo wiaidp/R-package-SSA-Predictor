@@ -2798,8 +2798,20 @@ h<-4
 shift<-h
 # Aggressive selection: all indicators
 sel_vec_pred<-select_vec_multi
+# Inspection of the regression equation below reveals that only M-SSA-BIP and 
+# M-SSA-ip are significant. But all (original/unfiltered) indicators (including, 
+# ifo,ESI and spread) enter into the VAR-model and hence into M-SSA-BIP and M-SSA-ip
+
+# Note
+# The weight on M-SSA-BIP is positive and that on M-SSA-ip is negative.
+# The negative weight on ip ensures impressive leads (left-shift) but it 
+# is a bit difficult to interpret (other than minimizing MSE).
+# Therefore the simpler `conservative' single M-SSA-BIP retains some appeal, 
+# in particular when interpretablity imports.
+
 # Conservative selection: M-SSA-BIP only
 sel_vec_pred<-"BIP"
+
 
 # --- 6.4.1: Load and Prepare Original BIP Data ---
 
