@@ -2381,7 +2381,7 @@ box()
 #          include multiple M-SSA components as regressors (rather than restricting to
 #          M-SSA-BIP alone, as in earlier exercises). In the shorter in-sample span used
 #          previously, this broader regressor set was avoided to guard against overfitting;
-#          the extended sample provides sufficient observations to support a richer
+#          the extended sample provides sufficient observations to eventually support a richer
 #          regression specification without this concern.
 #
 #   2. Smoothness gains — true vs. false alarms:
@@ -2787,15 +2787,19 @@ AUC_table
 
 
 
-#---------------------------
-# --- Exercise 6.4: Apply Predictor to Original (Unstandardized) BIP Growth ---
-#
+# =======================================================================
+# Exercise 6.4: Apply Predictor to Original (Unstandardized) BIP Growth 
+# =======================================================================
 # Purpose: Generate forecasts of the effective (real-scale) BIP growth rate,
 #          This yields predictions in interpretable, original units.
 
 # Select practically relevant one-year horizon
 h<-4
 shift<-h
+# Aggressive selection: all indicators
+sel_vec_pred<-select_vec_multi
+# Conservative selection: M-SSA-BIP only
+sel_vec_pred<-"BIP"
 
 # --- 6.4.1: Load and Prepare Original BIP Data ---
 
