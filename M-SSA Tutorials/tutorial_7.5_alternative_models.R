@@ -459,60 +459,135 @@ rownames(p_mat_mssa_components)<-rownames(p_mat_direct)<-
   rownames(p_mat_direct_without_covid)<-rownames(MSE_oos_mssa_comp_mat)<-
   rownames(MSE_oos_mssa_comp_without_covid_mat)<-paste("Shift=",shift_vec,sep="")
 
+
+
+
 #-----------------------
-# HAC-adjusted p-values for the M-SSA component predictor targeting forward-shifted BIP.
-# Evaluation covers the out-of-sample period from 'in_out_separator' through January 2025.
-p_mat_mssa_components
+# HAC-adjusted p-values: M-SSA component predictors vs. forward-shifted BIP
+#
+# Each entry (i, j) reports the HAC-adjusted p-value for the correlation between
+# the M-SSA predictor optimized at horizon h_vec[j] and BIP shifted forward by shift_vec[j] quarters (including the publication lag).
+# The evaluation covers the out-of-sample period from 'in_out_separator' through January 2025.
+round(p_mat_mssa_components, 4)
 
-# Same evaluation excluding the singular COVID-19 pandemic observations.
-p_mat_mssa_components_without_covid
-# Interpretation: the M-SSA predictor maintains statistically significant predictive
-# content for BIP growth across multiple quarters ahead.
+# Same evaluation as above, but with COVID-19 pandemic observations removed.
+# Excluding these outliers provides a cleaner assessment of the predictor's
+# structural predictive content, uncontaminated by the extreme 2020 episode.
+round(p_mat_mssa_components_without_covid, 4)
+
+# Key finding:
+# The M-SSA composite predictor retains statistically highly significant predictive
+# content for BIP growth across multiple quarters ahead, especially after removing
+# the COVID-19 outliers.
+
+#-----------------------
+# Benchmark comparison: M-SSA based on the simpler VAR(1) model from tutorial 7.4
+# Load the corresponding p-value matrix for direct comparison.
+load(file = paste(getwd(), "/p_mat_mssa_components_without_covid_tutorial74", sep = ""))
+round(p_mat_mssa_components_without_covid_tutorial74, 4)
+
+# Comparative findings — BVAR(3) vs. VAR(1):
+#
+#   1. Smaller p-values:
+#      The BVAR(3)-based M-SSA yields systematically lower p-values than the VAR(1)-based
+#      counterpart at the relevant combinations of h and shift (towards the diagonal), 
+#      indicating a stronger and more reliable statistical link to forward-shifted BIP.
+#
+#   2. Tighter diagonal concentration:
+#      The smallest p-values are more closely clustered along the main diagonal of the matrix.
+#      That is, for a given BIP forward-shift (row), the M-SSA predictor optimized for the
+#      matching horizon h = shift attains the lowest (or near-lowest) p-value.
+#
+#   3. Internal consistency:
+#      This systematic (diagonal) pattern confirms that the forecast horizon hyperparameter h is
+#      meaningfully identified: each predictor is informative at the horizon for which
+#      it was explicitly optimized, validating the internal coherence of the M-SSA design.
+#      (this verification is necessary because M-SSA does not target BIP, but HP-BIP)
+#
+#   4. Interpretability:
+#      The alignment between optimization horizon and predictive peak provides intuitive
+#      evidence that the BVAR(3)-based M-SSA framework is well-specified and interpretable
+#      as a multi-horizon forecasting tool for German GDP growth.
 
 
+#----------------------
 # Note on p-values (above) vs. rRMSEs (below):
 #   - The p-values reported above are derived from out-of-sample M-SSA
 #     outputs, but rely on full-sample regressions for the 'static' level
 #     and scale adjustments applied to the M-SSA-BIP predictor. They
 #     therefore do not constitute fully out-of-sample evaluations.
 #   - The rRMSEs computed below provide a stricter assessment of 'true'
-#     forecast accuracy: both the M-SSA extraction and the level and scale
-#     alignment are performed in a genuinely out-of-sample fashion, ensuring
-#     that no future information leaks into the evaluation.
-
+#     forecast accuracy: the level and scale
+#     alignment are performed in a genuinely out-of-sample fashion, re-calibrating
+#     M-SSA at each new observation.
 
 # a. rRMSE: M-SSA component predictor benchmarked against the naive mean forecast
-rRMSE_mSSA_comp_mean
+round(rRMSE_mSSA_comp_mean,2)
 
 # b. rRMSE: M-SSA component predictor benchmarked against the direct forecast
-rRMSE_mSSA_comp_direct
+round(rRMSE_mSSA_comp_direct,2)
 
 # c. rRMSE: Direct forecast benchmarked against the naive mean forecast
 #    Note: columns are identical within each row because the direct forecast's
 #    explanatory variables do not depend on the M-SSA component index 'j' —
 #    the same model is fitted for all j at a given shift value.
-rRMSE_mSSA_direct_mean
+round(rRMSE_mSSA_direct_mean,2)
+
+#-----------------
+# Excluding COVID outliers
 
 # Same three rRMSE comparisons, excluding the COVID-19 pandemic period:
-rRMSE_mSSA_comp_mean_without_covid
-rRMSE_mSSA_comp_direct_without_covid
-rRMSE_mSSA_direct_mean_without_covid
+round(rRMSE_mSSA_comp_mean_without_covid,2)
+# Compare with p-Values based on VAR(1), see Exercise 1.3 in tutorial 7.4
+load(file=paste(getwd(),"/rRMSE_mSSA_comp_mean_without_covid_tutorial74",sep=""))
+round(rRMSE_mSSA_comp_mean_without_covid_tutorial74,2)
+# Comparative findings — BVAR(3) vs. VAR(1):
+#
+#   1. Smaller rRMSE-values:
+#      The BVAR(3)-based M-SSA yields systematically lower rRMSE-values than the VAR(1)-based
+#      counterpart at the relevant combinations of h and shift (towards the diagonal), 
+#      indicating a stronger and more reliable statistical link to forward-shifted BIP.
+#
+#   2. Tighter diagonal concentration:
+#      The smallest rRMSE are more closely clustered along the main diagonal of the matrix.
+#      That is, for a given BIP forward-shift (row), the M-SSA predictor optimized for the
+#      matching horizon h = shift attains the lowest (or near-lowest) rRMSE-value.
+
+
+
+# M-SSA against direct forecast
+round(rRMSE_mSSA_comp_direct_without_covid,2)
+# Direct forecast against mean
+round(rRMSE_mSSA_direct_mean_without_covid,2)
+
 
 # =================================================================
 # Summary of Key Findings:
 #
 # Preliminary Notes:
-#   a. The M-SSA filter relies on a BVAR model estimated on the in-sample period ending
-#      in 2020. A longer sample is required because the pre-2008 sample alone is too short to reliably fit a BVAR(3).
-#      In contrast, Tutorial 7.4 is based on a VAR(1) estimated on a shorter (2008-) in-sample span.
-#   b. The regression equation is re-estimated each quarter from 2008 onwards.
 #
-# In contrast to tutorial 7.4: BVAR(3) against VAR(1)
-#   - The main difference to tutorial 7.4 (exercise 1.3) is that the p-values as well as the rRMSEs 
-#     are substantially smaller
-#   - The diagonal pattern (smallest p-vales, rRMSEs are obtained when h~shift) applies more clearly here
+#   a. Model estimation sample for M-SSA:
+#      The M-SSA filter is based on a BVAR(3) model estimated over the in-sample period
+#      ending in 2020. A longer estimation window is necessary because the post-2008
+#      sub-sample alone is too short to reliably identify the parameters of a BVAR(3).
+#      For reference, Tutorial 7.4 uses a more parsimonious VAR(1) model, which can be
+#      estimated reliably on the shorter post-2008 in-sample span.
+#
+#   b. Recursive out-of-sample evaluation:
+#      The predictive regression used to assess forecast performance is re-estimated
+#      on a rolling (expanding) window, with the estimation updated each quarter
+#      from 2008 onwards. This ensures comparability with results in tutorial 7.4.
 
-# For completeness, we here paste the previous findings after exercise 1.3 in tutorial 7.4
+# =================================================================
+# Main takeaway
+# - Compared to Tutorial 7.4 (Exercise 1.3: BVAR(3) vs VAR(1)):
+#   * Both p-values and rRMSEs are substantially smaller in this setting
+#   * The diagonal pattern is more pronounced: the smallest p-values and rRMSEs
+#     occur when h ≈ shift
+# =================================================================
+
+# For completeness, we reproduce the findings from Exercise 1.3 (Tutorial 7.4)
+# - These conclusions carry over unchanged to the BVAR(3)-based approach
 
 # 1. Forecasting BIP vs. HP-BIP:
 
@@ -527,18 +602,17 @@ rRMSE_mSSA_direct_mean_without_covid
 #       (ii)  Forward-shifted raw BIP (the above results): a weaker but still detectable link,
 #             reflecting the additional noise introduced by the unfiltered
 #             target series.
+#       (iii) The BVAR(3) used here reinforces this systematic link over the simpler VAR(1).
 #   - The predictive evidence for raw BIP is further reinforced by the
 #     following indirect argument: if future BIP is determined, at least
 #     in part, by its HP-filtered smooth counterpart, then the demonstrated
-#     ability to forecast HP-BIP translates into meaningful forecast evidence
+#     ability to forecast HP-BIP (see exercise 1.0, tutorial 7.4) translates into meaningful forecast evidence
 #     for raw BIP as well — even when the direct statistical link appears
 #     weaker. Moreover, the alignment between raw BIP and its HP-filtered
 #     trend is expected to strengthen particularly during periods of large
 #     economic swings, when the cyclical component dominates and idiosyncratic
 #     noise plays a comparatively smaller role. Incidentally, these are also the episodes 
 #     of main interest to forecasters.
-#   - The main difference to tutorial 7.4 (exercise 1.3) is that the p-values as well as the rRMSEs 
-#     are smaller
 #
 # 2. Systematic Horizon-Shift Pattern:
 
@@ -550,9 +624,10 @@ rRMSE_mSSA_direct_mean_without_covid
 #
 #    - Clarity of the pattern depends on the target series:
 #        (i)  HP-BIP (low-noise target): the diagonal pattern is strong, clean, and
-#             consistent across all shift values, see exercise 1.0 above.
+#             consistent across all shift values, see exercise 1.0, tutorial 7.4.
 #        (ii) Raw BIP (high-noise target): the pattern is present but partially obscured
 #             by the high-frequency noise in the unfiltered target series.
+#       (iii) The BVAR(3) improves upon the simpler VAR(1), rendering the diagonal pattern more clearly
 #
 #    - This regularity reflects a coherent and interpretable internal structure:
 #      each M-SSA design is effective at (or towards) the horizon for which it was optimized,
@@ -564,10 +639,6 @@ rRMSE_mSSA_direct_mean_without_covid
 #    - Including pandemic observations (2020–2021) in the validation sample inflates both
 #      p-values and rRMSEs, obscuring the underlying systematic horizon-shift patterns
 #      with a small number of extreme outlier-driven observations.
-#    - When pandemic observations are included, direct forecasts fail to outperform the
-#      naive mean benchmark at forward shifts greater than two quarters — a result driven
-#      primarily by the distorting influence of the pandemic episode rather than by a
-#      genuine deterioration in predictor quality.
 # =================================================================
 
 
@@ -642,6 +713,22 @@ box()
 # -Regression weights are quite volatile at the start
 # -However, progressively over time the weights appear to converge to some fix-points (stationarity)
 #   -The real-time predictor converges to the final predictor
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ################################################################################################################
