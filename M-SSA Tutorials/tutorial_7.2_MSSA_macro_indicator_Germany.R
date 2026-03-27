@@ -2,6 +2,9 @@
 # Tutorial 7.2: Application of M-SSA to Quarterly Macroeconomic Data (GDP Forecasting)
 #========================================================================
 
+# Nomenclature: 
+#   The acronym BIP refers to German GDP (Brutto-Inlands-Produkt)
+
 # --- Context and Motivation ---
 #
 # Tutorial 7.1 demonstrated the asymptotic convergence of M-SSA performance

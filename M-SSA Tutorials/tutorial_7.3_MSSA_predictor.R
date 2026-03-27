@@ -2,6 +2,9 @@
 # Tutorial 7.3: M-SSA Predictor Designs for German GDP (BIP)
 # ==================================================================
 #
+# Nomenclature: 
+#   The acronym BIP refers to German GDP (Brutto-Inlands-Produkt)
+
 # Background:
 #   - Tutorial 7.2 introduced the concept of M-SSA predictors for BIP and
 #     wrapped the full workflow into a single reusable function.

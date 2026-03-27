@@ -2,6 +2,9 @@
 # Tutorial 7.1: M-SSA in a Multivariate Nowcast Simulation Framework
 # ============================================================
 #
+# Nomenclature: 
+#   The acronym BIP refers to German GDP (Brutto-Inlands-Produkt)
+#
 # Overview:
 #   - Demonstrates customization of the Hodrick-Prescott (HP) filter
 #     in a five-dimensional multivariate setting.
