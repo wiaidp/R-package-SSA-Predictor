@@ -801,9 +801,6 @@ box()
 #   * Replace M-SSA components with M-MSE components in the predictive regression
 #   * That is, substitute mmse_array for mssa_array in the data matrix
 
-# --------------------------------------------------------------------------------------
-# Exercise 5.1: Evaluate M-MSE component predictor
-# --------------------------------------------------------------------------------------
 
 shift_vec <- shift_vec
 sel_vec_pred <- sel_vec_mssa_comp
@@ -904,18 +901,19 @@ round(rRMSE_mmse_comp_mssa_without_covid,2)
 # M-SSA and M-MSE are equivalent in terms of MSE performances
 # Surprising since M-SSA is smoother
 
-# We will check improved smoothness
+# We will check improved smoothness in the following exercise
 
-# --------------------------------------------------------------------------------------
-# Exercise 5.2: Final Predictors
-# --------------------------------------------------------------------------------------
+# ======================================================================================
+# Exercise 6: Final Predictors
+# ======================================================================================
 
-# 5.2.1 Final predictors (estimated on full sample)
+# 6.1 Compute Final Predictors (estimated on full sample regression, BVAR is not re-estimated)
 
+# Select one-year ahead forecast
 h <- 4
 if (h > max(h_vec)) h <- max(h_vec)
 
-shift <- 4
+shift <- h
 
 # Final M-MSE component predictor (OLS regression)
 if (length(sel_vec_pred) > 1)
@@ -977,8 +975,15 @@ if (length(sel_vec_pred) > 1)
     dat[,2:ncol(dat)] * optimal_weights[2:length(optimal_weights)]
 }
 
+
+par(mfrow=c(1,1))
+ts.plot(scale(cbind(mssa_predictor, mmse_predictor)),
+        col=c("blue","green"))
+abline(h=0)
+
+
 # --------------------------------------------------------------------------------------
-# 5.2.2 Smoothness: Holding times (smoothness comparison)
+# 6.2 Evaluate Smoothness (Holding Times)
 # --------------------------------------------------------------------------------------
 
 # - M-SSA imposes a higher HT than M-MSE -> should be smoother
@@ -989,11 +994,6 @@ if (length(sel_vec_pred) > 1)
 
 compute_empirical_ht_func(scale(mssa_predictor))
 compute_empirical_ht_func(scale(mmse_predictor))
-
-par(mfrow=c(1,1))
-ts.plot(scale(cbind(mssa_predictor, mmse_predictor)),
-        col=c("blue","green"))
-abline(h=0)
 
 # Interpretation:
 # - M-SSA exhibits ~33% fewer crossings (≈ 50% higher empirical HT)
