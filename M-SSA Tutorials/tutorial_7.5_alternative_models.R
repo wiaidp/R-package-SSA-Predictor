@@ -42,6 +42,7 @@
 #     forward shift of BIP, forecast designs optimized at horizon h = shift
 #     (i.e., the diagonal entries) are close to globally optimal,
 #     suggesting well-calibrated and coherent forecast optimization by M-SSA.
+#
 # ============================================================
 # References
 # ============================================================
@@ -600,7 +601,7 @@ round(rRMSE_mSSA_direct_mean_without_covid,2)
 # =================================================================
 # Main takeaway
 # - Compared to Tutorial 7.4 (Exercise 1.3: BVAR(3) vs VAR(1)):
-#   * Both p-values and rRMSEs are substantially smaller in this setting
+#   * Both p-values and rRMSEs are substantially smaller in this BVAR(3) setting
 #   * The diagonal pattern is more pronounced: the smallest p-values and rRMSEs
 #     occur when h ≈ shift
 # =================================================================
@@ -919,13 +920,21 @@ round(rRMSE_mSSA_comp_mean_without_covid,2)
 # - rRMSE < 1 -> M-MSE outperforms M-SSA
 round(rRMSE_mmse_comp_mssa_without_covid,2)
 
-# - For relevant (h, shift) combinations (on or near the diagonal),
-#   M-SSA and M-MSE exhibit similar MSE performance
-# - This is somewhat surprising, as M-SSA is substantially smoother (see below)
-# - Greater smoothness would typically be expected to worsen MSE performance
-#   (forecast trilemma)
+# - For relevant (h, shift) combinations (on or near the diagonal of the performance matrix),
+#   M-SSA and M-MSE exhibit similar out-of-sample MSE performance.
+# - This is somewhat surprising, since M-SSA is substantially smoother than M-MSE (see below),
+#   and greater smoothness would typically be expected to worsen MSE performance
+#   under the forecast trilemma (timeliness, smoothness, and accuracy cannot all be
+#   improved simultaneously).
 # - Explanation: model misspecification
-
+#     - When the model is misspecified, it is theoretically possible to improve both
+#       noise suppression and smoothness of the predictor while maintaining or even
+#       improving MSE performance (or Timeliness). The HT constraint in M-SSA seems to exploit
+#       this slack introduced by misspecification.
+#     - When the model is correctly specified, M-SSA traces the efficient frontier
+#       of smoothness and MSE: any gain in smoothness must come at the cost of
+#       higher MSE, and vice versa.
+#
 # - The improved smoothness of M-SSA is examined in the next exercise
 
 # ======================================================================================
@@ -1066,30 +1075,5 @@ compute_empirical_ht_func(scale(mmse_predictor))
 
 
 
-
-
-
-
-# Findings
-# -M-SSA does not perform markedly worse than M-MSE in terms of forecast MSE, 
-#     despite increased smoothness (larger HT, fewer zero-crossings). 
-#   -This outcome is quite remarkable and pleads in favor of the M-SSA components predictor (as a 
-#     potentially more interesting/relevant predictor than M-MSE).
-
-
-# Summary
-# -M-SSA and M-MSE component predictors perform similarly in terms of out-of-sample MSE forecast 
-#     performances when targeting forward-shifted BIP
-#   -Both predictors outperform the mean, the direct forecast, the direct HP forecast and the original 
-#     M-SSA predictor (tutorial 7.3), specifically at larger forward shifts (shifts>=1 quarter).
-# -The M-SSA component predictor is smoother (less noisy, fewer zero-crossings) 
-#   -The smoothness of M-SSA can be controlled by the HT hyperparameter
-# -Interestingly, increased smoothness of M-SSA does not impair (out-of-sample) MSE forecast performances or 
-#     lag (retardation) when references against M-MSE
-#   -Therefore we may prefer the M-SSA componnet predictor (over M-MSE) in this application.
-# -The M-MSE component predictor can be replicated by the M-SSA component predictor by inserting the 
-#     former's HTs into the constraint
-#   -The M-SSA component predictor is more general 
-#   -The optimization principle offers more control on important characteristics (`shape') of the predictor 
 
 
