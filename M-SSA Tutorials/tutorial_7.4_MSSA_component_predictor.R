@@ -4,6 +4,8 @@
 #
 # Overview:
 #   This tutorial extends the M-SSA framework from tutorial 7.3 in four directions:
+# Nomenclature: 
+#   The acronym BIP refers to German GDP (Brutto-Inlands-Produkt)
 #
 #   1. Forecasting (MSE-optimal):
 #      - The original M-SSA predictor (tutorial 7.3) was designed to track the smoothed
