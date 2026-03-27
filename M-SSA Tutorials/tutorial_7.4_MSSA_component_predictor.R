@@ -1064,11 +1064,13 @@ for (shift in shift_vec)  # outer loop: forward-shift of BIP target
     #    - Column 1: forward-shifted BIP (target), with NAs padding the end
     #    - Column 2+: M-SSA sub-component(s) optimized for horizon j=k-1
     if (length(sel_vec_mssa_comp) > 1) {
+# R handles the case with multiple (M-SSA) predictors differently: have to transpose the matrix t(mssa_array)     
       dat <- cbind(
         c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
         t(mssa_array[sel_vec_mssa_comp,, k])
       )
     } else {
+# Single predictor      
       dat <- cbind(
         c(x_mat[(shift + lag_vec[1] + 1):nrow(x_mat), 1], rep(NA, shift + lag_vec[1])),
         mssa_array[sel_vec_mssa_comp,, k]
