@@ -1,6 +1,6 @@
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Tutorial 6: Refined Beveridge-Nelson (BN) Filter Analysis
+# Tutorial 5: Refined Beveridge-Nelson (BN) Filter Analysis
 # ══════════════════════════════════════════════════════════════════════════════
 #
 # This tutorial analyzes the refined Beveridge-Nelson (BN) filter proposed in:

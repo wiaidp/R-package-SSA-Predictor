@@ -23,7 +23,7 @@
 # Practical recommendations:
 #    - Use bandpass filters for BCA with caution (same concerns as HP-gap;
 #      see Tutorial 2).
-#    - Always inspect amplitude functions to understand filter properties and
+#    - Inspect amplitude functions to understand filter properties and
 #      identify tendencies toward spurious-cycle generation.
 #    - Verify that SSA meaningfully improves the signal, e.g., by reducing
 #      noisy zero-crossings caused by high-frequency leakage.

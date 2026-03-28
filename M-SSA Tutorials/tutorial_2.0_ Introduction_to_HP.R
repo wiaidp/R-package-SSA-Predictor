@@ -1,5 +1,5 @@
 # =============================================================================
-# TUTORIAL: BUSINESS-CYCLE ANALYSIS (BCA) — FOUNDATION FOR SSA INTEGRATION
+# TUTORIAL 2.0: BUSINESS-CYCLE ANALYSIS (BCA) — FOUNDATION FOR SSA INTEGRATION
 # =============================================================================
 # NOTE: This tutorial is independent of the SSA.
 #
@@ -1340,7 +1340,7 @@ box()
 #       (see Tutorial 3 for a direct comparison)
 #
 #   BUSINESS-CYCLE ALIGNMENT:
-#     - Peak amplitude at ~85 months (~7 years) matches canonical
+#     - Peak amplitude at ~85 months (~7 years) matches 
 #       business-cycle frequencies (Exercise 4.2)
 #     - Capable of resolving closely spaced recessions (e.g., the
 #       twin recessions of the early 1980s)

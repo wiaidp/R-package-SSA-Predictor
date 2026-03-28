@@ -19,10 +19,10 @@
 # ── COMPARISON WITH ALTERNATIVE APPROACHES ────────────────────────
 # Alternative methods exist for directly predicting the sign of a
 # target series. This tutorial argues that SSA is more statistically
-# efficient than such alternatives.
+# efficient than such alternatives if the full (continuous) information (not only the signs) is available.
 #
 # The key reason:
-#   → SSA exploits the full information set of the time series,
+#   → SSA exploits the full (continuous) information set of the time series,
 #     whereas sign-based approaches (such as logit models) reduce
 #     the data to a binary sequence, discarding valuable magnitude
 #     information in the process.
@@ -180,6 +180,9 @@ rho_yz
 # Transform correlation into theoretical SA (see Wildi 2024 and 2026a)
 SA_true <- asin(rho_yz)/pi + 0.5
 SA_true
+# Compare with empirical SA from above
+SA_empirical
+
 
 # Empirical SA converges to SA_true as sample size increases
 
@@ -340,7 +343,7 @@ summary(mse_model)
 
 set.seed(104)
 
-# Very long series to approximate population (true) SA
+# Very long (out-of-sample) series to approximate population (true) SA
 len <- 10000000
 x <- rnorm(len)
 
@@ -466,14 +469,16 @@ for (i in 1:anzsim)
 colnames(mat_perf) <- c("SA MSE","SA Logit")
 
 # Summary statistics
+# 1. Mean: regression outperforms logit (mean SA larger)
 apply(mat_perf, 2, mean)
+# 2. Standard error: regression has markedly smaller variance 
 apply(mat_perf, 2, sd)
 
 # Test difference in means
 t.test(mat_perf[,1], mat_perf[,2],
        paired=F, alternative="greater", var.equal=F)
 
-# Frequency with which logit outperforms MSE
+# Frequency with which logit outperforms MSE: only in 10% of all cases
 length(which(mat_perf[,1] < mat_perf[,2])) / anzsim
 
 # Findings:
@@ -503,217 +508,6 @@ length(which(mat_perf[,1] < mat_perf[,2])) / anzsim
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#############################################################################################################
-# Example 2
-# SSA is designed to match the signs of a target series with a predictor.
-# While alternative sign-matching approaches exist, none - to our knowledge -
-#   supports an explicit holding-time constraint.
-#
-# Beyond this added flexibility, we argue that SSA is inherently more efficient.
-# The reasoning is as follows:
-#   - SSA maximizes the cross-correlation rho_yz between target and predictor,
-#       which leverages the full distributional information of the data.
-#   - In contrast, methods that operate on signs only discard the magnitude
-#       information, leading to efficiency losses.
-#   - Under the assumptions posited here, the SSA predictor maximizes the
-#       likelihood, and is therefore statistically efficient.
-#
-# We examine this claim by benchmarking SSA against a classical logistic
-#   regression (logit) model.
-# For illustration, we assume that SSA is the MSE predictor, i.e., we skip the ht constraint
-#   In this case SSA=linear regression
-
-# Sample length
-len<-120
-# Target: simple equally weighted design
-L<-11
-gamma<-rep(1/L,L)
-
-set.seed(23)
-# Data
-x<-rnorm(len)
-# Target signal: apply two-sided (acausal) filter
-z<-filter(x,gamma,side=2)
-
-ts.plot(cbind(x,z),col=c("black","red"),main="Data (black) and target (red)")
-
-# Forecast horizon: nowcast
-delta<-0
-
-#-------------------------------
-# Apply Logit-Model
-# 1. Compute signs of target and map to 0,1 for logit-fit
-target<-(1+sign(z)[(1+2*delta-1):len])/2
-ts.plot(target)
-
-# 2. Compute matrix of explanatory series
-explanatory<-c(x[((L+1)/2+delta):len],rep(NA,((L+1)/2+delta)-1))
-if (((L+1)/2+delta)<L)
-{
-  for (i in 1:(L-((L+1)/2+delta)))#i<-1
-  {
-    explanatory<-cbind(explanatory,c(x[((L+1)/2+delta-i):len],rep(NA,((L+1)/2+delta-i)-1)))
-  }
-}
-dim(explanatory)
-# Stacked and shifted explanatory data for regression
-tail(explanatory)
-
-# data set: we invert column ordering such that first column corresponds to most recent data (important when filtering series below)
-sample<-data.frame(cbind(target,explanatory[,ncol(explanatory):1]))
-
-# 3. Fit logit-model
-logit_model <- glm(target ~.,family=binomial(link='logit'),data=sample)
-summary(logit_model)
-#-----------------------------
-# Fit classic regression: MSE predictor
-# We invert column ordering such that first column corresponds to most recent data (important when filtering series below)
-mse_model<-lm(z~explanatory[,ncol(explanatory):1]-1)
-summary(mse_model)
-
-# Advantages of the MSE predictor over the logit model:
-#   - The MSE predictor yields smaller sampling variances and, equivalently,
-#       larger t-statistics, indicating more precise coefficient estimates.
-#   - The MSE predictor exploits the full interval-scaled data, whereas the
-#       logit model operates on binary sign indicators only, discarding
-#       magnitude information and reducing statistical efficiency.
-
-#-------------------------------------------------
-# Let us now apply both predictors out-of-sample
-
-set.seed(104)
-# Generate a very long series for empirical SA to converge to expected/true SA
-len<-10000000
-x<-rnorm(len)
-# Extract the predictor weights from the estimated objects: we skip the intercept
-b_mse<-mse_model$coef
-b_logit<-logit_model$coef[-1]
-# Note that the scale of the logit-model predictor is `arbitrary': but we here consider SA only (which is indifferent to scaling)
-sum(b_mse^2)
-sum(b_logit^2)
-# Apply empirical MSE and logit-filters to data
-y_mse<-filter(x,b_mse)
-y_logit<-filter(x,b_logit)
-# If desired, one can add the intercept (performances are slightly worse with the intercept)
-if (F)
-  y_logit<-y_logit+logit_model$coef[1]
-# Target
-z<-filter(x,gamma)
-
-# Empirical SA of MSE-predictor
-sum((sign(y_mse*z)+1)/2,na.rm=T)/length(na.exclude(z))
-# Empirical SA of logit-predictor
-sum((sign(y_logit*z)+1)/2,na.rm=T)/length(na.exclude(z))
-# MSE outperforms logit!
-
-# We can also compute the true or expected SA of both predictors, 
-#   The empirical out-of-sample estimates converge to the true SA, for increasing out-of-sample span
-# 1. MSE
-filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_mse)),b_mse))
-filter_mat
-rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
-rho_yz
-SA_true_mse<-asin(rho_yz)/pi+0.5
-# 2. Logit
-filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_logit)),b_logit))
-filter_mat
-rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
-rho_yz
-SA_true_logit<-asin(rho_yz)/pi+0.5
-# True SA:
-SA_true_mse
-SA_true_logit
-# As expected, MSE outperforms logit. Also, the previous empirical SA converge to these true numbers
-
-#-------------------------------------------
-# The above results were based on a single long sample of xt
-#   We now perform a simulation over multiple `normal-size' samples and look at the sample distribution of SA: mean, sd
-
-set.seed(43)
-# Number of simulation runs
-anzsim<-1000
-# Length cor
-len<-120
-mat_perf<-NULL
-for (i in 1:anzsim)
-{ 
-# Compute data
-  x<-rnorm(len)
-# Target: 
-  z<-filter(x,gamma,side=2)
-  target<-(1+sign(z)[(1+2*delta-1):len])/2
-
-  # Compute matrix of explanatory series
-  explanatory<-c(x[((L+1)/2+delta):len],rep(NA,((L+1)/2+delta)-1))
-  if (((L+1)/2+delta)<L)
-  {
-    for (i in 1:(L-((L+1)/2+delta)))#i<-1
-    {
-      explanatory<-cbind(explanatory,c(x[((L+1)/2+delta-i):len],rep(NA,((L+1)/2+delta-i)-1)))
-    }
-  }
-# data set: we invert column ordering such that first column is most recent data
-  sample<-data.frame(cbind(target,explanatory[,ncol(explanatory):1]))
-# Fit models
-  logit_model <- glm(target ~.,family=binomial(link='logit'),data=sample)
-#  We invert column ordering such that first column is most recent data  
-  mse_model<-lm(z~explanatory[,ncol(explanatory):1]-1)
-  b_mse<-mse_model$coef
-  b_logit<-logit_model$coef[-1]
-# Compute true SA of both predictors: expected or true out-of-sample performances
-  filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_mse)),b_mse))
-  filter_mat
-  rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
-  rho_yz
-  SA_true_mse<-asin(rho_yz)/pi+0.5
-  filter_mat<-cbind(gamma,c(rep(0,length(gamma)-length(b_logit)),b_logit))
-  filter_mat
-  rho_yz<-filter_mat[,1]%*%filter_mat[,2]/sqrt(filter_mat[,1]%*%filter_mat[,1]*filter_mat[,2]%*%filter_mat[,2])
-  rho_yz
-  SA_true_logit<-asin(rho_yz)/pi+0.5
-# Collect SA: MSE in first column, logit in second column  
-  mat_perf<-rbind(mat_perf,c(SA_true_mse,SA_true_logit))
-  
-}
-colnames(mat_perf)<-c("SA MSE","SA Logit")
-# Mean of sample SA for MSE (first column) and logit (second column)
-apply(mat_perf,2,mean)
-# Standard errors: differences of means are significant 
-apply(mat_perf,2,sd)
-# Mean differences are significant
-t.test(mat_perf[,1], mat_perf[,2], paired = F, alternative = "greater",var.equal=F)
-# Proportion of cases where MSE is outperformed by logit
-length(which(mat_perf[,1]<mat_perf[,2]))/anzsim
-
-# Findings:
-#   - The MSE predictor achieves higher Sign Accuracy (SA) on average across samples.
-#   - The sampling variance of SA is substantially smaller for the MSE predictor,
-#       reflecting the more precise coefficient estimates noted above.
-#       This gain in precision stems directly from the logit model's reliance on
-#       binary sign indicators, which discards the magnitude information present
-#       in the data.
-#   - Consequently, the MSE predictor outperforms the logit model in approximately
-#       90% of simulated samples.
 
 
 

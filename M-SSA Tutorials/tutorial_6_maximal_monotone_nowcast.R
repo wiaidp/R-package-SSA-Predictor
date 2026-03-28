@@ -1,5 +1,5 @@
 # ========================================================================
-# Tutorial 7: I-SSA 
+# Tutorial 6: I-SSA 
 # Extension of SSA to non-stationary (I-ntegrated) processes
 # ========================================================================
 # Topics:

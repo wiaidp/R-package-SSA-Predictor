@@ -349,7 +349,7 @@ L <- 20
 
 # Target Specification
 #   For forecasting, the target is the identity filter (gammak_generic = 1):
-#   SSA seeks a causal filter whose output best approximates x_t itself.
+#   SSA seeks a causal filter whose output best approximates x_t (shifted into the future).
 #   In signal extraction settings, the target would instead be a non-trivial
 #   filter applied to x_t (e.g., a lowpass filter) — see the examples below.
 gammak_generic <- 1
@@ -698,10 +698,10 @@ cor(yhat, c(x[2:len], x[len]), use = 'pairwise.complete.obs')
 
 
 
-#================================================================
+#==================================================================================
 # Example 7
 # Holding-time: strict interpretation, misspecification, smoothing hyperparameter
-#================================================================
+#==================================================================================
 #
 # The "holding-time" (ht) measures how long a filter output tends to stay on
 # the same side of zero (i.e., its sign persistence). Two versions are compared:
@@ -788,8 +788,11 @@ ts.plot(ssa_eps[1:30], col = "red",
 lines(b, col = "black")
 
 # Compute the analytical expected ht using the corrected (convolved) filter.
-# This should now match the empirical ht of yhat computed above.
+# This should now match the empirical ht of yhat computed above (up to sampling error).
 compute_holding_time_func(ssa_eps)$ht
+# Verification:
+compute_empirical_ht_func(yhat)       # Empirical ht from ARMA-filtered data
+
 
 #-----------------------------------------------------------------------------
 # Numerical verification: confirm that b applied to xt equals ssa_eps applied to epsilon_t
@@ -813,8 +816,9 @@ mplot <- na.exclude(cbind(yhat_x, yhat_eps))
 
 # Plot both filtered series over the first 1000 observations.
 # They should be virtually identical, confirming that the two representations are equivalent.
+par(mfrow=c(1,1))
 ts.plot(mplot[1:1000, ], lty = 1:2,
-        main = "b applied to xt (solid) vs. convolved filter applied to epsilon_t (dashed)")
+        main = "b applied to x_t (solid) vs. convolved filter applied to epsilon_t (dashed): both overlap")
 
 #-----------------------------------------------------------------------------
 # 7.3 Misspecified model: xt = ARMA(1,1) + mu (non-zero mean)
@@ -844,6 +848,9 @@ yhat <- na.exclude(yhat)          # Remove leading NAs introduced by filter lag
 # because the upward shift reduces zero-crossings in the filtered output.
 compute_holding_time_func(b)$ht   # Analytical ht (assumes zero-mean white noise input)
 compute_empirical_ht_func(yhat)   # Empirical ht: inflated due to the mean shift
+# ==============================================================================================
+# If mu!=0 SSA controls the mean-crossing rate: for a zero-mean process these are zero-crossings
+# ==============================================================================================
 
 #-----------------------------------------------------------------------------
 # Diagnostic plot: visualise the effect of the mean shift on zero-crossings
@@ -917,7 +924,7 @@ mplot <- na.exclude(cbind(yhat_x, yhat_eps))
 # The two lines should be virtually identical, confirming the equivalence.
 ts.plot(mplot[1:1000, ], lty = 1:2,
         main = paste("b applied to centred xt (solid)",
-                     "vs. corrected filter applied to epsilon_t (dashed)"))
+                     "vs. corrected filter applied to epsilon_t (dashed): both overlap"))
 
 # Final check: empirical ht of the centred filtered series should now match
 # the analytical ht of the corrected filter ssa_eps (up to sampling error).
@@ -948,7 +955,7 @@ compute_holding_time_func(ssa_eps)$ht      # Analytical ht of corrected filter
 #
 # 4. Therefore, ht can be treated as a *smoothing hyperparameter* that controls
 #    noise suppression regardless of whether the model is correctly specified.
-#    Tutorials 2, 3, and 4 illustrate these practical smoothing effects.
+#    Tutorials 2 and ff. illustrate these practical smoothing effects.
 #-----------------------------------------------------------------------------
 
 #================================================================
@@ -980,7 +987,7 @@ compute_holding_time_func(ssa_eps)$ht      # Analytical ht of corrected filter
 
 L              <- 201     # Filter length (number of coefficients); monthly data context
 lambda_monthly <- 14400   # Standard HP smoothing parameter for monthly data
-# (corresponds to lambda = 1600 for quarterly data, scaled by 3^4)
+# (corresponds to lambda = 1600 for quarterly data, scaled by ~3^4)
 
 # Compute the full set of HP-related filter designs in one call.
 # The returned object contains both the two-sided ideal target and several
@@ -990,12 +997,14 @@ HP_obj <- HP_target_mse_modified_gap(L, lambda_monthly)
 # Two-sided (symmetric) HP trend filter — the ideal smoother, not realisable
 # in real time because it uses future observations.  Used as the benchmark target.
 target <- HP_obj$target
+# Note that the filter is effectively one-sided (must be shifted forward to become acausal two-sided)
+ts.plot(target,main="Causal Version of two-sided HP-trend")
 
 # One-sided gap filter: approximates (data - HP trend) in real time.
 # Positive values indicate the series is above the long-run trend (expansion);
 # negative values indicate contraction.
 hp_gap <- HP_obj$hp_gap
-
+ts.plot(hp_gap,main="One-sided HP-gap")
 # Modified one-sided gap filter designed to operate on *first differences* of
 # the data.  When applied to differenced data it produces output identical to
 # hp_gap applied to the original (level) series.  Useful when the data are
@@ -1006,13 +1015,14 @@ modified_hp_gap <- HP_obj$modified_hp_gap
 # This is the MSE-optimal real-time estimate of the two-sided target *if* the
 # data follow an ARIMA(0,2,2) process — the model implicitly assumed by the HP filter.
 hp_trend <- HP_obj$hp_trend
-
+ts.plot(hp_trend,main="Classical causal one-sided HP: optimal if data is an ARIMA(0,2,2)")
 # Alternative one-sided HP trend based on direct (least-squares) truncation of
 # the two-sided symmetric filter.  This is MSE-optimal under the white noise
 # assumption (consistent with xi = NULL used in SSA below).
 hp_mse <- HP_obj$hp_mse
+ts.plot(hp_mse,main="Optimal Causal one-sided HP if data is white noise")
 
-# Any of the above designs can serve as an SSA target; see Tutorials 2 and 5.
+# Any of the above designs can serve as an SSA target; see Tutorial 2.
 
 #-----------------------------------------------------------------------------
 # 8.2 SSA filter design — smooth variant with increased holding-time (ht = 12)
@@ -1106,7 +1116,8 @@ ssa_eps <- cbind(ssa_eps, ssa_eps1)
 # Right panel: SSA filter family — compares the concurrent (nowcast) and
 #              forecast SSA filters at the smooth and fast holding-time settings.
 #
-# All filter coefficient vectors are scaled to unit maximum for visual
+# All filter coefficient vectors are scaled to unit length 
+# (unit variance when fed with standardized white noise) for visual
 # comparability (center = FALSE, scale = TRUE in scale()).
 # The x-axis shows the lag index (0 = most recent observation).
 #-----------------------------------------------------------------------------

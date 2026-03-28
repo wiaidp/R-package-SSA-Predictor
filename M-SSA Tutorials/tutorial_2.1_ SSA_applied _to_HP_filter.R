@@ -27,7 +27,7 @@
 # Advantage: the true DGP is known, enabling exact theoretical verification.
 #
 # Applications to real data are deferred to later tutorials:
-#   - Tutorial 5: HP and SSA applied to US Industrial Production (INDPRO)
+#   - Tutorial 6: HP and SSA applied to US Industrial Production (INDPRO)
 #   - Tutorial 7: Multivariate SSA (M-SSA) applied to German macro data
 
 # =============================================================================
