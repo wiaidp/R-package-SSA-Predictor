@@ -43,6 +43,13 @@
 #     (i.e., the diagonal entries) are close to globally optimal,
 #     suggesting well-calibrated and coherent forecast optimization by M-SSA.
 #
+# A word of caution: the settings explored here probe the limits of what the M-SSA
+#   predictor can achieve when forecasting German GDP multiple quarters ahead.
+# While such an approach is legitimate when the true data-generating process is known
+#   (as optimality of the filter is then certified), caution is mandatory in the
+#   present application, because the model used (BVAR(3))
+#   is almost surely (i.e., with probability one) misspecified. 
+#
 # ============================================================
 # References
 # ============================================================
@@ -207,6 +214,19 @@ h_vec<-0:6
 # due to inherent model misspecification. Allowing a forecast excess larger than
 # the nominal horizon h partially compensates for this by enabling better tracking
 # of cyclical swings in the data; see Tutorial 7.2, Exercise 2 for full background
+# A note of caution:
+#   - The chosen values represent a relatively aggressive setting: the filter is
+#     effectively forced to "look ahead" beyond the nominal forecast horizon.
+#   - The multivariate design facilitates this by exploiting lead-lag relationships
+#     between indicators; it also has greater freedom to manipulate the filter phase
+#     in order to reach further into the future.
+#   - This forced "phase-playing" is theoretically justified when the true model is
+#     known, since the filter can then anticipate future dynamics in an optimal sense.
+#   - Under the unavoidable model misspecification present in practice, however,
+#     overly aggressive forward-looking designs may produce unexpected or
+#     unstable forecast behaviour and should therefore be applied with caution.
+# In short: these settings probe the limits of what the M-SSA predictor can achieve
+#           when forecasting German GDP multiple quarters ahead.
 f_excess<-c(5,rep(4,length(select_vec_multi)-1))
 
 # Compute M-SSA and M-MSE predictors for all forecast horizons in h_vec
@@ -1016,6 +1036,7 @@ if (length(sel_vec_pred) > 1)
     dat[,2:ncol(dat)] * optimal_weights[2:length(optimal_weights)]
 }
 
+
 #---------------------------
 # Plot
 par(mfrow=c(1,1))
@@ -1056,24 +1077,18 @@ compute_empirical_ht_func(scale(mmse_predictor))
 #     (e.g. sign changes evaluated via ROC curves and AUC statistics; see Tutorial 7.4, Exercise 6.3)
 # =============================================================================================
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# A note of caution about our setting of f_excess<-c(5,rep(4,length(select_vec_multi)-1))
+#   - The chosen values represent a relatively aggressive setting: the filter is
+#     effectively forced to "look ahead" beyond the nominal forecast horizon.
+#   - The multivariate design facilitates this by exploiting lead-lag relationships
+#     between indicators; it also has greater freedom to manipulate the filter phase
+#     in order to reach further into the future.
+#   - This forced "phase-playing" is theoretically justified when the true model is
+#     known, since the filter can then anticipate future dynamics in an optimal sense.
+#   - Under the unavoidable model misspecification present in practice, however,
+#     overly aggressive forward-looking designs may produce unexpected or
+#     unstable forecast behaviour and should therefore be applied with caution.
+# In short: these settings probe the limits of what the M-SSA predictor can achieve
+#           when forecasting German GDP multiple quarters ahead.
 
 

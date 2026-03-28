@@ -2,10 +2,11 @@
 # Tutorial 7.4: M-SSA Components Predictor for German GDP (BIP-) Forecasting
 #######################################################################################
 #
-# Overview:
-#   This tutorial extends the M-SSA framework from tutorial 7.3 in four directions:
 # Nomenclature: 
 #   The acronym BIP refers to German GDP (Brutto-Inlands-Produkt)
+#
+# Overview:
+#   This tutorial extends the M-SSA framework from tutorial 7.3 in four directions:
 #
 #   1. Forecasting (MSE-optimal):
 #      - The original M-SSA predictor (tutorial 7.3) was designed to track the smoothed
@@ -69,7 +70,13 @@
 #   - Identify and quantify the contribution of the larger holding-time (HT) 
 #     constraint in M-SSA to forecast gains relative to M-MSE.
 #
-#
+# A word of caution: the settings explored here probe the limits of what the M-SSA
+#   predictor can achieve when forecasting German GDP multiple quarters ahead.
+# While such an approach is legitimate when the true data-generating process is known
+#   (as optimality of the filter is then certified), caution is mandatory in the
+#   present application, because the model used (simple VAR(1))
+#   is almost surely (i.e., with probability one) misspecified. 
+
 # ============================================================
 # References
 # ============================================================
@@ -313,8 +320,28 @@ h_vec <- 0:6
 
 # Forecast excess: a slightly larger excess (5) is applied to BIP itself
 # (first element) relative to the other indicators (4), reflecting the
-# higher noise level of BIP and the need for additional anticipation.
+# lag of BIP and the need for additional anticipation.
 # See Tutorial 7.2, Exercise 2 for background on forecast excess.
+# A NOTE OF CAUTION:
+#   - The chosen values for f_excess represent a relatively aggressive setting: the filter is
+#     effectively forced to "look ahead" beyond the nominal forecast horizon.
+#   - The multivariate design facilitates this by exploiting lead-lag relationships
+#     between indicators; it also has greater freedom to manipulate the filter phase
+#     in order to reach further into the future.
+#   - This forced "phase-playing" (manipulation) is theoretically justified when the true model is
+#     known, since the filter can then anticipate future dynamics in an optimal sense.
+#   - Under the unavoidable model misspecification present in practice, however,
+#     overly aggressive forward-looking designs may produce unexpected or
+#     unstable forecast behaviour and should therefore be applied WITH CAUTION.
+# In short: these settings probe the limits of what the M-SSA predictor can achieve
+#           when forecasting German GDP multiple quarters ahead.
+# Conversely, selecting a small f_excess (near zero) may result in a negative correlation
+#   between the M-SSA predictor and forward-shifted BIP at larger shift values
+#   (one year or more). This is because M-SSA is designed to predict HP-BIP, the
+#   smooth low-frequency trend component of BIP, rather than BIP directly. Without
+#   a sufficient forecast excess, the filter cannot bridge the gap between the
+#   smooth target it is optimised for and the `faster evolving' (noisier) BIP series it 
+#   is ultimately evaluated against in this tutorial.
 f_excess <- c(5, rep(4, length(select_vec_multi) - 1))
 f_excess
 
