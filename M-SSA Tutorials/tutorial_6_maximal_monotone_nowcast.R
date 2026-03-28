@@ -39,11 +39,18 @@
 # ────────────────────────────────────────────────────────────────
 # Background
 # ────────────────────────────────────────────────────────────────
-# Wildi, M. (2026a)
-#   Sign Accuracy, Mean-Squared Error and the Rate of Zero Crossings:
-#   a Generalized Forecast Approach
-#   https://doi.org/10.48550/arXiv.2601.06547
 
+# Application to business-cycle analysis (stationary first differences)
+#   Wildi, M. (2024)
+#     Business Cycle Analysis and Zero-Crossings of Time Series:
+#     a Generalized Forecast Approach.
+#     https://doi.org/10.1007/s41549-024-00097-5
+
+# Application to business-cycle analysis in original (non-stationary) levels
+#   Wildi, M. (2026a)
+#     Sign Accuracy, Mean-Squared Error and the Rate of Zero Crossings:
+#     a Generalized Forecast Approach
+#     https://doi.org/10.48550/arXiv.2601.06547
 
 # ────────────────────────────────────────────────────────────────
 # I-SSA Optimization Principle
@@ -252,6 +259,7 @@ Xi           <- filter_obj$Xi           # Wold MA representation in matrix notat
 hp_two       <- filter_obj$hp_two       # Two-sided HP target
 hp_trend     <- filter_obj$hp_trend     # Classic one-sided HP (HP-C): benchmark for I-SSA customization
 
+par(mfrow=c(1,1))
 ts.plot(cbind(gamma_tilde,gamma_mse),col=c("black","brown"))
 mtext("Optimal MSE filter applied to data in levels",line=-1,col="brown")
 mtext("Serves as target in constrained optimization",line=-2)
@@ -267,40 +275,60 @@ ts.plot(Xi[,1],main="Wold decomposition of ARMA(1,1)")
 # ────────────────────────────────────────────────────────────────
 # The HT constraint is defined on first differences (see eq. 29, Wildi 2026a)
 
-
 # Derivation of the HT of the first-differenced HP predictor:
 #
 #   Xi       : convolution matrix (eq. 22, Wildi 2026a)
-#   Xi_tilde : Xi composed with Sigma (integration operator), see section 5.3
+#   Xi_tilde : Xi composed with Sigma (the integration operator); see section 5.3
 #
-#   Xi_tilde %*% hp_trend provides a finite MA representation in levels.
-#   Although not the predictor itself (which is non-stationary), this stationary representation is
-#   suitable for differencing, as finite and infinite MA filters behave
-#   equivalently under first differencing.
+#   Xi_tilde %*% hp_trend provides a finite MA representation of the HP predictor in levels.
+#   Although this representation is not the predictor itself (which is non-stationary),
+#   it is suitable for differencing: finite and infinite MA filters behave equivalently
+#   under first differencing, so the stationary differences are well-defined.
 #
-#   Applying the differencing operator Delta:
-#       Delta %*% Xi_tilde %*% hp_trend = Xi %*% hp_trend (check: both expressions are identical)
+#   Applying the differencing operator Delta yields:
+#       Delta %*% Xi_tilde %*% hp_trend = Xi %*% hp_trend
+#   (both expressions are algebraically identical)
 #
-#   Hence, Xi %*% hp_trend is used to compute the holding-time of the
-#   differenced HP (the classic trend-nowcast in levels).
+#   Therefore, Xi %*% hp_trend is the appropriate input for computing the holding time
+#   of the differenced HP trend (i.e., the classic concurrent trend nowcast in levels).
 
 HT_HP_obj<-compute_holding_time_func(Xi %*% hp_trend)
 
-# HT
+# HT: expected duration (in quarters) between consecutive zero-crossings of the
+#   filtered process, where the filter is described by the MA inversion Xi
+#   (in this application: an AR(1) process)
 HT_HP_obj$ht
-# First-order ACF
+
+# First-order autocorrelation (rho1): stands in a one-to-one (bijective) correspondence
+#   with the HT above; see eq. 18, Wildi (2026a) for the analytical relationship
 HT_HP_obj$rho_ff1
 
-# HT and first-order ACF are in one-to-one correspondence
-# (see eq. 18, Wildi 2026a).
-# We use rho1 to impose the HT constraint in I-SSA.
-
+# Since HT and rho1 are in bijective correspondence, imposing rho1 is equivalent
+#   to imposing the HT constraint. We therefore use rho1 to enforce the HT
+#   constraint in I-SSA (see eq. 18, Wildi 2026a).
 rho1 <- as.double(rho_hp_concurrent<-HT_HP_obj$rho_ff1)
 
-# Interpretation:
-# I-SSA is constrained to replicate the holding-time (first-order ACF rho1) of the
-# one-sided HP filter in levels. By optimality, the resulting trend
-# nowcast is expected to improve upon HP in terms of MSE.
+# Interpretation of the I-SSA constraint:
+#   I-SSA is constrained to match the holding time of the one-sided (causal) HP filter,
+#   as measured in stationary first differences. Concretely:
+#     1. Apply the causal HP filter to the data in levels.
+#     2. Compute the first differences of the filtered series.
+#     3. Compute the mean duration between consecutive sign changes of these differences.
+#   This mean duration is the target HT (stored in HT_HP_obj$ht), and rho1 is its
+#   bijective counterpart used to impose the constraint in I-SSA.
+#   Two remarks on HT_HP_obj$ht:
+#     - It is derived from a theoretical formula and is therefore exact only if
+#       the assumed model (Xi) is the true data-generating process.
+#     - We will compare this theoretical value against the empirical estimate
+#       obtained by applying the filters directly to the data, as a model diagnostic.
+#
+#   By the optimality properties of I-SSA, a trend nowcast that replicates the HT of HP
+#   (via the rho1 constraint) is expected to outperform the classic HP filter in terms
+#   of MSE on non-stationary levels. Moreover, no other linear predictor subject to the
+#   same HT constraint can improve upon I-SSA if the model (Xi) is correctly specified.
+
+# The following code verifies optimality empirically and quantifies the MSE gain.
+
 
 
 # ────────────────────────────────────────────────────────────────
@@ -317,6 +345,10 @@ rho_mse <- as.double(compute_holding_time_func(Xi %*% gamma_mse)$rho_ff1)
 # MSE optimality trades off smoothness for timeliness:
 # such predictors are generally more reactive but noisier.
 rho_mse
+# Compare to HP: the latter is much smoother
+rho1
+# The plots below will illustrate the smoothness differences and their impact 
+#   on recession signaling
 
 
 # ────────────────────────────────────────────────────────────────
@@ -348,8 +380,10 @@ rho_mse
 # Lagrange multiplier λ ensuring compliance with the HT constraint.
 # Initialization at λ = 0 corresponds to the MSE benchmark.
 
+# Do not confuse this lambda with lambda_hp (the lambda regularization parameter of HP)
 lambda <- 0
 
+# Classical numerical optimization procedure optim in R
 opt_obj <- optim(
   lambda,
   b_optim,
@@ -367,7 +401,7 @@ opt_obj <- optim(
 # Optimal Lagrange multiplier
 lambda_opt <- opt_obj$par
 
-# Compute I(1) cointegrated I-SSA solution
+# Compute I(1) cointegrated I-SSA solution based on lambda_opt
 bk_obj <- bk_int_func(
   lambda_opt,
   gamma_mse,
@@ -380,10 +414,15 @@ bk_obj <- bk_int_func(
 )
 
 # Diagnostics
-bk_obj$rho_yy   # matches rho1 (HT constraint): this verifies convergence of the optimization (if not: increase the number of iterations)
+bk_obj$rho_yy   # should match rho1 (HT constraint): this verifies convergence of the optimization (if not: increase the number of iterations)
 rho1
 bk_obj$rho_yz   # correlation with target
-bk_obj$mse_yz   # MSE vs MSE-optimal predictor
+bk_obj$mse_yz   # MSE with respect to MSE-optimal predictor
+# This MSE vanishes if I-SSA replicates exactly the MSE predictor 
+# (set lambda_opt<-0 and verify that bk_obj$mse_yz=0)
+# I-SSA optimization principle:
+# Match the classic MSE predictor as close as possible under the HT constraint.
+
 
 # Extract filters
 b_x   <- bk_obj$b_x     # applied to data
@@ -395,8 +434,8 @@ ts.plot(b_eps, main = "b applied to epsilon")
 ts.plot(b_x,   main = "b applied to INDPRO")
 
 # Constraint checks
-sum(b_x) - sum(gamma_mse)     # cointegration (≈ 0)
-bk_obj$rho_yy - rho1          # HT constraint (≈ 0)
+sum(b_x) - sum(gamma_mse)     # cointegration (≈ 0): ensures a finite MSE on non-stationary levels
+bk_obj$rho_yy - rho1          # HT constraint (≈ 0). If this is not small, the numerical optimization did not converge
 
 
 # ────────────────────────────────────────────────────────────────
@@ -584,8 +623,8 @@ mat_perf[2, ] <- c(
   compute_empirical_ht_func(diff(y_hp_concurrent)[anf:enf])$empirical_ht
 )
 
-colnames(mat_perf) <- c("MSE nowcast", "I-SSA", "HP-C")
-rownames(mat_perf) <- c("Sample mean square error", "Sample holding time")
+colnames(mat_perf) <- c("Classical MSE optimal nowcast", "I-SSA", "HP-C")
+rownames(mat_perf) <- c("Sample MSE", "Sample holding time")
 
 mat_perf
 

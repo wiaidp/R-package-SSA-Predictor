@@ -1560,7 +1560,7 @@ spec_an_func<-function(SSA_obj,target,xi=NULL)
 # Target(s):  
 #   1. gamma_tilde is the MSE target as applied to epsilon_t 
 #     this is not the proper target since it is a stationary finite MA filter applied to epsilon_t
-#     its purpose is being the target for I-SSA optimization under the cointegration constraint (the constraint then integrates the unit-root within the predictor)
+#     its purpose is being the target for I-SSA optimization under the cointegration constraint (the constraint then includes the unit-root within the predictor)
 #   2. gamma_mse: this is the MSE target as applied to original data in levels 
 #     this is used for computing Gamma(0) in the cointegration constraint only
 # For lambda=0 the SSA transformation is an identity, i.e., bk=gamma_tilde
@@ -1614,6 +1614,9 @@ bk_int_func<-function(lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)
   mse_yz<-as.double(t(gamma_tilde-Sigma%*%b_eps)%*%(gamma_tilde-Sigma%*%b_eps))
   return(list(b_x=b_x,b_eps=b_eps,rho_yy=rho_yy,rho_yz=rho_yz,mse_yz=mse_yz))
 }
+
+
+
 
 # This function is used in numerical optimization of Lagrangian lambda such that solution bk conforms with HT constraint
 # It uses bk_int_func above and returns the absolute difference between desired rho1 and effective rho_yy
