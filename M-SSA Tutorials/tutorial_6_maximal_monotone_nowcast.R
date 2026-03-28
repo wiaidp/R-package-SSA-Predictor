@@ -593,10 +593,93 @@ axis(2); box()
 # Sample performance evaluation
 # ────────────────────────────────────────────────────────────────
 
-# MSE vs two-sided target
+# Compare MSE of each predictor against the two-sided HP filter (the target)
+# Expected ranking: classic MSE predictor < I-SSA < HP-C (concurrent HP)
+# Key question: I-SSA outperforms HP-C in MSE terms, but does it match HP-C in smoothness?
 mean((y_target - y_mse)^2, na.rm = TRUE)
 mean((y_target - y_ssa)^2, na.rm = TRUE)
 mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)
+
+# Verify that theoretical expectations match sample estimates
+# Good agreement is expected when:
+#   - The sample is large (law of large numbers)
+#   - The assumed model (AR(1)) is correctly specified
+
+# Sample MSE between the classic MSE predictor and I-SSA
+mean((y_mse - y_ssa)^2, na.rm = TRUE)
+# Theoretical counterpart: expected MSE under a true AR(1) model
+# Good agreement with the sample estimate confirms model adequacy
+bk_obj$mse_yz*sigma_ip^2
+
+# Sample holding time of the classic MSE predictor (computed on first differences)
+compute_empirical_ht_func(scale(diff(y_mse)[anf:enf]))$empirical_ht
+# Theoretical HT under a true AR(1) model: good agreement with sample estimate
+compute_holding_time_from_rho_func(rho_mse)$ht
+
+# Sample holding time of the I-SSA predictor (computed on first differences)
+# Data are scaled before computing zero-crossings to ensure comparability
+compute_empirical_ht_func(scale(diff(y_ssa)[anf:enf]))$empirical_ht
+# Theoretical HT: slightly smaller than the sample estimate,
+# though the discrepancy is within the range of expected sampling variation
+compute_holding_time_from_rho_func(bk_obj$rho_yy)$ht
+
+# Sample holding time of the concurrent HP filter (computed on first differences)
+compute_empirical_ht_func(scale(diff(y_hp_concurrent)[anf:enf]))$empirical_ht
+# Theoretical HT under a true AR(1) model: good agreement with sample estimate
+compute_holding_time_from_rho_func(rho_hp_concurrent)$ht
+
+# Sample holding time of the two-sided HP target (computed on first differences)
+# Substantially larger than all one-sided predictors, reflecting the greater
+# smoothness of the two-sided HP filter
+compute_empirical_ht_func(scale(diff(y_target)))$empirical_ht
+
+
+# Summary table: MSE and sample holding time for each predictor
+mat_perf <- matrix(nrow = 2, ncol = 3)
+
+mat_perf[1, ] <- c(
+  mean((y_target - y_mse)^2, na.rm = TRUE),
+  mean((y_target - y_ssa)^2, na.rm = TRUE),
+  mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)
+)
+
+mat_perf[2, ] <- c(
+  compute_empirical_ht_func(diff(y_mse)[anf:enf])$empirical_ht,
+  compute_empirical_ht_func(diff(y_ssa)[anf:enf])$empirical_ht,
+  compute_empirical_ht_func(diff(y_hp_concurrent)[anf:enf])$empirical_ht
+)
+
+colnames(mat_perf) <- c("Classical MSE optimal nowcast", "I-SSA", "HP-C")
+rownames(mat_perf) <- c("Sample MSE", "Sample holding time")
+
+mat_perf
+
+
+# Findings from the summary table:
+#   - Classic MSE predictor: minimises MSE but is highly noisy (low HT),
+#     making it impractical for real-time recession monitoring.
+#   - HP-C (concurrent HP): much smoother (high HT), but MSE is approximately
+#     100% larger than the MSE-optimal benchmark.
+#   - I-SSA: matches or slightly exceeds HP-C in smoothness, while incurring
+#     only approximately 50% larger MSE than the MSE-optimal benchmark.
+#   - Overall: I-SSA achieves an efficient trade-off on the smoothness-accuracy
+#     frontier, delivering large gains in smoothness at a moderate MSE cost
+#     relative to the classic MSE-optimal predictor.
+
+
+
+# MSE of predictors vs. two-sided HP (target)
+# Classic MSE predictor dominates, as expected. It is followed by I-SSA and HP-C.
+# So I-SSA outperforms HP-C in terms of MSE. But is it as smooth as HP-C?
+mean((y_target - y_mse)^2, na.rm = TRUE)
+mean((y_target - y_ssa)^2, na.rm = TRUE)
+mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)
+
+# First we check if expected numbers match sample estimates
+# They match when:
+# -The sample is large
+# -The model is true
+
 
 # Sample MSE 
 mean((y_mse - y_ssa)^2, na.rm = TRUE)
