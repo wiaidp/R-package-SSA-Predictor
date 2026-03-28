@@ -47,7 +47,7 @@
 #   predictor can achieve when forecasting German GDP multiple quarters ahead.
 # While such an approach is legitimate when the true data-generating process is known
 #   (as optimality of the filter is then certified), caution is mandatory in the
-#   present application, because the model used (BVAR(3))
+#   present application, because the data-model used (BVAR(3))
 #   is almost surely (with probability one) misspecified. 
 #
 # ============================================================
