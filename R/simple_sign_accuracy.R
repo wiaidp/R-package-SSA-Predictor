@@ -1651,7 +1651,7 @@ compute_system_filters_func<-function(L,lambda_hp,a_vec,b_vec)
   hp_trend<-HP_obj$hp_trend
 
 # Wold decompoistion (MA inversion)  
-  xi<-ARMAtoMA(ar=a_vec,ma=b_vec,lag.max=L)
+  xi<-c(1,ARMAtoMA(ar=a_vec,ma=b_vec,lag.max=L-1))
 
   
 # Compute all system matrices: all matrices are specified in Wildi (2026a)

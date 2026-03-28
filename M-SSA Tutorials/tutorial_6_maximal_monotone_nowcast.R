@@ -237,9 +237,17 @@ x_tilde <- as.double(y_xts)
 # Cointegration constraint ensures finite MSE for integrated processes
 
 # Assume ARIMA(1,1,0) for log-INDPRO (based on ACF)
-# Parameters fixed to avoid instability from extreme observations
+# Parameters fixed to avoid instability from extreme (COVID) observations
 a1 <- 0.3
 b1 <- 0
+# This alignes with pre-pandemic estimate of AR(1)
+p=1;q=0
+arima_obj<-arima(diff(y_xts)["/2020"],order=c(p,0,q))
+arima_obj
+# Diagnostics are not perfect but ACF of residuals are close to zero
+tsdiag(arima_obj)
+# Need vola estimate for later calibration
+sigma_ip<-sqrt(arima_obj$sigma2)
 
 # Filter design parameters
 L         <- 101
@@ -417,7 +425,7 @@ bk_obj <- bk_int_func(
 bk_obj$rho_yy   # should match rho1 (HT constraint): this verifies convergence of the optimization (if not: increase the number of iterations)
 rho1
 bk_obj$rho_yz   # correlation with target
-bk_obj$mse_yz   # MSE with respect to MSE-optimal predictor
+bk_obj$mse_yz*sigma_ip^2   # MSE with respect to MSE-optimal predictor (rescaled with residual variance from AR(1) model)
 # This MSE vanishes if I-SSA replicates exactly the MSE predictor 
 # (set lambda_opt<-0 and verify that bk_obj$mse_yz=0)
 # I-SSA optimization principle:
@@ -590,21 +598,28 @@ mean((y_target - y_mse)^2, na.rm = TRUE)
 mean((y_target - y_ssa)^2, na.rm = TRUE)
 mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)
 
-# MSE vs MSE-optimal predictor
+# Sample MSE 
 mean((y_mse - y_ssa)^2, na.rm = TRUE)
-bk_obj$mse_yz
+# Good agreement with expected value (assuming a true AR(1) model for I-SSA)
+bk_obj$mse_yz*sigma_ip^2 
 
-# Empirical vs theoretical holding times (on differences)
+# Sample holding time of classic MSE predictor (on differences)
 compute_empirical_ht_func(scale(diff(y_mse)[anf:enf]))$empirical_ht
+#  Good agreement with theoretical holding time assuming true AR(1) model for MSE predictor 
 compute_holding_time_from_rho_func(rho_mse)$ht
 
+# Sample holding time of I-SSA predictor (on differences)
+# Scale data to address zero-crossings
 compute_empirical_ht_func(scale(diff(y_ssa)[anf:enf]))$empirical_ht
+#  Theoretical holding time is a bit smaller (though compliant with sample fluctuation)  
 compute_holding_time_from_rho_func(bk_obj$rho_yy)$ht
 
+# Sample holding time of HP (on differences)
 compute_empirical_ht_func(scale(diff(y_hp_concurrent)[anf:enf]))$empirical_ht
+# Good agreement with expected value 
 compute_holding_time_from_rho_func(rho_hp_concurrent)$ht
 
-# Target
+# Sample HT of two-sided HP (target): much larger (two-sided HP is too smooth)
 compute_empirical_ht_func(scale(diff(y_target)))$empirical_ht
 
 
@@ -629,12 +644,12 @@ rownames(mat_perf) <- c("Sample MSE", "Sample holding time")
 mat_perf
 
 
-# Findings:
+# Findings from summary table:
 # - MSE nowcast minimizes MSE but is highly noisy (low HT)
-# - HP-C is much smoother but has substantially higher MSE
-# - I-SSA matches HP-C smoothness while improving MSE
-# - I-SSA achieves an efficient trade-off: large gains in smoothness
-#   with moderate loss relative to the MSE-optimal benchmark
+# - HP-C is much smoother but 100% larger MSE
+# - I-SSA matches HP-C smoothness (even slightly smoother) but only 50% larger sample MSE
+# - I-SSA achieves an efficient trade-off: large gains in smoothness 
+#   with moderate MSE loss relative to the MSE-optimal benchmark
 
 
 
