@@ -48,7 +48,7 @@
 # While such an approach is legitimate when the true data-generating process is known
 #   (as optimality of the filter is then certified), caution is mandatory in the
 #   present application, because the model used (BVAR(3))
-#   is almost surely (i.e., with probability one) misspecified. 
+#   is almost surely (with probability one) misspecified. 
 #
 # ============================================================
 # References
