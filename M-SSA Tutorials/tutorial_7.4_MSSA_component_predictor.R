@@ -77,6 +77,19 @@
 #   present application, because the data-model used (simple VAR(1))
 #   is almost surely (with probability one) misspecified. 
 
+# Trade-off between conservative and aggressive forecast settings:
+#   - Conservative (small f_excess, see below): better interpretability and greater robustness,
+#     but the predictor tends to lag at larger forecast horizons, limiting its
+#     usefulness for multi-quarter-ahead forecasting.
+#   - Aggressive (large f_excess): harder to interpret and less robust to model
+#     misspecification, but produces a stronger lead that enables effective tracking
+#     of forward-shifted BIP at larger shift values (one year or more).
+#
+# Advantage of the M-SSA framework: 
+#   M-SSA allows the practitioner to actively manage various trade-offs by tuning design 
+#   parameters (e.g., f_excess, holding time) explicitly, rather than accepting a fixed balance 
+#   imposed by the model.
+
 # ============================================================
 # References
 # ============================================================

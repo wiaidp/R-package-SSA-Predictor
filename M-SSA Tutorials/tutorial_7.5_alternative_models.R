@@ -31,7 +31,7 @@
 
 # Question:
 # - Does the richer BVAR(3) parameterization lead to improved forecast performance?
-#
+
 # Key improvements of M-SSA based on BVAR(3) over VAR(1) (Tutorial 7.4):
 #   - Lower p-values: indicating a statistically stronger predictive link
 #     to future BIP growth.
@@ -42,14 +42,26 @@
 #     forward shift of BIP, forecast designs optimized at horizon h = shift
 #     (i.e., the diagonal entries) are close to globally optimal,
 #     suggesting well-calibrated and coherent forecast optimization by M-SSA.
-#
+
 # A word of caution: the settings explored here probe the limits of what the M-SSA
 #   predictor can achieve when forecasting German GDP multiple quarters ahead.
 # While such an approach is legitimate when the true data-generating process is known
 #   (as optimality of the filter is then certified), caution is mandatory in the
-#   present application, because the data-model used (BVAR(3))
+#   present application, because the data-model used (simple VAR(1))
 #   is almost surely (with probability one) misspecified. 
-#
+
+# Trade-off between conservative and aggressive forecast settings:
+#   - Conservative (small f_excess, see below): better interpretability and greater robustness,
+#     but the predictor tends to lag at larger forecast horizons, limiting its
+#     usefulness for multi-quarter-ahead forecasting.
+#   - Aggressive (large f_excess): harder to interpret and less robust to model
+#     misspecification, but produces a stronger lead that enables effective tracking
+#     of forward-shifted BIP at larger shift values (one year or more).
+
+# Advantage of the M-SSA framework: 
+#   M-SSA allows the practitioner to actively manage various trade-offs by tuning design 
+#   parameters (e.g., f_excess, holding time) explicitly, rather than accepting a fixed balance 
+#   imposed by the model.#
 # ============================================================
 # References
 # ============================================================
@@ -219,7 +231,7 @@ h_vec<-0:6
 #     effectively forced to "look ahead" beyond the nominal forecast horizon.
 #   - The multivariate design facilitates this by exploiting lead-lag relationships
 #     between indicators; it also has greater freedom to manipulate the filter phase
-#     in order to reach further into the future.
+#     in order to reach further into the future (a clear advantage over univariate designs).
 #   - This forced "phase-playing" is theoretically justified when the true model is
 #     known, since the filter can then anticipate future dynamics in an optimal sense.
 #   - Under the unavoidable model misspecification present in practice, however,
@@ -227,6 +239,13 @@ h_vec<-0:6
 #     unstable forecast behaviour and should therefore be applied with caution.
 # In short: these settings probe the limits of what the M-SSA predictor can achieve
 #           when forecasting German GDP multiple quarters ahead.
+# Conversely, selecting a small f_excess (near zero) may result in a negative correlation
+#   between the M-SSA predictor and forward-shifted BIP at larger shift values
+#   (one year or more). This is because M-SSA is designed to predict HP-BIP, the
+#   smooth low-frequency trend component of BIP, rather than BIP directly. Without
+#   a sufficient forecast excess, the filter cannot bridge the gap between the
+#   smooth target it is optimised for and the `faster evolving' (noisier) BIP series it 
+#   is ultimately evaluated against in this tutorial.
 f_excess<-c(5,rep(4,length(select_vec_multi)-1))
 
 # Compute M-SSA and M-MSE predictors for all forecast horizons in h_vec
