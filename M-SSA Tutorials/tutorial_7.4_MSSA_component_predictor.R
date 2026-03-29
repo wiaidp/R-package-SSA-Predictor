@@ -8,7 +8,7 @@
 # Overview:
 #   This tutorial extends the M-SSA framework from tutorial 7.3 in four directions:
 #
-#   1. Forecasting (MSE-optimal):
+#   1. Forecasting BIP (MSE-optimal):
 #      - The original M-SSA predictor (tutorial 7.3) was designed to track the smoothed
 #        trend growth rate of BIP (HP-BIP), using equally-weighted, standardized components
 #      - It was not calibrated to minimize MSE when targeting raw BIP directly
@@ -29,13 +29,64 @@
 #        does the M-SSA components predictor outperform?
 #
 #   4. M-SSA Smoothing:
-#      - Added value of increased smoothness in terms of zero-crossing rate (Holding Time HT)
+#      - Added value of increased smoothness in terms of zero-crossing rate (Holding Time HT).
+#        Intuition: maximizing sign accuracy and controlling  the rate of sign changes 
+#        within M-SSA will provide a better balance between true and false alarms when
+#        detecting cyclical turning points.  
+#
+#########################################################################################
+
+# Main Ideas
+#
+# 1. Addressing noise:
+#                Direct forecasts regress future (forward-shifted) BIP on the original
+#                indicators (BIP, ip, ifo, ESI, spread).
+#    Problem:    Noise in the raw indicators obscures the underlying dependence structure,
+#                weakening the predictive signal at longer forecast horizons.
+#    Solution:   Instead of regressing future BIP on raw indicators, regress it on
+#                filtered indicators. Three filtering approaches are considered:
+#                - Univariate HP filtering:            does not recover predictive power
+#                                                      (see Exercise 4).
+#                - M-MSE (multivariate, no smoothness constraint):
+#                                                      restores statistical significance
+#                                                      out-of-sample at longer forecast
+#                                                      horizons, unlike direct forecasts.
+#                - M-SSA (multivariate, with smoothness constraint):
+#                                                      matches M-MSE in out-of-sample MSE
+#                                                      performance while being substantially
+#                                                      smoother (see Exercise 5).
+#    Preference: Since M-SSA and M-MSE achieve comparable MSE, the smoother predictor
+#                (M-SSA) is preferred: its less frequent and more reliable zero-crossings
+#                translate into a better balance between true and false alarms when
+#                detecting cyclical turning points (see Exercise 6).
+#
+# 2. Equal vs. optimal weighting:
+#    Equal weighting:   Tutorial 7.3 proposed an equally weighted average of M-SSA
+#                       components, where each component tracks the HP-filtered version
+#                       of one indicator:
+#                       M-SSA-BIP tracks HP(BIP), M-SSA-ip tracks HP(ip), ...,
+#                       M-SSA-spread tracks HP(spread).
+#    Optimal weighting: Here, instead of equal weighting, optimal regression weights are
+#                       derived by regressing future BIP on the M-SSA-filtered indicators,
+#                       letting the data determine the relative importance of each component.
+#
+# 3. Calibration:
+#    - M-SSA is designed to track the HP-filtered version of each indicator, not BIP
+#      directly.
+#    - In the previous tutorial, all series were standardised to facilitate plotting
+#      and interpretation; as a result, the level and scale of the M-SSA predictors
+#      are not calibrated to match the original BIP series.
+#    - The regression step introduced in this tutorial serves a dual purpose:
+#        i)  derive optimal combination weights for the M-SSA components, and
+#        ii) simultaneously calibrate level and scale of the combined predictor to match BIP
+#            (rather than the HP-filtered targets used during M-SSA optimisation).
+
 #######################################################################################
-# Structure: 6 Exercises
+# Structure of the Tutorial: 6 Exercises
 #######################################################################################
 #
 # Exercise 1:
-#   - Derive M-SSA components and replicate the original M-SSA predictor (tutorial 7.3)
+#   - Derive M-SSA components and replicate the original equally-weighted M-SSA predictor (tutorial 7.3)
 #   - Use components to assess forecast reliability (interpretability)
 #   - Introduce the new optimal weighting step to directly target BIP (MSE sense)
 #   - Out-of-sample performance evaluation vs. mean, direct forecast, and
@@ -107,7 +158,6 @@
 #   https://doi.org/10.18717/dp99kr-7336
 #
 # ============================================================
-######################################################################################
 ######################################################################################
 # Concluding Remark:
 #   The M-SSA framework presented here relies on a deliberately simple VAR(1)
