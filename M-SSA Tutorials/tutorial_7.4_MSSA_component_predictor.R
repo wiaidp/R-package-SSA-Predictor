@@ -55,7 +55,7 @@
 #                                                      matches M-MSE in out-of-sample MSE
 #                                                      performance while being substantially
 #                                                      smoother (see Exercise 5).
-#    Preference: Since M-SSA and M-MSE achieve comparable MSE, the smoother predictor
+#    Preference: Since M-SSA and M-MSE achieve comparable forecast MSE, the smoother predictor
 #                (M-SSA) is preferred: its less frequent and more reliable zero-crossings
 #                translate into a better balance between true and false alarms when
 #                detecting cyclical turning points (see Exercise 6).
