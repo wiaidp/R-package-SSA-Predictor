@@ -71,17 +71,65 @@
 # This tutorial is based entirely on Wildi (2026b), Section 4.2. Additional 
 #   applications are given in Wildi (2024)
 
+# ══════════════════════════════════════════════════════════════════════════════
+# TWO MAIN EXERCISES:
 
+# Exercise 1: Univariate SSA-Smoothing
+# -Contrast SSA-smoothing with classical Whittaker–Henderson (WH) graduation and HP
+
+# Exercise 2: Multivariate M-SSA Smoothing
 
 # ══════════════════════════════════════════════════════════════════════════════
-# INITIALISATION
+# CONTEXT TO EXERCISES 
+# ══════════════════════════════════════════════════════════════════════════════
+# WH graduation / HP filter
+# ─────────────────────────
+#   • The HP filter is the solution to the WH problem when the penalty term
+#     emphasises squared second-order differences (curvature).
+#   • Consequence: for a given level of curvature, HP is the closest possible
+#     smoother to the original series x_t (i.e., HP minimises MSE subject to
+#     a curvature constraint).
+#
+# (M-)SSA Smoothing: Concept 
+# ───────────────
+#   • (M-)SSA controls smoothness via the holding-time (HT) constraint rather
+#     than curvature, offering an alternative smoothness criterion based on
+#     the rate of mean-crossings.
+#   • The rate of mean-crossings (or sign changes for a zero-mean process) is
+#     a more natural smoothness measure in applications where the sign of the
+#     output is the primary driver of decision-making — for example,
+#     distinguishing true alarms from false alarms (see Exercise 6.3 in
+#     Tutorial 7.4: Analysis of True vs. False Alarms through the ROC Curve).
+#   • In such applications, controlling mean-crossings directly via the HT
+#     constraint is more compelling than minimising curvature, as it aligns
+#     the smoothness criterion with the operational objective.
+#
+# Smoothing: Curvature vs. Backcasting
+# ───────────────
+#   • WH graduation is a classic smoothing approach: it tracks a target subject
+#     to a regularisation term that penalises `noise'. In this sense, smoothness
+#     is defined through curvature in HP (minimize squared second-order differences).
+#
+#      → Exercises 1&2 compare SSA's HT against WH-HP's curvature approaches. 
+#
+#   • Alternatively, the term "smoothing" also refers to backcasting:
+#     the retrospective refinement of historical estimates of a smooth
+#     component (e.g., a trend or cycle) by incorporating all data up to the
+#     most recent observation. The additional information available at the end
+#     of the sample allows the filter to suppress spurious noise more
+#     effectively, so that historical estimates gain in smoothness relative to
+#     their real-time counterparts.
+#
+#      →Exercise 3 explores M-SSA in the context of this backcasting notion of
+#       smoothness, examining how the filter evolves as the lag delta increases
+#       and more future observations become available.
+
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Clear the workspace to ensure a clean environment
 rm(list = ls())
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # LOAD REQUIRED LIBRARIES
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -89,7 +137,6 @@ rm(list = ls())
 library(mFilter)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # LOAD CUSTOM M-SSA FUNCTION LIBRARIES
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -103,210 +150,234 @@ source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
 source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
 
 
+
 # ══════════════════════════════════════════════════════════════════════════════
+# EXERCISE 1: 
 # GOAL
 # ════
-# Benchmark M-SSA smoothing against Whittaker–Henderson (WH) graduation,
+# Benchmark (univariate) SSA smoothing against Whittaker–Henderson (WH) graduation,
 # which generalises the HP filter (assuming second-order differences, d = 2).
 # See Wildi (2026b), Section 4.2 for full theoretical background.
 #
-# ══════════════════════════════════════════════════════════════════════════════
 # BACKGROUND  (Wildi 2026b, Section 4.2)
 # ═══════════
-# WH graduation / HP filter
-# ─────────────────────────
-#   • The HP filter is the solution to the WH problem when the penalty term
-#     emphasises squared second-order differences (curvature).
-#   • Consequence: for a given level of curvature, HP is the closest possible
-#     smoother to the original series x_t (i.e., HP minimises MSE subject to
-#     a curvature constraint, and equivalently minimises curvature subject to
-#     a given MSE).
-#
-# M-SSA smoothing
-# ───────────────
-#   • M-SSA controls smoothness via the holding-time (HT) constraint rather
-#     than curvature, offering an alternative smoothness criterion based on
-#     the rate of mean-crossings.
-#   • The rate of mean-crossings (or sign changes for a zero-mean process) is
-#     a more natural smoothness measure in applications where the sign of the
-#     output is the primary driver of decision-making — for example,
-#     distinguishing true alarms from false alarms (see Exercise 6.3 in
-#     Tutorial 7.4: Analysis of True vs. False Alarms through the ROC Curve).
-#   • In such applications, controlling mean-crossings directly via the HT
-#     constraint is more compelling than minimising curvature, as it aligns
-#     the smoothness criterion with the operational objective.
-#
-# ══════════════════════════════════════════════════════════════════════════════
+
 # COMPARISON STRATEGY 
 # ════════════════════════════════════
 # Two complementary designs are evaluated against WH (or HP):
 #
-#   Exercise 1 (Strategy 1) — Match MSE tracking of x_t:
-#     Design M-SSA so that its MSE tracking of x_t equals that of HP.
-#     Then compare the HT and curvature of both smoothers.
-#     Expected result: M-SSA achieves a longer HT (smoother output)
-#     for the same tracking accuracy, but larger curvature.
-#
-#   Exercise 2 (Strategy 2) — Match holding time of HP:
-#     Design M-SSA so that its HT equals that of HP.
+#   Exercise 1.1 — Match holding time of HP:
+#     Design SSA  so that its HT equals that of HP.
 #     Then compare the MSE tracking and curvature of both smoothers.
-#     Expected result: M-SSA achieves better MSE tracking (closer to x_t)
+#     Expected result: SSA  achieves better MSE tracking (closer to x_t)
 #     for the same HT but larger curvature.
-# ══════════════════════════════════════════════════════════════════════════════
+
+#   Exercise 1.2 — Match MSE tracking of x_t:
+#     Design SSA  so that its MSE tracking of x_t equals that of HP.
+#     Then compare the HT and curvature of both smoothers.
+#     Expected result:  SSA achieves a longer HT (smoother output)
+#     for the same tracking accuracy, but larger curvature.
+
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Exercise 1: M-SSA vs. HP (Strategy 1)
+# Exercise 1.1: SSA vs. HP — Match Holding TimeS
+# ══════════════════════════════════════════════════════════════════════════════
+# Design SSA with the same HT as the symmetric HP filter, then compare
+# tracking accuracy (target correlation) and curvature of both smoothers.
+# Expected outcome: SSA outperforms HP in target correlation (and hence
+# sign accuracy / MSE) for the same degree of smoothness.
 # ══════════════════════════════════════════════════════════════════════════════
 
-#------------------------------------------------------------------
-# 1.1 Specify HP 
-#------------------------------------------------------------------
 
-# --- HP filter parameters ---
-lambda_HP <- 14400    # Monthly HP smoothing parameter (standard business-cycle value)
-L         <- 201      # Filter length (number of coefficients)
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.1  Specify the HP Filter
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Compute the bi-infinite HP target filter and its MSE-optimal approximation
-HP_obj   <- HP_target_mse_modified_gap(L, lambda_HP)
-hp_target <- HP_obj$target      # Bi-infinite HP filter coefficients (length L)
-hp_trend  <- HP_obj$hp_trend    # Associated HP trend estimate
+lambda_HP <- 14400   # Monthly HP smoothing parameter (standard business-cycle value)
+L         <- 201     # Filter length (number of coefficients)
 
-#------------------------------------------------------------------
-# 1.2 Specify M-SSA
-#------------------------------------------------------------------
-# --- M-SSA design settings ---
-Sigma            <- NULL   # NULL → assumes univariate design (Sigma = is the variance-covariance matrix of the innovation process)
-xi               <- NULL   # NULL → white noise
-symmetric_target <- FALSE  # Causal (one-sided) target; not symmetric
+# Compute the bi-infinite HP target filter and its MSE-optimal finite approximation
+HP_obj    <- HP_target_mse_modified_gap(L, lambda_HP)
+hp_target <- HP_obj$target    # Bi-infinite HP filter coefficients (length L)
+hp_trend  <- HP_obj$hp_trend  # Associated HP trend estimate
 
-# --- Target specification ---
-# gamma_target = 1 → allpass target (identity filter).
-#   This definition contrasts with signal extraction/nowcasting where the target filter is not an identity
-# MSSA_func will automatically zero-pad gamma_target to length L if needed.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.2  Specify SSA Design Settings
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Sigma: variance–covariance matrix of the innovation process.
+#        NULL → univariate design; identity matrix assumed.
+Sigma <- NULL
+
+# xi: spectral density of the input process.
+#     NULL → white-noise assumption (xi = Identity).
+xi <- NULL
+
+# symmetric_target: FALSE → causal (one-sided) target filter.
+symmetric_target <- FALSE
+
+# --- Target filter ---
+# gamma_target = 1 → allpass (identity) target: SSA tracks x_t itself.
+# This contrasts with signal-extraction or nowcasting settings where the
+# target is a non-trivial filtered version of x_t (e.g., the HP trend).
+# MSSA_func zero-pads gamma_target to length L automatically if needed.
 gamma_target <- 1
 
-# delta specifies the M-SSA smoother for time point t+delta
-#   M-SSA matches x_{t+delta} best possible (max. target correlation or sign accuracy) 
-#   subject to the ht constraint
-# Backshift: delta = -(L-1)/2 
-#   This will generate a symmetric causal smoothing filter centered at t-(L-1)/2
+# --- Lag parameter delta ---
+# The SSA filter targets x_{t + delta}, i.e., it tracks the series value
+# delta steps ahead of (or behind) the current observation t.
+#   delta < 0  → smoother  (target lies in the past; causal design)
+#   delta = 0  → nowcaster (real-time estimate of x_t)
+#   delta > 0  → predictor (target lies in the future)
+#
+# Setting delta = -(L-1)/2 places the target at the centre of the filter
+# support, yielding a symmetric (two-sided) smoothing filter — directly
+# comparable to the symmetric HP filter used as benchmark.
 delta <- -(L - 1) / 2
 
-# --- Bisection grid resolution ---
-# The optimiser uses a halving (bisection) strategy rather than brute-force
-# grid search, so effective resolution scales as 2^split_grid.
-#   • split_grid = 20 balances speed and precision for most applications.
-#   • Convergence quality can be verified in the diagnostics below.
-#   • Increase split_grid if convergence is not achieved.
+# --- Bisection optimiser resolution ---
+# The optimiser halves the search interval at each step, so effective
+# resolution scales as 2^split_grid (much faster than brute-force search).
+#   • split_grid = 20 provides a good balance of speed and precision.
+#   • Increase if convergence diagnostics indicate insufficient resolution.
 split_grid <- 20
 
-#------------------------------------------------------------------
-# 1.3 Specify the HT: Strategy 1
-#------------------------------------------------------------------
 
-# Strategy 1: impose the same HT as the two-sided HP filter.
-#             Under identical HT, M-SSA will outperform HP in target correlation.
-# Note: we consider the two-sided (symmetric) HP since M-SSA is also two-sided symmetric (since delta <- -(L - 1) / 2)
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.3  Specify the HT Constraint — Match HP (Strategy 1)
+# ─────────────────────────────────────────────────────────────────────────────
+# Impose the same HT as the two-sided HP filter.
+# Both filters are symmetric (delta = -(L-1)/2), so a like-for-like
+# comparison is valid.
+# Under an identical HT constraint, SSA is guaranteed to outperform HP
+# in target correlation (and hence sign accuracy / MSE).
+
+# Extract the HT and the corresponding rho from the bi-infinite HP filter
+rho1 <- compute_holding_time_func(hp_target)$rho_ff1  # rho implied by HP's HT
+ht1  <- compute_holding_time_func(hp_target)$ht       # Holding time of HP filter
+
+# Interpretation of ht1:
+#   The symmetric HP filter applied to white noise produces sign changes with
+#   a mean inter-crossing duration of approximately 60 time steps.
+#   Imposing this HT on SSA ensures both smoothers operate at the same
+#   level of smoothness; any gain in tracking accuracy then reflects the
+#   superior optimality of SSA within the HT-constrained class.
+
+ht1   # Inspect the HP holding time
 
 
-# Extract the HT and corresponding rho from the bi-infinite HP target filter
-rho1 <- compute_holding_time_func(hp_target)$rho_ff1   # rho implied by HP's HT
-ht1  <- compute_holding_time_func(hp_target)$ht        # Holding time of HP filter
-# Interpretation of ht1: 
-#   The two sided HP exhibits a mean duration of ~60 between consecutive sign changes when 
-#   applied to white noise
-# We apply the same HT to M-SSA and verify how closely M-SSA (and HP) track x_{t+delta}.
-# Expected outcome: M-SSA outperforms HP (smaller MSE)
-ht1
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.4  Compute the SSA Filter
+# ─────────────────────────────────────────────────────────────────────────────
+# Design the SSA filter subject to the HP-matched HT constraint.
+# Note: xi = NULL assumes white-noise input; MSSA_func will issue a warning
+#       confirming that gamma_target has been zero-padded to length L.
 
-#------------------------------------------------------------------
-# 1.4 Compute M-SSA
-#------------------------------------------------------------------
-
-# Design M-SSA filter with the HP-matched HT constraint
-# NOTE: omitting xi assumes white-noise input (xi = NULL → xi = Identity);
-#       MSSA_func will warn that gamma_target is zero-padded to length L.
 SSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1)
 
-# Extract the optimised filter coefficients
+# Extract the optimised (univariate) filter coefficients
 bk_mat <- SSA_obj$bk_mat
 
-# --- Visual inspection of the filter ---
-# M-SSA is symmetric because delta <- -(L - 1) / 2
+# --- Visual inspection ---
+# The filter should be symmetric, consistent with delta = -(L-1)/2
 par(mfrow = c(1, 1))
-ts.plot(bk_mat)   # Plot filter coefficients
+ts.plot(bk_mat, main = "SSA Filter Coefficients (Strategy 1: Match HT)")
 
 # --- Optimisation diagnostics ---
-SSA_obj$crit_rhoy_target   # Achieved target correlation (should exceed HP)
+# crit_rhoy_target: maximised target correlation achieved by SSA.
+#                   This should exceed the HP target correlation.
+SSA_obj$crit_rhoy_target
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 1.5 Outcome
-# ══════════════════════════════════════════════════════════════════════════════
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.5  Results: Tracking Accuracy on Simulated White Noise
+# ─────────────────────────────────────────────────────────────────────────────
 
-# --- Simulate long white-noise input ---
-lenq   <- 100000
+# Simulate a long white-noise series for empirical evaluation
+lenq <- 100000
 set.seed(86)
 x <- rnorm(lenq)
 
-# --- Apply both symmetric (two-sided) filters to x ---
-y_ssa     <- filter(x, bk_mat,   sides = 2)   # M-SSA smoother output
-y_hp_two  <- filter(x, hp_target, sides = 2)  # HP smoother output
+# Apply both symmetric filters to x
+y_ssa    <- filter(x, bk_mat,    sides = 2)  # M-SSA smoother output
+y_hp_two <- filter(x, hp_target, sides = 2)  # HP smoother output
 
-# --- Compute MSE of each smoother relative to the original series ---
-# MSE_scale re-scales the M-SSA output so its level is comparable to x
+# --- MSE relative to the original series ---
+# MSE_scale normalises the SSA output to the same amplitude as x before
+# computing MSE, ensuring a fair comparison with HP.
 MSE_scale      <- as.double(bk_mat[(L + 1) / 2] / t(bk_mat) %*% bk_mat)
 mse_ssa_smooth <- mean((x - MSE_scale * y_ssa)^2, na.rm = TRUE)
 mse_hp_smooth  <- mean((x - y_hp_two)^2,          na.rm = TRUE)
 
-# --- Correlation matrix: x, M-SSA output, HP output ---
+# --- Correlation matrix: x, SSA output, HP output ---
 filter_mat <- na.exclude(cbind(x, y_ssa, y_hp_two))
-cor_mat<-cor(filter_mat)
+cor_mat    <- cor(filter_mat)
 cor_mat
 
-#-----------------------------------------------------
-# Interpretation
-# 1. The sample target correlation of M-SSA and x ((1,2)-element) matches the maximized M-SSA objective
-cor_mat[1,2]
-SSA_obj$crit_rhoy_target   
-# Since M-SSA maximizes this target correlation (equivalently: the sign accuracy), M-SSA must be optimal
 
-# 2. HP-loss: ~10% 
-# M-SSA
-cor_mat[1,2]
-# HP
-cor_mat[1,3]
-#------------------------------------------------------
-# Main Take-Aways:
-# 1. For given HT constraint, M-SSA maximizes target correlation or sign accuracy
-# 2. Imposing the HT of HP to M-SSA then implies that M-SSA must outperform HP when tracking x_{t+delta}
-# 3. However, M-SSA must have worse (larger) curvature
-# Note: The above results can be straightforwardly extended from white noise data  to arbitrary dependent processes 
-#----------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.6  Interpretation of Results
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 1. SSA target correlation matches the optimised objective (internal check):
+#    The sample correlation cor(x, y_ssa) should equal crit_rhoy_target,
+#    confirming that the optimisation converged correctly.
+cor_mat[1, 2]              # Empirical correlation: x vs. M-SSA output
+SSA_obj$crit_rhoy_target   # Optimised objective value
+
+# 2. HP incurs a loss in target correlation of approximately 10% relative to
+#    SSA, despite operating under the same HT constraint.
+#    SSA target correlation:
+cor_mat[1, 2]
+#    HP target correlation:
+cor_mat[1, 3]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.7  Main Take-Aways
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. For a given HT constraint, SSA maximises target correlation and hence
+#    sign accuracy (equivalently, minimises MSE after suitable calibration).
+#
+# 2. Imposing the HP holding time on SSA guarantees that SSA outperforms
+#    HP in tracking x_{t + delta}.
+#
+# 3. The gain in tracking accuracy comes at the cost of larger curvature
+#    (greater mean squared second-order differences) relative to HP, which
+#    minimises curvature by construction (WH optimality).
+#
+# 4. These results extend straightforwardly from white noise to arbitrary
+#    stationary dependent processes by specifying the appropriate xi (Wold decomposition).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Exercise 2: M-SSA vs. WH Smoothing (Strategy 2)
+# Exercise 1.2: SSA vs. HP — Match target Correlation (MSE)
 # ══════════════════════════════════════════════════════════════════════════════
 
-# 2.1 Compute M-SSA
-# Strategy 2: find the HT such that M-SSA achieves the same target correlation
-#             as HP. Under identical correlation, M-SSA will outperform HP in HT.
+# 1.2.1 Compute SSA
+# Strategy 2: find the HT such that SSA achieves the same target correlation
+#             as HP. Under identical correlation,  SSA will outperform HP in HT.
 
 ht1_1  <- 75                                    # Target HT to match HP correlation
 rho1_1 <- compute_rho_from_ht(ht1_1)$rho        # Corresponding rho value
 
-# Design M-SSA filter with the correlation-matched HT constraint
+# Design  filter with the correlation-matched HT constraint
 SSA_obj_1 <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1_1)
 
 # Extract filter coefficients and verify correlation
 bk_mat_1 <- SSA_obj_1$bk_mat
 ts.plot(bk_mat_1)
 SSA_obj_1$crit_rhoy_target   # Should approximately equal cor(filter_mat)[1, 3]
-# Check: M-SSA replicates (sample) target correlation of HP
+# Check:  replicates (sample) target correlation of HP
 cor(filter_mat)[1, 3]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 2.2 Compute Curvatures
+# 1.2.2 Compute Curvatures
 # ══════════════════════════════════════════════════════════════════════════════
 # All three filters are scaled to unit variance before comparison.
 # HP minimises mean squared second differences by construction (WH criterion).
@@ -339,7 +410,7 @@ sq_se_dif
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 2.3 Plot and Sample Performances
+# 1.2.3 Plot and Sample Performances
 # ══════════════════════════════════════════════════════════════════════════════
 
 # --- Time-series plot of a 1 000-observation window ---
@@ -350,7 +421,7 @@ for (i in 1:ncol(yhat_mat))
   mtext(colnames(yhat_mat)[i],col=colo[i],line=-i)
 
 # --- Autocorrelation functions ---
-# M-SSA filters: slowly decaying ACF (long memory in the smooth output)
+#  filters: slowly decaying ACF (long memory in the smooth output)
 acf(na.exclude(yhat_mat)[, 1], lag.max = 100)
 acf(na.exclude(yhat_mat)[, 2], lag.max = 100)
 
@@ -360,20 +431,21 @@ acf(na.exclude(yhat_mat)[, 3], lag.max = 100)
 
 # Diagnostics: comparison of sample performances
 
-# Empirical holding times: M-SSA should equal or exceed HP's HT
+# Empirical holding times:  should equal or exceed HP's HT
 apply(na.exclude(yhat_mat), 2, compute_empirical_ht_func)
 
-# Tracking ability (correlation with x): M-SSA should equal or exceed HP
+# Tracking ability (correlation with x):  should equal or exceed HP
 cor(na.exclude(cbind(x, yhat_mat)))[1, ]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Exercise 3:  COMPUTE THE FULL SSA SMOOTHER FAMILY (delta SWEEP)
+# Exercise 2:  COMPUTE THE FULL SSA SMOOTHER FAMILY (delta SWEEP)
 # ══════════════════════════════════════════════════════════════════════════════
 # Sweep delta from the fully causal end (-(L-1)/2) to nowcast (0),
-# designing one M-SSA filter per lag shift. This may be time-consuming;
+# designing one  filter per lag shift. This may be time-consuming;
 # set recompute_calculations = TRUE only when a fresh run is needed.
 
+# 2.1
 # Re-extract HP holding-time parameters for the sweep
 rho1 <- compute_holding_time_func(hp_target)$rho_ff1
 ht1  <- compute_holding_time_func(hp_target)$ht
@@ -381,7 +453,7 @@ ht1  <- compute_holding_time_func(hp_target)$ht
 gamma_target <- 1   # Allpass target
 filt_mat     <- NULL
   
-# Design one M-SSA filter for each lag delta
+# Design one  filter for each lag delta
 for (delta in (-(L - 1) / 2):0)
 {
   print(delta)
@@ -392,7 +464,7 @@ for (delta in (-(L - 1) / 2):0)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 3.2 PLOT THE FULL SSA SMOOTHER FAMILY
+# 2.2 PLOT THE FULL SSA SMOOTHER FAMILY
 # ══════════════════════════════════════════════════════════════════════════════
 
 # --- Scale all filters to unit variance for a fair visual comparison ---
@@ -423,7 +495,7 @@ box()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 10: OVERLAY PLOT — SYMMETRIC SSA VS HP FILTER COEFFICIENTS
+# 2.3 OVERLAY PLOT — SYMMETRIC SSA VS HP FILTER COEFFICIENTS
 # ══════════════════════════════════════════════════════════════════════════════
 
 coloh <- c("blue", "violet", "black")
