@@ -166,18 +166,18 @@ SA_empirical
 # Under Gaussianity, SA is a deterministic function of correlation
 # (Wildi, 2024; 2026a)
 
-# Construct filter representation
+# a. Construct filter representation
 filter_mat <- cbind(gamma,
                     c(rep(0, length(gamma)-length(b_MSE)), b_MSE))
 colnames(filter_mat)[2] <- "predictor"
 
-# True correlation between target and predictor
+# b. True correlation between target and predictor
 rho_yz <- filter_mat[,1] %*% filter_mat[,2] /
   sqrt(filter_mat[,1] %*% filter_mat[,1] *
          filter_mat[,2] %*% filter_mat[,2])
 rho_yz
 
-# Transform correlation into theoretical SA (see Wildi 2024 and 2026a)
+# c. Transform correlation into theoretical SA (see Wildi 2024 and 2026a)
 SA_true <- asin(rho_yz)/pi + 0.5
 SA_true
 # Compare with empirical SA from above

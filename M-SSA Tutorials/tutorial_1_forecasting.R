@@ -5,7 +5,7 @@
 # ── PURPOSE ───────────────────────────────────────────────────────
 # This tutorial presents applications of the univariate SSA
 # framework, with a primary focus on classic forecasting
-# (rather than signal extraction or nowcasting).
+# (signal extraction and nowcasting are addressed later).
 #
 # A unifying theme throughout is the holding-time (ht) concept:
 # its role as a principled, systematic, and predictable means of

@@ -316,7 +316,7 @@
 #   • For processes with a non-zero mean, zero-crossings should be
 #     replaced by mean-crossings throughout
 #   • An extension to non-stationary processes is given in Wildi (2026a) 
-#     → Max-monotone and min-curvature SSA predictors
+#     → Max-monotone and min-curvature SSA predictors, see tutorial 7.6
 #
 
 # ── Gaussianity ───────────────────────────────────────────────────
