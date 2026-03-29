@@ -1,4 +1,4 @@
-# This is currently under construction
+# This tutorial is currently under construction
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Tutorial 8: M-SSA Smoothing
@@ -72,9 +72,9 @@
 #   applications are given in Wildi (2024)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TWO MAIN EXERCISES:
+# THREE MAIN EXERCISES:
 
-# Exercise 1: Univariate SSA-Smoothing
+# Exercises 1 & 2: Univariate SSA-Smoothing
 # -Contrast SSA-smoothing with classical Whittaker–Henderson (WH) graduation and HP
 
 # Exercise 2: Multivariate M-SSA Smoothing
@@ -110,9 +110,9 @@
 #     to a regularisation term that penalises `noise'. In this sense, smoothness
 #     is defined through curvature in HP (minimize squared second-order differences).
 #
-#      → Exercises 1&2 compare SSA's HT against WH-HP's curvature approaches. 
+#      → Exercises 1&2 compare SSA's HT against WH-HP's curvature concepts. 
 #
-#   • Alternatively, the term "smoothing" also refers to backcasting:
+#   • Alternatively, the term "smoother" also refers to backcasting:
 #     the retrospective refinement of historical estimates of a smooth
 #     component (e.g., a trend or cycle) by incorporating all data up to the
 #     most recent observation. The additional information available at the end
