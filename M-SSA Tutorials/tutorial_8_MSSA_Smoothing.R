@@ -1,4 +1,4 @@
-# This tutorial is currently under construction
+# This tutorial is under construction
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Tutorial 8: M-SSA Smoothing
@@ -462,9 +462,120 @@ for (i in 1:ncol(output_mat[,2:3]))
 # operationally inconsequential in applications driven by mean-crossings.
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.8  Monotonicity
+# ─────────────────────────────────────────────────────────────────────────────
+# Definitions:
+# A turning point is where a graph changes direction (from increasing to decreasing, or vice versa), 
+#   acting as a local maximum or minimum. 
+# An inflection point is where the graph's curvature 
+#   (concavity) changes, often where the slope changes from bending downward to bending upward, 
+# not necessarily changing direction. 
+# ─────────────────────────────────────────────────────────────────────────────
+# We here compute the mean duration between consecutive turning points
+# A turning point is obtained when growth (first differences of the filtered series) changes sign
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Locations at which first differences of SSA change sign: turning points
+ssa_tp<-which(diff(output_mat[1:(nrow(output_mat)-1),"SSA"])*diff(output_mat[2:(nrow(output_mat)),"SSA"])<0)
+hp_tp<-which(diff(output_mat[1:(nrow(output_mat)-1),"HP"])*diff(output_mat[2:(nrow(output_mat)),"HP"])<0)
+
+# Mean duration between turning points
+nrow(output_mat)/length(ssa_tp)
+nrow(output_mat)/length(hp_tp)
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1.1.8  Dependence Structure: Autocorrelation Functions
+# NOTE ON SMOOTHNESS CRITERIA
+# ─────────────────────────────────────────────────────────────────────────────
+# The preceding discussion is not specifically about the HP filter per se,
+# but about the broader concept of smoothness and how it is formalised.
+#
+# In the WH framework, smoothness is enforced by penalising "unsmooth"
+# behaviour through a regularisation term — typically squared differences
+# of order d. HP is a special case of WH with d = 2, penalising curvature
+# (squared second-order differences).
+#
+# The key question is therefore which notion of smoothness is most
+# appropriate for a given application — curvature-based (WH/HP) or
+# mean-crossing-based (M-SSA) — rather than a comparison between two
+# specific filters.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INTERPRETATION: TURNING POINTS, INFLECTION POINTS, AND SMOOTHNESS CRITERIA
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Contextual mapping to macroeconomic / financial data
+# ─────────────────────────────────────────────────────
+# In practice, the simulated white-noise series x_t represents first
+# differences (growth rates) of a non-stationary financial or macroeconomic
+# series. Under this interpretation:
+#
+#   • Zero-crossings of x_t (first differences)
+#       ↔ turning points of the original series in levels.
+#   • Turning points of x_t (first differences)
+#       ↔ inflection points of the original series in levels.
+#
+# The relevant smoothness question
+# ─────────────────────────────────
+# The appropriate smoothness criterion depends on the operational objective:
+#
+#   • If the primary interest is in turning points in levels
+#     (zero-crossings in first differences), then controlling the HT —
+#     rather than curvature — is the more relevant smoothness criterion.
+#     For a given HT, tracking x_t (growth) more closely is a worthwhile
+#     objective (SSA).
+#
+#   • If the primary interest is in controlling the rate of inflection points in levels
+#     (turning points in first differences), then curvature-based criteria
+#     such as WH/HP are more appropriate.
+#
+# The dual perspective: fixing MSE, maximising HT
+# ─────────────────────────────────────────────────
+# The argument can be reversed: suppose the tracking ability (MSE, target
+# correlation, or sign accuracy) of x_t is fixed a priori. A natural
+# complementary smoothness objective is then to maximise the HT subject to
+# this tracking constraint — directly controlling the distance between
+# consecutive turning points in levels. This combines:
+#
+#   • An MSE criterion on growth (first differences), and
+#   • A turning-point control criterion on levels.
+#
+# Exercise 1.2 below explores exactly this dual formulation.
+#
+# Why M-SSA smoothness differs from HP smoothness
+# ─────────────────────────────────────────────────
+# Once the filtered series is clearly away from zero, noisy ripples
+# (turning points in first differences, i.e., inflection points in levels)
+# are operationally harmless — they do not generate false turning-point
+# signals. The visual roughness of M-SSA at non-zero levels is therefore
+# inconsequential in sign-based (turning points in levels) applications.
+#
+# What matters is the behaviour near zero: spurious zero-crossings at this
+# boundary generate noisy turning-point signals. M-SSA controls precisely
+# this rate — the frequency of zero-crossings — via the HT constraint.
+#
+# HP, by contrast, controls curvature (turning-point rate) uniformly across
+# all levels, including regions far from zero where such control is
+# operationally unnecessary. This makes HP's smoothness criterion less
+# targeted in sign-based (turning points in levels) decision-making applications.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.9  Dependence Structure: Autocorrelation Functions
 # ─────────────────────────────────────────────────────────────────────────────
 # The autocorrelation function (ACF) provides an alternative perspective on
 # the structural differences between M-SSA and HP smoothing outputs.
