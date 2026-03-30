@@ -170,6 +170,114 @@ source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PREAMBLE TO EXERCISE 1
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# A. Contextual Mapping to Macroeconomic and Financial Data
+# ──────────────────────────────────────────────────────────
+# Many economically relevant time series are non-stationary, exhibiting a
+# slowly changing level (trend). First-differencing such series often yields
+# an approximately stationary, near-white-noise process (typical spectral shape).
+#
+# First differences emphasise high-frequency variation, making smoothing
+# (noise removal or damping) particularly valuable for differenced data.
+# This is especially so because first differences represent growth rates —
+# a quantity of primary interest to many practitioners and policymakers.
+# Noise in these series obscures the underlying growth dynamics that are
+# central to decision-making by economic actors, investors, institutions, and
+# statistical agencies alike.
+#
+# Tutorial 6 addressed smoothness in first differences while simultaneously
+# tracking optimally the non-stationary level via I-SSA (`double-stroke'). 
+# The present tutorial also
+# emphasises smoothness in first differences, but the focus shifts to
+# tracking growth dynamics in the differenced series directly.
+#
+# Accordingly, the exercises below use simulated white noise as the input
+# series — a reasonable approximation to the first differences of many
+# important economic indicators. All conclusions extend straightforwardly
+# to arbitrary stationary processes (of differenced data), since M-SSA
+# retains its optimality properties when the Wold decomposition of the
+# differenced series is incorporated into the design via xi (the Wold decomposition).
+#
+#
+#
+# B. Turning Points, Inflection Points, and Smoothness Criteria
+# ──────────────────────────────────────────────────────────────
+# When x_t represents first differences (growth rates) of a non-stationary
+# series, the following interpretive mapping applies:
+#
+#   • Zero-crossings of x_t (first differences)
+#       ↔ turning points of the original series in levels.
+#
+#   • Turning points of x_t (first differences)
+#       ↔ inflection points of the original series in levels.
+#
+#
+# C. Monotonicity, Turning Points, and Inflection Points
+# ───────────────────────────────────────────────────────
+# Turning point:
+#   A point at which a series changes direction — from increasing to
+#   decreasing, or vice versa — corresponding to a local maximum or minimum.
+#   A series evolves monotonically between any two consecutive turning points.
+#
+# Inflection point:
+#   A point at which the curvature (concavity) of a series changes sign —
+#   from bending downward to bending upward, or vice versa. An inflection
+#   point marks the location of maximum or minimum growth (slope), but does
+#   not necessarily involve a change in direction.
+#
+# Relationship between the two:
+#   • Turning points in levels correspond to zero-crossings in first
+#     differences (growth changes sign).
+#   • Inflection points in levels correspond to turning points in first
+#     differences (growth reaches a local extremum).
+#   • Controlling the HT governs the rate of turning points (monotonicity
+#     intervals), while controlling curvature (WH/HP) governs the rate of
+#     inflection points.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# B. Turning Points, Inflection Points, and Smoothness Criteria
+# ──────────────────────────────────────────────────────────────
+# When x_t represents first differences (growth rates) of a non-stationary
+# series, the following interpretive mapping applies:
+#
+#   • Zero-crossings of x_t (first differences)
+#       ↔ turning points of the original series in levels.
+#
+#   • Turning points of x_t (first differences)
+#       ↔ inflection points of the original series in levels.
+#
+#
+# C. Monotonicity
+# ─────────────────────────────────────────────────────────────────────────────
+# Definitions:
+# A turning point is where a graph changes direction (from increasing to decreasing, or vice versa), 
+#   acting as a local maximum or minimum. 
+# An inflection point marks maximal or minimal growth. It is where the graph's curvature 
+#   (concavity) changes, where the slope changes from bending downward to bending upward (or vice versa),
+# not necessarily changing direction.   
+# A series evolves monotonically between consecutive turning points.
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # EXERCISE 1: Univariate Symmetric Smoothers
 # GOAL
 # ════
@@ -445,21 +553,48 @@ abline(h = 0)
 for (i in 1:ncol(output_mat[,2:3]))
   mtext(colnames(output_mat[,2:3])[i],col=colo[i],line=-i)
 
-# The smaller curvature of HP suggests a visually smoother output than SSA.
-# However, both smoothers have been verified to exhibit the same rate of
-# mean-crossings (identical empirical HT), so they are equally smooth in the
-# sense that matters most for sign-based decision-making.
+
+# The smaller curvature of HP suggests a visually smoother output than M-SSA.
+# However, both smoothers exhibit the same rate of mean-crossings (identical
+# empirical HT), so they are equally smooth in the sense that matters most
+# for sign-based decision-making: the mean distance between consecutive
+# turning points in the levels series.
 #
 # The apparent visual roughness of the SSA output — reflected in more
-# frequent sign changes in the growth rate (first differences) — is not a
-# deficiency but a necessary feature: it is precisely this additional
-# high-frequency variation that allows SSA to track the target x_t more
-# closely than HP in terms of MSE, target correlation, and sign accuracy.
+# frequent sign changes of the slope (shorter monotonicity intervals in
+# the smoothed growth series) — is not a deficiency but a necessary feature.
+# It is precisely this additional variation that allows M-SSA to track the
+# target x_t (growth of the original levels series) more closely than HP,
+# as measured by MSE, target correlation, and sign accuracy.
 #
-# In summary: for a given HT constraint, M-SSA achieves superior tracking
-# efficiency relative to HP. The trade-off is a larger curvature, but since
-# curvature does not directly govern sign-based performance, this cost is
-# operationally inconsequential in applications driven by mean-crossings.
+# In summary: for a given HT constraint — equivalently, a prescribed mean
+# duration between consecutive turning points in the levels series — SSA
+# achieves superior tracking of level dynamics (in first differences) or growth dynamics (on levels)
+# relative to HP. The trade-off is a larger curvature (more inflection
+# points in levels), but the number of inflection points is operationally
+# inconsequential as long as the number of turning points is held fixed.
+#
+# Stated differently: the curvature-based smoothness concept enforced by
+# WH/HP does not explicitly control the distance between turning points in
+# levels — the quantity of primary interest in sign-based applications.
+# Consequently, the cost of not controlling curvature, as in SSA, is
+# mitigated in settings where turning-point control is the
+# primary objective. 
+
+# From a visual standpoint, HP appears smoother — an impression
+# driven by its lower curvature and oscillatory ACF structure. However, this visual
+# impression should not distract from the effective optimisation objective:
+# when turning-point control is the primary operational priority, the HT
+# constraint is the more relevant smoothness criterion, and SSA is the
+# more efficient filter by construction.
+
+
+
+
+
+
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -472,7 +607,7 @@ for (i in 1:ncol(output_mat[,2:3]))
 #   (concavity) changes, often where the slope changes from bending downward to bending upward, 
 # not necessarily changing direction. 
 # ─────────────────────────────────────────────────────────────────────────────
-# We here compute the mean duration between consecutive turning points
+# We here compute the mean duration between consecutive turning points (in levels)
 # A turning point is obtained when growth (first differences of the filtered series) changes sign
 # ─────────────────────────────────────────────────────────────────────────────
 
