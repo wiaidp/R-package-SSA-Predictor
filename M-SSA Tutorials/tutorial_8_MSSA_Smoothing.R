@@ -533,6 +533,29 @@ nrow(output_mat)/length(hp_tp)
 #     (turning points in first differences), then curvature-based criteria
 #     such as WH/HP are more appropriate.
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# THE PRIMAL PERSPECTIVE: FIX HT, MAXIMISE GROWTH TRACKING
+# ─────────────────────────────────────────────────────────────────────────────
+# The series x_t (first differences) is an natural unbiased but noisy estimate of
+# growth in the underlying levels series. For a prescribed mean distance
+# between consecutive turning points in levels (i.e., a fixed HT in differences), SSA
+# maximises tracking of x_t — the natural, unbiased growth signal.
+#
+# This constitutes a compelling and operationally meaningful criterion:
+# it simultaneously controls the business-cycle frequency (via HT) and
+# minimises noise in the growth estimate (via target correlation / MSE).
+#
+# Example — Business-cycle analysis:
+#   Business cycles are conventionally defined over durations of 2–8 years,
+#   with a typical mean cycle length of approximately 5 years. Imposing an
+#   HT of 5 years in the SSA design would yield the closest possible
+#   tracking of the unbiased (but noisy) growth estimate x_t, while
+#   ensuring that the smoothed output generates turning-point signals at
+#   the prescribed frequency.
+# ─────────────────────────────────────────────────────────────────────────────
+
+#
+#
 # The dual perspective: fixing MSE, maximising HT
 # ─────────────────────────────────────────────────
 # The argument can be reversed: suppose the tracking ability (MSE, target
@@ -542,7 +565,7 @@ nrow(output_mat)/length(hp_tp)
 # consecutive turning points in levels. This combines:
 #
 #   • An MSE criterion on growth (first differences), and
-#   • A turning-point control criterion on levels.
+#   • An explicit turning-point control on levels.
 #
 # Exercise 1.2 below explores exactly this dual formulation.
 #
