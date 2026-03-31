@@ -462,16 +462,18 @@ abline(h = 0)
 for (i in 1:ncol(output_mat[,2:3]))
   mtext(colnames(output_mat[,2:3])[i],col=colo[i],line=-i)
 
-# Suppose we interpret zero-crossings of the smoothed series as turning points on levels I_t
-# For the same rate of TPs, SSA and HP TP datings differ.
-# Which TP dating is potentially more informative/interesting?
-# -Based on smaller curvature?
-# -Or based on optimal tracking of x_{t+delta}=I_{t+delta}-I_{+delta-1}?
+# Suppose we interpret zero-crossings of the smoother of x_t as turning points on levels I_t, where it is understood that 
+# x_t=I_t-I_{t-1}.
+# For the same frequency of TPs, SSA and HP in this exercise date TPs differently.
+# Question: given this difference, which TP dating in I_t (zero-crossings in differences) is 
+# potentially more informative/interesting?
+# -HP exhibits smaller curvature than SSA: is smaller curvature in differences (i.e. third differences of I_t) relevant?
+# -SSA exhibits optimal tracking of x_{t+delta}=I_{t+delta}-I_{t+delta-1}, i.e., growth.
 
-# We contend that defining TP's based on optimal smooth growth-tracking is an intuitively appealing 
-# approach, because we expect TP's to be implicitly linked to growth.
+# We contend that defining TP's on levels based on optimal growth-tracking is an intuitively appealing 
+# approach by linking TP's (i.e. zero crossings in diffs) to optimal estimation in diffs.
 
-# Defining TP's based on minimal curvature, on the other hand, links TPs to inflection points.
+# Defining TP's in levels based on minimal curvature (in differences), on the other hand, links TPs to inflection points.
 # It is not clear why having fewest inflection points should determine implicitly TPs: what 
 # is the rationale?
 
