@@ -179,39 +179,20 @@ source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
 source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ══════════════════════════════════════════════════════════════════════════════
-# EXERCISE 1: Univariate Symmetric Smoothers
+# EXERCISE 1: UNIVARIATE SYMMETRIC SSA SMOOTHERS
 # GOAL
 # ════
 # Benchmark (univariate) SSA smoothing against Whittaker–Henderson (WH) graduation,
 # which generalises the HP filter (assuming second-order differences, d = 2).
 #
-# BACKGROUND  (Wildi 2026b, Section 4.2)
+# BACKGROUND  
 # ═══════════
+# Wildi 2026b, Section 4.2
 
 # COMPARISON STRATEGY 
 # ════════════════════════════════════
-# Two complementary designs are evaluated against WH (or HP):
+# Two complementary SSA designs are evaluated against WH (or HP):
 #
 #   Exercise 1.1 — Match holding time of HP:
 #     Design SSA  so that its HT equals that of HP.
@@ -222,7 +203,7 @@ source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
 #   Exercise 1.2 — Match MSE tracking of x_t:
 #     Design SSA  so that its MSE tracking of x_t equals that of HP.
 #     Then compare the HT and curvature of both smoothers.
-#     Expected result:  SSA achieves a longer HT (lss zero-crossings)
+#     Expected result:  SSA achieves a longer HT (less zero-crossings)
 #     for the same tracking accuracy, but larger curvature.
 
 
