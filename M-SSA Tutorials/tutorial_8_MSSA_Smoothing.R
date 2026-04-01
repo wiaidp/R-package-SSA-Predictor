@@ -8,8 +8,8 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # SMOOTHING VS. PREDICTION
 # ──────────────────────────────────────────────────────────────────────────────
-# M-SSA can target either acausal or causal objectives, subject to a
-# holding-time (HT) constraint:
+# M-SSA can target either acausal or causal objectives (which do not rely on 
+# future unknown observations), subject to a holding-time (HT) constraint:
 #
 #   • Acausal target → M-SSA acts as a PREDICTOR
 #                      (the target lies in the future relative to t)
@@ -23,7 +23,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Let x_t be a stationary time series representing the data.
 #   • In macroeconomic applications, x_t may correspond to the first differences
-#     of a non-stationary level series I_t.
+#     of a non-stationary level series I_t: x_t=I_t-I_{t-1}.
 #   • First differences of economic data are typically noisy, making smoothing 
 #     a compelling optimization problem.
 #   • This is especially true because noise in these series obscures the 
@@ -50,7 +50,8 @@
 #
 # Selecting the identity target x_t (or x_{t+δ} with δ ≤ 0) in this tutorial 
 # isolates and reveals the INTRINSIC SMOOTHING PROPERTIES of M-SSA, unconfounded 
-# by any pre-filtering introduced through a non-trivial target specification.
+# by any pre-filtering introduced through an extraneous target specification 
+# (e.g., HP or ideal trend).
 #
 # ──────────────────────────────────────────────────────────────────────────────
 # M-SSA SMOOTHING CONCEPT
@@ -72,20 +73,25 @@
 #     than x_t — i.e., it is rougher than the original; this case is
 #     generally not of practical interest.
 #
+# What distinguishes M-SSA smoothing from classical approaches?
+#
 # ──────────────────────────────────────────────────────────────────────────────
 # DATA-GENERATING PROCESS
 # ──────────────────────────────────────────────────────────────────────────────
 # To apply the HT concept, we assume x_t to be stationary, eventually after 
-# differences.
+# differences (for an integrated process neither the mean nor the crossings are 
+# properly defined).
+#
 #   • M-SSA smoothing can be applied to non-stationary series, see example ???
 #   • But the HT constraint must be specified in stationary differences.
 #
 # The Wold decomposition of the (stationary) data x_t enters M-SSA via the
 # function argument ξ (the variable "xi") and plays a central role in filter 
-# design. Incorporating the correct ξ into the M-SSA optimisation ensures:
+# or smoother design. Incorporating the correct ξ into the M-SSA optimisation 
+# ensures:
 #
 #   a) Optimality      : M-SSA maximises tracking of x_{t + delta} (in terms
-#                        of target correlation, sign accuracy, or MSE) for a
+#                        of target correlation or sign accuracy) for a
 #                        given HT constraint.
 #
 #   b) Interpretability: the HT parameter is directly interpretable as the
@@ -151,24 +157,29 @@
 # ══════════════════════════════════════════════════════════════════════════════
 # BENCHMARK IN TUTORIAL 8
 # ══════════════════════════════════════════════════════════════════════════════
-# Smoothing Refers to a data processing technique that removes noise or 
-# short-term fluctuations from a series, typically based on an optimization  
-# approach that balances fidelity to the observed data and smoothness of the 
-# resulting curve (e.g., penalizing second differences)
+# Smoothing refers to a data-processing technique that removes noise or
+# short-term fluctuations from a series, typically via an optimisation approach
+# that balances fidelity to the observed data against smoothness of the output
+# (e.g., by penalising second-order differences).
 #
-# Classical Whittaker–Henderson (WH) graduation is based on the following 
-# optimization problem:
+# Classical Whittaker–Henderson (WH) graduation is based on the following
+# optimisation problem:
 #
 #   min_{y_t} sum_{t=1}^{T} (x_t - y_t)^2
 #              + lambda * sum_{t=d+1}^{T} ((1-B)^d * y_t)^2
 #
-# For d=2 the Hodrick Prescott (HP) filter is obtained. 
-# We here benchmark M-SSA against WH and to simplify exposition we assume d=2 (HP).
+# For d = 2, this yields the Hodrick–Prescott (HP) filter.
+# Throughout Tutorial 8, M-SSA is benchmarked against WH/HP (d = 2).
 #
 # While many different smoothing approaches exist, a common feature is that they
-# generally do not appeal to an explicit model of the data-generating
-# process — smoothness is instead enforced through a penalty term or
-# a structural constraint imposed directly on the output.
+# generally do not appeal to an explicit model of the data-generating process —
+# smoothness is instead enforced through a penalty term or a structural
+# constraint imposed directly on the output.
+#
+# ── Key question ──────────────────────────────────────────────────────────────
+# Does imposing such an extraneous constraint — one that is not derived from
+# the data-generating process — introduce undesirable artefacts or spurious
+# structure into the smoothed output?
 #
 # ──────────────────────────────────────────────────────────────────────────────
 # Classical Smoothing: Whittaker–Henderson (WH) Graduation / HP Filter
@@ -193,7 +204,9 @@
 #
 #   • When x_t = (1−B)I_t (first differences of a non-stationary level series),
 #     controlling the HT of x_t via M-SSA directly addresses the frequency of
-#     transitions between above- and below-average growth in I_t.
+#     transitions between above- and below-average growth in I_t. If the mean of 
+#     x_t vanishes (or is small/negligible), M-SSA smoothing addresses turning 
+#     points of I_t.
 #       
 # ══════════════════════════════════════════════════════════════════════════════
 # REFERENCES
@@ -555,13 +568,13 @@ sd(diff(hp_zc),  na.rm = TRUE)   # HP:  variability in zero-crossing spacing
 # zero-crossings, as produced by HP) actually desirable?
 #
 #   • More regular zero-crossings imply a more periodic, clock-like output —
-#     a structural regularity not present in the original data x_t, which is
-#     well-approximated by white noise (aperiodic by nature).
+#     a structural regularity not present in the original data x_t, noise, 
+#     which is unstructured, irregular and aperiodic by nature.
 #   • This regularity is a signature imposed by the HP filter itself, not a
 #     feature of the underlying signal: it constitutes spurious smoothing.
 #   • SSA, by contrast, inherits the irregular spacing of zero-crossings
 #     from the data, producing a more faithful representation of the
-#     underlying growth dynamics.
+#     underlying growth dynamics, see below.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.1.9 Turning Points in SSA
@@ -635,26 +648,40 @@ acf(na.exclude(output_mat)[, 3], lag.max = 100, main = "HP")
 # Let x_t = I_t − I_{t−1}, where I_t is the relevant non-stationary level series.
 #
 #   • Zero-crossings of x_t correspond to turning points (TPs) in I_t.
-#   • SSA and HP produce different TP datings for I_t.
-#   • Key question: which TP dating is more credible?
+#   • M-SSA and HP produce different TP datings for I_t.
+#   • Key question: which TP dating is more compatible with the
+#     data-generating process — and therefore more intrinsic?
 #
 # ── Data-Driven vs. Externally Imposed Structure ──────────────────────────────
 #   • SSA derives TP datings in I_t through optimal tracking of the first
 #     differences x_t. Turning points are determined by systematic changes in
-#     growth — they emerge intrinsically from the data.
+#     growth — they emerge intrinsically from the data, based on an optimal 
+#     (smooth) local growth tracker.
 #
-#   • HP derives TP datings by imposing minimal curvature on the output. Turning
-#     points reflect a structural shape (low curvature) that is not an inherent
-#     property of the data but is imposed from outside — a form of spurious
-#     smoothing.
+#   • HP derives TP datings by imposing minimal curvature on the output. The
+#     resulting turning points reflect a structural shape (low curvature) that
+#     is not an inherent property of the data, but is imposed externally —
+#     a form of spurious smoothing. This structure is consistent with certain
+#     data-generating processes (e.g., HP is the optimal trend estimator under
+#     the ARIMA(0,2,2) model; see Tutorial 2), but it is unclear how closely
+#     typical economic data conform to such models. By contrast, white noise
+#     is a well-established proxy for the first differences of typical economic
+#     series — and first differences directly capture the growth dynamics that
+#     are of primary practical relevance.
 #
 # ── Interpretability ──────────────────────────────────────────────────────────
 #   • SSA: TP datings of I_t follow directly from optimal tracking of growth
 #     in x_t — an intuitively natural and operationally meaningful criterion.
 #
 #   • HP: TP datings follow from controlling curvature in x_t, which corresponds
-#     to penalising third-order differences (1−B)³I_t in I_t — a quantity that
-#     is difficult to interpret in economic or practical terms.
+#     to penalising third-order differences (1−B)³I_t — a quantity that is
+#     difficult to interpret in economic or practical terms. The interpretive
+#     difficulty extends to the TPs themselves: what predictive or informational
+#     content can be assigned to a turning point identified by a smoother whose
+#     curvature has been minimised by construction, rather than by reference to
+#     the data? For M-SSA, the answer is clear: each TP follows directly from
+#     optimal tracking of growth in x_t — a criterion that is both
+#     operationally meaningful and data-driven.
 #
 # ── Penalty Term: Imposed Structure vs. Data-Driven Behaviour ─────────────────
 #   • HP penalty: forces the smoother towards a straight line — the idealised
@@ -675,11 +702,13 @@ acf(na.exclude(output_mat)[, 3], lag.max = 100, main = "HP")
 #     imminent zero-crossing (direction reversal in I_t).
 #   • By contrast, M-SSA exhibits many TPs between consecutive zero-crossings,
 #     generating frequent false alarms: a TP in M-SSA is therefore a less
-#     reliable signal of an impending zero-crossing (TP in I_t).
+#     reliable signal of an impending zero-crossing (TP in I_t). This reflects 
+#     the absence of extraneous structure imposed on the data.
 #
 # ── Qualification ─────────────────────────────────────────────────────────────
-# While the above observations are accurate, it is not clear that they
-# constitute a genuine advantage for HP. The apparent anticipativity of HP's
+# While the above observations concerning predictability of TPs for HP are 
+# accurate, it is not clear that they constitute a genuine advantage for HP. 
+# The apparent anticipativity of HP's
 # TPs — i.e., their tendency to reliably precede zero-crossings — is largely
 # an artefact of the curvature constraint: HP's TPs are, to a significant
 # degree, artificially generated by the externally imposed low-curvature
@@ -694,13 +723,13 @@ acf(na.exclude(output_mat)[, 3], lag.max = 100, main = "HP")
 # Main Take-Aways from Exercise 1.1
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# 1. Optimality of SSA
+# 1. Optimality of SSA Smoothing
 #    For a given HT constraint, SSA maximises target correlation and sign
 #    accuracy with respect to the target x_{t+δ} — by construction.
 #
-# 2. Dominance over HP
-#    Imposing the HP holding time as the HT constraint guarantees that SSA
-#    outperforms HP in tracking x_{t+δ}, for an identical zero-crossing rate.
+# 2. Dominance over HP (WH) smoothing
+#    Imposing the HP (WH) holding time as the HT constraint guarantees that SSA
+#    outperforms HP (WH) in tracking x_{t+δ}, for an identical zero-crossing rate.
 #
 # 3. Cost of Superior Tracking: Increased Curvature
 #    The gain in tracking accuracy of SSA comes at the cost of greater
@@ -722,39 +751,10 @@ acf(na.exclude(output_mat)[, 3], lag.max = 100, main = "HP")
 # 5. Generalisation to Autocorrelated Processes
 #    All of the above results extend from white noise to arbitrary stationary
 #    autocorrelated processes by supplying the appropriate ξ (Wold decomposition) 
-#    to the SSA design criterion.
+#    to the SSA design criterion. Non-stationary integrated processes are 
+#    discussed in example ???
 #
 # ─────────────────────────────────────────────────────────────────────────────
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Main Take-Aways from Exercise 1.1
-# ─────────────────────────────────────────────────────────────────────────────
-# 1. For a given HT constraint, SSA maximises target correlation and hence
-#    sign accuracy with respect to the target x_{t+delta}.
-#
-# 2. Imposing the HP holding time on SSA guarantees that SSA outperforms
-#    HP in tracking x_{t + delta} for identical zero crossing rate.
-#
-# 3. The gain in tracking accuracy of SSA comes at the cost of larger curvature
-#    relative to HP
-#       →HP smoothers appear rounder
-#       →with less TPs and 
-#       →with more regularly distributed zero crossings.
-#       →faster decaying damped cycle ACF structure
-#
-# 4. SSA smoothing imposes less structure on the data than HP
-#       →zero crossings are derived from optimally tracking the data (purely 
-#         data based)
-#       →the HT constraint affects the lag-one ACF (does not impose or prefer a 
-#         particular shape of the series)
-#       →The ACF pattern is monotonically decreasing, without artificial 
-#         structure (cycle)    
-#
-# 5. These results extend from white noise to autocorrelated processes by 
-#     specifying the appropriate ξ (Wold decomposition).
-# ─────────────────────────────────────────────────────────────────────────────
-
 
 
 
@@ -792,10 +792,12 @@ SSA_obj_1 <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1_1)
 
 # Extract filter coefficients
 bk_mat_1 <- SSA_obj_1$bk_mat
-ts.plot(bk_mat_1)
+par(mfrow=c(1,1))
+ts.plot(bk_mat_1,main=paste("SSA smoother: HT=",round(ht1_1),sep=""))
 
 # ── Verify that the SSA target correlation matches that of HP ───────────────
-# If the values below do not match, revise ht1_1 manually until they agree.
+# If the values below do not match, increase or decrease ht1_1 manually until 
+# the target correlations agree.
 SSA_obj_1$crit_rhoy_target   # SSA population target correlation
 cor(output_mat)[1, 3]        # HP empirical target correlation (sample estimate)
 
@@ -804,10 +806,9 @@ cor(output_mat)[1, 3]        # HP empirical target correlation (sample estimate)
 # larger HT (ht1_1 = 75) than HP (ht1) to achieve the same tracking accuracy —
 # confirming the dual result of Exercise 1.2.
 ht1   # HP holding time (for comparison)
-# ─────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1.2.2  Results: Tracking Accuracy on Simulated White Noise
+# 1.2.2  Empirical Tracking Performances: 
 # ─────────────────────────────────────────────────────────────────────────────
 # Performance is evaluated on three complementary criteria:
 #   a) Mean Squared Error (MSE)
