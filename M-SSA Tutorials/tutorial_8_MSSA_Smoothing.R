@@ -1020,7 +1020,7 @@ rho1 <- compute_holding_time_func(hp_target)$rho_ff1
 xi <- hp_target
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1.3.3  Compute the SSA Filter
+# 1.3.3  Compute the SSA Filter/Smoother
 # ─────────────────────────────────────────────────────────────────────────────
 # Supplying ξ explicitly; omitting ξ would default to the white-noise assumption.
 SSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1,
@@ -1062,6 +1062,10 @@ SSA_obj$crit_rhoy_target
 # well-motivated choice in most applications. The result is therefore of
 # theoretical interest — demonstrating the flexibility of the SSA framework
 # in smoothing — rather than a practically recommended specification.
+
+# Hint: setting ξ = NULL (xi<-NULL: white-noise assumption) and re-running the 
+# design yields the optimal nowcast (δ = 0) smoother of x_t (noise) subject to 
+# the imposed HT constraint.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -1069,6 +1073,36 @@ SSA_obj$crit_rhoy_target
 # ════════════════════════════════════════════════════════════════════════════════
 # Exercise 2: TARGET MONOTONICITY IN SSA
 # ════════════════════════════════════════════════════════════════════════════════
+# This exercise is deliberately extreme and, in practice, unrealistic. It is
+# designed to explore the characteristics of SSA smoothing when pushed to
+# its limits — a setting that, while practically irrelevant, is instructive
+# for understanding the fundamentals of the SSA framework by probing its
+# boundaries.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Motivation
+# ─────────────────────────────────────────────────────────────────────────────
+# Exercise 1.1 showed that SSA exhibits substantially more turning points
+# (TPs) than HP for an equal HT, since HP minimises curvature and thereby
+# suppresses TPs. 
+# 
+# Problem formulation: design an M-SSA smoother that replicates not the HT of
+# HP, but rather its rate of turning points (TPs) — a strictly stronger
+# smoothness requirement, since matching the TP rate of HP demands a
+# substantially larger HT in SSA.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Problem Translation
+# ─────────────────────────────────────────────────────────────────────────────
+# The TP-matching objective is translated into a tractable HT constraint
+# as follows:
+#
+#   • TPs of HP correspond to zero-crossings of its first differences.
+#   • To match the TP rate of HP, we compute the empirical HT of HP in
+#     first differences.
+#   • We then impose this HT (in first differences) as the SSA constraint.
+# ─────────────────────────────────────────────────────────────────────────────
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.1  Specify SSA Design Settings
