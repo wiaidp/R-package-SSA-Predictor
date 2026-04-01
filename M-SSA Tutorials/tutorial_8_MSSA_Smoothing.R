@@ -1119,10 +1119,8 @@ xi <- c(1,-1)
 symmetric_target <- FALSE
 
 # --- Target filter ---
-# gamma_target = 1 → allpass (identity) target: SSA tracks x_t itself.
-# This contrasts with signal-extraction or nowcasting settings where the
-# target is a non-trivial filtered version of x_t (e.g., the HP trend or an ideal trend).
-# MSSA_func zero-pads gamma_target to length L automatically if needed.
+# 
+gamma_target <- 1
 gamma_target <- c(1,-1)
 
 # --- Lag parameter delta ---
@@ -1164,9 +1162,9 @@ ht1  <- compute_holding_time_func(hp_target_diff)$ht       # Holding time of HP 
 # Interpretation of ht1:
 #   This reflects the mean duration between consecutive zero-crossings of first
 #   differences of HP: the mean length of monotonous cycle phases
+# This duration corresponds to the mean duration between consecutive TPs in levels of HP, see exercise 1.1.9
 # This duration is shorter than the HT in levels in exercise 1
-
-ht1   # Inspect the HP holding time
+ht1   # Inspect the HP holding time: 
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1184,7 +1182,7 @@ bk_mat_diff <- SSA_obj$bk_mat
 # --- Visual inspection ---
 # The filter should be symmetric, consistent with delta = -(L-1)/2
 par(mfrow = c(2, 1))
-ts.plot(bk_mat_diff, main = "SSA Filter Coefficients (Match HT of HP)")
+ts.plot(bk_mat_diff, main = "SSA Filter Coefficients (Match HT of HP in first differences)")
 ts.plot(hp_target_diff,main="Anti-symmetric two-sided HP in first differences")
 
 
