@@ -271,6 +271,14 @@ MSSA_func<-function(split_grid,L,forecast_horizon_vec,grid_size,gammak_generic,r
         gammak_generic<-matrix(gammak_generic,nrow=1)
       
     }
+    if (length(gammak_generic)>L)
+    {
+      gammak_generic<-gammak_generic[0:L]
+      print("Warning: length(gammak_generic)>L will be shorted")
+      if (is.vector(gammak_generic))
+        gammak_generic<-matrix(gammak_generic,nrow=1)
+      
+    }
     if (!is.null(xi)&is.vector(xi))
     {
       xi<-matrix(xi,nrow=1)
@@ -285,6 +293,10 @@ MSSA_func<-function(split_grid,L,forecast_horizon_vec,grid_size,gammak_generic,r
   {
     if (dim(xi)[2]<dim(xi)[1])
       xi<-t(xi)
+    if (ncol(xi)<L)
+    {
+      xi<-cbind(xi,matrix(rep(0,dim(xi)[1]*(L-dim(xi)[2])),nrow=dim(xi)[1]))
+    }
   }
   bk_mat<-bk_x_mat<-crit_rhoyz<-crit_rhoyy<-crit_rhoy_target<-gammak_target_target_mat<-gammak_target_target_symmetric_mat<-rho_mat<-NULL
 # If xi is not specified in call then it does not exist: here we define it as NULL  
