@@ -6,7 +6,7 @@
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# OVERVIEW
+# SMOOTHING VS. PREDICTION
 # ──────────────────────────────────────────────────────────────────────────────
 # M-SSA can target either acausal or causal objectives, subject to a
 # holding-time (HT) constraint:
@@ -44,7 +44,7 @@
 #                          (e.g., the HP trend or an ideal low-pass trend),
 #                          rather than x_t itself.
 #
-# In principle, smoothing arises for any causal target specification.
+# In principle, smoothing arises for any causal target specification in M-SSA.
 #   • When the target is the causal MSE predictor, M-SSA serves as its smoother 
 #     (so-called customization).
 #
@@ -53,10 +53,34 @@
 # by any pre-filtering introduced through a non-trivial target specification.
 #
 # ──────────────────────────────────────────────────────────────────────────────
+# M-SSA SMOOTHING CONCEPT
+# ──────────────────────────────────────────────────────────────────────────────
+# M-SSA maximises tracking of a target — via maximum target correlation or
+# maximum sign accuracy — subject to a HT constraint that specifies the mean
+# duration between consecutive mean-crossings (equivalently, zero-crossings
+# for a zero-mean series).
+#
+# Smoothing the original series x_t via M-SSA means:
+#
+#   • The smoothed output tracks x_t as closely as possible,
+#     subject to the HT constraint.
+#
+#   • If HT > HT(x_t): the smoothed series crosses its mean less frequently
+#     than x_t — i.e., it is smoother than the original.
+#
+#   • If HT < HT(x_t): the smoothed series crosses its mean more frequently
+#     than x_t — i.e., it is rougher than the original; this case is
+#     generally not of practical interest.
+#
+# ──────────────────────────────────────────────────────────────────────────────
 # DATA-GENERATING PROCESS
 # ──────────────────────────────────────────────────────────────────────────────
-# The Wold decomposition of the input process — applied to the differenced
-# series x_t when the original I_t is non-stationary — enters M-SSA via the
+# To apply the HT concept, we assume x_t to be stationary, eventually after 
+# differences.
+#   • M-SSA smoothing can be applied to non-stationary series, see example ???
+#   • But the HT constraint must be specified in stationary differences.
+#
+# The Wold decomposition of the (stationary) data x_t enters M-SSA via the
 # function argument ξ (the variable "xi") and plays a central role in filter 
 # design. Incorporating the correct ξ into the M-SSA optimisation ensures:
 #
@@ -80,13 +104,14 @@
 # defaults to white noise, and M-SSA retains its optimality and interpretability
 # whenever the data are well-approximated by white noise — for example, when
 # x_t represents the first differences of a "typical" non-stationary economic
-# series (cf. the typical spectral shape).
+# series (cf. Granger (1966): The Typical Spectral Shape of an Economic Variable. 
+# Econometrica).
 #
 # If, however, the white-noise assumption is violated and ξ is left unspecified,
 # increasing the HT still enforces greater smoothness, but only in a relative
 # sense: the HT no longer carries a direct interpretation as the mean duration
-# between consecutive mean-crossings of the output, and smoothness cannot be
-# anchored to any operationally meaningful phenomenon.
+# between consecutive mean-crossings of the output, and tracking of x_t can be 
+# compromised. 
 #
 # ──────────────────────────────────────────────────────────────────────────────
 # SMOOTHNESS VIA THE HT CONSTRAINT
@@ -103,37 +128,75 @@
 # consecutive mean-crossings of the output, provided that the model expressed 
 # in ξ is correctly specified. 
 #
+# ──────────────────────────────────────────────────────────────────────────────
+# CENTRAL QUESTIONS
+# ──────────────────────────────────────────────────────────────────────────────
+# The central questions addressed in this tutorial are:
+#
+#   • What does a series smoothed by imposing a HT constraint look like,
+#     and how does it compare visually to classically smoothed series?
+#
+#   • Does HT-based smoothing differ from classical smoothing approaches?
+#
+#   • If yes, what are the main differences? Specifically:
+#
+#       – Which smoothness concept is more natural and interpretable
+#         in the context of sign-based decision-making?
+#
+#       – Which approach avoids imposing its own structural signature
+#         on the data — i.e., which one is free of spurious smoothing
+#         artefacts introduced by the filter itself rather than by the
+#         underlying signal?
 #
 # ══════════════════════════════════════════════════════════════════════════════
 # BENCHMARK IN TUTORIAL 8
 # ══════════════════════════════════════════════════════════════════════════════
-# M-SSA smoothing is benchmarked against classical Whittaker–Henderson (WH)
-# graduation, which generalises the HP filter. The comparison focuses on
-# smoothing performance and tracking ability.
+# Smoothing Refers to a data processing technique that removes noise or 
+# short-term fluctuations from a series, typically based on an optimization  
+# approach that balances fidelity to the observed data and smoothness of the 
+# resulting curve (e.g., penalizing second differences)
+#
+# Classical Whittaker–Henderson (WH) graduation is based on the following 
+# optimization problem:
+#
+#   min_{y_t} sum_{t=1}^{T} (x_t - y_t)^2
+#              + lambda * sum_{t=d+1}^{T} ((1-B)^d * y_t)^2
+#
+# For d=2 the Hodrick Prescott (HP) filter is obtained. 
+# We here benchmark M-SSA against WH and to simplify exposition we assume d=2 (HP).
+#
+# While many different smoothing approaches exist, a common feature is that they
+# generally do not appeal to an explicit model of the data-generating
+# process — smoothness is instead enforced through a penalty term or
+# a structural constraint imposed directly on the output.
 #
 # ──────────────────────────────────────────────────────────────────────────────
 # Classical Smoothing: Whittaker–Henderson (WH) Graduation / HP Filter
 # ──────────────────────────────────────────────────────────────────────────────
 #   • The HP filter is the solution to the WH optimisation problem (WH graduation
-#     of order two), where the penalty term targets squared second-order differences.
+#     of order two), where the penalty term targets squared second-order 
+#     differences (d=2).
 #       → Smoothness criterion: CURVATURE
 #   • HP maximizes tracking of x_t subject to a curvature constraint.
-#   • Penalising curvature in x_t (first differences) addresses the occurrence 
-#     of inflection points in I_t (levels).
 #
 # ──────────────────────────────────────────────────────────────────────────────
-# (M-)SSA Smoothing: Core Concept
+# Smoothing: M-SSA vs. HP
 # ──────────────────────────────────────────────────────────────────────────────
-#   • (M-)SSA controls smoothness via the holding-time (HT) constraint rather
-#     than curvature, addressing passages above or below the series mean — 
-#     equivalently, between sign changes when the series is zero-mean.
 #
-#   • Controlling the HT via M-SSA governs the frequency of transitions between
-#     above- and below-average growth on levels (I_t).
-#   
+#   • (M-)SSA controls smoothness in x_t via the holding-time (HT) constraint
+#     rather than curvature.
+#
+#   • When ξ is correctly specified, the HT carries a direct interpretation as
+#     the mean duration between consecutive passages of the output above or
+#     below its mean — equivalently, between consecutive sign changes when
+#     the series is zero-mean.
+#
+#   • When x_t = (1−B)I_t (first differences of a non-stationary level series),
+#     controlling the HT of x_t via M-SSA directly addresses the frequency of
+#     transitions between above- and below-average growth in I_t.
 #       
 # ══════════════════════════════════════════════════════════════════════════════
-# THEORETICAL REFERENCES
+# REFERENCES
 # ──────────────────────
 #
 # Wildi, M. (2024). Business Cycle Analysis and Zero-Crossings of Time Series:
@@ -211,12 +274,7 @@ source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
 # ══════════════════════════════════════════════════════════════════════════════
 # Exercise 1.1: SSA vs. HP — Match Holding TimeS
 # ══════════════════════════════════════════════════════════════════════════════
-# Design SSA with the same HT as the symmetric HP filter, then compare
-# tracking accuracy (target correlation) and curvature of both smoothers.
-# Expected outcome: SSA outperforms HP in target correlation (and hence
-# sign accuracy / MSE) for the same degree of smoothness.
-# ══════════════════════════════════════════════════════════════════════════════
-
+# Design SSA with the same HT as the symmetric HP filter.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.1.1  Specify the HP Filter
@@ -344,7 +402,7 @@ x <- rnorm(lenq)
 # --- Apply both symmetric (two-sided) filters to x ---
 # sides = 2 specifies an acausal two-sided (symmetric) convolution,
 # consistent with the symmetric filter design (delta = -(L-1)/2).
-y_ssa    <- filter(x, bk_mat,    sides = 2)  # M-SSA smoother output
+y_ssa    <- filter(x, bk_mat,    sides = 2)  # SSA smoother output
 y_hp_two <- filter(x, hp_target, sides = 2)  # HP smoother output
 
 # Target: since both filters are symmetric and acausal, the target is
@@ -359,8 +417,8 @@ target <- x
 mse_ssa_smooth <- mean((target - y_ssa)^2,    na.rm = TRUE)
 mse_hp_smooth  <- mean((target - y_hp_two)^2, na.rm = TRUE)
 
-# Expected result: M-SSA achieves a smaller MSE than HP.
-mse_ssa_smooth   # M-SSA MSE
+# Expected result: SSA achieves a smaller MSE than HP.
+mse_ssa_smooth   # SSA MSE
 mse_hp_smooth    # HP MSE
 
 
@@ -372,15 +430,15 @@ colnames(output_mat)<-c("x","SSA","HP")
 cor_mat    <- cor(output_mat)
 cor_mat    # Full correlation matrix (first row: correlations with target)
 
-# Compare M-SSA and HP target correlations:
-# Expected result: M-SSA correlates more strongly with the target than HP.
-cor_mat[1, 2]   # M-SSA target correlation
+# Compare SSA and HP target correlations:
+# Expected result: SSA correlates more strongly with the target than HP.
+cor_mat[1, 2]   # SSA target correlation
 cor_mat[1, 3]   # HP target correlation
 
 # --- Internal convergence check ---
 # The sample correlation cor(x, y_ssa) should equal crit_rhoy_target
 # (up to Monte Carlo sampling error), confirming correct optimisation.
-cor_mat[1, 2]             # Empirical correlation: target vs. M-SSA output
+cor_mat[1, 2]             # Empirical correlation: target vs. SSA output
 SSA_obj$crit_rhoy_target  # Optimised objective (true target correlation)
 # The sample correlation should asymptotically converge to the true target correlation if the model is correctly specified (here: white noise)
 # Hence maximizing the true target correlation within SSA is a meaningful criterion
@@ -388,7 +446,7 @@ SSA_obj$crit_rhoy_target  # Optimised objective (true target correlation)
 # ── c. Sign Accuracy ──────────────────────────────────────────────────────────
 # Sign accuracy: proportion of time steps where the filter output and the
 # target share the same sign. A higher value indicates fewer false alarms.
-# Expected result: M-SSA achieves higher sign accuracy than HP.
+# Expected result: SSA achieves higher sign accuracy than HP.
 
 sign_acc_ssa <- sum((target * y_ssa)    > 0, na.rm = TRUE) /
   length(na.exclude(target * y_ssa))
@@ -396,7 +454,7 @@ sign_acc_ssa <- sum((target * y_ssa)    > 0, na.rm = TRUE) /
 sign_acc_hp  <- sum((target * y_hp_two) > 0, na.rm = TRUE) /
   length(na.exclude(target * y_hp_two))
 
-sign_acc_ssa   # M-SSA sign accuracy
+sign_acc_ssa   # SSA sign accuracy
 sign_acc_hp    # HP sign accuracy
 
 
@@ -409,11 +467,11 @@ sign_acc_hp    # HP sign accuracy
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── a. Holding Time ───────────────────────────────────────────────────────────
-# The HT constraint imposed on M-SSA is set equal to that of the HP filter.
+# The HT constraint imposed on SSA is set equal to that of the HP filter.
 # The empirical HTs of both smoothers should therefore agree closely.
 
-ht1                              # Target HT imposed on M-SSA (= HP holding time)
-compute_empirical_ht_func(y_ssa)      # Empirical HT of M-SSA output
+ht1                              # Target HT imposed on SSA (= HP holding time)
+compute_empirical_ht_func(y_ssa)      # Empirical HT of SSA output
 compute_empirical_ht_func(y_hp_two)   # Empirical HT of HP output
 
 # Expected result: both empirical HTs match each other, i.e., SSA matches the target ht1,
@@ -425,7 +483,7 @@ compute_empirical_ht_func(y_hp_two)   # Empirical HT of HP output
 # (RMSD2) of each smoother's output — the natural smoothness criterion
 # minimised by HP under the WH framework.
 # Expected result: HP achieves the smallest RMSD2 by construction (WH
-# optimality), while M-SSA incurs a larger curvature as the cost of
+# optimality), while SSA incurs a larger curvature as the cost of
 # superior tracking accuracy under the same HT constraint.
 
 sq_se_dif <- sqrt(apply(
@@ -451,112 +509,246 @@ sq_se_dif
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1.1.7  Plot Series
+# 1.1.7  Plot Series: 1,000-observation window
 # ─────────────────────────────────────────────────────────────────────────────
 
-# --- Time-series plot of a 1 000-observation window ---
-par(mfrow=c(1,1))
+par(mfrow = c(1, 1))
 colo <- c("blue", "violet")
+
 ts.plot(na.exclude(output_mat)[1000:2000, 2:3], col = colo)
 abline(h = 0)
-for (i in 1:ncol(output_mat[,2:3]))
-  mtext(colnames(output_mat[,2:3])[i],col=colo[i],line=-i)
+# Add colour-coded series labels as margin text
+for (i in 1:ncol(output_mat[ , 2:3]))
+  mtext(colnames(output_mat[ , 2:3])[i], col = colo[i], line = -i)
 
-# Suppose we interpret zero-crossings of the smoother of x_t as turning points on levels I_t, where it is understood that 
-# x_t=I_t-I_{t-1}.
-# For the same frequency of TPs, SSA and HP in this exercise date TPs differently.
-# Question: given this difference, which TP dating in I_t (zero-crossings in differences) is 
-# potentially more informative/interesting?
-# -HP exhibits smaller curvature than SSA: is smaller curvature in differences (i.e. third differences of I_t) relevant?
-# -SSA exhibits optimal tracking of x_{t+delta}=I_{t+delta}-I_{t+delta-1}, i.e., growth.
+# HP (violet) appears visually "rounder" — i.e., it exhibits lower curvature
+# and longer monotonicity intervals. Before investigating this stylised fact
+# further, we compute additional performance measures.
 
-# We contend that defining TP's on levels based on optimal growth-tracking is an intuitively appealing 
-# approach by linking TP's (i.e. zero crossings in diffs) to optimal estimation in diffs.
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.8  Distribution of Zero-Crossings: Mean and Standard Deviation
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Defining TP's in levels based on minimal curvature (in differences), on the other hand, links TPs to inflection points.
-# It is not clear why having fewest inflection points should determine implicitly TPs: what 
-# is the rationale?
+# Identify time points at which the SSA output changes sign
+ssa_zc <- which(output_mat[1:(nrow(output_mat) - 1), "SSA"] *
+                  output_mat[2:(nrow(output_mat)),     "SSA"] < 0)
 
+# Identify time points at which the HP output changes sign
+hp_zc  <- which(output_mat[1:(nrow(output_mat) - 1), "HP"] *
+                  output_mat[2:(nrow(output_mat)),      "HP"] < 0)
 
-ssa_zc<-which(output_mat[1:(nrow(output_mat)-1),"SSA"]*output_mat[2:(nrow(output_mat)),"SSA"]<0)
-# Determine locations at which HP differences change sign
-hp_zc<-which(output_mat[1:(nrow(output_mat)-1),"HP"]*output_mat[2:(nrow(output_mat)),"HP"]<0)
-
-# Mean durations: empirical HTs
-mean(diff(ssa_zc))
-mean(diff(hp_zc))
-# match ht1
+# ── Mean durations between consecutive zero-crossings (empirical HTs) ────────
+mean(diff(ssa_zc))   # SSA empirical HT
+mean(diff(hp_zc))    # HP  empirical HT
+# Both means should match the imposed HT target: ht1
 ht1
 
-# Standard deviation:
-# SSA has a larger standard deviation (it is less regular)
-sd(diff(ssa_zc),na.rm=T)
-sd(diff(hp_zc),na.rm=T)
+# ── Standard deviations of inter-crossing durations ──────────────────────────
+sd(diff(ssa_zc), na.rm = TRUE)   # SSA: variability in zero-crossing spacing
+sd(diff(hp_zc),  na.rm = TRUE)   # HP:  variability in zero-crossing spacing
+
+# SSA exhibits a larger standard deviation than HP, indicating that its
+# zero-crossings are less regularly spaced — a pattern also visible in the
+# time-series plot above.
+#
+# Key question: is a smaller standard deviation (i.e., more regularly spaced
+# zero-crossings, as produced by HP) actually desirable?
+#
+#   • More regular zero-crossings imply a more periodic, clock-like output —
+#     a structural regularity not present in the original data x_t, which is
+#     well-approximated by white noise (aperiodic by nature).
+#   • This regularity is a signature imposed by the HP filter itself, not a
+#     feature of the underlying signal: it constitutes spurious smoothing.
+#   • SSA, by contrast, inherits the irregular spacing of zero-crossings
+#     from the data, producing a more faithful representation of the
+#     underlying growth dynamics.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.1.9 Turning Points in SSA
+# ─────────────────────────────────────────────────────────────────────────────
+# Identify turning points (local maxima/minima) of the SSA output:
+# a turning point occurs where consecutive first differences change sign
+ssa_tp <- which(diff(output_mat[1:(nrow(output_mat) - 1), "SSA"]) *
+                  diff(output_mat[2:(nrow(output_mat)),     "SSA"]) < 0)
+
+# Identify turning points (local maxima/minima) of the HP output
+hp_tp  <- which(diff(output_mat[1:(nrow(output_mat) - 1), "HP"]) *
+                  diff(output_mat[2:(nrow(output_mat)),     "HP"]) < 0)
+
+# ── Mean duration between consecutive turning points ──────────────────────────
+# Expected result: HP exhibits a longer mean duration between turning points
+# (i.e., longer monotonicity intervals) than SSA, reflecting its lower
+# curvature — consistent with HP appearing visually "rounder".
+nrow(output_mat) / length(ssa_tp)   # SSA: mean monotonicity interval length
+nrow(output_mat) / length(hp_tp)    # HP:  mean monotonicity interval length
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1.1.8 Turning Points in SSA
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Determine locations at which SSA differences change sign: turning points or local maxima/minima
-ssa_tp<-which(diff(output_mat[1:(nrow(output_mat)-1),"SSA"])*diff(output_mat[2:(nrow(output_mat)),"SSA"])<0)
-# Determine locations at which HP differences change sign
-hp_tp<-which(diff(output_mat[1:(nrow(output_mat)-1),"HP"])*diff(output_mat[2:(nrow(output_mat)),"HP"])<0)
-
-# Mean duration between turning points
-# Expectation: HP has a longer duration (longer connected monotonicity phases)
-nrow(output_mat)/length(ssa_tp)  # SSA
-nrow(output_mat)/length(hp_tp)   # HP
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 1.1.9  Dependence Structure: Autocorrelation Functions
+# 1.1.10  Dependence Structure: Autocorrelation Functions
 # ─────────────────────────────────────────────────────────────────────────────
 # The autocorrelation function (ACF) provides an alternative perspective on
-# the structural differences between M-SSA and HP smoothing outputs.
+# the structural differences between the SSA and HP smoothing outputs.
 # ─────────────────────────────────────────────────────────────────────────────
 
 par(mfrow = c(2, 1))
 
-# M-SSA output: slowly and monotonically decaying ACF, indicating long memory
-# in the smoothed series and an acyclical dependence structure.
+# SSA output: slowly and monotonically decaying ACF, reflecting long memory
+# and an acyclical (non-oscillatory) dependence structure.
 acf(na.exclude(output_mat)[, 2], lag.max = 100, main = "SSA")
 
-# HP output: faster-decaying ACF with a cyclical pattern.
-# The half-period of the oscillation (≈ 57 lags) is consistent with
-# the HP holding time.
+# HP output: ACF decays more rapidly and exhibits a cyclical (oscillatory)
+# pattern. The half-period of the oscillation (≈ 57 lags) is consistent
+# with the imposed HP holding time.
 acf(na.exclude(output_mat)[, 3], lag.max = 100, main = "HP")
 
-# Key differences between M-SSA and HP autocorrelation structures:
+# ── Key structural differences between SSA and HP ACFs ─────────────────────
+#
 #   a) Shape : SSA produces an acyclical, monotonically decaying ACF,
 #              whereas HP exhibits a cyclical (oscillatory) ACF pattern.
-#   b) Memory: SSA decays more slowly than HP, indicating stronger and
-#              more persistent serial dependence in the smoothed output.
+#              This explains the visual impression of HP being "rounder":
+#              its oscillatory ACF imposes a pseudo-periodic structure on
+#              the smoothed output that is absent from the original data.
+#
+#   b) Memory: the SSA ACF decays more slowly than that of HP, indicating
+#              stronger and more persistent serial dependence in the SSA
+#              smoothed output.
+#
+# ── Technical note: HT and the first-order ACF ───────────────────────────────
+# The HT is linked bijectively to the lag-1 autocorrelation. Since SSA and
+# HP are designed to achieve the same HT, their lag-1 ACF values must be
+# identical — a consistency check visible in the plots above.
 
-# Technical: the HT is linked bijectively to the first-order ACF. Since SSA and
-# HP have the same HT, the first-order ACFs must be identical, too.
+# ─────────────────────────────────────────────────────────────────────────────
+# Discussion
+# ─────────────────────────────────────────────────────────────────────────────
+# For an identical rate of zero-crossings, the following differences emerge:
+#
+#   • Tracking performance: SSA outperforms HP — it achieves larger target
+#     correlation and larger sign accuracy.
+#
+#   • Curvature: HP exhibits smaller curvature, manifest as:
+#       – a visually rounder plot,
+#       – fewer turning points, and
+#       – more evenly spaced zero-crossings.
+#
+# ── Interpretation via the Level Series I_t ───────────────────────────────────
+# Let x_t = I_t − I_{t−1}, where I_t is the relevant non-stationary level series.
+#
+#   • Zero-crossings of x_t correspond to turning points (TPs) in I_t.
+#   • SSA and HP produce different TP datings for I_t.
+#   • Key question: which TP dating is more credible?
+#
+# ── Data-Driven vs. Externally Imposed Structure ──────────────────────────────
+#   • SSA derives TP datings in I_t through optimal tracking of the first
+#     differences x_t. Turning points are determined by systematic changes in
+#     growth — they emerge intrinsically from the data.
+#
+#   • HP derives TP datings by imposing minimal curvature on the output. Turning
+#     points reflect a structural shape (low curvature) that is not an inherent
+#     property of the data but is imposed from outside — a form of spurious
+#     smoothing.
+#
+# ── Interpretability ──────────────────────────────────────────────────────────
+#   • SSA: TP datings of I_t follow directly from optimal tracking of growth
+#     in x_t — an intuitively natural and operationally meaningful criterion.
+#
+#   • HP: TP datings follow from controlling curvature in x_t, which corresponds
+#     to penalising third-order differences (1−B)³I_t in I_t — a quantity that
+#     is difficult to interpret in economic or practical terms.
+#
+# ── Penalty Term: Imposed Structure vs. Data-Driven Behaviour ─────────────────
+#   • HP penalty: forces the smoother towards a straight line — the idealised
+#     series in which curvature vanishes entirely. This imposes a strong
+#     structural shape on the output, regardless of the data.
+#
+#   • SSA penalty: forces the smoother towards a series with a lag-1
+#     autocorrelation of 1 (HT and lag-1 ACF are linked bijectively). This is a 
+#     far weaker structural constraint than a straight line, allowing the output 
+#     to remain more faithful to the data-generating process even when imposing 
+#     strong regularization (large HT).
+#
+# ── Cosmetics and Apparent Advantages of HP ───────────────────────────────────
+#   • The rounder shape of HP is visually appealing.
+#   • HP has relatively few turning points (TPs) between consecutive
+#     zero-crossings — often only a single TP separates two crossings.
+#   • Consequently, each TP in HP serves as a reliable early warning of an
+#     imminent zero-crossing (direction reversal in I_t).
+#   • By contrast, M-SSA exhibits many TPs between consecutive zero-crossings,
+#     generating frequent false alarms: a TP in M-SSA is therefore a less
+#     reliable signal of an impending zero-crossing (TP in I_t).
+#
+# ── Qualification ─────────────────────────────────────────────────────────────
+# While the above observations are accurate, it is not clear that they
+# constitute a genuine advantage for HP. The apparent anticipativity of HP's
+# TPs — i.e., their tendency to reliably precede zero-crossings — is largely
+# an artefact of the curvature constraint: HP's TPs are, to a significant
+# degree, artificially generated by the externally imposed low-curvature
+# structure, rather than reflecting data-immanent growth dynamics. This shows-up 
+# in a smaller standard deviation, signifying a more regular distribution over 
+# time. Their seemingly superior predictive value is therefore mainly due to a 
+# structural feature of the filter (spurious), not a signal extracted from the 
+# data.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main Take-Aways from Exercise 1.1
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 1. Optimality of SSA
+#    For a given HT constraint, SSA maximises target correlation and sign
+#    accuracy with respect to the target x_{t+δ} — by construction.
+#
+# 2. Dominance over HP
+#    Imposing the HP holding time as the HT constraint guarantees that SSA
+#    outperforms HP in tracking x_{t+δ}, for an identical zero-crossing rate.
+#
+# 3. Cost of Superior Tracking: Increased Curvature
+#    The gain in tracking accuracy of SSA comes at the cost of greater
+#    curvature relative to HP. As a consequence, HP outputs:
+#      – appear visually rounder,
+#      – exhibit fewer turning points, and
+#      – have more regularly (evenly) spaced zero-crossings, and
+#      – display a faster-decaying, damped oscillatory ACF structure.
+#
+# 4. SSA Imposes Less External Structure on the Data
+#    SSA smoothing is more faithful to the data-generating process than HP:
+#      – Zero-crossings emerge from optimal tracking of the data (purely
+#        data-driven), rather than from an externally imposed shape constraint.
+#      – The HT constraint affects only the lag-1 ACF; it does not prescribe
+#        or prefer any particular shape for the smoothed series.
+#      – The resulting ACF is monotonically decreasing, free of the artificial
+#        oscillatory structure introduced by HP's curvature penalty.
+#
+# 5. Generalisation to Autocorrelated Processes
+#    All of the above results extend from white noise to arbitrary stationary
+#    autocorrelated processes by supplying the appropriate ξ (Wold decomposition) 
+#    to the SSA design criterion.
+#
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Main Take-Aways
+# Main Take-Aways from Exercise 1.1
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. For a given HT constraint, SSA maximises target correlation and hence
-#    sign accuracy (equivalently, minimises MSE after suitable calibration) with respect to the target x_{t+delta}.
+#    sign accuracy with respect to the target x_{t+delta}.
 #
 # 2. Imposing the HP holding time on SSA guarantees that SSA outperforms
-#    HP in tracking x_{t + delta}.
+#    HP in tracking x_{t + delta} for identical zero crossing rate.
 #
-# 3. The gain in tracking accuracy comes at the cost of larger curvature
-#    (greater mean squared second-order differences) relative to HP, which
-#    minimises curvature by construction (WH optimality).
+# 3. The gain in tracking accuracy of SSA comes at the cost of larger curvature
+#    relative to HP
+#       →HP smoothers appear rounder
+#       →with less TPs and 
+#       →with more regularly distributed zero crossings.
+#       →faster decaying damped cycle ACF structure
 #
-# 4. The mean distance between consecutive turning-points of SSA is smaller than HP.
-#    But the mean distance of zero-crossings is the same. Therefore the mean distance 
-#    of turning points in levels I_t (signaled by zero crossings in differences) must be the same.
+# 4. SSA smoothing imposes less structure on the data than HP
+#       →zero crossings are derived from optimally tracking the data (purely data based)
+#       →the HT constraint affects the lag-one ACF (does not impose or prefer a particular shape of the series)
+#       →The ACF pattern is monotonically decreasing, without artificial structure (cycle)    
 #
-# 5. The decay of the ACF is longer for SSA (longer memory).
-#
-# 6. These results extend from white noise to autocorrelated processes by specifying 
+# 5. These results extend from white noise to autocorrelated processes by specifying 
 #    the appropriate xi (Wold decomposition).
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -564,8 +756,11 @@ acf(na.exclude(output_mat)[, 3], lag.max = 100, main = "HP")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Exercise 1.2: SSA vs. HP — Match target Correlation (MSE)
+# Exercise 1.2: SSA vs. HP — Match target Correlation 
 # ══════════════════════════════════════════════════════════════════════════════
+# We here invert the problem formulation in exercise 1.1, fixing tracking accuracy rather than HT.
+# Expectation: for equal tracking accuracy, SSA outperforms HP in terms of larger HT.
+# A dual result shows that SSA maximizes HT among all linear smoothers/predictors with the same tracking accuracy.
 
 # 1.2.1 Compute SSA
 # Strategy 2: find the HT such that SSA achieves the same target correlation
@@ -780,7 +975,7 @@ x_diff<-diff(x)
 # --- Apply both symmetric (two-sided) filters to x ---
 # sides = 2 specifies an acausal two-sided (symmetric) convolution,
 # consistent with the symmetric filter design (delta = -(L-1)/2).
-y_ssa_diff    <- filter(x, bk_mat_diff,    sides = 2)  # M-SSA smoother output
+y_ssa_diff    <- filter(x, bk_mat_diff,    sides = 2)  # SSA smoother output
 y_hp_two_diff <- filter(x, hp_target_diff, sides = 2)  # HP smoother output
 
 ts.plot(cbind(y_ssa_diff,y_hp_two_diff)[1000:1500,],col=c("blue","violet"))
@@ -795,8 +990,8 @@ target <- c(0,x_diff)
 mse_ssa_smooth <- mean((target - y_ssa_diff)^2,    na.rm = TRUE)
 mse_hp_smooth  <- mean((target - y_hp_two_diff)^2, na.rm = TRUE)
 
-# Expected result: M-SSA achieves a smaller MSE than HP.
-mse_ssa_smooth   # M-SSA MSE
+# Expected result: SSA achieves a smaller MSE than HP.
+mse_ssa_smooth   # SSA MSE
 mse_hp_smooth    # HP MSE
 
 
@@ -811,15 +1006,15 @@ colnames(output_mat_diff)<-c("x-diff","SSA-diff","HP-diff")
 cor_mat    <- cor(output_mat_diff)
 cor_mat    # Full correlation matrix (first row: correlations with target)
 
-# Compare M-SSA and HP target correlations:
-# Expected result: M-SSA correlates more strongly with the target than HP.
-cor_mat[1, 2]   # M-SSA target correlation
+# Compare SSA and HP target correlations:
+# Expected result: SSA correlates more strongly with the target than HP.
+cor_mat[1, 2]   # SSA target correlation
 cor_mat[1, 3]   # HP target correlation
 
 # --- Internal convergence check ---
 # The sample correlation cor(x, y_ssa) should equal crit_rhoy_target
 # (up to Monte Carlo sampling error), confirming correct optimisation.
-cor_mat[1, 2]             # Empirical correlation: target vs. M-SSA output
+cor_mat[1, 2]             # Empirical correlation: target vs. SSA output
 SSA_obj$crit_rhoy_target  # Optimised objective (true target correlation)
 # The sample correlation should asymptotically converge to the true target correlation if the model is correctly specified (here: white noise)
 # Hence maximizing the true target correlation within SSA is a meaningful criterion
@@ -827,7 +1022,7 @@ SSA_obj$crit_rhoy_target  # Optimised objective (true target correlation)
 # ── c. Sign Accuracy ──────────────────────────────────────────────────────────
 # Sign accuracy: proportion of time steps where the filter output and the
 # target share the same sign. A higher value indicates fewer false alarms.
-# Expected result: M-SSA achieves higher sign accuracy than HP.
+# Expected result: SSA achieves higher sign accuracy than HP.
 
 sign_acc_ssa <- sum((target * y_ssa_diff)    > 0, na.rm = TRUE) /
   length(na.exclude(target * y_ssa_diff))
@@ -835,7 +1030,7 @@ sign_acc_ssa <- sum((target * y_ssa_diff)    > 0, na.rm = TRUE) /
 sign_acc_hp  <- sum((target * y_hp_two_diff) > 0, na.rm = TRUE) /
   length(na.exclude(target * y_hp_two_diff))
 
-sign_acc_ssa   # M-SSA sign accuracy
+sign_acc_ssa   # SSA sign accuracy
 sign_acc_hp    # HP sign accuracy
 
 
@@ -848,11 +1043,11 @@ sign_acc_hp    # HP sign accuracy
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── a. Holding Time ───────────────────────────────────────────────────────────
-# The HT constraint imposed on M-SSA is set equal to that of the HP filter.
+# The HT constraint imposed on SSA is set equal to that of the HP filter.
 # The empirical HTs of both smoothers should therefore agree closely.
 
-ht1                              # Target HT imposed on M-SSA (= HP holding time)
-compute_empirical_ht_func(y_ssa_diff)      # Empirical HT of M-SSA output
+ht1                              # Target HT imposed on SSA (= HP holding time)
+compute_empirical_ht_func(y_ssa_diff)      # Empirical HT of SSA output
 compute_empirical_ht_func(y_hp_two_diff)   # Empirical HT of HP output
 
 # Expected result: both empirical HTs match each other, i.e., SSA matches the target ht1,
@@ -864,7 +1059,7 @@ compute_empirical_ht_func(y_hp_two_diff)   # Empirical HT of HP output
 # (RMSD2) of each smoother's output — the natural smoothness criterion
 # minimised by HP under the WH framework.
 # Expected result: HP achieves the smallest RMSD2 by construction (WH
-# optimality), while M-SSA incurs a larger curvature as the cost of
+# optimality), while SSA incurs a larger curvature as the cost of
 # superior tracking accuracy under the same HT constraint.
 
 sq_se_dif <- sqrt(apply(
@@ -916,7 +1111,7 @@ for (i in 1:ncol(output_mat_diff[,2:3]))
 # high-frequency variation that allows SSA to track the target x_t more
 # closely than HP in terms of MSE, target correlation, and sign accuracy.
 #
-# In summary: for a given HT constraint, M-SSA achieves superior tracking
+# In summary: for a given HT constraint, SSA achieves superior tracking
 # efficiency relative to HP. The trade-off is a larger curvature, but since
 # curvature does not directly govern sign-based performance, this cost is
 # operationally inconsequential in applications driven by mean-crossings.
@@ -945,24 +1140,24 @@ ht1
 # 1.1.8  Dependence Structure: Autocorrelation Functions
 # ─────────────────────────────────────────────────────────────────────────────
 # The autocorrelation function (ACF) provides an alternative perspective on
-# the structural differences between M-SSA and HP smoothing outputs.
+# the structural differences between SSA and HP smoothing outputs.
 # ─────────────────────────────────────────────────────────────────────────────
 
 par(mfrow = c(2, 1))
 
-# M-SSA output: slowly and monotonically decaying ACF, indicating long memory
+# SSA output: slowly and monotonically decaying ACF, indicating long memory
 # in the smoothed series and an acyclical dependence structure.
-acf(na.exclude(output_mat_diff)[, 2], lag.max = 100, main = "M-SSA")
+acf(na.exclude(output_mat_diff)[, 2], lag.max = 100, main = "SSA")
 
 # HP output: faster-decaying ACF with a cyclical pattern.
 # The half-period of the oscillation (≈ 57 lags) is consistent with
 # the HP holding time.
 acf(na.exclude(output_mat_diff)[, 3], lag.max = 100, main = "HP")
 
-# Key differences between M-SSA and HP autocorrelation structures:
-#   a) Shape : M-SSA produces an acyclical, monotonically decaying ACF,
+# Key differences between SSA and HP autocorrelation structures:
+#   a) Shape : SSA produces an acyclical, monotonically decaying ACF,
 #              whereas HP exhibits a cyclical (oscillatory) ACF pattern.
-#   b) Memory: M-SSA decays more slowly than HP, indicating stronger and
+#   b) Memory: SSA decays more slowly than HP, indicating stronger and
 #              more persistent serial dependence in the smoothed output.
 
 
