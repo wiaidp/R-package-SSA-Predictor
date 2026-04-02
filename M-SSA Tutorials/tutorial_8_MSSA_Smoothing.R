@@ -1138,11 +1138,16 @@ SSA_obj$crit_rhoy_target
 # of Exercise 1.1), to differenced white noise, x_t = ε_t − ε_{t−1} — the
 # process most relevant for deriving the SSA smoother when matching the TP rate 
 # of HP.
+# Specifically, we explore the MA(1) model x_t = ε_t + b1 * ε_{t-1} and examine
+# how SSA changes as b1 transitions from b1 = 0 (white noise process)
+# to b1 = -1 (first-difference process). A key technical challenge arises at
+# b1 = -1, where the MA(1) process becomes non-invertible. To handle this
+# boundary case rigorously, we derive and implement an exact SSA closed-form
+# solution that remains valid even under non-invertibility.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2.1  Specify M-SSA Design Settings
+# 2.1  Specify M-SSA Design Settings: b1=0 
 # ─────────────────────────────────────────────────────────────────────────────
-
 Sigma            <- NULL   # Univariate design; identity covariance assumed
 symmetric_target <- FALSE  # Causal (one-sided) target filter
 gamma_target     <- 1      # Identity target: M-SSA tracks x_t = ε_t + b1*ε_{t-1}
@@ -1205,9 +1210,11 @@ ts.plot(hp_target_diff,
         main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
 
 # When b1 = 0, x_t = ε_t, so the filters applied to x_t and ε_t coincide.
-ts.plot(cbind(bk_mat_diff_x, bk_mat_diff), col = c("blue", "red"))
-mtext("M-SSA applied to x_t",  col = "blue", line = -1)
-mtext("M-SSA applied to ε_t",  col = "red",  line = -2)
+par(mfrow=c(1,1))
+ts.plot(cbind(bk_mat_diff_x, bk_mat_diff), col = c("blue", "red"),main=
+"SSA applied to x equals SSA applied to ε (both smoothers overlap)")
+mtext("M-SSA applied to x",  col = "blue", line = -1)
+mtext("M-SSA applied to ε",  col = "red",  line = -2)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.4  Set b1 = -0.5
@@ -1220,7 +1227,7 @@ hp_target_diff <- c(hp_target, 0) + b1 * c(0, hp_target)
 rho1 <- compute_holding_time_func(hp_target_diff)$rho_ff1
 ht1  <- compute_holding_time_func(hp_target_diff)$ht
 
-# The two-sided HP filter is no longer symmetric and its HT decreases.
+# The two-sided HP filter is no longer exactly symmetric and its HT decreases.
 par(mfrow = c(1, 1))
 ts.plot(hp_target_diff,
         main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
@@ -1241,7 +1248,9 @@ ts.plot(hp_target_diff,
         main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
 
 # When b1 ≠ 0, x_t ≠ ε_t, so the two filters no longer coincide.
-ts.plot(cbind(bk_mat_diff_x, bk_mat_diff), col = c("blue", "red"))
+par(mfrow=c(1,1))
+ts.plot(cbind(bk_mat_diff_x, bk_mat_diff), col = c("blue", "red"),main=
+          "SSA applied to x differs from SSA applied to ε")
 mtext("M-SSA applied to x_t",  col = "blue", line = -1)
 mtext("M-SSA applied to ε_t",  col = "red",  line = -2)
 
@@ -1269,7 +1278,7 @@ bk_mat_diff_x <- SSA_obj$bk_x_mat   # Filter applied to x_t
 bk_mat_diff   <- SSA_obj$bk_mat     # Filter applied to ε_t
 
 # ── Visual inspection ─────────────────────────────────────────────────────────
-# For b1 = -0.9, both filters exhibit pronounced asymmetry.
+# For b1 = -0.9, both filters exhibit more pronounced asymmetry.
 par(mfrow = c(2, 1))
 ts.plot(bk_mat_diff,
         main = "M-SSA Filter Coefficients (HT matched to HP applied to MA(1) x_t)")
@@ -1277,7 +1286,9 @@ ts.plot(hp_target_diff,
         main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
 
 # When b1 ≠ 0, x_t ≠ ε_t, so the two filters do not coincide.
-ts.plot(cbind(bk_mat_diff_x, bk_mat_diff), col = c("blue", "red"))
+par(mfrow=c(1,1))
+ts.plot(cbind(bk_mat_diff_x, bk_mat_diff), col = c("blue", "red"),main=
+          "SSA applied to x differs from SSA applied to ε")
 mtext("M-SSA applied to x_t",  col = "blue", line = -1)
 mtext("M-SSA applied to ε_t",  col = "red",  line = -2)
 
@@ -1286,357 +1297,212 @@ mtext("M-SSA applied to ε_t",  col = "red",  line = -2)
 # structure of x_t.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ─────────────────────────────────────────────────────────────────────────────
-# 2.1  Specify SSA Design Settings
+# 2.6  Simulate x_t and ε_t and Verify MA Inversion
 # ─────────────────────────────────────────────────────────────────────────────
+# We verify that applying bk_mat_diff_x to x_t yields the same smoother output
+# as applying bk_mat_diff to ε_t. Agreement holds to the extent that the
+# MA(1)-to-AR(L) inversion embedded in bk_mat_diff_x is sufficiently accurate.
 
-# Sigma: variance–covariance matrix of the innovation process.
-#        NULL → univariate design; identity matrix assumed.
-Sigma <- NULL
-# Set MA(1) parameter for x_t=eps_t+b1*eps_{t-1}: b1=0 is white noise, b1=-1 is first difference. 
-# We begin with white noise, b1=0, thus replicating exercise 1 above.
-b1<-0
-# xi: Wold decomposition of MA(1): b1=0 implies white noise
-xi <- c(1,b1)
-# symmetric_target: FALSE → causal (one-sided) target filter.
-symmetric_target <- FALSE
-# --- Target filter ---
-# Target x_{t+delta}=eps_{t+delta}-eps_{t+delta-1}
-gamma_target <- 1
-# Setting delta = -(L-1)/2 places the target at the centre of the filter
-delta <- -(L - 1) / 2
-# Default numerical optimization settings
-split_grid <- 20
-with_negative_lambda<-F
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2.2  Specify the HT Constraint — Match HP 
-# ─────────────────────────────────────────────────────────────────────────────
-# We need to compute the HT of HP when applied to MA(1) eps_t+b1*eps_{t-1}
-# This is the corresponding filter: if b1=0 this is original HP
-hp_target_diff<-c(hp_target,0)+b1*c(0,hp_target)
-# Note: hp_target_diff applied to epsilon_t replicates the output of HP applied to 
-# x_t=eps_t+b1*eps_{t-1}. If b1=0 x_t=eps_t and both filters are identical.
-rho1 <- compute_holding_time_func(hp_target_diff)$rho_ff1  # rho implied by HP's HT
-ht1  <- compute_holding_time_func(hp_target_diff)$ht       # Holding time of HP filter
-# Plot
-par(mfrow=c(1,1))
-ts.plot(hp_target_diff,main=paste("Two-sided HP, b1=",b1,", HT=",round(ht1,1),sep=""))
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2.3  Compute the SSA Filter
-# ─────────────────────────────────────────────────────────────────────────────
-# Design the SSA filter subject to the HP-matched HT constraint.
-# Note:
-# 1. hp_target_diff enters into this computation only in terms of rho1 (HT constraint)
-# 2. when b1!=0, we must supply xi, since otherwise SSA assumes white noise
-#     if b1=0 we can (but we not have to) supply xi
-SSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1,with_negative_lambda,xi)
-
-# Extract the optimised (univariate) filter coefficients
-# This is the filter applied to x_t=eps_t+b1*eps_{t-1}
-bk_mat_diff_x <- SSA_obj$bk_x_mat
-# This is the filter applied to eps_t
-# Tt can be compared to hp_target_diff which is also applied to eps_t
-bk_mat_diff <- SSA_obj$bk_mat
-
-# --- Visual inspection ---
-# When b1=0, SSA replicates exercise 1.1: both HP and SSA are symmetric designs
-par(mfrow = c(2, 1))
-ts.plot(bk_mat_diff, main = "SSA Filter Coefficients (Match HT of HP)")
-ts.plot(hp_target_diff,main=paste("Two-sided HP, b1=",b1,", HT=",round(ht1,1),sep=""))
-
-# The filters applied to x_t and eps_t overlap since x_t=eps_t
-ts.plot(cbind(bk_mat_diff_x,bk_mat_diff),col=c("blue","red"))
-mtext("SSA applied to x_t",col="blue",line=-1)
-mtext("SSA applied to eps_t",col="red",line=-2)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2.4  Set b1=-0.5
-# ─────────────────────────────────────────────────────────────────────────────
-b1<--0.5
-# xi: Wold decomposition of MA(1): b1=0 implies white noise
-xi <- c(1,b1)
-# We need to compute the HT of HP when applied to MA(1) eps_t+b1*eps_{t-1}
-# This is the corresponding filter: if b1=0 this is original HP
-hp_target_diff<-c(hp_target,0)+b1*c(0,hp_target)
-# Note: hp_target_diff applied to epsilon_t replicates the output of HP applied to 
-# x_t=eps_t+b1*eps_{t-1}. If b1=0 x_t=eps_t and both filters are identical.
-rho1 <- compute_holding_time_func(hp_target_diff)$rho_ff1  # rho implied by HP's HT
-ht1  <- compute_holding_time_func(hp_target_diff)$ht       # Holding time of HP filter
-# Plot: the two-sided HP is nomore symmetric and HT is smaller
-par(mfrow=c(1,1))
-ts.plot(hp_target_diff,main=paste("Two-sided HP, b1=",b1,", HT=",round(ht1,1),sep=""))
-
-# Design the SSA filter subject to the HP-matched HT constraint.
-# Note:
-# 1. hp_target_diff enters into this computation only in terms of rho1 (HT constraint)
-# 2. when b1!=0, we must supply xi, since otherwise SSA assumes white noise
-#     if b1=0 we can (but we not have to) supply xi
-SSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1,with_negative_lambda,xi)
-
-# Extract the optimised (univariate) filter coefficients
-# This is the filter applied to x_t=eps_t+b1*eps_{t-1}
-bk_mat_diff_x <- SSA_obj$bk_x_mat
-# This is the filter applied to eps_t
-# Tt can be compared to hp_target_diff which is also applied to eps_t
-bk_mat_diff <- SSA_obj$bk_mat
-
-# --- Visual inspection ---
-# When b1=-0.5, the filters are nomore symmetric
-par(mfrow = c(2, 1))
-ts.plot(bk_mat_diff, main = "SSA Filter Coefficients (Match HT of HP applied to MA(1) x_t)")
-ts.plot(hp_target_diff,main=paste("Two-sided HP, b1=",b1,", HT=",round(ht1,1),sep=""))
-
-# The filters applied to x_t and eps_t do not overlap anymore, since x_t!=eps_t when
-# b1!=0
-ts.plot(cbind(bk_mat_diff_x,bk_mat_diff),col=c("blue","red"))
-mtext("SSA applied to x_t",col="blue",line=-1)
-mtext("SSA applied to eps_t",col="red",line=-2)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2.5  Set b1=-0.9
-# ─────────────────────────────────────────────────────────────────────────────
-b1<--0.9
-# xi: Wold decomposition of MA(1): b1=0 implies white noise
-xi <- c(1,b1)
-# We need to compute the HT of HP when applied to MA(1) eps_t+b1*eps_{t-1}
-# This is the corresponding filter: if b1=0 this is original HP
-hp_target_diff<-c(hp_target,0)+b1*c(0,hp_target)
-# Note: hp_target_diff applied to epsilon_t replicates the output of HP applied to 
-# x_t=eps_t+b1*eps_{t-1}. If b1=0 x_t=eps_t and both filters are identical.
-rho1 <- compute_holding_time_func(hp_target_diff)$rho_ff1  # rho implied by HP's HT
-ht1  <- compute_holding_time_func(hp_target_diff)$ht       # Holding time of HP filter
-# Plot: the two-sided HP is becoming increasingly asymmetric and HT is smaller
-par(mfrow=c(1,1))
-ts.plot(hp_target_diff,main=paste("Two-sided HP, b1=",b1,", HT=",round(ht1,1),sep=""))
-
-# Design the SSA filter subject to the HP-matched HT constraint.
-# Note:
-# 1. hp_target_diff enters into this computation only in terms of rho1 (HT constraint)
-# 2. when b1!=0, we must supply xi, since otherwise SSA assumes white noise
-#     if b1=0 we can (but we not have to) supply xi
-SSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1,with_negative_lambda,xi)
-
-# Extract the optimised (univariate) filter coefficients
-# This is the filter applied to x_t=eps_t+b1*eps_{t-1}
-bk_mat_diff_x <- SSA_obj$bk_x_mat
-# This is the filter applied to eps_t
-# Tt can be compared to hp_target_diff which is also applied to eps_t
-bk_mat_diff <- SSA_obj$bk_mat
-
-# --- Visual inspection ---
-# The shapes of SSA and HP are becoming increasingly asymmetric
-par(mfrow = c(2, 1))
-ts.plot(bk_mat_diff, main = "SSA Filter Coefficients (Match HT of HP applied to MA(1) x_t)")
-ts.plot(hp_target_diff,main=paste("Two-sided HP, b1=",b1,", HT=",round(ht1,1),sep=""))
-
-
-
-# The filters applied to x_t and eps_t do not overlap since x_t!=eps_t 
-ts.plot(cbind(bk_mat_diff_x,bk_mat_diff),col=c("blue","red"))
-mtext("SSA applied to x_t",col="blue",line=-1)
-mtext("SSA applied to eps_t",col="red",line=-2)
-
-# Asymmetry in SSA: the right tail decays more slowly
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2.6 Simulate x_t and eps_t and verify MA-inversion
-# ─────────────────────────────────────────────────────────────────────────────
-# We here check that bk_mat_diff_x (applied to x_t) replicates bk_mat_diff (applied to eps_t)
-# --- Simulate a long white-noise series ---
+# --- Simulate a white-noise series ---
 lenq <- 2000
 set.seed(86)
 eps <- rnorm(lenq)
-# Generate MA(1)
-x<-c(0,eps[2:lenq]+b1*eps[1:(lenq-1)])
 
-# In theory, the following SSA smoother outputs should match exactly:
-# In theory means: if the inversion of the MA(1) into an AR(L) is sufficiently accurate
-y_ssa_diff_x    <- filter(x, bk_mat_diff_x,    sides = 2)  # SSA applied to x_t
-y_ssa_diff_eps    <- filter(eps, bk_mat_diff,    sides = 2)  # SSA applied to eps_t
+# --- Generate the MA(1) process x_t = ε_t + b1 * ε_{t-1} ---
+# The first observation is initialised to zero (no lagged innovation available).
+x <- c(0, eps[2:lenq] + b1 * eps[1:(lenq - 1)])
 
-par(mfrow=c(1,1))
-ts.plot(cbind(y_ssa_diff_x,y_ssa_diff_eps)[500:1000,],col=c("blue","red"))
-# We can see that the two series nearly overlap. They differ because b1 is close to -1 
-# Near invertibility (the design is extreme).
-# The coefficients of bk_mat_diff_x have not decayed sufficiently 
-# Solution: increase the filter length L
-# Alternative solution: use y_ssa_diff_eps, i.e., the SSA filter applied to esp_t
-# This filter does not need to be inverted and is therefore exact.
-# We will use this in the next part, when b=-1 implies a non-invertible MA(1)
+# --- Apply both filters and compare outputs ---
+# Ideally the two outputs coincide; any discrepancy reflects inversion error.
+# The filter applied to x
+y_ssa_diff_x   <- filter(x,   bk_mat_diff_x, sides = 2)  # SSA smoother applied to x_t
+# The filter applied to ε
+y_ssa_diff_eps <- filter(eps, bk_mat_diff,   sides = 2)  # SSA smoother applied to ε_t
+
+par(mfrow = c(1, 1))
+ts.plot(cbind(y_ssa_diff_x, y_ssa_diff_eps)[500:1000, ], col = c("blue", "red"))
+
+# The two series nearly overlap but do not coincide exactly.
+# Reason: with b1 close to -1, the MA(1) is near non-invertible, so the AR(L)
+# approximation embedded in bk_mat_diff_x requires a very long filter to converge.
+# This problem is further compounded by the strong smoothness constraint imposed
+# on the SSA filter, which slows the decay of the filter coefficients even further;
+# as a result, the coefficients of bk_mat_diff_x have not decayed to zero within
+# the available filter length L.
+#
+# Remedies:
+#   1. Increase the filter length L to improve the AR approximation.
+#   2. Use bk_mat_diff (applied to ε_t) instead, which bypasses inversion
+#      entirely and is therefore exact. We adopt this approach in exercise 2.7,
+#      where b1 = -1 renders the MA(1) strictly non-invertible.
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2.7  Set b1=-1: first differences  (non-invertible MA(1))
+# 2.7  Set b1 = -1: First Differences (Non-Invertible MA(1))
 # ─────────────────────────────────────────────────────────────────────────────
-b1<--1
-# xi: Wold decomposition of MA(1): b1=0 implies white noise
-xi <- c(1,b1)
-# We need to compute the HT of HP when applied to MA(1) eps_t+b1*eps_{t-1}
-# This is the corresponding filter: if b1=0 this is original HP
-hp_target_diff<-c(hp_target,0)+b1*c(0,hp_target)
-# Note: hp_target_diff applied to epsilon_t replicates the output of HP applied to 
-# x_t=eps_t+b1*eps_{t-1}. If b1=0 x_t=eps_t and both filters are identical.
-rho1 <- compute_holding_time_func(hp_target_diff)$rho_ff1  # rho implied by HP's HT
-ht1  <- compute_holding_time_func(hp_target_diff)$ht       # Holding time of HP filter
-# Plot: the two-sided HP is antisymmetric and HT is smaller
-par(mfrow=c(1,1))
-ts.plot(hp_target_diff,main=paste("Two-sided HP, b1=",b1,", HT=",round(ht1,1)," (anti-symmetric cyclical filter)",sep=""))
+b1 <- -1
 
-# Design the SSA filter subject to the HP-matched HT constraint.
-# Note:
-# 1. hp_target_diff enters into this computation only in terms of rho1 (HT constraint)
-# 2. when b1!=0, we must supply xi, since otherwise SSA assumes white noise
-#     if b1=0 we can (but we not have to) supply xi
-SSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1,with_negative_lambda,xi)
+# Wold coefficients of the MA(1): xi = (1, b1).
+# Special cases: b1 = 0 gives white noise; b1 = -1 gives first differences.
+xi <- c(1, b1)
 
-# Extract the optimised (univariate) filter coefficients
-# This is the filter applied to x_t=eps_t+b1*eps_{t-1}
+# --- Derive the target filter for ε_t ---
+# hp_target_diff is the filter applied to ε_t that replicates the output of
+# the two-sided HP filter applied to x_t = ε_t + b1 * ε_{t-1}.
+hp_target_diff <- c(hp_target, 0) + b1 * c(0, hp_target)
+
+# --- Extract holding-time (HT) characteristics of the HP target filter ---
+rho1 <- compute_holding_time_func(hp_target_diff)$rho_ff1  # Autocorrelation implied by HP's HT
+ht1  <- compute_holding_time_func(hp_target_diff)$ht       # Holding time of the HP filter
+
+# --- Plot the HP target filter for ε_t ---
+# With b1 = -1 the filter becomes anti-symmetric, reflecting the differencing operation.
+par(mfrow = c(1, 1))
+ts.plot(hp_target_diff,
+        main = paste("Two-sided HP, b1 =", b1,
+                     ", HT =", round(ht1, 1),
+                     " (anti-symmetric cyclical filter)"))
+
+# --- Design the SSA filter matching the HP holding-time constraint ---
+# Notes:
+#   1. hp_target_diff enters only through rho1 (the HT constraint); the full
+#      target shape is not imposed directly.
+#   2. When b1 ≠ 0, xi must be supplied so that SSA accounts for the MA(1)
+#      structure of x_t. When b1 = 0 (white noise), xi may be omitted (it
+#      defaults to white noise internally), but supplying it is also valid.
+SSA_obj <- MSSA_func(split_grid, L, delta, grid_size,
+                     gamma_target, rho1, with_negative_lambda, xi)
+
+# --- Extract optimised filter coefficients ---
+# bk_mat_diff_x: filter to be applied directly to x_t = ε_t + b1 * ε_{t-1}.
+# bk_mat_diff:   filter to be applied to ε_t; comparable to hp_target_diff.
 bk_mat_diff_x <- SSA_obj$bk_x_mat
-# This is the filter applied to eps_t
-# Tt can be compared to hp_target_diff which is also applied to eps_t
-bk_mat_diff <- SSA_obj$bk_mat
+bk_mat_diff   <- SSA_obj$bk_mat
 
-# --- Visual inspection ---
-# When b1=-0.5, the filters are nomore symmetric
-# The shape of SSA is asymmetric: it does not induce a spurious cycle (like HP) but 
-# Instead, left and right tails are separated by a discontinuous step
+# --- Visual inspection of filter shapes ---
+# As b1 decreases from 0 toward -1, the SSA filter applied to ε_t (bk_mat_diff)
+# becomes increasingly asymmetric: rather than inducing a spurious cycle (as HP
+# does), its left and right tails are separated by a sharp, discontinuous step.
+# This unconventional filter shape may appear counterintuitive at first glance;
+# verifying that it nonetheless delivers superior tracking performance relative
+# to HP will therefore be an instructive empirical exercise in example 2.8.
+# Note: HP artificially imprints a cyclical structure on the filtered output
+# that has no counterpart in the true data-generating process and therefore
+# represents a spurious artifact of the filter design rather than a genuine
+# feature of the underlying series. 
+# In contrast, the SSA smoother is deliberately amorphous: it imposes no
+# pre-specified functional form on the filtered output and its shape aims  
+# at tracking $x_{t+delta}$ optimally (given the HT constraint). 
+
 par(mfrow = c(2, 1))
-ts.plot(bk_mat_diff, main = "SSA Filter Coefficients (Match HT of HP applied to MA(1) x_t)")
-ts.plot(hp_target_diff,main=paste("Two-sided HP, b1=",b1,", HT=",round(ht1,1),sep=""))
+ts.plot(bk_mat_diff,
+        main = "SSA Filter Coefficients (HT matched to HP applied to MA(1) x_t)")
+ts.plot(hp_target_diff,
+        main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
 
+# --- Compare the two SSA filter representations ---
+# bk_mat_diff_x (blue) and bk_mat_diff (red) differ because x_t ≠ ε_t when b1 ≠ 0.
+# As b1 approaches -1, the right tail of bk_mat_diff_x fails to decay at all lags,
+# signalling exact non-invertibility when b1=-1.
+par(mfrow=c(1,1))
+ts.plot(cbind(bk_mat_diff_x, bk_mat_diff), col = c("blue", "red"),main=
+          "SSA applied to x differs strongly from SSA applied to ε")
+mtext("SSA applied to x_t",  col = "blue", line = -1)
+mtext("SSA applied to ε_t",  col = "red",  line = -2)
 
-
-# The filters applied to x_t and eps_t do not overlap anymore, since x_t!=eps_t when
-# b1!=0
-ts.plot(cbind(bk_mat_diff_x,bk_mat_diff),col=c("blue","red"))
-mtext("SSA applied to x_t",col="blue",line=-1)
-mtext("SSA applied to eps_t",col="red",line=-2)
-
-# Decreasing b1 from 0 to -1 implies that the SSA filter applied to x_t (blue) becomes 
-# increasingly asymmetric, with the right tail decaying either very slowly (b1>-1) or 
-# not at all (b1=-1) indicating non-invertibility.
-
-# Non-invertibility implies that we must use bk_mat_diff (the filter applied to eps_t) 
-# when running empirical comparisons below.
-
-
+# Conclusion: because b1 = -1 renders the MA(1) strictly non-invertible,
+# bk_mat_diff_x cannot be used reliably. All subsequent empirical evaluations
+# therefore use bk_mat_diff (the filter applied to ε_t), which is exact.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2.8 Verify Performances: Tracking Accuracy on Simulated White Noise
+# 2.8  Verify Performance: Tracking Accuracy on Simulated Data
 # ─────────────────────────────────────────────────────────────────────────────
-# Performance is evaluated on three complementary criteria:
-#   a) Mean Squared Error (MSE)
-#   b) Target correlation
-#   c) Sign accuracy (proportion of correct sign agreements)
+# Filter performance is assessed on three complementary criteria:
+#   a) Mean Squared Error (MSE)        — measures average squared deviation from target
+#   b) Target correlation              — measures linear co-movement with the target
+#   c) Sign accuracy                   — proportion of time steps where filter output
+#                                        and target share the same sign (fewer false alarms)
 # ─────────────────────────────────────────────────────────────────────────────
+
+# --- Simulate a large sample for reliable Monte Carlo estimates ---
 lenq <- 1000000
 set.seed(86)
 eps <- rnorm(lenq)
-# Generate MA(1)
-x<-c(0,eps[2:lenq]+b1*eps[1:(lenq-1)])
-# Non-invertibility of the MA(1) (first differences) implies that we apply bk_mat_diff to eps
-y_ssa_diff_eps    <- filter(eps, bk_mat_diff,    sides = 2)  # SSA smoother output
 
-y_hp_two_diff <- filter(eps, hp_target_diff, sides = 2)  # HP smoother output
+# Generate the MA(1) process (first observation initialised to zero)
+x <- c(0, eps[2:lenq] + b1 * eps[1:(lenq - 1)])
 
-# Target: using sides=2 in the above filtering means that the output is already shifted by delta
-# Hence our target is x_t (not x_{t+delta})
+# --- Apply filters ---
+# Non-invertibility (b1 = -1) requires applying bk_mat_diff to ε_t rather than
+# applying bk_mat_diff_x to x_t, as the latter is not well-defined in this case.
+y_ssa_diff_eps <- filter(eps, bk_mat_diff,   sides = 2)  # SSA smoother output (exact)
+y_hp_two_diff  <- filter(eps, hp_target_diff, sides = 2)  # HP smoother output
+
+# --- Define the target series ---
+# Using sides = 2 (in the above filter call) centres the filter output at t, so 
+# the output already incorporates the lag of -delta periods. The target is 
+# therefore x_t (not x_{t + delta}).
 target <- x
 
-# ── a. MSE ───────────────────────────────────────────────────────────────────
-# Compute MSE of each smoother relative to the target series.
 
-mse_ssa_smooth <- mean((target - y_ssa_diff_eps)^2,    na.rm = TRUE)
-mse_hp_smooth  <- mean((target - y_hp_two_diff)^2, na.rm = TRUE)
+# ── a. Mean Squared Error (MSE) ───────────────────────────────────────────────
+# MSE quantifies how closely each smoother tracks the target on average.
+mse_ssa_smooth <- mean((target - y_ssa_diff_eps)^2, na.rm = TRUE)
+mse_hp_smooth  <- mean((target - y_hp_two_diff)^2,  na.rm = TRUE)
 
-# Expected result: SSA achieves a smaller MSE than HP.
-# But the design is extreme and the outperformance will be small
-# One can try various random seeds: SSA (almost always) outperforms HP
-mse_ssa_smooth   # SSA MSE
-mse_hp_smooth    # HP MSE
-
-
+# Expected result: SSA achieves a lower MSE than HP.
+# The improvement may be modest because the design (b1 = -1) is an extreme case;
+# nonetheless SSA almost always outperforms HP across different random seeds.
+# Alternatively, outperformance could be verified on even longer samples.
+mse_ssa_smooth  # SSA MSE
+mse_hp_smooth   # HP  MSE
 
 
 # ── b. Target Correlation ─────────────────────────────────────────────────────
-# Compute the correlation matrix of the target and both filter outputs.
-
+# Pearson correlation between each smoother output and the target series.
 output_mat_diff <- na.exclude(cbind(target, y_ssa_diff_eps, y_hp_two_diff))
-# Append a zero to match the length of the series in exercise 1
-output_mat_diff<-rbind(rep(0,ncol(output_mat_diff)),output_mat_diff)
-colnames(output_mat_diff)<-c("x-diff","SSA-diff","HP-diff")
 
-cor_mat    <- cor(output_mat_diff)
-cor_mat    # Full correlation matrix (first row: correlations with target)
+# Prepend a row of zeros to align lengths with previous designs
+output_mat_diff <- rbind(rep(0, ncol(output_mat_diff)), output_mat_diff)
+colnames(output_mat_diff) <- c("x-diff", "SSA-diff", "HP-diff")
 
-# Compare SSA and HP target correlations:
+cor_mat <- cor(output_mat_diff)
+cor_mat  # Full correlation matrix (first row: correlations with target)
+
 # Expected result: SSA correlates more strongly with the target than HP.
-cor_mat[1, 2]   # SSA target correlation
-cor_mat[1, 3]   # HP target correlation
+cor_mat[1, 2]  # Target–SSA correlation
+cor_mat[1, 3]  # Target–HP  correlation
 
 # --- Internal convergence check ---
-# The sample correlation cor(x, y_ssa) should equal crit_rhoy_target
-# (up to Monte Carlo sampling error), confirming correct optimisation.
-cor_mat[1, 2]             # Empirical correlation: target vs. SSA output
-SSA_obj$crit_rhoy_target  # Optimised objective (true target correlation)
-# The sample correlation should asymptotically converge to the true target correlation if the model is correctly specified (here: white noise)
-# Hence maximizing the true target correlation within SSA is a meaningful criterion
+# The sample correlation cor(target, y_ssa_diff_eps) should converge to
+# SSA_obj$crit_rhoy_target as the sample size grows, confirming that the
+# optimisation correctly maximises the true target correlation criterion.
+cor_mat[1, 2]             # Empirical target–SSA correlation
+SSA_obj$crit_rhoy_target  # Optimised (theoretical) target correlation
+# Agreement between these two quantities validates that maximising the true
+# target correlation within SSA is both well-defined and empirically meaningful.
+
 
 # ── c. Sign Accuracy ──────────────────────────────────────────────────────────
-# Sign accuracy: proportion of time steps where the filter output and the
-# target share the same sign. A higher value indicates fewer false alarms.
+# Proportion of time steps at which the smoother output and the target agree
+# in sign. Higher sign accuracy implies fewer false directional signals.
 # Expected result: SSA achieves higher sign accuracy than HP.
-
-sign_acc_ssa <- sum((target * y_ssa_diff_eps)    > 0, na.rm = TRUE) /
+sign_acc_ssa <- sum((target * y_ssa_diff_eps) > 0, na.rm = TRUE) /
   length(na.exclude(target * y_ssa_diff_eps))
 
 sign_acc_hp  <- sum((target * y_hp_two_diff) > 0, na.rm = TRUE) /
   length(na.exclude(target * y_hp_two_diff))
 
-sign_acc_ssa   # SSA sign accuracy
-sign_acc_hp    # HP sign accuracy
+sign_acc_ssa  # SSA sign accuracy
+sign_acc_hp   # HP  sign accuracy
+
+# Note that in this extreme case (study), both smoothers perform only marginally
+# above pure chance (50%), reflecting the fact that the target series is highly
+# noisy: applying the first-difference filter amplifies high-frequency content,
+# which makes accurate sign prediction inherently difficult regardless of the
+# smoother used.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1681,7 +1547,6 @@ sq_se_dif
 # The first element of sq_se_dif converges asymptotically to this theoretical value,
 # providing a useful sanity check on the curvature calculations.
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.10  Plot Series: 1,000-observation window
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1691,52 +1556,54 @@ colo <- c("blue", "violet")
 
 ts.plot(na.exclude(output_mat_diff)[1000:2000, 2:3], col = colo)
 abline(h = 0)
+
 # Add colour-coded series labels as margin text
 for (i in 1:ncol(output_mat_diff[ , 2:3]))
   mtext(colnames(output_mat_diff[ , 2:3])[i], col = colo[i], line = -i)
 
-# This extreme example highlights the main differences between both smoothing concepts
-# Both smoothers have the same HT (rate of zero-crossings)
-# But they differ strongly in shape, scale and dynamics
+# This extreme example highlights the main differences between the two smoothing
+# concepts:
+#   • Both smoothers share the same HT (rate of zero-crossings)
+#   • But they differ markedly in shape, scale, and dynamics
+
 # The SSA profile maximizes tracking of x_{t+delta}=eps_{t+delta}-eps_{t+delta-1} 
-#   (target correlation, sign accuracy)
-# In contrast, HP minimizes curvature
-# SSA controles the rate of zero-crossings by generating large noisy cycles that 
-# drift away from the zero line for longer time intervals. Once at the zero-line, 
-# multiple crossings may occur due to noisiness. Crossings are irregularly distributed 
-# and tend to cluster.
+#   (target correlation, sign accuracy, and MSE)
+#   • In contrast, HP minimizes curvature
 
-# HP, on the other hand, controls HT by constraining curvature. This imposes 
-# extraneous (cyclical) structure upon the data that is not part of the data generating process. 
+# SSA controls the rate of zero-crossings by generating large, noisy cycles that 
+# drift away from the zero line for longer intervals. 
+#   • Once at the zero line, multiple crossings may occur due to noise. 
+#   • Crossings are irregularly distributed and tend to cluster.
 
-# As a result, crossings are much more regularly distributed. This regularity conflicts 
-# with the noisy data generating process.
+# HP, on the other hand, controls HT by constraining curvature. 
+#   • This imposes extraneous (cyclical) structure on the data that is not part 
+#     of the data-generating process. 
+#   • As a result, crossings are much more regularly distributed. This 
+#     regularity conflicts with the noisy data-generating process.
 
-# Neither solution is practically relevant because it is applied to (1-B)epsilon_t 
-# a non-invertible MA which emphasizes high-frequency oscillations.
+# Neither solution is practically relevant here because it applies to 
+# x_t=(1-B)epsilon_t, a non-invertible MA process that emphasizes high-frequency 
+# oscillations.
 
-# But the example illustrates the modus operandi of both smoothness concepts by 
-# highlighting their specific traits through an extreme (unrealistic) case study.
+# The example nevertheless illustrates the modus operandi of both smoothness 
+# concepts by highlighting their characteristic traits in an extreme 
+# (unrealistic) case.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.11  Distribution of Crossings: Mean and Standard Deviation
 # ─────────────────────────────────────────────────────────────────────────────
 
-
-
-
-
-# Identify time points at which the SSA output changes sign
+# Identify time points where the SSA output changes sign
 ssa_zc <- which(output_mat_diff[1:(nrow(output_mat_diff) - 1), "SSA-diff"] *
                   output_mat_diff[2:(nrow(output_mat_diff)),     "SSA-diff"] < 0)
 
-# Identify time points at which the HP output changes sign
+# Identify time points where the HP output changes sign
 hp_zc  <- which(output_mat_diff[1:(nrow(output_mat_diff) - 1), "HP-diff"] *
                   output_mat_diff[2:(nrow(output_mat_diff)),      "HP-diff"] < 0)
 
 # ── Mean durations between consecutive zero-crossings (empirical HTs) ────────
 mean(diff(ssa_zc))   # SSA empirical HT
-mean(diff(hp_zc))    # HP  empirical HT
+mean(diff(hp_zc))    # HP empirical HT
 # Both means should match the imposed HT target: ht1
 ht1
 
@@ -1744,66 +1611,28 @@ ht1
 sd(diff(ssa_zc), na.rm = TRUE)   # SSA: variability in zero-crossing spacing
 sd(diff(hp_zc),  na.rm = TRUE)   # HP:  variability in zero-crossing spacing
 
-# Zero-crossings of SSA are irregularly spaced and clustered: this is reflected in the 
-# much higher standard deviation when compared to HP.
-
-
-
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2.12 Verify TP-rate on Cumsum
-# ─────────────────────────────────────────────────────────────────────────────
-# Compare HP(xt) with cumsum(ssa) optimized for xt-x_{t-1}
-mat<-cbind(output_mat[,"HP"],cumsum(output_mat_diff[,"SSA-diff"]))
-
-par(mfrow=c(1,1))
-colo <- c("blue", "violet")
-mplot<-scale(mat[1000:100000,])
-colnames(mplot)<-c("HP in levels","Cumsum SSA-diff")
-ts.plot(mplot, col = colo)
-abline(h = 0)
-for (i in 1:ncol(mplot))
-  mtext(colnames(mplot)[i],col=colo[i],line=-i)
-
-
-
-# Check: mean length between consecutive TPs of cumsum-ssa 
-lenq/length(which(diff(mat[1:(nrow(mat)-1),1])*diff(mat[2:(nrow(mat)),1])<0))
-# mean length between consecutive TPs of original HP of exercise 1. 
-lenq/length(which(diff(mat[1:(nrow(mat)-1),2])*diff(mat[2:(nrow(mat)),2])<0))
-# Imposed HT in this exercise
-ht1
-
-# All three numbers match: we have succeeded in designing a SSA smoother 
-# that replicates the rate of TPs of HP in exercise 1
-
-#------------------------------------------------------------
-# Compute ht_i when integrating SSA from x_t=eps_t-eps_{t-1} to eps_t
-
-# The convolution with the integration operator gives bk_mat_diff_x
-# The difference vanishes
-conv_with_unitroot_func(bk_mat_diff)$conv-bk_mat_diff_x
-
-# Compute the HT of this filter
-compute_holding_time_func(conv_with_unitroot_func(bk_mat_diff_x)$conv)
+# Zero-crossings of SSA are irregularly spaced and clustered:
+# this is reflected in the much higher standard deviation compared to HP.
+#   • The amorphous SSA-smoother does not imprint a particular regularity 
+#     pattern on the data generating process.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Take-Aways
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. For a given HT constraint, SSA maximises target correlation and hence
-#    sign accuracy (equivalently, minimises MSE after suitable calibration).
+# 1. For a given HT constraint, SSA maximizes target correlation and hence
+#    sign accuracy (equivalently, minimizes MSE after suitable calibration).
 #
 # 2. Imposing the HP holding time on SSA guarantees that SSA outperforms
 #    HP in tracking x_{t + delta}.
 #
 # 3. The gain in tracking accuracy comes at the cost of larger curvature
 #    (greater mean squared second-order differences) relative to HP, which
-#    minimises curvature by construction (WH optimality).
+#    minimizes curvature by construction (WH optimality).
 #
 # 4. These results extend straightforwardly from white noise to arbitrary
-#    stationary dependent processes by specifying the appropriate xi (Wold decomposition).
+#    stationary-dependent processes by specifying the appropriate xi (Wold 
+#    decomposition).
 # ─────────────────────────────────────────────────────────────────────────────
 
 
