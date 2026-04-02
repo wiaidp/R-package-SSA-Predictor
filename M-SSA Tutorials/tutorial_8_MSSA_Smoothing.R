@@ -1620,18 +1620,32 @@ sd(diff(hp_zc),  na.rm = TRUE)   # HP:  variability in zero-crossing spacing
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Take-Aways
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Exercise 2 highlights, more clearly than Exercise 1, the amorphous SSA 
+# smoothing approach by contrasting it with WH/HP in an extreme case study.
+
 # 1. For a given HT constraint, SSA maximizes target correlation and hence
 #    sign accuracy (equivalently, minimizes MSE after suitable calibration).
-#
-# 2. Imposing the HP holding time on SSA guarantees that SSA outperforms
-#    HP in tracking x_{t + delta}.
-#
-# 3. The gain in tracking accuracy comes at the cost of larger curvature
-#    (greater mean squared second-order differences) relative to HP, which
-#    minimizes curvature by construction (WH optimality).
-#
-# 4. These results extend straightforwardly from white noise to arbitrary
-#    stationary-dependent processes by specifying the appropriate xi (Wold 
+
+# 2. This provides a natural and efficient framework for defining zero-crossings
+#    based on optimal tracking performance. In doing so, the approach does not
+#    imprint any unnatural or artificial structure on the data since the optimal
+#    tracking is fully data-driven.
+
+# 3. Imposing the HP holding time on SSA in first differences guarantees that
+#    i) SSA replicates the rate of TP (zero-crossings) of HP, which requires
+#       much stronger smoothing by SSA, and
+#    ii) SSA outperforms HP in tracking x_{t + delta}, though gains may be
+#       marginal in some extreme settings (as above).
+
+# 4. Smoothed series may appear very different even when performances are
+#    similar. While HP imposes a smoothly regular cyclical structure with
+#    regularly located crossings, SSA produces larger, more irregular dynamics
+#    to track the target optimally. As a result, zero-crossings are less
+#    regularly distributed and exhibit greater variance in their durations.
+
+# 5. These results extend straightforwardly to arbitrary
+#    stationary-dependent processes by specifying the appropriate xi (Wold
 #    decomposition).
 # ─────────────────────────────────────────────────────────────────────────────
 
