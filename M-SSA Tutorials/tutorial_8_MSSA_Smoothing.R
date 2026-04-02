@@ -178,23 +178,24 @@
 #
 # ── Key question ──────────────────────────────────────────────────────────────
 # Does imposing such an extraneous constraint — one that is not derived from
-# the data-generating process — introduce undesirable artefacts or spurious
-# structure into the smoothed output?
+# the data-generating process itself — introduce undesirable artefacts or 
+# spurious structure into the smoothed output?
 #
 # Alternative smoothing approaches — polynomial splines, exponential smoothing,
 # LOESS, moving averages, or more modern methods such as P-splines, GAMs,
-# Kriging, total variation, and trend filtering — either assume an idealised
-# functional shape or impose a particular model structure, both of which
+# Kriging, total variation, or trend filtering — either assume an idealised
+# functional shape or impose a particular (implicit) model structure, both of which
 # imprint extraneous structure on the output that may conflict with the
 # data-generating process.
 #
 # M-SSA, by contrast, is amorphous: smoothing is achieved by optimally tracking
-# x_{t+δ} subject to a constraint on the lag-1 autocorrelation (equivalently,
+# x_{t+delta} subject to a constraint on the lag-1 autocorrelation (equivalently,
 # the HT). A large lag-1 ACF enforces smoothness through memory alone — it does
 # not prescribe any particular shape (linear, polynomial, or cyclical) for the
 # smoothed series, nor does it impose any structure on higher-order dependence
 # (ACF at lags greater than one). Smoothness and the data-generating process
-# are therefore not in conflict.
+# are therefore not in conflict; zero-crossings are derived from optimal tracking,
+# ensuring both logical consistency and statistical efficiency.
 #
 # ──────────────────────────────────────────────────────────────────────────────
 # Classical Smoothing: Whittaker–Henderson (WH) Graduation / HP Filter
@@ -222,6 +223,9 @@
 #     transitions between above- and below-average growth in I_t. If the mean of 
 #     x_t vanishes (or is small/negligible), M-SSA smoothing addresses turning 
 #     points of I_t.
+#
+#   • Differences of typical economic series are close to white noise, the 
+#     default assumption in M-SSA when ξ is not explicitly specified. 
 #       
 # ══════════════════════════════════════════════════════════════════════════════
 # REFERENCES
@@ -1855,6 +1859,8 @@ sq_se_dif
 # Unexpectedly, the one-sided SSA exhibits smaller curvature than the two-sided
 # smoother. This reflects the more gradual, regular weight profile of the
 # one-sided filter, which lacks the sharp central peak of the two-sided design.
+
+# this result once more 
 
 
 
