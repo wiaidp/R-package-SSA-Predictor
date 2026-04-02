@@ -147,7 +147,7 @@
 #   • If yes, what are the main differences? Specifically:
 #
 #       – Which smoothness concept is more natural and interpretable
-#         in the context of sign-based decision-making?
+#         in the context of sign-based decision-making (sell high/buy low)?
 #
 #       – Which approach avoids imposing its own structural signature
 #         on the data — i.e., which one is free of spurious smoothing
