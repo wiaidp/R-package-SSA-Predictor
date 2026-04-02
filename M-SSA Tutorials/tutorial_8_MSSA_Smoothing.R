@@ -1514,38 +1514,40 @@ sign_acc_hp   # HP  sign accuracy
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── a. Holding Time ───────────────────────────────────────────────────────────
-# The HT constraint imposed on SSA on first differences x_t
-# The empirical HTs of both smoothers should agree closely on first differences.
-# Therefore, SSA replicates the rate of turning-points of HP on levels (eps_t)
-# Hence we solved the problem specified at the start of this exercise
-ht1                              # Target HT imposed on SSA (= HP holding time)
-compute_empirical_ht_func(y_ssa_diff_eps)      # Empirical HT of SSA output
+# The HT constraint is imposed on SSA applied to first differences x_t.
+# The empirical HTs of both smoothers should agree closely in first differences,
+# which ensures that SSA replicates the rate of turning points of HP in levels
+# (eps_t). This confirms that the problem specified at the start of the exercise
+# has been solved.
+ht1                                        # Target HT imposed on SSA (= HP holding time)
+compute_empirical_ht_func(y_ssa_diff_eps)  # Empirical HT of SSA output
 compute_empirical_ht_func(y_hp_two_diff)   # Empirical HT of HP output
 
-
-
 # ── b. Curvature (Root Mean Squared Second-Order Differences) ─────────────────
-# HP has a much smaller curvature
+# HP has a much smaller curvature than SSA by construction (WH optimality).
 sq_se_dif <- sqrt(apply(
   apply(apply(na.exclude(output_mat_diff), 2, diff), 2, diff)^2,
   2, mean
 ))
 sq_se_dif
 
-# Note: the first element of sq_se_dif corresponds to the raw target x_t=eps_t-eps_{t-1}
-# (first differences of standardised white noise). Applying the second-order difference operator
-# (1 - B)^2 to these differences gives:
+# Note: the first element of sq_se_dif corresponds to the raw target
+# x_t = eps_t - eps_{t-1} (first differences of standardised white noise).
+# Applying the second-order difference operator (1 - B)^2 to these first
+# differences gives:
 #
-#   (1 - B)^2 eps_t-eps_{t-1}  =  eps_t - 2 eps_{t-1} + eps_{t-2}-(eps_{t-1}-2eps_{t-2}+eps_{t-3})
-#   =eps_t-3eps_{t-1}+3eps_{t-2}-eps_{t-3}
+#   (1-B)^2 (eps_t - eps_{t-1})
+#     = eps_t - 3*eps_{t-1} + 3*eps_{t-2} - eps_{t-3}
+#     = (1-B)^3 eps_t
 #
 # The variance of this expression is:
 #
-#   Var[(1-B)^3 eps_t]  =  1^2 + 2*(3)^2 + 1^2  =  1 + 18 + 1  =  20
+#   Var[(1-B)^3 eps_t] = 1^2 + 3*((-3)^2) + 3*(3^2) + (-1)^2
+#                      = 1 + 9 + 9 + 1 = 20
 #
 # so the expected RMSD2 of the raw target is sqrt(20) ≈ 4.472.
-# The first element of sq_se_dif converges asymptotically to this theoretical value,
-# providing a useful sanity check on the curvature calculations.
+# The first element of sq_se_dif converges asymptotically to this theoretical
+# value, providing a useful sanity check on the curvature calculations.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.10  Plot Series: 1,000-observation window
@@ -1563,31 +1565,34 @@ for (i in 1:ncol(output_mat_diff[ , 2:3]))
 
 # This extreme example highlights the main differences between the two smoothing
 # concepts:
-#   • Both smoothers share the same HT (rate of zero-crossings)
-#   • But they differ markedly in shape, scale, and dynamics
-
-# The SSA profile maximizes tracking of x_{t+delta}=eps_{t+delta}-eps_{t+delta-1} 
-#   (target correlation, sign accuracy, and MSE)
-#   • In contrast, HP minimizes curvature
-
-# SSA controls the rate of zero-crossings by generating large, noisy cycles that 
-# drift away from the zero line for longer intervals. 
-#   • Once at the zero line, multiple crossings may occur due to noise. 
+#   • Both smoothers share the same HT (rate of zero-crossings).
+#   • They differ markedly, however, in shape, scale, and dynamics.
+#
+# SSA maximizes tracking of x_{t+delta} = eps_{t+delta} - eps_{t+delta-1}
+# (target correlation, sign accuracy, and MSE), whereas HP minimizes curvature.
+#
+# SSA controls the rate of zero-crossings by generating large, noisy cycles
+# that drift away from the zero line for extended intervals.
+#   • Once near the zero line, multiple crossings may occur due to noise.
 #   • Crossings are irregularly distributed and tend to cluster.
-
-# HP, on the other hand, controls HT by constraining curvature. 
-#   • This imposes extraneous (cyclical) structure on the data that is not part 
-#     of the data-generating process. 
-#   • As a result, crossings are much more regularly distributed. This 
-#     regularity conflicts with the noisy data-generating process.
-
-# Neither solution is practically relevant here because it applies to 
-# x_t=(1-B)epsilon_t, a non-invertible MA process that emphasizes high-frequency 
-# oscillations.
-
-# The example nevertheless illustrates the modus operandi of both smoothness 
-# concepts by highlighting their characteristic traits in an extreme 
-# (unrealistic) case.
+#
+# HP controls HT by constraining curvature instead.
+#   • This imposes extraneous (cyclical) structure on the data that is absent
+#     from the data-generating process.
+#   • As a result, crossings are much more regularly spaced, a regularity that
+#     conflicts with the noisy data-generating process.
+#
+# Neither solution is practically relevant here because it is applied to
+# x_t = (1-B)eps_t, a non-invertible MA process that emphasizes high-frequency
+# oscillations. In economic applications, this case corresponds to second-order
+# differencing of a non-stationary indicator (i.e., overdifferencing), which
+# emphasizes acceleration rather than growth. Since growth is typically the more
+# relevant quantity for decision-making, this setting serves primarily as an
+# instructive theoretical case rather than a practical one.
+#
+# The example nevertheless illustrates the modus operandi of both smoothness
+# concepts by exposing their characteristic traits (amorphous vs. shaping) in 
+# a revelatory setting.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.11  Distribution of Crossings: Mean and Standard Deviation
@@ -1603,123 +1608,148 @@ hp_zc  <- which(output_mat_diff[1:(nrow(output_mat_diff) - 1), "HP-diff"] *
 
 # ── Mean durations between consecutive zero-crossings (empirical HTs) ────────
 mean(diff(ssa_zc))   # SSA empirical HT
-mean(diff(hp_zc))    # HP empirical HT
-# Both means should match the imposed HT target: ht1
+mean(diff(hp_zc))    # HP  empirical HT
+# Both means should match the imposed HT target ht1
 ht1
 
 # ── Standard deviations of inter-crossing durations ──────────────────────────
 sd(diff(ssa_zc), na.rm = TRUE)   # SSA: variability in zero-crossing spacing
 sd(diff(hp_zc),  na.rm = TRUE)   # HP:  variability in zero-crossing spacing
 
-# Zero-crossings of SSA are irregularly spaced and clustered:
-# this is reflected in the much higher standard deviation compared to HP.
-#   • The amorphous SSA-smoother does not imprint a particular regularity 
-#     pattern on the data generating process.
-
+# Zero-crossings of SSA are irregularly spaced and clustered, reflected in its
+# much higher standard deviation relative to HP.
+#   • The amorphous SSA smoother does not imprint any particular regularity
+#     pattern on the data-generating process.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Take-Aways
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Exercise 2 highlights, more clearly than Exercise 1, the amorphous SSA 
-# smoothing approach by contrasting it with WH/HP in an extreme case study.
-
+# Exercise 2 highlights, more clearly than Exercise 1, the amorphous nature of
+# SSA smoothing by contrasting it with WH/HP in an extreme - and therefore more 
+# revelatory - case study.
+#
 # 1. For a given HT constraint, SSA maximizes target correlation and hence
 #    sign accuracy (equivalently, minimizes MSE after suitable calibration).
-
+#
 # 2. This provides a natural and efficient framework for defining zero-crossings
-#    based on optimal tracking performance. In doing so, the approach does not
-#    imprint any unnatural or artificial structure on the data since the optimal
-#    tracking is fully data-driven.
-
-# 3. Imposing the HP holding time on SSA in first differences guarantees that
-#    i) SSA replicates the rate of TP (zero-crossings) of HP, which requires
-#       much stronger smoothing by SSA, and
-#    ii) SSA outperforms HP in tracking x_{t + delta}, though gains may be
-#       marginal in some extreme settings (as above).
-
-# 4. Smoothed series may appear very different even when performances are
-#    similar. While HP imposes a smoothly regular cyclical structure with
-#    regularly located crossings, SSA produces larger, more irregular dynamics
-#    to track the target optimally. As a result, zero-crossings are less
-#    regularly distributed and exhibit greater variance in their durations.
-
-# 5. These results extend straightforwardly to arbitrary
-#    stationary-dependent processes by specifying the appropriate xi (Wold
-#    decomposition).
+#    based on optimal tracking performance. The approach does not imprint any
+#    unnatural or artificial structure on the data since optimal tracking is
+#    fully data-driven. The HT constraint operates through the first-order
+#    autocorrelation of the filtered output, which is a minimal and unintrusive
+#    restriction that neither conflicts with nor distorts the structure of the
+#    data-generating process.
+#
+# 3. The HT constraint is appealing in situations where crossings of the 
+#    smoother of the data x_t can be interpreted as TPs of a relevant 
+#    non-stationary series I_t in levels, where x_t=I_t-I_{t-1} represents a 
+#    noisy growth estimate. Defining TPs in I_t as zero-crossings of an optimal 
+#    growth tracker is both logically consistent and statistically efficient. 
+#
+# 4. Imposing the HP holding time on SSA in first differences guarantees that:
+#    i)  SSA replicates the rate of turning points (zero-crossings) of HP,
+#        which was the original problem posed at the beginning of Exercise 2.
+#        Achieving this replication requires much stronger smoothing by SSA.
+#    ii) SSA outperforms HP in tracking x_{t+delta}, though gains are
+#        marginal in this extreme setting because the target has a very strong
+#        high-frequency content (which inherently conflicts with `smoothing').
+#
+# 5. Smoothed series may appear very different even when their tracking 
+#    performances are similar. 
+#     • HP imposes a smooth, regular cyclical structure with evenly spaced
+#       crossings; 
+#     • SSA instead produces larger, more irregular dynamics in order to
+#       track the target optimally. Consequently, zero-crossings are less 
+#       regularly distributed and exhibit greater variance in their durations.
+#
+# 6. These results extend straightforwardly to arbitrary stationary-dependent
+#    processes by specifying the appropriate xi (Wold decomposition).
 # ─────────────────────────────────────────────────────────────────────────────
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+################################################################################
+# Exercises 1 and 2 considered smoothers at delta = -(L-1)/2. We now explore
+# what happens when delta is varied from delta = -(L-1)/2 to delta = 0
+# (nowcasting). To increase the challenge, we impose a fixed HT for all delta. 
+# In this case, the nowcast will be as smooth as the symmetric backcast in terms 
+# of zero-crossing rate (in contrast to HP whose nowcast is much less smooth).
+################################################################################
 
 
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# Exercise 3:  COMPUTE THE FULL SSA SMOOTHER FAMILY (delta SWEEP) KEEPING HT FIXED
+# Exercise 3: COMPUTE THE FULL SSA SMOOTHER FAMILY (delta SWEEP) KEEPING HT FIXED
 # ════════════════════════════════════════════════════════════════════════════════
-# Sweep delta from the fully causal end (-(L-1)/2) to nowcast (0),
-# designing one  filter per lag shift. This may be time-consuming;
-# set recompute_calculations = TRUE only when a fresh run is needed.
+# Sweep delta from the fully symmetric end (-(L-1)/2) to the nowcast (delta = 0),
+# designing one filter per lag shift.
+# Assumption: x_t = eps_t is white noise (approximating a differenced economic series).
 
-# 3.1 HP cannot intrinsivcally incapable of maintining fixed smoothing twoarfs sample end
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.1  HT OF HP NOWCAST
+# ─────────────────────────────────────────────────────────────────────────────
 
+ht_one_sided <- compute_holding_time_func(hp_trend)$ht    # HT of one-sided HP filter
+ht_two_sided <- compute_holding_time_func(hp_target)$ht   # HT of two-sided HP filter
 
-# 3.2
-# Re-extract HP holding-time parameters for the sweep
+# The HT of the one-sided HP is much shorter than that of the two-sided HP:
+# the one-sided filter generates approximately 8 times more zero-crossings.
+ht_one_sided
+ht_two_sided
+# We here construct SSA-smoothers with a fixed HT, irrespective of the backcast 
+# lag
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.2  IMPOSE FIXED HT OF TWO-SIDED HP ON SSA
+# ─────────────────────────────────────────────────────────────────────────────
+# Re-extract the HP holding-time parameters for use in the delta sweep.
 rho1 <- compute_holding_time_func(hp_target)$rho_ff1
 ht1  <- compute_holding_time_func(hp_target)$ht
-  
+
 gamma_target <- 1   # Allpass target
-filt_mat     <- NULL
-  
-# Design one  filter for each lag delta
+filt_mat <- acf1 <- target_cor <- NULL
+
+# Design one filter for each lag delta, keeping HT (rho1) fixed.
+# xi is not specified in the SSA call: x_t is assumed to be white noise.
 for (delta in (-(L - 1) / 2):0)
 {
-  print(delta)
-  SSA_obj  <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1)
-  filt_mat <- cbind(filt_mat, SSA_obj$bk_mat)
+  print(paste("Progress: ", ((L - 1) / 2 + delta) * 100 / ((L - 1) / 2), "%", sep = ""))
+  SSA_obj    <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1)
+  filt_mat   <- cbind(filt_mat, SSA_obj$bk_mat)
+  acf1       <- c(acf1, SSA_obj$crit_rhoyy)
+  target_cor <- c(target_cor, SSA_obj$crit_rhoy_target)
 }
-  
 
+# Plot target correlation as a function of the backcast lag.
+# A monotonically increasing shape indicates that the target becomes
+# progressively easier to track as the backcast lag increases.
+ts.plot(target_cor[length(target_cor):1], main = "Target correlation as a function of lag")
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 3.3 PLOT THE FULL SSA SMOOTHER FAMILY
-# ══════════════════════════════════════════════════════════════════════════════
+# Plot the first-order ACF (HT constraint).
+# Ideally this is a flat line matching the imposed rho1.
+# Small deviations reflect numerical imprecision and can be reduced by
+# increasing the split_grid parameter in the SSA function call.
+ts.plot(acf1)
+var(acf1)   # Variance is negligible
 
-# --- Scale all filters to unit variance for a fair visual comparison ---
-filt_mat <- scale(filt_mat, center = FALSE, scale = TRUE) / sqrt(L - 1)
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.3  PLOT THE FULL SSA SMOOTHER FAMILY
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Verify unit L2 norm after scaling (each column sum of squares ≈ 1)
-apply(filt_mat^2, 2, sum)
+mplot <- filt_mat
 
-# --- Plot all smoother coefficient profiles, coloured by delta ---
+# Plot all smoother coefficient profiles, coloured by delta
 plot(
-  filt_mat[, 1],
+  mplot[, 1],
   col  = rainbow(ncol(filt_mat))[1],
   main = "SSA Smoothers",
   axes = FALSE, type = "l",
   ylab = "", xlab = expression(delta)
 )
 for (i in 2:ncol(filt_mat))
-  lines(filt_mat[, i], col = rainbow(ncol(filt_mat))[i])
+  lines(mplot[, i], col = rainbow(ncol(mplot))[i])
 
-# Mark the filter centre (lag 0 position)
+# Mark the filter centre (lag-0 position).
+# At delta = -(L-1)/2 the design replicates the solution from Exercise 1.1.
 abline(v = (L - 1) / 2 + 1)
 
 axis(1,
@@ -1728,54 +1758,103 @@ axis(1,
 axis(2)
 box()
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.4  Apply One-Sided and Symmetric SSA Smoothers and Compare Performances
+# ─────────────────────────────────────────────────────────────────────────────
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 3.4 OVERLAY PLOT — SYMMETRIC SSA VS HP FILTER COEFFICIENTS
-# ══════════════════════════════════════════════════════════════════════════════
+# Simulate a long white-noise series to ensure reliable sample estimates
+lenq <- 1000000
+set.seed(86)
+x <- rnorm(lenq)
 
-coloh <- c("blue", "violet", "black")
+# Apply the one-sided (nowcast) and two-sided (symmetric) SSA smoothers to x.
+# sides = 1: causal (one-sided) convolution, corresponding to delta = 0.
+# sides = 2: acausal (two-sided) convolution, corresponding to delta = -(L-1)/2.
+y_ssa_one_sided <- filter(x, filt_mat[, ncol(filt_mat)], sides = 1)
+y_ssa_two_sided <- filter(x, filt_mat[, 1],              sides = 2)
 
-plot(
-  mplot[, 1],
-  main  = "Symmetric SSA and HP Smoothers",
-  axes  = FALSE, type = "l",
-  xlab  = "", ylab = "",
-  ylim  = c(min(na.exclude(mplot)), max(na.exclude(mplot))),
-  col   = coloh[1], lwd = 2, lty = 1
-)
+# Target: the unshifted series x, since both filters are designed to track
+# x_t directly (the forward shift by abs(delta) is absorbed into the two-sided 
+# filter).
+target <- x
 
-# Annotate each filter in its own colour
-mtext(paste("SSA(", round(ht1,   2), ",", delta, ")   ", sep = ""),
-      col = coloh[1], line = -1)
-mtext(paste("SSA(", round(ht1_1, 2), ",", delta, ")   ", sep = ""),
-      col = coloh[2], line = -2)
+# ── a. MSE ───────────────────────────────────────────────────────────────────
+# Compute MSE of each smoother relative to the target series.
+mse_ssa_one_sided <- mean((target - y_ssa_one_sided)^2, na.rm = TRUE)
+mse_ssa_two_sided <- mean((target - y_ssa_two_sided)^2, na.rm = TRUE)
 
-lines(mplot[, 2], col = coloh[2], lwd = 2, lty = 1)
-lines(mplot[, 3], col = coloh[3], lwd = 2, lty = 1)
+mse_ssa_one_sided
+mse_ssa_two_sided
 
-mtext(paste("HP(", lambda_HP, ")   ", sep = ""),
-      col = coloh[3], line = -3)
+# ── b. Target Correlation ─────────────────────────────────────────────────────
+# Compute the correlation matrix of the target and both filter outputs.
+output_mat <- na.exclude(cbind(target, y_ssa_one_sided, y_ssa_two_sided))
+colnames(output_mat) <- c("x", "One-Sided", "Two-Sided")
+cor_mat <- cor(output_mat)
+cor_mat   # Full correlation matrix (first row: correlations with target)
 
-axis(1,
-     at     = c(1, 50 * 1:(nrow(mplot) / 50)),
-     labels = c(0,    50 * 1:(nrow(mplot) / 50)))
-axis(2)
-box()
+cor_mat[1, 2]   # Target correlation: one-sided SSA
+cor_mat[1, 3]   # Target correlation: two-sided SSA
 
+# Internal convergence check: the sample correlation cor(x, y_ssa) should
+# match crit_rhoy_target up to Monte Carlo sampling error, confirming
+# that the optimisation has converged correctly.
+cor_mat[1, 2]              # Empirical correlation: one-sided SSA
+target_cor[length(target_cor)]  # Expected target correlation: one-sided SSA
+cor_mat[1, 3]              # Empirical correlation: two-sided SSA
+target_cor[1]              # Expected target correlation: two-sided SSA
+  
+# ── c. Sign Accuracy ──────────────────────────────────────────────────────────
+# Proportion of time steps at which the filter output and the target share
+# the same sign.
+sign_acc_one_sided <- sum((target * y_ssa_one_sided) > 0, na.rm = TRUE) /
+length(na.exclude(target * y_ssa_one_sided))
 
+sign_acc_two_sided <- sum((target * y_ssa_two_sided) > 0, na.rm = TRUE) /
+length(na.exclude(target * y_ssa_two_sided))
 
+sign_acc_one_sided
+sign_acc_two_sided
 
+# The two-sided filter tracks the target better, as expected. Performances are 
+# mitigated by the fact that the series is white noise and the smoothing is 
+# strong.
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.5  Smoothness
+# ─────────────────────────────────────────────────────────────────────────────
+# Smoothness is evaluated on two complementary criteria:
+#   a) Holding time (HT): mean duration between consecutive sign changes.
+#   b) Curvature: root mean squared second-order differences (RMSD2).
+# ─────────────────────────────────────────────────────────────────────────────
 
+# ── a. Holding Time ───────────────────────────────────────────────────────────
+# The HT constraint imposed on SSA is set equal to that of the two-sided HP
+# filter. The empirical HTs of both SSA smoothers should agree
+# closely with ht1.
+ht1                                       # Target HT (= two-sided HP holding time)
+compute_empirical_ht_func(y_ssa_one_sided)  # Empirical HT of one-sided SSA
+compute_empirical_ht_func(y_ssa_two_sided)  # Empirical HT of two-sided SSA
 
-# --- Compute the spectral radius of M-tilde (see Wildi (2026b)---
-# rho_max is the largest eigenvalue of M_tilde; it defines the upper bound
-# for the HT constraint parameter rho for a filter of length L.
-M_obj    <- M_func(L, Sigma)
-M_tilde  <- M_obj$M_tilde
-rho_max  <- max(eigen(M_tilde)$values)   # Maximum achievable rho
-v1       <- eigen(M_tilde)$vectors[, 1]  # Leading eigenvector of M_tilde (to the max eigenvalue rho_max)
+# Notably, the one-sided SSA maintains the imposed HT,
+# in contrast to the one-sided HP filter (see ht_one_sided above).
 
+# ── b. Curvature (Root Mean Squared Second-Order Differences) ─────────────────
+# Curvature is measured as the RMSD2 of each smoother's output — the natural
+# smoothness criterion minimised by HP under the WH framework.
+# HP achieves the smallest RMSD2 by construction (WH optimality); SSA incurs
+# larger curvature as the cost of superior tracking accuracy under the same
+# HT constraint.
+output_mat <- cbind(y_ssa_one_sided, y_ssa_two_sided)
+sq_se_dif <- sqrt(apply(
+  apply(apply(na.exclude(output_mat), 2, diff), 2, diff)^2,
+  2, mean
+))
+sq_se_dif
+
+# Unexpectedly, the one-sided SSA exhibits smaller curvature than the two-sided
+# smoother. This reflects the more gradual, regular weight profile of the
+# one-sided filter, which lacks the sharp central peak of the two-sided design.
 
 
 
