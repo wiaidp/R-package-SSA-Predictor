@@ -1119,11 +1119,14 @@ SSA_obj$crit_rhoy_target
 # (TPs) than HP for an equal HT, since HP minimises curvature and thereby
 # suppresses TPs. 
 # 
-# Problem formulation: design an SSA smoother that replicates not the HT of
-# HP, but rather its rate of turning points (TPs) — a strictly stronger
-# smoothness requirement, since matching the TP rate of HP demands a
+# Problem formulation in thsi exercise 2: design an SSA smoother that replicates 
+# not the HT of HP, but rather its rate of turning points (TPs) — a strictly 
+# stronger smoothness requirement, since matching the TP rate of HP demands a
 # substantially larger HT in SSA. Since HP evolves monotonically between TPs
 # this problem equates to replicating HP-monotonicity by the SSA-smoother.
+#
+# As mentioned: this problem is not of of practical interest. Instead, its 
+# structure is revelatory about basic differences in smoothing concepts.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Problem Translation
@@ -1132,7 +1135,7 @@ SSA_obj$crit_rhoy_target
 # as follows:
 #
 #   • TPs of HP correspond to zero-crossings of its first differences.
-#   • To match the TP rate of HP, we compute the empirical HT of HP in
+#   • To match the TP rate of HP, we hence compute the empirical HT of HP in
 #     first differences.
 #   • We then impose this HT (in first differences) as the SSA constraint.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1146,8 +1149,8 @@ SSA_obj$crit_rhoy_target
 # how SSA changes as b1 transitions from b1 = 0 (white noise process)
 # to b1 = -1 (first-difference process). A key technical challenge arises at
 # b1 = -1, where the MA(1) process becomes non-invertible. To handle this
-# boundary case rigorously, we derive and implement an exact SSA closed-form
-# solution that remains valid even under non-invertibility.
+# boundary case rigorously, we utilise an exact closed-form SSA solution that 
+# remains valid even under non-invertibility.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.1  Specify M-SSA Design Settings: b1=0 
@@ -1162,7 +1165,7 @@ gamma_target     <- 1      # Identity target: M-SSA tracks x_t = ε_t + b1*ε_{t
 # We begin with white noise.
 b1 <- 0
 
-# Wold decomposition of the MA(1) process
+# Wold decomposition of the MA(1) process: when b1=0 this is just white noise
 xi <- c(1, b1)
 
 # δ = -(L-1)/2 places the target at the centre of the filter window
@@ -1179,9 +1182,16 @@ with_negative_lambda <- FALSE
 # Compute the effective HP filter when applied to the MA(1) process x_t.
 # The composite filter hp_target_diff, when applied to ε_t, replicates the
 # output of HP applied to x_t = ε_t + b1*ε_{t-1}.
+# The HT calculation assumes that a filter is applied to ε_t (white noise). 
+#   Otherwise: transform the filter as in this example, see previous tutorials.
 # When b1 = 0, x_t = ε_t and hp_target_diff reduces to the original HP filter.
-hp_target_diff <- c(hp_target, 0) + b1 * c(0, hp_target)
-
+if (b1==0)
+{
+  hp_target_diff <- hp_target
+} else
+{
+  hp_target_diff <- c(hp_target, 0) + b1 * c(0, hp_target)
+}
 rho1 <- compute_holding_time_func(hp_target_diff)$rho_ff1  # ρ implied by HP's HT
 ht1  <- compute_holding_time_func(hp_target_diff)$ht       # HP holding time
 
@@ -1297,8 +1307,8 @@ mtext("M-SSA applied to x_t",  col = "blue", line = -1)
 mtext("M-SSA applied to ε_t",  col = "red",  line = -2)
 
 # Note: as b1 → -1, the right tail of the M-SSA filter decays progressively
-# more slowly, reflecting the increasing persistence induced by the MA(1)
-# structure of x_t.
+# more slowly, reflecting the increasing persistency required to compensate 
+# the near invertibility of the MA(1).
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1355,6 +1365,8 @@ xi <- c(1, b1)
 # hp_target_diff is the filter applied to ε_t that replicates the output of
 # the two-sided HP filter applied to x_t = ε_t + b1 * ε_{t-1}.
 hp_target_diff <- c(hp_target, 0) + b1 * c(0, hp_target)
+# Replace boundary values by zero
+hp_target_diff[1]<-hp_target_diff[L+1]<-0
 
 # --- Extract holding-time (HT) characteristics of the HP target filter ---
 rho1 <- compute_holding_time_func(hp_target_diff)$rho_ff1  # Autocorrelation implied by HP's HT
