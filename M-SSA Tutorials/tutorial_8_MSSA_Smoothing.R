@@ -1872,7 +1872,48 @@ sq_se_dif
 # smoother. This reflects the more gradual, regular weight profile of the
 # one-sided filter, which lacks the sharp central peak of the two-sided design.
 
-# this result once more 
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.6  Comparison With the HT-Maximizing Smoother
+# ─────────────────────────────────────────────────────────────────────────────
+# Extract M, the lag-one covariance generating matrix (see referenced articles
+# for background; it is also denoted M in those articles).
+# M is related to the HT constraint through b'Mb = rho1 (when b'b = 1),
+# where b is the SSA filter solution.
+M_obj <- M_func(L, Sigma)
+M     <- M_obj$M
+
+# Compute eigenvalues and eigenvectors of M
+eigen_obj <- eigen(M)
+
+# The largest eigenvalue is the maximum lag-1 ACF attainable by any
+# linear filter of length L
+rho_max <- max(eigen_obj$values)
+rho_max
+# Compare with lag-1 ACF imposed by HP: they are close.
+# HP is a very smooth design (possibly too smooth for business-cycle analysis, 
+# see tutorial 2.0)
+rho1
+
+# The corresponding maximum HT attainable by a filter of length L is L + 1.
+# No MA filter of length L can exceed this upper bound.
+compute_holding_time_from_rho_func(rho_max)$ht
+
+# The leading eigenvector is the filter that attains this maximum HT
+b_rho_max <- eigen_obj$vectors[, 1]
+
+# Verify that this filter achieves the maximum HT (theoretical result;
+# simulation-based verification is omitted here)
+compute_holding_time_func(b_rho_max)
+
+# Plot and compare the SSA nowcast smoother and b_rho_max
+ts.plot(scale(cbind(eigen_obj$vectors[, 1], filt_mat[, ncol(filt_mat)])),
+        col = c("red", "blue"),main="SSA nowcast smoother vs. HT-maximizing filter/smoother")
+mtext("HT-maximizing filter/smoother",           col = "red",  line = -1)
+mtext("SSA nowcast smoother", col = "blue", line = -2)
+
+# The SSA nowcast smoother closely resembles b_rho_max because the HT
+# imposed by HP (ht1) is large, pushing the SSA solution near the upper
+# bound of attainable holding times for a filter of length L.
 
 
 
