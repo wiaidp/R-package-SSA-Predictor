@@ -37,6 +37,11 @@ rm(list = ls())
 
 # HP filter and other standard time-series filters
 library(mFilter)
+# ROC curve calculation
+library(pROC)
+# NBER recession datings for the US
+library(tis)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # LOAD CUSTOM M-SSA FUNCTION LIBRARIES
@@ -52,6 +57,9 @@ source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
 source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
 
 source(file.path(getwd(), "R/simple_sign_accuracy.r"))
+# ROC plot
+source(paste(getwd(), "/R/ROCplots.r", sep = ""))
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Exercise 1: Random Walk
@@ -1046,6 +1054,11 @@ compute_empirical_ht_func(scale(diff(y_hp_one)[year_2000:length(target)]))      
 # but remain broadly comparable to the one-sided HP.
 
 output_mat <- cbind(x, y_ssa, y_hp_one, y_hp_two)
+nrow(output_mat)
+dates<-as.character(index(y_xts))
+rownames(output_mat)<-dates
+colnames(output_mat)<-c("INDPRO","I-SSA","HP one-sided","HP two-sided")
+tail(output_mat)
 
 sq_se_dif <- sqrt(apply(
   apply(apply(na.exclude(output_mat), 2, diff), 2, diff)^2,
@@ -1062,60 +1075,105 @@ sq_se_dif  # RMSD2 for: raw series, I-SSA, one-sided HP, two-sided HP
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4.5 Recession Tracking
+# 4.5 NBER Recession Detection: ROC Curves and AUC
+# ─────────────────────────────────────────────────────────────────────────────
+# We evaluate the ability of each nowcast to detect NBER-dated recessions using
+# Receiver Operating Characteristic (ROC) curves and the Area Under the Curve
+# (AUC). First differences of the filter outputs serve as recession signals.
+# AUC summarises overall detection skill — a value of 1 indicates perfect
+# discrimination; 0.5 indicates no skill beyond random guessing.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.5.1 NBER dating
 # ─────────────────────────────────────────────────────────────────────────────
 
-# We plot differences of the smoothers with vertical lines indicating zero-crossings 
-# of differences, i.e., turning points (TP) in levels: local max and min of the level tracker.
-mplot<-apply(output_mat[year_2000:length(target),-1],2,diff)
-colnames(mplot)<-c("I-SSA","HP one-sided","HP two-sided")
-rownames(mplot)<-as.character(index(y_xts))[(nrow(y_xts)-nrow(mplot)+1):nrow(y_xts)]
-colo<-c("blue","red","violet")
-plot(mplot[,1],
-     main="Recession tracking", axes=F, type="l", xlab="", ylab="",
-     col=colo[1], lwd=1,
-     ylim=c(min(na.exclude(mplot)), max(na.exclude(mplot))))
-mtext(colnames(mplot)[1], col=colo[1], line=-1)
+# Retrieve official NBER business-cycle turning-point dates
+tail(nberDates())
 
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i], col=colo[i], lwd=1, lty=1)
-  mtext(colnames(mplot)[i], col=colo[i], line=-i)
-  abline(v=which(mplot[1:(nrow(mplot)-1),i]*mplot[2:(nrow(mplot)),i] <0),col=colo[i])
-  
-}
-abline(h=0)
-axis(1, at=c(1, 4*1:(nrow(mplot)/4)),
-     labels=rownames(mplot)[c(1, 4*1:(nrow(mplot)/4))])
-axis(2)
-box()
+# Construct a binary recession indicator aligned to the filter output grid:
+# 1 = NBER recession month, 0 = expansion month
+NBER_recessions <- rep(0, nrow(output_mat))
+names(NBER_recessions) <- rownames(output_mat)
 
-# I-SSA reacts faster than the one-sided HP at cyclical turning points and
-# crisis episodes, but this timeliness comes at a cost: I-SSA also generates
-# spurious downturn signals during prolonged expansions. This is partly
-# attributable to the cyclical component embedded in the I-SSA filter design
-# (see the discussion in Tutorial 8).
-#
-# As documented in Tutorial 8, I-SSA produces a higher rate of turning-point
-# (TP) signals than the one-sided HP. To obtain a fairer comparison, we
-# constrain I-SSA to match the TP rate of the one-sided HP, penalising
-# excessive signal variability. This will require increased smoothness, 
-# potentially harming MSE performances and speed (advancement).
-#
-# The approach taken here differs from Exercise 2 of Tutorial 8 in terms of
-# the integration level at which each component operates:
-#
-# - HP filtering is applied to non-stationary log-levels of INDPRO.
-# - Turning points (TPs) are defined on the stationary first differences
-#   of the filter output.
-# - The holding-time (HT) constraint is likewise imposed on stationary
-#   first differences.
-#
-# In contrast, Tutorial 8 Exercise 2 operated one integration level lower:
-# HP was applied directly to a stationary series (white noise), and the HT
-# constraint was imposed on the non-invertible first differences of that
-# white-noise input — a fundamentally different setting that does not carry
-# over to the non-stationary, levels-based framework considered here.
+# Assign recession episodes based on official NBER peak-to-trough dates
+recession_dates <- c(
+  which(names(NBER_recessions) >= "1970-01-01" & names(NBER_recessions) <= "1970-11-30"),  # 1969–70
+  which(names(NBER_recessions) >= "1973-12-01" & names(NBER_recessions) <= "1975-03-31"),  # 1973–75
+  which(names(NBER_recessions) >= "1980-02-01" & names(NBER_recessions) <= "1980-07-31"),  # 1980
+  which(names(NBER_recessions) >= "1981-08-01" & names(NBER_recessions) <= "1982-11-30"),  # 1981–82
+  which(names(NBER_recessions) >= "1990-08-01" & names(NBER_recessions) <= "1991-03-31"),  # 1990–91
+  which(names(NBER_recessions) >= "2001-04-01" & names(NBER_recessions) <= "2001-11-30"),  # 2001
+  which(names(NBER_recessions) >= "2008-01-01" & names(NBER_recessions) <= "2009-06-30"),  # 2008–09 (GFC)
+  which(names(NBER_recessions) >= "2020-01-01" & names(NBER_recessions) <= "2020-04-30")   # 2020 (COVID-19)
+)
+NBER_recessions[recession_dates] <- 1
+
+# Quick visual check of the recession indicator
+plot(NBER_recessions)
+plot(NBER_recessions,
+     main = "NBER US Recession Dating", axes = FALSE, type = "l",
+     xlab = "", ylab = "", col = "black", lwd = 1)
+axis(1, at    = c(1, 4 * 1:(length(NBER_recessions) / 4)),
+     labels = names(NBER_recessions)[c(1, 4 * 1:(length(NBER_recessions) / 4))])
+axis(2); box()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.5.2 Compare NBER Dating with Differenced Smoothers 
+# ─────────────────────────────────────────────────────────────────────────────
+
+# The recession indicator serves as the binary classification target
+target <- NBER_recessions
+
+# Build the ROC data matrix: binary target + first-differenced filter outputs.
+# First differences convert non-stationary levels to stationary growth signals
+# that can be thresholded to produce recession/expansion calls.
+ROC_data_all <- cbind(target, apply(output_mat[, c("I-SSA", "HP one-sided")], 2, diff))
+rownames(ROC_data_all) <- rownames(apply(output_mat, 2, diff))
+colnames(ROC_data_all) <- c("Target", colnames(output_mat[, c("I-SSA", "HP one-sided")]))
+
+# Restrict to post-2000 sub-sample for comparability with HT analysis and to
+# avoid the high-growth pre-2000 period, which has a different drift regime
+# (mitigate non-stationarity)
+ROC_data <- ROC_data_all[year_2000:nrow(ROC_data_all), ]
+head(ROC_data)
+tail(ROC_data)
+# Compare NBER datings with differenced nowcast smoothers: 
+#   Both nowcast smoothers track official NBER datings well
+ts.plot(scale(ROC_data),col=c("black","blue","red"),main="Recessions vs. differenced smoothers")
+mtext("I-SSA",col="blue",line=-1)
+mtext("HP one-sided",col="red",line=-2)
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.5.3 ROC AnalysisC
+# ─────────────────────────────────────────────────────────────────────────────
+smoothROC <- TRUE   # Apply smoothing to ROC curves for cleaner visualisation
+showROC   <- TRUE   # Display ROC plots
+lbls      <- "Hit"  # Axis label: hit rate (sensitivity) vs. false alarm rate
+lg_cex    <- 0.5    # Legend text size
+
+par(mfrow = c(1, 1))
+
+
+# Compute ROC curves and AUCs
+# Transform into a data frame (requested for ROC plot)
+ROC_data <- as.data.frame(ROC_data)
+
+# Plot ROC curves and compute AUC for each filter
+showLegend <- TRUE
+AUC <- ROCplots(ROC_data, showROC, main = "ROC Analysis: Recession Detection", lbls = lbls,
+                smoothROC, colours = NULL, lwd = 2,
+                showLegend, lg_cex = 1, lg_ncol = 1)
+
+# Summarise AUC values
+AUC_table <- AUC$AUC
+names(AUC_table) <- colnames(ROC_data[, c("I-SSA", "HP one-sided")])
+
+# AUC results: higher values indicate better recession discrimination
+AUC_table
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Take-Aways
@@ -1142,26 +1200,9 @@ box()
 #    macroeconomic monitoring — even when the underlying model is only an
 #    approximation of the true data-generating process.
 #
-# 4. However, real-time recession tracking by I-SSA suffers from more spurious
-#    alarms (false TPs) during longer expansions. 
-#
-# To address the last point, we now constrain the HT of I-SSA to match the 
-# frequency of TPs of the one-sided HP.
+# 4. A ROC analysis confirms that both nowcast smoothers track official NBER 
+#    datings fairly closely. 
 # ─────────────────────────────────────────────────────────────────────────────
-
-
-
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Exercise 5 Replicate TP-frequency of HP by SSA
-# ─────────────────────────────────────────────────────────────────────────────
-# This is once again unusal because we use I-SSA for series that are stationary.
-# 1. Define HP in diffs: HT in diffs = TP rate on level
-# 2. Specify I-SSA that targets cumsum(x_t)=eps_t on levels and imposes 
-#     HT on differences x_t=eps_t-eps_{t-1}
-# In contrast to exercise 2, the resulting I-SSA replicates TP-rate without 
-#   additional cumsum, is stationary and tracks eps_t optimally.
 
 
 
