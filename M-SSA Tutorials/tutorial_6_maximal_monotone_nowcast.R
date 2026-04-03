@@ -302,7 +302,7 @@ ts.plot(Xi[,1],main="Wold decomposition of ARMA(1,1)")
 
 HT_HP_obj<-compute_holding_time_func(Xi %*% hp_trend)
 
-# HT: expected duration (in quarters) between consecutive zero-crossings of the
+# HT: expected duration (in months) between consecutive mean-crossings of the
 #   filtered process, where the filter is described by the MA inversion Xi
 #   (in this application: an AR(1) process)
 HT_HP_obj$ht

@@ -320,7 +320,7 @@ MSSA_func<-function(split_grid,L,forecast_horizon_vec,grid_size,gammak_generic,r
 #     of lower_limit_nu (rhomax, 2, or 0) the search is over $|nu|>2$, $|nu>2rhomax|$ or all nu. However, in the latter case
 #     the function returns only one (of possibly many) solutions to the holding-time constraint. In such a case one should
 #     use 'brute force' grid search (in general this would require a pretty uncommon target with non-decaying coefficients)      
-      opt_obj<-fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func(split_grid,L,gammak_generic,rho1,forecast_horizon,xi,lower_limit_nu,Sigma,symmetric_target)
+      opt_obj<-fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_mssa_func(split_grid,L,gammak_generic,rho1,forecast_horizon,xi,lower_limit_nu,Sigma,symmetric_target)
 # rho_mat is NULL since we do not have criterion values for all grid-points on equidistant grid
 # It is assumed that solution is unique i.e. |nu|>02*rho_max      
       rho_mat<-NULL
@@ -334,7 +334,7 @@ MSSA_func<-function(split_grid,L,forecast_horizon_vec,grid_size,gammak_generic,r
 # rho_mat collects criterion value (correlation SSA with target), lag-one acf (holding-time) and corresponding nu
 # Ordering is such that first row correponds to nu which 1. maximizes criterion value and 2. minimizes deviation from holding-time
 # First row should be best overall solution in case of multiple solutions (if $|nu|<2*rho_max$) 
-# This is not used for fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func above because 
+# This is not used for fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_mssa_func above because 
 #   there it is assumed that solution is unique i.e. |nu|>02*rho_max      
       rho_mat<-cbind(rho_mat,opt_obj$rho_mat)
     }
@@ -421,7 +421,7 @@ MSSA_func<-function(split_grid,L,forecast_horizon_vec,grid_size,gammak_generic,r
 # w: spectral decomposition of target
 # nu_opt and lambda_opt: optimal nu and lambda  
 # var_target: variance-covariance of acausal target
-fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<-function(split_grid,L,gammak_generic,rho1,forecast_horizon,xi=NULL,lower_limit_nu="rhomax",Sigma=NULL,symmetric_target=F)
+fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_mssa_func<-function(split_grid,L,gammak_generic,rho1,forecast_horizon,xi=NULL,lower_limit_nu="rhomax",Sigma=NULL,symmetric_target=F)
 {
 
   if (!lower_limit_nu%in%c("rhomax","2","0"))
@@ -432,7 +432,7 @@ fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<
     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
   }
 # Triangulation is meaningful if solution to holding-time equation is unique: therefore we skip the case lower_limit_nu=0  
-# Note that the call to fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func checks already that lower_limit_nu!="0"  
+# Note that the call to fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_mssa_func checks already that lower_limit_nu!="0"  
   if (lower_limit_nu=="0")
   {
     print("lower_limit_nu==0 is not used for fast triangulation")

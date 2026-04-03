@@ -375,7 +375,7 @@ SSA_func<-function(L,forecast_horizon_vec,gammak_generic,rho1,xi=NULL,Sigma=NULL
 #   -This is much faster than grid-search (or much more precise for the same computation time)
 #   -Potential problem: it assumes |nu|>2 (i.e. nu=lambda+1/lambda and solution is unique)
 
-fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<-function(split_grid,L,gammak_generic,rho1,forecast_horizon,xi=NULL,lower_limit_nu="rhomax",Sigma=NULL)
+fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<-function(split_grid,L,gammak_generic,rho1,forecast_horizon,xi=NULL,lower_limit_nu="rhomax",Sigma=NULL,symmetric_target=F)
 {
 # Check lower_limit_nu: if is different from the three options one assumes standard setting rhomax: a Warning is printed  
   if (!lower_limit_nu%in%c("rhomax","2","0"))

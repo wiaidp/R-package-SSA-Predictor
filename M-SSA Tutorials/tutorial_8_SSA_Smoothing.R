@@ -1,19 +1,19 @@
-# This tutorial is under construction
-
 # ══════════════════════════════════════════════════════════════════════════════
-# Tutorial 8: M-SSA SMOOTHING
+# Tutorial 8: SSA SMOOTHING
 # ══════════════════════════════════════════════════════════════════════════════
-
+# This tutorial is about the univariate SSA in smoothing applications for 
+# stationary time series.
+# For extensions to non-stationary or multivariate series, see tutorial 9.
 
 # ──────────────────────────────────────────────────────────────────────────────
 # SMOOTHING VS. PREDICTION
 # ──────────────────────────────────────────────────────────────────────────────
-# M-SSA can target either acausal or causal objectives (which do not rely on 
+# SSA can target either acausal or causal objectives (which do not rely on 
 # future unknown observations), subject to a holding-time (HT) constraint:
 #
-#   • Acausal target → M-SSA acts as a PREDICTOR
+#   • Acausal target → SSA acts as a PREDICTOR
 #                      (the target lies in the future relative to t)
-#   • Causal target  → M-SSA acts as a SMOOTHER
+#   • Causal target  → SSA acts as a SMOOTHER
 #                      (the target lies at or before t)
 #
 # Previous tutorials emphasised prediction; this tutorial focuses on smoothing.
@@ -33,9 +33,9 @@
 # The smoothing target in this tutorial is x_{t + δ}, the value of the series
 # at lag −δ relative to the current time t, where −T ≤ δ ≤ 0.
 #
-#   • δ = 0  (nowcast)   : M-SSA produces a real-time estimate of x_t at t = T,
+#   • δ = 0  (nowcast)   : SSA produces a real-time estimate of x_t at t = T,
 #                          subject to the specified HT constraint.
-#   • δ < 0  (backcast)  : M-SSA produces a retrospective estimate of x_{t+δ},
+#   • δ < 0  (backcast)  : SSA produces a retrospective estimate of x_{t+δ},
 #                          exploiting observations up to t = T.
 #
 # Contrast with other estimation problems addressed in previous tutorials:
@@ -44,24 +44,24 @@
 #                          (e.g., the HP trend or an ideal low-pass trend),
 #                          rather than x_t itself.
 #
-# In principle, smoothing arises for any causal target specification in M-SSA.
-#   • When the target is the causal MSE predictor, M-SSA serves as its smoother 
+# In principle, smoothing arises for any causal target specification in SSA.
+#   • When the target is the causal MSE predictor, SSA serves as its smoother 
 #     (so-called customization).
 #
 # Selecting the identity target x_t (or x_{t+δ} with δ ≤ 0) in this tutorial 
-# isolates and reveals the INTRINSIC SMOOTHING PROPERTIES of M-SSA, unconfounded 
+# isolates and reveals the INTRINSIC SMOOTHING PROPERTIES of SSA, unconfounded 
 # by any pre-filtering introduced through an extraneous target specification 
 # (e.g., HP or ideal trend).
 #
 # ──────────────────────────────────────────────────────────────────────────────
-# M-SSA SMOOTHING CONCEPT
+# SSA SMOOTHING CONCEPT
 # ──────────────────────────────────────────────────────────────────────────────
-# M-SSA maximises tracking of a target — via maximum target correlation or
+# SSA maximises tracking of a target — via maximum target correlation or
 # maximum sign accuracy — subject to a HT constraint that specifies the mean
 # duration between consecutive mean-crossings (equivalently, zero-crossings
 # for a zero-mean series).
 #
-# Smoothing the original series x_t via M-SSA means:
+# Smoothing the original series x_t via SSA means:
 #
 #   • The smoothed output tracks x_t as closely as possible,
 #     subject to the HT constraint.
@@ -73,7 +73,7 @@
 #     than x_t — i.e., it is rougher than the original; this case is
 #     generally not of practical interest.
 #
-# What distinguishes M-SSA smoothing from classical approaches?
+# What distinguishes SSA smoothing from classical approaches?
 #
 # ──────────────────────────────────────────────────────────────────────────────
 # DATA-GENERATING PROCESS
@@ -82,15 +82,15 @@
 # differences (for an integrated process neither the mean nor the crossings are 
 # properly defined).
 #
-#   • M-SSA smoothing can be applied to non-stationary series, see example ???
+#   • SSA smoothing can be applied to non-stationary series, see example ???
 #   • But the HT constraint must be specified in stationary differences.
 #
-# The Wold decomposition of the (stationary) data x_t enters M-SSA via the
+# The Wold decomposition of the (stationary) data x_t enters SSA via the
 # function argument ξ (the variable "xi") and plays a central role in filter 
-# or smoother design. Incorporating the correct ξ into the M-SSA optimisation 
+# or smoother design. Incorporating the correct ξ into the SSA optimisation 
 # ensures:
 #
-#   a) Optimality      : M-SSA maximises tracking of x_{t + delta} (in terms
+#   a) Optimality      : SSA maximises tracking of x_{t + delta} (in terms
 #                        of target correlation or sign accuracy) for a
 #                        given HT constraint.
 #
@@ -102,12 +102,12 @@
 # compromised.
 #
 # Unlike classical smoothing procedures — which typically operate without an
-# explicit statistical model of the data — M-SSA incorporates a parametric
+# explicit statistical model of the data — SSA incorporates a parametric
 # model specified through ξ (the Wold decomposition).
 #
-# A model-free view analogous to classical smoothing is recovered in M-SSA
+# A model-free view analogous to classical smoothing is recovered in SSA
 # by omitting an explicit ξ specification. In this case, the implicit model
-# defaults to white noise, and M-SSA retains its optimality and interpretability
+# defaults to white noise, and SSA retains its optimality and interpretability
 # whenever the data are well-approximated by white noise — for example, when
 # x_t represents the first differences of a "typical" non-stationary economic
 # series (cf. Granger (1966): The Typical Spectral Shape of an Economic Variable. 
@@ -122,12 +122,12 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # SMOOTHNESS VIA THE HT CONSTRAINT
 # ──────────────────────────────────────────────────────────────────────────────
-# The holding-time (HT) constraint governs the smoothness of the M-SSA output:
+# The holding-time (HT) constraint governs the smoothness of the SSA output:
 #
-#   • HT > HT(x_t) : M-SSA yields a smoother estimate of x_{t+δ};
+#   • HT > HT(x_t) : SSA yields a smoother estimate of x_{t+δ};
 #                    mean-crossings occur less frequently than in the raw x_t.
 #
-#   • HT < HT(x_t) : M-SSA yields a noisier estimate of x_{t+δ};
+#   • HT < HT(x_t) : SSA yields a noisier estimate of x_{t+δ};
 #                    this regime is generally not of practical interest.
 #
 # The HT retains its natural interpretation as the mean duration between
@@ -169,7 +169,7 @@
 #              + lambda * sum_{t=d+1}^{T} ((1-B)^d * y_t)^2
 #
 # For d = 2, this yields the Hodrick–Prescott (HP) filter.
-# Throughout Tutorial 8, M-SSA is benchmarked against WH/HP (d = 2).
+# Throughout Tutorial 8, SSA is benchmarked against WH/HP (d = 2).
 #
 # While many different smoothing approaches exist, a common feature is that they
 # generally do not appeal to an explicit model of the data-generating process —
@@ -188,7 +188,7 @@
 # imprint extraneous structure on the output that may conflict with the
 # data-generating process.
 #
-# M-SSA, by contrast, is amorphous: smoothing is achieved by optimally tracking
+# SSA, by contrast, is amorphous: smoothing is achieved by optimally tracking
 # x_{t+delta} subject to a constraint on the lag-1 autocorrelation (equivalently,
 # the HT). A large lag-1 ACF enforces smoothness through memory alone — it does
 # not prescribe any particular shape (linear, polynomial, or cyclical) for the
@@ -207,7 +207,7 @@
 #   • HP maximizes tracking of x_t subject to a curvature constraint.
 #
 # ──────────────────────────────────────────────────────────────────────────────
-# Smoothing: M-SSA vs. HP
+# Smoothing: SSA vs. HP
 # ──────────────────────────────────────────────────────────────────────────────
 #
 #   • (M-)SSA controls smoothness in x_t via the holding-time (HT) constraint
@@ -219,13 +219,13 @@
 #     the series is zero-mean.
 #
 #   • When x_t = (1−B)I_t (first differences of a non-stationary level series),
-#     controlling the HT of x_t via M-SSA directly addresses the frequency of
+#     controlling the HT of x_t via SSA directly addresses the frequency of
 #     transitions between above- and below-average growth in I_t. If the mean of 
-#     x_t vanishes (or is small/negligible), M-SSA smoothing addresses turning 
+#     x_t vanishes (or is small/negligible), SSA smoothing addresses turning 
 #     points of I_t.
 #
 #   • Differences of typical economic series are close to white noise, the 
-#     default assumption in M-SSA when ξ is not explicitly specified. 
+#     default assumption in SSA when ξ is not explicitly specified. 
 #       
 # ══════════════════════════════════════════════════════════════════════════════
 # REFERENCES
@@ -597,15 +597,15 @@ sd(diff(hp_zc),  na.rm = TRUE)   # HP:  variability in zero-crossing spacing
 #
 #   Consider a business-cycle context, such as tracking recessions:
 #
-#   • US recessions are irregularly spaced: the double-dip recessions of the
-#     early 1980s were separated by roughly one year, whereas the subsequent
+#   • US recessions are fairly irregularly spaced: the double-dip recessions of 
+#     the early 1980s were separated by roughly one year, whereas the longer
 #     expansion during the Great Moderation (1990s) lasted approximately a
 #     decade.
 #   • Imposing a quasi-regular cyclical pattern — as HP's curvature constraint
 #     tends to do — conflicts with the inherent irregularity of business cycles.
-#   • In such a context, M-SSA imprints less extraneous structure on the output:
+#   • In such a context, SSA imprints less extraneous structure on the output:
 #     it accommodates large gaps between consecutive TPs whenever the underlying
-#     growth dynamics (which M-SSA tracks optimally) do not indicate an
+#     growth dynamics (which SSA tracks optimally) do not indicate an
 #     imminent reversal.
 #
 # ─────────────────────────────────────────────────────────────────────────────
@@ -680,7 +680,7 @@ acf(na.exclude(output_mat)[, 3], lag.max = 100, main = "HP")
 # Let x_t = I_t − I_{t−1}, where I_t is the relevant non-stationary level series.
 #
 #   • Zero-crossings of x_t correspond to turning points (TPs) in I_t.
-#   • M-SSA and HP produce different TP datings for I_t.
+#   • SSA and HP produce different TP datings for I_t.
 #   • Key question: which TP dating is more compatible with the
 #     data-generating process — and therefore more intrinsic?
 #
@@ -711,7 +711,7 @@ acf(na.exclude(output_mat)[, 3], lag.max = 100, main = "HP")
 #     difficulty extends to the TPs themselves: what predictive or informational
 #     content can be assigned to a turning point identified by a smoother whose
 #     curvature has been minimised by construction, rather than by reference to
-#     the data? For M-SSA, the answer is clear: each TP follows directly from
+#     the data? For SSA, the answer is clear: each TP follows directly from
 #     optimal tracking of growth in x_t — a criterion that is both
 #     operationally meaningful and data-driven.
 #
@@ -732,8 +732,8 @@ acf(na.exclude(output_mat)[, 3], lag.max = 100, main = "HP")
 #     zero-crossings — often only a single TP separates two crossings.
 #   • Consequently, each TP in HP serves as a reliable early warning of an
 #     imminent zero-crossing (direction reversal in I_t).
-#   • By contrast, M-SSA exhibits many TPs between consecutive zero-crossings,
-#     generating frequent false alarms: a TP in M-SSA is therefore a less
+#   • By contrast, SSA exhibits many TPs between consecutive zero-crossings,
+#     generating frequent false alarms: a TP in SSA is therefore a less
 #     reliable signal of an impending zero-crossing (TP in I_t). This reflects 
 #     the absence of extraneous structure imposed on the data.
 #
@@ -1153,11 +1153,11 @@ SSA_obj$crit_rhoy_target
 # remains valid even under non-invertibility.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2.1  Specify M-SSA Design Settings: b1=0 
+# 2.1  Specify SSA Design Settings: b1=0 
 # ─────────────────────────────────────────────────────────────────────────────
 Sigma            <- NULL   # Univariate design; identity covariance assumed
 symmetric_target <- FALSE  # Causal (one-sided) target filter
-gamma_target     <- 1      # Identity target: M-SSA tracks x_t = ε_t + b1*ε_{t-1}
+gamma_target     <- 1      # Identity target: SSA tracks x_t = ε_t + b1*ε_{t-1}
 
 # MA(1) parameter: x_t = ε_t + b1*ε_{t-1}
 #   b1 =  0  → white noise       (replicates Exercise 1.1)
@@ -1200,12 +1200,13 @@ ts.plot(hp_target_diff,
         main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2.3  Compute the M-SSA Filter (b1 = 0: white noise)
+# 2.3  Compute the SSA Filter (b1 = 0: white noise)
 # ─────────────────────────────────────────────────────────────────────────────
 # Notes:
 #   1. hp_target_diff enters only through rho1 (the HT constraint).
-#   2. When b1 ≠ 0, ξ must be supplied; otherwise M-SSA defaults to white noise.
+#   2. When b1 ≠ 0, ξ must be supplied; otherwise SSA defaults to white noise.
 #      When b1 = 0, supplying ξ is optional (white noise is the correct model).
+
 SSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1,
                      with_negative_lambda, xi)
 
@@ -1216,10 +1217,10 @@ bk_mat_diff_x <- SSA_obj$bk_x_mat
 bk_mat_diff <- SSA_obj$bk_mat
 
 # ── Visual inspection ─────────────────────────────────────────────────────────
-# When b1 = 0, M-SSA replicates Exercise 1.1: both HP and M-SSA are symmetric.
+# When b1 = 0, SSA replicates Exercise 1.1: both HP and SSA are symmetric.
 par(mfrow = c(2, 1))
 ts.plot(bk_mat_diff,
-        main = "M-SSA Filter Coefficients (HT matched to HP)")
+        main = "SSA Filter Coefficients (HT matched to HP)")
 ts.plot(hp_target_diff,
         main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
 
@@ -1227,8 +1228,8 @@ ts.plot(hp_target_diff,
 par(mfrow=c(1,1))
 ts.plot(cbind(bk_mat_diff_x, bk_mat_diff), col = c("blue", "red"),main=
 "SSA applied to x equals SSA applied to ε (both smoothers overlap)")
-mtext("M-SSA applied to x",  col = "blue", line = -1)
-mtext("M-SSA applied to ε",  col = "red",  line = -2)
+mtext("SSA applied to x",  col = "blue", line = -1)
+mtext("SSA applied to ε",  col = "red",  line = -2)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.4  Set b1 = -0.5
@@ -1246,7 +1247,7 @@ par(mfrow = c(1, 1))
 ts.plot(hp_target_diff,
         main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
 
-# Design the M-SSA filter (same notes as Section 2.3 apply)
+# Design the SSA filter (same notes as Section 2.3 apply)
 SSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1,
                      with_negative_lambda, xi)
 
@@ -1254,10 +1255,10 @@ bk_mat_diff_x <- SSA_obj$bk_x_mat   # Filter applied to x_t
 bk_mat_diff   <- SSA_obj$bk_mat     # Filter applied to ε_t
 
 # ── Visual inspection ─────────────────────────────────────────────────────────
-# For b1 = -0.5, both the M-SSA and HP filters are no longer symmetric.
+# For b1 = -0.5, both the SSA and HP filters are no longer symmetric.
 par(mfrow = c(2, 1))
 ts.plot(bk_mat_diff,
-        main = "M-SSA Filter Coefficients (HT matched to HP applied to MA(1) x_t)")
+        main = "SSA Filter Coefficients (HT matched to HP applied to MA(1) x_t)")
 ts.plot(hp_target_diff,
         main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
 
@@ -1265,8 +1266,8 @@ ts.plot(hp_target_diff,
 par(mfrow=c(1,1))
 ts.plot(cbind(bk_mat_diff_x, bk_mat_diff), col = c("blue", "red"),main=
           "SSA applied to x differs from SSA applied to ε")
-mtext("M-SSA applied to x_t",  col = "blue", line = -1)
-mtext("M-SSA applied to ε_t",  col = "red",  line = -2)
+mtext("SSA applied to x_t",  col = "blue", line = -1)
+mtext("SSA applied to ε_t",  col = "red",  line = -2)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.5  Set b1 = -0.9
@@ -1284,7 +1285,7 @@ par(mfrow = c(1, 1))
 ts.plot(hp_target_diff,
         main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
 
-# Design the M-SSA filter (same notes as Section 2.3 apply)
+# Design the SSA filter (same notes as Section 2.3 apply)
 SSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho1,
                      with_negative_lambda, xi)
 
@@ -1295,7 +1296,7 @@ bk_mat_diff   <- SSA_obj$bk_mat     # Filter applied to ε_t
 # For b1 = -0.9, both filters exhibit more pronounced asymmetry.
 par(mfrow = c(2, 1))
 ts.plot(bk_mat_diff,
-        main = "M-SSA Filter Coefficients (HT matched to HP applied to MA(1) x_t)")
+        main = "SSA Filter Coefficients (HT matched to HP applied to MA(1) x_t)")
 ts.plot(hp_target_diff,
         main = paste("Two-sided HP, b1 =", b1, ", HT =", round(ht1, 1)))
 
@@ -1303,10 +1304,10 @@ ts.plot(hp_target_diff,
 par(mfrow=c(1,1))
 ts.plot(cbind(bk_mat_diff_x, bk_mat_diff), col = c("blue", "red"),main=
           "SSA applied to x differs from SSA applied to ε")
-mtext("M-SSA applied to x_t",  col = "blue", line = -1)
-mtext("M-SSA applied to ε_t",  col = "red",  line = -2)
+mtext("SSA applied to x_t",  col = "blue", line = -1)
+mtext("SSA applied to ε_t",  col = "red",  line = -2)
 
-# Note: as b1 → -1, the right tail of the M-SSA filter decays progressively
+# Note: as b1 → -1, the right tail of the SSA filter decays progressively
 # more slowly, reflecting the increasing persistency required to compensate 
 # the near invertibility of the MA(1).
 
@@ -1918,27 +1919,6 @@ mtext("SSA nowcast smoother", col = "blue", line = -2)
 # bound of attainable holding times for a filter of length L.
 
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Exercise 4: I-SSA Smoothing on non-stationary levels
-# ══════════════════════════════════════════════════════════════════════════════
-# Similar to tutorial 6 but we target I_t instead of HP(I_t)
-
-# Exercise 4.1 Create exercise (random-walk???)
-
-
-
-# Exercise 4.2 Replicate TP-frequency of HP by SSA
-# This is once again unusal because we use I-SSA for series that are stationary.
-# 1. Define HP in diffs: HT in diffs = TP rate on level
-# 2. Specify I-SSA that targets cumsum(x_t)=eps_t on levels and imposes 
-#     HT on differences x_t=eps_t-eps_{t-1}
-# In contrast to exercise 2, the resulting I-SSA replicates TP-rate without 
-#   additional cumsum, is stationary and tracks eps_t optimally.
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Exercise 5: M-SSA Smoothing
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 
