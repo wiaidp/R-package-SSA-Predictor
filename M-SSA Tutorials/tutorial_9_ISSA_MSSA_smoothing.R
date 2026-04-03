@@ -1188,16 +1188,23 @@ AUC_table
 #
 # 2. Despite this model mismatch, I-SSA strongly outperforms the classical
 #    one-sided HP nowcast in terms of MSE tracking of the log-index, while
-#    maintaining similar smoothness in terms of HT in differences. The gain
-#    is driven by improved timeliness (a left-shift relative to the one-sided
-#    HP) and more accurate tracking of dynamic swings at business-cycle peaks 
-#    and troughs.
+#    maintaining comparable smoothness — as measured either by the HT of
+#    first differences or, equivalently, by an equal frequency of turning
+#    points (TPs) on levels. The MSE gain is driven by two complementary
+#    factors: improved timeliness (a left-shift of the filter output relative
+#    to the one-sided HP) and more accurate tracking of dynamic swings at
+#    business-cycle peaks and troughs.
 #
 # 3. The combination of reduced lag, superior MSE performance, and robust
 #    tracking of dynamic swings makes I-SSA a compelling, data-driven
 #    alternative to the classical one-sided HP smoother for real-time
-#    macroeconomic monitoring — even when the underlying model is only an
-#    approximation of the true data-generating process.
+#    macroeconomic monitoring. Unlike the HP filter — whose smoothness
+#    criterion explicitly penalises curvature (second-order differences) —
+#    I-SSA is amorphous in the sense that it does not impose aa extraneous 
+#    structural form on the extracted trend, allowing it to adapt more
+#    flexibly to the shape of the underlying signal by tracking non-stationary 
+#    levels. Importantly, these advantages persist even when the assumed model 
+#    (random walk) is only an approximation of the true data-generating process.
 #
 # 4. A ROC analysis confirms that both nowcast smoothers track official NBER 
 #    datings fairly closely. 
