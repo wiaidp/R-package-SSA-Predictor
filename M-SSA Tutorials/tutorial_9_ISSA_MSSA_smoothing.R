@@ -1074,7 +1074,7 @@ sq_se_dif  # RMSD2 for: raw series, I-SSA, one-sided HP, two-sided HP
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4.5 NBER Recession Detection: ROC Curves and AUC
+# 4.5 NBER Recession Detection
 # ─────────────────────────────────────────────────────────────────────────────
 # We evaluate the ability of each nowcast to detect NBER-dated recessions using
 # Receiver Operating Characteristic (ROC) curves and the Area Under the Curve
@@ -1108,7 +1108,6 @@ recession_dates <- c(
 NBER_recessions[recession_dates] <- 1
 
 # Quick visual check of the recession indicator
-plot(NBER_recessions)
 plot(NBER_recessions,
      main = "NBER US Recession Dating", axes = FALSE, type = "l",
      xlab = "", ylab = "", col = "black", lwd = 1)
