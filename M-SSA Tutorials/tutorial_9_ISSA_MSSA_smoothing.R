@@ -1161,6 +1161,8 @@ par(mfrow = c(1, 1))
 ROC_data <- as.data.frame(ROC_data)
 
 # Plot ROC curves and compute AUC for each filter
+# As expected (from previous plot), both nowcast smoothers track recession 
+# datings well in first differences.
 showLegend <- TRUE
 AUC <- ROCplots(ROC_data, showROC, main = "ROC Analysis: Recession Detection", lbls = lbls,
                 smoothROC, colours = NULL, lwd = 2,
