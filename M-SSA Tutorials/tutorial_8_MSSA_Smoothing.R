@@ -1873,7 +1873,7 @@ sq_se_dif
 # one-sided filter, which lacks the sharp central peak of the two-sided design.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3.6  Comparison With the HT-Maximizing Smoother
+# 3.6  Comparison With the HT-Maximizing Filter/Smoother
 # ─────────────────────────────────────────────────────────────────────────────
 # Extract M, the lag-one covariance generating matrix (see referenced articles
 # for background; it is also denoted M in those articles).
@@ -1906,8 +1906,10 @@ b_rho_max <- eigen_obj$vectors[, 1]
 compute_holding_time_func(b_rho_max)
 
 # Plot and compare the SSA nowcast smoother and b_rho_max
+# Both filter are standardized for easier visual inspection
 ts.plot(scale(cbind(eigen_obj$vectors[, 1], filt_mat[, ncol(filt_mat)])),
-        col = c("red", "blue"),main="SSA nowcast smoother vs. HT-maximizing filter/smoother")
+        col = c("red", "blue"),main="SSA nowcast smoother vs. HT-maximizing 
+        filter/smoother: both standardized",xlab="")
 mtext("HT-maximizing filter/smoother",           col = "red",  line = -1)
 mtext("SSA nowcast smoother", col = "blue", line = -2)
 
