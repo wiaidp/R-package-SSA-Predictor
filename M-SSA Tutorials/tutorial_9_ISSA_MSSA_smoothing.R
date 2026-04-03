@@ -1045,21 +1045,77 @@ compute_empirical_ht_func(scale(diff(y_hp_one)[year_2000:length(target)]))      
 # I-SSA is expected to exhibit larger curvature than the two-sided HP
 # but remain broadly comparable to the one-sided HP.
 
-output_mat_diff <- cbind(x, y_ssa, y_hp_one, y_hp_two)
+output_mat <- cbind(x, y_ssa, y_hp_one, y_hp_two)
 
 sq_se_dif <- sqrt(apply(
-  apply(apply(na.exclude(output_mat_diff), 2, diff), 2, diff)^2,
+  apply(apply(na.exclude(output_mat), 2, diff), 2, diff)^2,
   2, mean
 ))
 sq_se_dif  # RMSD2 for: raw series, I-SSA, one-sided HP, two-sided HP
 
 # Same but post 2000 data
 sq_se_dif <- sqrt(apply(
-  apply(apply(na.exclude(output_mat_diff[year_2000:length(target),]), 2, diff), 2, diff)^2,
+  apply(apply(na.exclude(output_mat[year_2000:length(target),]), 2, diff), 2, diff)^2,
   2, mean
 ))
 sq_se_dif  # RMSD2 for: raw series, I-SSA, one-sided HP, two-sided HP
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.5 Recession Tracking
+# ─────────────────────────────────────────────────────────────────────────────
+
+# We plot differences of the smoothers with vertical lines indicating zero-crossings 
+# of differences, i.e., turning points (TP) in levels: local max and min of the level tracker.
+mplot<-apply(output_mat[year_2000:length(target),-1],2,diff)
+colnames(mplot)<-c("I-SSA","HP one-sided","HP two-sided")
+rownames(mplot)<-as.character(index(y_xts))[(nrow(y_xts)-nrow(mplot)+1):nrow(y_xts)]
+colo<-c("blue","red","violet")
+plot(mplot[,1],
+     main="Recession tracking", axes=F, type="l", xlab="", ylab="",
+     col=colo[1], lwd=1,
+     ylim=c(min(na.exclude(mplot)), max(na.exclude(mplot))))
+mtext(colnames(mplot)[1], col=colo[1], line=-1)
+
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i], col=colo[i], lwd=1, lty=1)
+  mtext(colnames(mplot)[i], col=colo[i], line=-i)
+  abline(v=which(mplot[1:(nrow(mplot)-1),i]*mplot[2:(nrow(mplot)),i] <0),col=colo[i])
+  
+}
+abline(h=0)
+axis(1, at=c(1, 4*1:(nrow(mplot)/4)),
+     labels=rownames(mplot)[c(1, 4*1:(nrow(mplot)/4))])
+axis(2)
+box()
+
+# I-SSA reacts faster than the one-sided HP at cyclical turning points and
+# crisis episodes, but this timeliness comes at a cost: I-SSA also generates
+# spurious downturn signals during prolonged expansions. This is partly
+# attributable to the cyclical component embedded in the I-SSA filter design
+# (see the discussion in Tutorial 8).
+#
+# As documented in Tutorial 8, I-SSA produces a higher rate of turning-point
+# (TP) signals than the one-sided HP. To obtain a fairer comparison, we
+# constrain I-SSA to match the TP rate of the one-sided HP, penalising
+# excessive signal variability. This will require increased smoothness, 
+# potentially harming MSE performances and speed (advancement).
+#
+# The approach taken here differs from Exercise 2 of Tutorial 8 in terms of
+# the integration level at which each component operates:
+#
+# - HP filtering is applied to non-stationary log-levels of INDPRO.
+# - Turning points (TPs) are defined on the stationary first differences
+#   of the filter output.
+# - The holding-time (HT) constraint is likewise imposed on stationary
+#   first differences.
+#
+# In contrast, Tutorial 8 Exercise 2 operated one integration level lower:
+# HP was applied directly to a stationary series (white noise), and the HT
+# constraint was imposed on the non-invertible first differences of that
+# white-noise input — a fundamentally different setting that does not carry
+# over to the non-stationary, levels-based framework considered here.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Take-Aways
@@ -1085,6 +1141,12 @@ sq_se_dif  # RMSD2 for: raw series, I-SSA, one-sided HP, two-sided HP
 #    alternative to the classical one-sided HP smoother for real-time
 #    macroeconomic monitoring — even when the underlying model is only an
 #    approximation of the true data-generating process.
+#
+# 4. However, real-time recession tracking by I-SSA suffers from more spurious
+#    alarms (false TPs) during longer expansions. 
+#
+# To address the last point, we now constrain the HT of I-SSA to match the 
+# frequency of TPs of the one-sided HP.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
