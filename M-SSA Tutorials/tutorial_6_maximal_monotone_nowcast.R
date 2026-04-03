@@ -418,7 +418,8 @@ bk_obj <- bk_int_func(
   Xi_tilde,
   M,
   B,
-  gamma_tilde
+  gamma_tilde,
+  rho1
 )
 
 # Diagnostics
@@ -432,14 +433,8 @@ bk_obj$mse_yz*sigma_ip^2   # MSE with respect to MSE-optimal predictor (rescaled
 # Match the classic MSE predictor as close as possible under the HT constraint.
 
 
-# Extract filters
-b_x   <- bk_obj$b_x     # applied to data
-b_eps <- bk_obj$b_eps   # applied to innovations
-
-# If Xi = I, then b_x = b_eps
-par(mfrow = c(1, 2))
-ts.plot(b_eps, main = "b applied to epsilon")
-ts.plot(b_x,   main = "b applied to INDPRO")
+# Extract filter
+b_x   <- bk_obj$b_x     
 
 # Constraint checks
 sum(b_x) - sum(gamma_mse)     # cointegration (≈ 0): ensures a finite MSE on non-stationary levels

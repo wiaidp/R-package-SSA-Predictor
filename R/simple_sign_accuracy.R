@@ -1566,9 +1566,10 @@ spec_an_func<-function(SSA_obj,target,xi=NULL)
 # For lambda=0 the SSA transformation is an identity, i.e., bk=gamma_tilde
 # Xi is the Wold decomposition, Sigma is the summation (integration) operator (it is only used for computing target correlation); 
 # M is the autocovariance generating matrix; B is used for setting-up cointegration constraint
-bk_int_func<-function(lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)
+bk_int_func<-function(lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde,rho1)
 { #lambda1<-lambda_opt   lower_limit_nu<-lower_limit_nu_triangulation
   # Dimension checks  
+  rho1<-as.double(rho1)
   L<-dim(M)[1]
   if (length(gamma_mse)!=L)
   {
@@ -1586,21 +1587,22 @@ bk_int_func<-function(lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)
   {
     print(paste("dim(Xi_tilde) differs from L=",L,sep=""))
   }
-# First Cartesian basis vector for cointegration constraint, see section 6.2 technical paper  
+# First Cartesian basis vector for cointegration constraint, see section 5.3 technical paper  
   e1<-c(1,rep(0,L-1))
   e1
-# Cointegration constraint: sum of SSA coefficients should equal sum of MSE coefficients, see section 6.2 technical paper    
+# Cointegration constraint: sum of SSA coefficients should equal sum of MSE coefficients, see section 5.3 technical paper    
   Gamma0<-sum(gamma_mse)
-# Formula for bk given lambda under cointegration constraint, see section 6.2 technical paper    
+# Formula for bk given lambda under cointegration constraint, see section 5.3 technical paper    
   b_tilde<-solve(t(B)%*%t(Xi_tilde)%*%Xi_tilde%*%B+
                    lambda*t(B)%*%t(Xi)%*%(M-rho1*diag(rep(1,L)))%*%Xi%*%B)%*%
     (t(B)%*%t(Xi_tilde)%*%(gamma_tilde-Gamma0*Xi_tilde%*%e1)
      -lambda*Gamma0*t(B)%*%t(Xi)%*%(M-rho1*diag(rep(1,L)))%*%
        Xi%*%e1)
-# Derive b_x applied to original data from b_tilde, see section 6.2 technical paper  
-# This is also the same parameter which is applied to first differences of data in the synthetic stationary processes, see section 6.2 technical paper    
+# Derive b_x applied to original data from b_tilde, see section 5.3 technical paper  
+# This is also the same parameter which is applied to first differences of data in the synthetic stationary processes, see section 5.3 technical paper    
   b_x<-Gamma0*e1+B%*%b_tilde
-# Derive b_eps as applied epsilon: this is used to compute lag-one ACF rho_yy and MSE mse_yz of SSA below  
+# Derive b_eps as applied epsilon: this is used to compute lag-one ACF rho_yy and MSE mse_yz of SSA below
+# It is not relevant for filtering!
   b_eps<-Xi%*%b_x
   
 # Compute lag-one acf      
@@ -1623,13 +1625,14 @@ bk_int_func<-function(lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)
 # Numerical optimization then minimizes this gap
 b_optim<-function(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde,rho1)
 {
+  rho1<-as.double(rho1)
   if (abs(rho1)>1)
   {
     print(paste("Lag-one ACF rho1 is larger one in absolute value; rho1=",rho1,sep=""))
     return()
   } else
   {
-    return(abs(bk_int_func(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde)$rho_yy-rho1))
+    return(abs(bk_int_func(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde,rho1)$rho_yy-rho1))
   }
 }
 
@@ -1707,7 +1710,7 @@ compute_system_filters_func<-function(L,lambda_hp,a_vec,b_vec)
     M[i,]<-c(rep(0,i),0.5,rep(0,L-1-i))
   M<-M+t(M)
   M
-# Cointegration matrix, see section 6.2 technical paper  
+# Cointegration matrix, see section 5.3 technical paper  
   B<-rbind(rep(-1,L-1),diag(rep(1,L-1)))
   B
   return(list(B=B,M=M,gamma_tilde=gamma_tilde,gamma_mse=gamma_mse,Xi_tilde=Xi_tilde,Sigma=Sigma,Delta=Delta,Xi=Xi,hp_two=hp_two,hp_trend=hp_trend))

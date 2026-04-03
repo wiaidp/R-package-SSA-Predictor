@@ -541,7 +541,7 @@ round(p_mat_mssa_components_without_covid, 4)
 #-----------------------
 # Benchmark comparison: M-SSA based on the simpler VAR(1) model from tutorial 7.4
 # Load the corresponding p-value matrix for direct comparison.
-load(file = paste(getwd(), "/p_mat_mssa_components_without_covid_tutorial74", sep = ""))
+load(file = paste(getwd(), "/Results/p_mat_mssa_components_without_covid_tutorial74", sep = ""))
 round(p_mat_mssa_components_without_covid_tutorial74, 4)
 
 # Comparative findings — BVAR(3) vs. VAR(1):
@@ -598,7 +598,7 @@ round(rRMSE_mSSA_direct_mean,2)
 # M-SSA against the mean:
 round(rRMSE_mSSA_comp_mean_without_covid,2)
 # Compare with p-Values based on VAR(1), see Exercise 1.3 in tutorial 7.4
-load(file=paste(getwd(),"/rRMSE_mSSA_comp_mean_without_covid_tutorial74",sep=""))
+load(file=paste(getwd(),"/Results/rRMSE_mSSA_comp_mean_without_covid_tutorial74",sep=""))
 round(rRMSE_mSSA_comp_mean_without_covid_tutorial74,2)
 # Comparative findings — BVAR(3) vs. VAR(1):
 #
