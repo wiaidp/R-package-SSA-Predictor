@@ -1,4 +1,3 @@
-# This tutorial is under construction
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Tutorial 9: I-SSA and M-SSA SMOOTHING
