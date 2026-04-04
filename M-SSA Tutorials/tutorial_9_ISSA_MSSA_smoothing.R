@@ -277,6 +277,22 @@ axis(2); box()
 # under the given constraints. It therefore does not impose an extraneous
 # structural signature on the data-generating process.
 #
+# Moreover, the HT constraint itself is deliberately amorphous: rather than
+# favouring a particular functional form for the smoothed series (e.g.,
+# locally linear or polynomial trends), it operates on the first-order
+# autocorrelation structure of the filter output in first differences,
+# requiring it to be compliant with the prescribed smoothness level. Unlike
+# the curvature penalty of HP — which imposes a specific geometric shape on
+# the extracted trend — the HT constraint asks only that the smoother
+# exhibit sufficiently long memory, without prescribing how that memory
+# should be expressed in the shape of the output.
+#
+# In summary, the I-SSA smoother rests on a logically consistent and
+# statistically efficient design principle: smoothness is encoded as a
+# memory constraint on the filter output, and the filter coefficients are
+# chosen to minimise tracking error subject to that constraint — with no
+# extraneous structural assumptions imposed on the data-generating process.
+#
 # This stands in contrast to the HP filter, whose smoothness criterion —
 # minimising curvature via penalised second-order differences — is an
 # artificial structural requirement that is not derived from any optimality
@@ -293,6 +309,19 @@ axis(2); box()
 # closely as possible subject to a curvature penalty — confirming that the
 # smoothness penalty is ill-conditioned as a regularity device in this setting
 # (as well as in the context of stationary series examined in tutorial 8).
+#
+# Note: the curvature penalty of the HP filter is mean-squared optimal only
+# for a specific and narrow family of processes — namely ARIMA(0,2,2) models
+# whose moving-average coefficients are determined by the choice of lambda
+# (see Tutorial 2.0). This optimality result is therefore of limited practical
+# relevance: the implied ARIMA(0,2,2) specification is generally inconsistent
+# with the behaviour typically observed in macroeconomic time series. In
+# particular, an I(2) process implies that growth rates (first differences)
+# themselves follow a unit-root process and thus diverge over time — a
+# property that contradicts the bounded growth dynamics
+# characteristic of most economic data, including macroeconomic aggregates such 
+# as industrial production or GDP.
+
 #
 # Matching the HT of the one-sided HP in Exercise 3 below (i.e., imposing the
 # shorter, nowcast-compatible HT constraint on I-SSA) will magnify this
