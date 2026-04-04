@@ -132,6 +132,11 @@ ht1
 # ─────────────────────────────────────────────────────────────────────────────
 delta <- -(L - 1) / 2 - 1
 
+# Target in levels: we want to track the random walk x_t directly,
+# so the target filter is the identity (a unit spike at lag -delta).
+# This differs from Exercise 6, where the target was the one-sided HP of x_t.
+target_filter <- c(rep(0, -delta - 1), 1, rep(0, L + delta))
+
 # Target in first differences: apply the summation operator to the level
 # target filter. This yields a finite-length proxy of the effective
 # first-difference target used in optimisation. The proxy converges to the
@@ -292,24 +297,24 @@ axis(2); box()
 # (random walk):
 #
 # - The central bell-shaped mass of the I-SSA filter is more pronounced than
-#   that of the HP filter, concentrating weight on observations close to the
-#   nowcast point.
+#   that of the HP filter, concentrating more weight than HP on observations 
+#   close to the nowcast point (intuitively: better tracking).
 # - The absorbing side-lobes flanking the central mass are also stronger
-#   than those of HP, subject to the cointegration constraint that requires
-#   the filter coefficients to sum to one — ensuring the smoother tracks the
-#   non-stationary level (unit-root compatibility).
+#   than those of HP.
 #
 # We now compute and compare the tracking accuracy and smoothness of both
-# filter designs. The key hypothesis is as follows:
-#
-# For an identical HT in first differences — equivalently, for
-# an identical rate of turning points (TPs) on levels — I-SSA will track the
-# target x_{t+delta} more closely than HP, as measured by MSE. 
+# smoothers.  
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.4  Check Performances
 # ─────────────────────────────────────────────────────────────────────────────
+# The key hypothesis is as follows:
+#
+# For an identical HT in first differences — equivalently, for
+# an identical rate of turning points (TPs) on levels — I-SSA tracks the
+# target x_{t+delta} more closely than HP, as measured by MSE.
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 1.4.1  Apply Smoothers to Data
 # ─────────────────────────────────────────────────────────────────────────────
 # sides = 2 applies an acausal two-sided convolution, consistent with the
@@ -328,11 +333,10 @@ ts.plot(cbind(target, y_ssa, y_hp)[5000:5500, ], col = c("black", "blue", "viole
 # 1.4.2  Tracking Accuracy: MSE
 # ─────────────────────────────────────────────────────────────────────────────
 # MSE quantifies how closely each smoother tracks the target on average.
-# Expected result: I-SSA achieves a over 50% reduction of MSE under the same 
-# HT constraint.
 mse_ssa_smooth <- mean((target - y_ssa)^2, na.rm = TRUE)
 mse_hp_smooth  <- mean((target - y_hp)^2,  na.rm = TRUE)
 
+# Outcome: I-SSA achieves achieves a reduction in MSE of over 50% relative to HP.
 mse_hp_smooth   # HP  MSE (sample)
 mse_ssa_smooth  # I-SSA MSE (sample)
 
@@ -340,10 +344,11 @@ mse_ssa_smooth  # I-SSA MSE (sample)
 # Any discrepancy reflects Monte Carlo sampling variability.
 bk_obj$mse_yz   # Theoretical MSE under the cointegration constraint
 
-# I-SSA outperforms HP by approximately 50% in MSE reduction.
-
-# Note: target correlation and sign accuracy are not meaningful criteria for
-# non-stationary time series and are therefore omitted here.
+# Notes: 
+#   - Target correlation and sign accuracy are not meaningful criteria for
+#     non-stationary time series and are therefore omitted here.
+#   - Wildi (2026a) proposes pseudo target correlation and pseudo sign accuracy 
+#     based on finite MA-inversions on levels (omitted).
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.4.3  Smoothness
@@ -357,19 +362,24 @@ ht1                                     # Target HT (= HP holding time in first 
 compute_empirical_ht_func(diff(y_ssa))  # Empirical HT of I-SSA output (first differences)
 compute_empirical_ht_func(diff(y_hp))   # Empirical HT of HP  output (first differences)
 
-output_mat_diff <- cbind(x, y_ssa, y_hp)
 
 # 1.4.3.2  Curvature (Root Mean Squared Second-Order Differences)
 # ─────────────────────────────────────────────────────────────────────────────
+# Compute square root of mean-squared second order differences of the smoothers
+output_mat <- cbind(x, y_ssa, y_hp)
+
+sq_se_dif <- sqrt(apply(
+  apply(apply(na.exclude(output_mat), 2, diff), 2, diff)^2,
+  2, mean
+))
+sq_se_dif
+
+# Outcome: 
 # HP minimises curvature by construction (WH optimality) and therefore
 # exhibits slightly smaller RMSD2 than I-SSA under the same HT constraint.
 # In contrast to Tutorial 8, the difference in curvature is less pronounced
 # here, reflecting the smoother weight profile of I-SSA on non-stationary data.
-sq_se_dif <- sqrt(apply(
-  apply(apply(na.exclude(output_mat_diff), 2, diff), 2, diff)^2,
-  2, mean
-))
-sq_se_dif
+  
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Take-Aways
@@ -699,10 +709,10 @@ compute_empirical_ht_func(diff(y_hp_one)) # Empirical HT of one-sided HP output 
 # exhibits slightly smaller RMSD2 than I-SSA under the same HT constraint.
 # In contrast to Tutorial 8, the difference is less pronounced here.
 
-output_mat_diff <- cbind(x, y_ssa, y_hp_one, y_hp_two)
+output_mat <- cbind(x, y_ssa, y_hp_one, y_hp_two)
 
 sq_se_dif <- sqrt(apply(
-  apply(apply(na.exclude(output_mat_diff), 2, diff), 2, diff)^2,
+  apply(apply(na.exclude(output_mat), 2, diff), 2, diff)^2,
   2, mean
 ))
 sq_se_dif
@@ -935,19 +945,20 @@ compute_empirical_ht_func(diff(y_ssa))    # Empirical HT of I-SSA output
 compute_empirical_ht_func(diff(y_hp_two)) # Empirical HT of two-sided HP output (much larger)
 compute_empirical_ht_func(diff(y_hp_one)) # Empirical HT of one-sided HP output (should match ht1)
 
-output_mat_diff <- cbind(x, y_ssa, y_hp_one, y_hp_two)
 
 # 3.3.3.2  Curvature (Root Mean Squared Second-Order Differences)
 # ─────────────────────────────────────────────────────────────────────────────
-# The two-sided HP achieves the smallest curvature by construction (WH optimality).
-# I-SSA exhibits slightly larger curvature than the one-sided HP but remains
-# comparable (in contrast to bigger differences in tutorial 6).
+output_mat <- cbind(x, y_ssa, y_hp_one, y_hp_two)
 sq_se_dif <- sqrt(apply(
-  apply(apply(na.exclude(output_mat_diff), 2, diff), 2, diff)^2,
+  apply(apply(na.exclude(output_mat), 2, diff), 2, diff)^2,
   2, mean
 ))
 sq_se_dif
 
+# Outcome:
+# The two-sided HP achieves the smallest curvature by construction (WH optimality).
+# I-SSA exhibits slightly larger curvature than the one-sided HP but remains
+# comparable (in contrast to bigger differences in tutorial 6).
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Take-Aways
