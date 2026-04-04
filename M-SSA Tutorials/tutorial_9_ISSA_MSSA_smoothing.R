@@ -132,17 +132,41 @@ ht1
 # ─────────────────────────────────────────────────────────────────────────────
 delta <- -(L - 1) / 2 - 1
 
-# Target in levels: we want to track the random walk x_t directly,
-# so the target filter is the identity (a unit spike at lag -delta).
-# This differs from Exercise 6, where the target was the one-sided HP of x_t.
-target_filter <- c(rep(0, -delta - 1), 1, rep(0, L + delta))
-
-# Target in first differences: apply the summation operator to the level target.
-# This is a finite-length proxy of the effective first-difference target used
-# in optimisation. The proxy is equivalent to the effective target when L is
-# sufficiently large, because MA coefficients decay fast enough under the
-# cointegration constraint (see Section 5.3 in Wildi 2026a for details).
+# Target in first differences: apply the summation operator to the level
+# target filter. This yields a finite-length proxy of the effective
+# first-difference target used in optimisation. The proxy converges to the
+# true target as filter length L grows, because MA coefficients decay
+# sufficiently fast under the cointegration constraint (see Section 5.3 in
+# Wildi 2026a for details).
 target_filter_diff <- cumsum(target_filter)
+
+# The following code in curly brackets is shown for completeness.
+if (F)
+{
+# The following generalises the cumsum above to cases where the Wold
+# decomposition Xi is no longer white noise.
+# - In the random-walk case, both expressions are equivalent.
+# - In all other cases, the expression below applies; using cumsum alone
+#   would yield an incorrect result.
+# - Background: we need a finite MA-inversion of the target on levels: this 
+#   is obtained by the convolution of the Wold-decomposition with the 
+#   integrator. The finite-length convolution can be obtained through the 
+#   matrix product Xi_tilde %*% target_filter where Xi_tilde <- (Sigma) %*% Xi,
+#   see Wildi 2026a, section 5.3.
+#
+# Notes:
+# - Sigma is the finite-length summation (integration) operator that maps
+#   first differences back to levels.
+# - A finite-length integrator suffices here because:
+#     a) target_filter_diff is used solely for optimisation, not for
+#        effective smoothing of the data.
+#     b) For optimisation purposes, the relevant MA-inversion decays
+#        rapidly to zero under the cointegration constraint.
+#     c) The cointegration constraint is invisible here: it is implemented 
+#        directly and automatically within the function bk_int_func().
+  Xi_tilde <- (Sigma) %*% Xi
+  target_filter_diff <- Xi_tilde %*% target_filter
+}
 
 par(mfrow = c(2, 1))
 ts.plot(target_filter,
@@ -301,7 +325,8 @@ ts.plot(cbind(target, y_ssa, y_hp)[5000:5500, ], col = c("black", "blue", "viole
 # 1.4.2  Tracking Accuracy: MSE
 # ─────────────────────────────────────────────────────────────────────────────
 # MSE quantifies how closely each smoother tracks the target on average.
-# Expected result: I-SSA achieves a lower MSE than HP under the same HT constraint.
+# Expected result: I-SSA achieves a over 50% reduction of MSE under the same 
+# HT constraint.
 mse_ssa_smooth <- mean((target - y_ssa)^2, na.rm = TRUE)
 mse_hp_smooth  <- mean((target - y_hp)^2,  na.rm = TRUE)
 
