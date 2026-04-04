@@ -1,8 +1,13 @@
-
 # ══════════════════════════════════════════════════════════════════════════════
 # Tutorial 9: I-SSA and M-SSA SMOOTHING
 # ══════════════════════════════════════════════════════════════════════════════
 
+# This tutorial extends the I-SSA smoothing framework in two directions:
+# from univariate stationary processes (Tutorial 8) to non-stationary
+# processes (I-SSA: Exercises 1–4), and further to multivariate smoothing
+# applications (M-SSA: Exercise 5). For a comprehensive discussion of the
+# distinction between smoothing and prediction, the reader is referred
+# to Tutorial 8.
 
 # ══════════════════════════════════════════════════════════════════════════════
 # REFERENCES
