@@ -161,9 +161,12 @@ if (F)
 #     a) target_filter_diff is used solely for optimisation, not for
 #        effective smoothing of the data.
 #     b) For optimisation purposes, the relevant MA-inversion decays
-#        rapidly to zero under the cointegration constraint.
+#        rapidly to zero under the cointegration constraint (hence a 
+#        finite-length target is sufficient).
 #     c) The cointegration constraint is invisible here: it is implemented 
-#        directly and automatically within the function bk_int_func().
+#        directly and automatically within the function bk_int_func(). The 
+#        constraint warrants a finite MSE even though non-stationary levels 
+#        may diverge asymptotically.
   Xi_tilde <- (Sigma) %*% Xi
   target_filter_diff <- Xi_tilde %*% target_filter
 }
