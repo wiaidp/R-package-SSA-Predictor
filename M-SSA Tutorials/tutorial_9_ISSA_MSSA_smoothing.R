@@ -79,6 +79,18 @@ x   <- cumsum(eps)
 
 # Filter design parameters
 L         <- 201
+# HP Lambda Selection:
+# Lambda is the penalty weight assigned to the curvature term in the
+# Whittaker-Henderson (WH/HP) graduation criterion (see Tutorials 2.0 and 8).
+# A larger lambda enforces greater smoothness at the cost of reduced fidelity
+# to the observed series; a smaller lambda allows the trend to track the data
+# more closely at the cost of increased roughness.
+#
+# The conventional value of 14,400 is the standard choice for monthly time
+# series, calibrated to yield a trend extraction broadly equivalent to that
+# of the HP filter applied to quarterly data with lambda = 1,600.
+# Exercise 5 will apply the resulting HP and I-SSA smoothers to the monthly
+# US Industrial Production Index (INDPRO).
 lambda_hp <- 14400
 
 # Compute system matrices and filters
@@ -234,26 +246,57 @@ for (i in 1:ncol(mplot)) {
 axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
 
-# Zoom in on a 100-lag window centred on -delta
-mplot <- mplot[(-delta - 50):(-delta + 50), ]
+# Zoom in on a 2*width-lag window centred on -delta
+width<-80
+mplot_short <- mplot[(-delta - width):(-delta + width), ]
 
-plot(mplot[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
-     ylim = c(min(mplot), max(mplot[, "I-SSA"])), ylab = "", xlab = "Lags")
+plot(mplot_short[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
+     ylim = c(min(mplot_short), max(mplot_short[, "I-SSA"])), ylab = "", xlab = "Lags")
 abline(h = 0)
-for (i in 1:ncol(mplot)) {
-  lines(mplot[, i], col = colo[i])
-  mtext(colnames(mplot)[i], line = -i, col = colo[i])
+for (i in 1:ncol(mplot_short)) {
+  lines(mplot_short[, i], col = colo[i])
+  mtext(colnames(mplot_short)[i], line = -i, col = colo[i])
 }
-axis(1, at = 1:101, labels = (-delta - 50):(-delta + 50))
+axis(1, at = 1:(2*width+1), labels = (-delta - width):(-delta + width))
 axis(2); box()
 
-# Unlike the SSA smoother in Tutorial 8 (which targets stationary series),
-# I-SSA adopts a cyclical shape when applied to a non-stationary series
-# (random walk). This reflects the strong low-frequency content of the random
-# walk: to track x_{t+delta} optimally, I-SSA emphasizes low frequencies
-# accordingly. We now verify sample performance: I-SSA should outperform HP
-# in terms of MSE and match HP in terms of HT in first differences.
-
+# Unlike the SSA smoother in Tutorial 8 — which targets stationary series —
+# I-SSA adopts a distinctive shape when applied to a non-stationary input
+# (random walk):
+#
+# - The central bell-shaped mass of the I-SSA filter is more pronounced than
+#   that of the HP filter, concentrating weight on observations close to the
+#   nowcast point.
+# - The absorbing side-lobes flanking the central mass are also stronger
+#   than those of HP, subject to the cointegration constraint that requires
+#   the filter coefficients to sum to one to track the non-stationary level
+#   (unit-root compatibility).
+#
+# Crucially, this particular filter shape is not an arbitrary design choice
+# but the direct consequence of optimising tracking accuracy of x_{t+delta}
+# under the given constraints. It therefore does not impose an extraneous
+# structural signature on the data-generating process.
+#
+# This stands in contrast to the HP filter, whose smoothness criterion —
+# minimising curvature via penalised second-order differences — is an
+# artificial structural requirement that is not derived from any optimality
+# condition with respect to tracking accuracy. By enforcing minimal curvature,
+# HP prioritises a particular FORM of smoothness over FIDELITY to the
+# underlying level of the series, rather than optimally tracking x_{t+delta}
+# as I-SSA does.
+#
+# Although both smoothers look similar, we show that this
+# unnecessary structural imprint is responsible for a MSE that is roughly
+# 100% larger than that of I-SSA. Interestingly, this loss directly
+# contradicts the stated objective of the Whittaker-Henderson (WH/HP)
+# optimisation criterion, which aims to approximate the target level as
+# closely as possible subject to a curvature penalty — confirming that the
+# smoothness penalty is ill-conditioned as a regularity device in this setting
+# (as well as in the context of stationary series examined in tutorial 8).
+#
+# Matching the HT of the one-sided HP in Exercise 3 below (i.e., imposing the
+# shorter, nowcast-compatible HT constraint on I-SSA) will magnify this
+# discrepancy further, widening the performance gap between HP and I-SSA.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.4  Check Performances
