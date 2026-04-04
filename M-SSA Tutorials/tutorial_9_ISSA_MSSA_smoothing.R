@@ -261,7 +261,7 @@ axis(1, at = 1:(2*width+1), labels = (-delta - width):(-delta + width))
 axis(2); box()
 
 # Unlike the SSA smoother in Tutorial 8 — which targets stationary series —
-# I-SSA adopts a distinctive shape when applied to a non-stationary input
+# I-SSA adopts a distinct shape when applied to a non-stationary input
 # (random walk):
 #
 # - The central bell-shaped mass of the I-SSA filter is more pronounced than
@@ -269,63 +269,15 @@ axis(2); box()
 #   nowcast point.
 # - The absorbing side-lobes flanking the central mass are also stronger
 #   than those of HP, subject to the cointegration constraint that requires
-#   the filter coefficients to sum to one to track the non-stationary level
-#   (unit-root compatibility).
+#   the filter coefficients to sum to one — ensuring the smoother tracks the
+#   non-stationary level (unit-root compatibility).
 #
-# Crucially, this particular filter shape is not an arbitrary design choice
-# but the direct consequence of optimising tracking accuracy of x_{t+delta}
-# under the given constraints. It therefore does not impose an extraneous
-# structural signature on the data-generating process.
+# We now compute and compare the tracking accuracy and smoothness of both
+# filter designs. The key hypothesis is as follows:
 #
-# Moreover, the HT constraint itself is deliberately amorphous: rather than
-# favouring a particular functional form for the smoothed series (e.g.,
-# locally linear or polynomial trends), it operates on the first-order
-# autocorrelation structure of the filter output in first differences,
-# requiring it to be compliant with the prescribed smoothness level. Unlike
-# the curvature penalty of HP — which imposes a specific geometric shape on
-# the extracted trend — the HT constraint asks only that the smoother
-# exhibit sufficiently long memory, without prescribing how that memory
-# should be expressed in the shape of the output.
-#
-# In summary, the I-SSA smoother rests on a logically consistent and
-# statistically efficient design principle: smoothness is encoded as a
-# memory constraint on the filter output, and the filter coefficients are
-# chosen to minimise tracking error subject to that constraint — with no
-# extraneous structural assumptions imposed on the data-generating process.
-#
-# This stands in contrast to the HP filter, whose smoothness criterion —
-# minimising curvature via penalised second-order differences — is an
-# artificial structural requirement that is not derived from any optimality
-# condition with respect to tracking accuracy. By enforcing minimal curvature,
-# HP prioritises a particular FORM of smoothness over FIDELITY to the
-# underlying level of the series, rather than optimally tracking x_{t+delta}
-# as I-SSA does.
-#
-# Although both smoothers look similar, we show that this
-# unnecessary structural imprint is responsible for a MSE that is roughly
-# 100% larger than that of I-SSA. Interestingly, this loss directly
-# contradicts the stated objective of the Whittaker-Henderson (WH/HP)
-# optimisation criterion, which aims to approximate the target level as
-# closely as possible subject to a curvature penalty — confirming that the
-# smoothness penalty is ill-conditioned as a regularity device in this setting
-# (as well as in the context of stationary series examined in tutorial 8).
-#
-# Note: the curvature penalty of the HP filter is mean-squared optimal only
-# for a specific and narrow family of processes — namely ARIMA(0,2,2) models
-# whose moving-average coefficients are determined by the choice of lambda
-# (see Tutorial 2.0). This optimality result is therefore of limited practical
-# relevance: the implied ARIMA(0,2,2) specification is generally inconsistent
-# with the behaviour typically observed in macroeconomic time series. In
-# particular, an I(2) process implies that growth rates (first differences)
-# themselves follow a unit-root process and thus diverge over time — a
-# property that contradicts the bounded growth dynamics
-# characteristic of most economic data, including macroeconomic aggregates such 
-# as industrial production or GDP.
-
-#
-# Matching the HT of the one-sided HP in Exercise 3 below (i.e., imposing the
-# shorter, nowcast-compatible HT constraint on I-SSA) will magnify this
-# discrepancy further, widening the performance gap between HP and I-SSA.
+# For an identical HT in first differences — equivalently, for
+# an identical rate of turning points (TPs) on levels — I-SSA will track the
+# target x_{t+delta} more closely than HP, as measured by MSE. 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.4  Check Performances
@@ -417,7 +369,103 @@ sq_se_dif
 #    criterion. Both approaches are logically consistent, statistically
 #    efficient, and data-driven: neither imprints extraneous structure on the
 #    smoothed output.
+#
 # ─────────────────────────────────────────────────────────────────────────────
+# DISCUSSION
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# The following analysis  extends and complements the discussion on smoothing 
+# provided in tutorial 8.
+# 
+# Optimality:
+# ─────────────────────────────────────────────────────────────────────────────
+# The I-SSA smoother shape in the above plot is not an arbitrary design choice 
+# but the direct consequence of optimising tracking accuracy of x_{t+delta} 
+# under the given (HT and cointegration) constraints. In particular, it does 
+# not impose an extraneous structural signature on the data-generating process.
+#
+# Minimally Invasive (Amorphous) Smoothness Constraint:
+# ─────────────────────────────────────────────────────────────────────────────
+# The HT constraint is amorphous in the sense that it does not favour any
+# particular functional form for the smoothed series (e.g., locally linear,
+# polynomial, or spline-based trends). Instead, it operates indirectly by
+# regulating the first-order autocorrelation structure of the filter output
+# in first differences, requiring it to comply with a prescribed memory
+# level — and nothing more.
+#
+# The HT constraint asks that the smoother exhibit sufficiently long memory 
+# between direction changes, without prescribing how that memory should manifest 
+# in the shape of the output.
+#
+# As a result, the HT constraint is minimally invasive: it enforces the
+# desired degree of smoothness while leaving the smoother free to determine
+# the optimal shape of the trend from the data — introducing no structural
+# assumptions beyond those already embedded in the target specification 
+# (the identity) and the cointegration constraint (cancellation of the 
+# unit root).
+#
+# Knowing the Data-Generating Process (DGP)
+# ─────────────────────────────────────────────────────────────────────────────
+# A potential — and admittedly unfair — advantage of I-SSA over HP is that
+# the I-SSA filter is optimised under knowledge of the true DGP. In the
+# exercises above, this DGP was assumed to be a random walk.
+#
+# We argue, however, that this knowledge is not essential in practice,
+# because most macroeconomic time series exhibit dynamics that are broadly
+# consistent with a random-walk approximation.
+#
+# To substantiate this claim, we apply the I-SSA filter optimised for the
+# random walk — without any re-fitting or adjustment — directly to the
+# monthly US Industrial Production Index (INDPRO), an important real-sector
+# business-cycle indicator, see exercise 4.
+#
+# While INDPRO deviates from a pure random walk (the series is
+# smoother and more regular, exhibiting positive serial correlation in
+# growth rates), the practical impact of this misspecification is limited:
+# the empirical rate of TPs differs slightly from the theoretically
+# expected rate (bias) under the random-walk assumption.
+#
+# Crucially, the TP-rate bias introduced by the random-walk misspecification
+# affects both HP and I-SSA equally — it is a shared consequence of applying
+# filters calibrated under one DGP to data generated by another. Despite
+# this common bias, I-SSA outperforms HP in terms of MSE for an equivalent
+# rate of turning points, confirming that the performance advantage of I-SSA
+# is robust to moderate deviations from the assumed random-walk dynamics.
+#
+# Interpretability:
+# ─────────────────────────────────────────────────────────────────────────────
+# The HT constraint in first differences regulates the rate of turning points
+# (TPs) of the smoother in levels:
+#
+# - TPs mark potentially important events in the evolution of a time series,
+#   such as business-cycle peaks and troughs.
+#
+# - I-SSA anchors TPs to the criterion of optimally tracking the level of
+#   the series — a logically compelling and statistically grounded approach
+#   that ties signal features directly to the data-generating process.
+#
+# - As demonstrated in Tutorial 8, for an identical TP rate, TPs derived
+#   from minimising curvature (HP) are more evenly spaced in time than those
+#   derived from optimal tracking of the series level (I-SSA). This spurious
+#   regularity is an artifact of the curvature constraint: by penalising
+#   second-order differences, HP imposes a quasi-periodic rhythm on the
+#   extracted trend that reflects the filter's structural bias rather than
+#   any genuine feature of the underlying data-generating process.
+#
+# In a Nutshell:
+# ─────────────────────────────────────────────────────────────────────────────
+# I-SSA rests on a logically consistent and statistically efficient 
+# design principle: smoothness is encoded as an amorphous memory constraint
+# on the smoother, and the coefficients are chosen to minimise
+# tracking error subject to that constraint — with no artificial structural
+# assumptions imposed on the data-generating process.
+#
+#
+# Nowcasting:
+# Matching the HT of the one-sided HP in Exercises 3 & 4 (i.e., imposing the
+# shorter, nowcast-compatible HT constraint on I-SSA) will magnify the 
+# discrepancy between HP and I-SSA further, widening the performance gap 
+# between HP and I-SSA.
 
 
 
