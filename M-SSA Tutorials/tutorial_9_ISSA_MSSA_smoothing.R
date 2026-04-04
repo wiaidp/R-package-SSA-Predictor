@@ -1415,7 +1415,7 @@ AUC_table
 #   - Specific research objectives that motivate a particular TP frequency
 #     (e.g., high-frequency trading versus long-term systematic investment).
 #
-# Alternatively, HT can be calibrated against a benchmark smoother — such as
+# Alternatively, the HT can be calibrated against a benchmark smoother — such as
 # HP, as in the above exercises. In this case, I-SSA replicates the TP rate
 # of the benchmark while tracking the underlying series more closely,
 # yielding a trend that can be viewed as a refined counterpart to the
@@ -1423,17 +1423,13 @@ AUC_table
 # imprint on the smoothing outcome. I-SSA can equally be used to deliberately
 # lengthen or shorten the HT relative to a chosen benchmark.
 #
-# Finally, rather than tracking the raw data x_{t+delta}, I-SSA can be
-# directed to track a target trend, see tutorial 6. Modifying filter 
+# Finally, rather than tracking the raw data x_{t+delta} (smoothing), I-SSA can 
+# be directed to track a target trend, see tutorial 6. Modifying filter 
 # characteristics in this way is referred to as customisation (see previous 
 # exercises). In this case, the I-SSA trend inherits its meaning and 
 # interpretation directly from the benchmark, by virtue of optimal tracking. 
 # It should be noted, however, that customisation is generally not a 
 # smoothing exercise but a prediction exercise.
-
-
-
-
 
 
 # ══════════════════════════════════════════════════════════════════════════════
