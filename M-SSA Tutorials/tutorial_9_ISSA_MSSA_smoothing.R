@@ -432,6 +432,24 @@ sq_se_dif
 # rate of turning points, confirming that the performance advantage of I-SSA
 # is robust to moderate deviations from the assumed random-walk dynamics.
 #
+# Two natural default settings can be distinguished based on the dynamics of 
+# the target series:
+#
+# - Smoothing of stationary (differenced) series emphasises trend growth.
+#   In this setting, we recommend the white-noise hypothesis as the default
+#   DGP, as illustrated in Tutorial 8.
+#
+# - Smoothing of non-stationary (trending) series emphasises trend level.
+#   In this setting, we recommend the random-walk as the default DGP,
+#   as applied throughout the present exercises.
+#
+# In both cases, the default model can be replaced by a model fitted directly
+# to the data. Doing so serves two purposes: it can further improve filter
+# performance by better capturing the true dependence structure of the series,
+# and it ensures that sample-based performance estimates (e.g., empirical MSE,
+# target correlation, sign accuracy and HT) converge towards their 
+# theoretical expected values (unbiasedness).
+#
 # Interpretability:
 # ─────────────────────────────────────────────────────────────────────────────
 # The HT constraint in first differences regulates the rate of turning points
