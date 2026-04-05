@@ -8,8 +8,35 @@
 # distinction between smoothing and prediction, the reader is referred
 # to Tutorial 8.
 
-# NOVELTY: We shall introduce a NEW TREND definition, the I-SSA TREND, based on 
-# I-SSA smoothing.
+# ─────────────────────────────────────────────────────────────────────────────
+# The I-SSA Trend: A New Definition
+# ─────────────────────────────────────────────────────────────────────────────
+# We introduce a new trend concept — the I-SSA trend — grounded in the
+# I-SSA smoothing framework. It is distinguished from classical trend
+# definitions by the following key properties:
+#
+# - Minimal structural imposition: the shape of the I-SSA trend is
+#   determined entirely by the data and the holding-time (HT) constraint.
+#   No artificial structure is imposed on the data-generating process,
+#   and no idealised appearance is prescribed for the smoothed series.
+#
+# - Economically meaningful turning points (TPs): TPs of a trend component
+#   typically signal important transitions in the underlying process and
+#   are directly relevant to decision makers. The HT constraint governs
+#   the frequency of such TPs in a transparent and interpretable way,
+#   linking the smoothing outcome directly to substantive prior knowledge
+#   about cycle length or specific research objectives.
+#
+# - Logical consistency and statistical efficiency: the I-SSA trend
+#   complies with the imposed TP frequency while tracking the
+#   non-stationary data as closely as possible. This dual requirement —
+#   respecting the smoothness constraint and minimising tracking error —
+#   yields a trend design that is both logically consistent and
+#   statistically efficient.
+#
+# Taken together, these properties make the I-SSA trend a compelling
+# alternative to classical trend definitions.
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # REFERENCES
