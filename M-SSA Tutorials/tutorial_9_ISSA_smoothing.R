@@ -24,18 +24,19 @@
 #   typically signal important transitions in the underlying process and
 #   are directly relevant to decision makers. The HT constraint governs
 #   the frequency of such TPs in a transparent and interpretable way,
-#   linking the smoothing outcome directly to substantive prior knowledge
-#   about cycle length or specific research objectives.
+#   linking the smoothing outcome directly to specific research objectives
+#   e.g., business-cycle analysis (crisis tracking) or algorithmic trading.
 #
 # - Logical consistency and statistical efficiency: the I-SSA trend
 #   complies with the imposed TP frequency while tracking the
 #   non-stationary data as closely as possible. This dual requirement —
-#   respecting the smoothness constraint and minimising tracking error —
+#   respecting the TP frequency and minimising tracking error —
 #   yields a trend design that is both logically consistent and
 #   statistically efficient.
 #
 # Taken together, these properties make the I-SSA trend a compelling
-# alternative to classical trend definitions.
+# alternative to classical trend definitions (HP, ideal trend, 
+# canonical trend or Wiener Kolmogorov trend extraction).
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -429,18 +430,11 @@ sq_se_dif
 #    constraint, as expected from WH optimality. The gap is less pronounced
 #    here than in Tutorial 8.
 #
-# 3. Unlike SSA smoothing applied to white noise (Tutorial 8), I-SSA smoothing
-#    of a non-stationary level sequence adopts a cyclical shape. This reflects
-#    the strong low-frequency content of the random walk: I-SSA emphasizes low
-#    frequencies in order to track x_{t+delta} optimally.
-#
-# 4. In contrast to Tutorial 8, I-SSA targets the non-stationary level x_t
+# 3. I-SSA targets the non-stationary level x_t
 #    directly, while SSA in Tutorial 8 targets growth in stationary first
 #    differences. I-SSA imposes the HT constraint on stationary
 #    first differences, ensuring a well-defined and interpretable smoothness
-#    criterion. Both approaches are logically consistent, statistically
-#    efficient, and data-driven: neither imprints extraneous structure on the
-#    smoothed output.
+#    criterion. 
 #
 # ─────────────────────────────────────────────────────────────────────────────
 # DISCUSSION
@@ -466,16 +460,13 @@ sq_se_dif
 # in first differences, requiring it to comply with a prescribed memory
 # level — and nothing more.
 #
-# The HT constraint asks that the smoother exhibit sufficiently long memory 
+# The HT constraint asks that the smoother exhibits sufficiently long memory 
 # between direction changes (in levels), without prescribing how that memory 
 # should manifest in the shape of the output.
 #
 # As a result, the HT constraint is minimally invasive: it enforces the
 # desired degree of smoothness while leaving the smoother free to determine
-# the optimal shape of the trend from the data — introducing no structural
-# assumptions beyond those already embedded in the target specification 
-# (the identity) and the cointegration constraint (cancellation of the 
-# unit root).
+# the optimal shape of the trend from the data.
 #
 # Interpretability:
 # ─────────────────────────────────────────────────────────────────────────────
@@ -529,7 +520,7 @@ sq_se_dif
 # Nowcasting:
 # ─────────────────────────────────────────────────────────────────────────────
 # Exercise 1 focused on symmetric backcasting smoothers. In a nowcasting
-# framework — where only past and current observations are available — the
+# framework — where the smoother is one-sided — the
 # limitations of HP become more pronounced, further widening the performance
 # gap between HP and I-SSA, even under model misspecification.
 #
@@ -645,7 +636,7 @@ colo <- c("violet", "black", "blue", "red")
 hp_two <- hp_target[((L / 2) + 1):(length(hp_target) - (L / 2) + 1)]
 
 mplot <- cbind(hp_two, target_filter, b_x)
-colnames(mplot) <- c("HP-two", "Target", "I-SSA")
+colnames(mplot) <- c("HP-two", "Target", "I-SSA trend")
 
 # Full filter coefficient profiles
 plot(mplot[, 1], main = "Trend filters", axes = FALSE, type = "l",
@@ -663,7 +654,7 @@ axis(2); box()
 mplot <- mplot[1:100, ]
 
 plot(mplot[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
-     ylim = c(min(mplot), max(mplot[, "I-SSA"])), ylab = "", xlab = "Lags")
+     ylim = c(min(mplot), max(mplot[, "I-SSA trend"])), ylab = "", xlab = "Lags")
 abline(h = 0)
 for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
@@ -886,7 +877,7 @@ colo <- c("violet", "red", "black", "blue")
 hp_two <- hp_target[((L / 2) + 1):(length(hp_target) - (L / 2) + 1)]
 
 mplot <- cbind(hp_two, hp_trend, target_filter, b_x)
-colnames(mplot) <- c("HP-two", "HP-one", "Target", "I-SSA")
+colnames(mplot) <- c("HP-two", "HP-one", "Target", "I-SSA trend")
 
 # Full filter coefficient profiles
 plot(mplot[, 1], main = "Trend filters", axes = FALSE, type = "l",
@@ -904,7 +895,7 @@ axis(2); box()
 mplot <- mplot[1:100, ]
 
 plot(mplot[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
-     ylim = c(min(mplot), max(mplot[, "I-SSA"])), ylab = "", xlab = "Lags")
+     ylim = c(min(mplot), max(mplot[, "I-SSA trend"])), ylab = "", xlab = "Lags")
 abline(h = 0)
 for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
@@ -998,7 +989,7 @@ sq_se_dif
 # Main Take-Aways
 # ─────────────────────────────────────────────────────────────────────────────
 # In contrast to Exercise 2, Exercise 3 imposes the HT constraint of the
-# one-sided HP filter.
+# ONE-SIDED HP filter.
 #
 # 1. Unlike Exercise 2 — where matching the two-sided HP's longer HT inflated
 #    the MSE — I-SSA now substantially outperforms the classical one-sided HP
@@ -1039,7 +1030,7 @@ sq_se_dif
 # random-walk input with the empirical macroeconomic series INDPRO.
 # Note:
 # - The I-SSA filter applied here was optimised under a random-walk assumption
-#   (i.e., white-noise first differences) and has not been re-fitted to the
+#   (i.e., white-noise first differences) and is not re-fitted to the
 #   empirical autocorrelation structure of INDPRO.
 # - This is sub-optimal: the differenced index exhibits positive serial
 #   correlation (see ACF in Section 4.3), which deviates from the white-noise
@@ -1147,8 +1138,10 @@ mtext("INDPRO",line=-1)
 mtext("HP two sided",col="violet",line=-2)
 mtext("HP one sided",col="red",line=-3)
 mtext("I-SSA",col="blue",line=-4)
-# I-SSA tracks the index substantially more closely than the one-sided HP,
-# while maintaining a comparable degree of smoothness.
+# The I-SSA trend tracks the index substantially more closely than the 
+# one-sided HP, while maintaining a comparable degree of smoothness. 
+# In particular, the I-SSA trend is faster (left-shifted) at cycle peaks and 
+# dips. 
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1171,7 +1164,7 @@ mse_ssa_smooth     # I-SSA MSE (full sample)
 # Theoretical MSE benchmark under the cointegration constraint:
 # scales the normalised MSE from the I-SSA design by the empirical variance
 # of the first differences (since the series is non-stationary).
-# Empirical and expected values differ due to non-stationarity in long sample
+# Empirical and expected values differ due to non-stationarity 
 # and the fact that INDPRO does not conform to a random-walk
 bk_obj$mse_yz * var(diff(target), na.rm = TRUE)
 
@@ -1208,7 +1201,7 @@ compute_empirical_ht_func(diff(y_hp_two))  # Empirical HT: two-sided HP (largest
 compute_empirical_ht_func(diff(y_hp_one))  # Empirical HT: one-sided HP (should be close to ht1)
 
 # Issue: a non-zero mean in the first-differenced series (due to a trending
-# level) suppresses zero-crossings, inflating HT estimates. Centering the
+# level) biases HT estimates. Centering the
 # series before computing HT is therefore necessary.
 
 # b. Full-sample HT on centred first differences
@@ -1380,14 +1373,14 @@ AUC_table
 # Exercise 4 extends Exercise 3 from a synthetic random-walk input to the
 # empirical US Industrial Production Index (INDPRO).
 #
-# 1. The I-SSA filter was optimised under a random-walk (white-noise differences)
+# 1. The I-SSA trend was optimised under a random-walk (white-noise differences)
 #    assumption, which does not fully capture the positive serial correlation
 #    observed in differenced INDPRO. The reported MSE gains are therefore
 #    conservative: re-fitting I-SSA to the observed dependence structure of the
 #    index would likely yield further performance improvements.
 #
-# 2. Despite this model mismatch, I-SSA strongly outperforms the classical
-#    one-sided HP nowcast in terms of MSE tracking of the log-index, while
+# 2. Despite this model mismatch, the I-SSA trend strongly outperforms the classical
+#    one-sided HP nowcast trend in terms of MSE tracking of the log-index, while
 #    maintaining comparable smoothness — as measured either by the HT of
 #    first differences or, equivalently, by an equal frequency of turning
 #    points (TPs) on levels. The MSE gain is driven by two complementary
@@ -1396,11 +1389,11 @@ AUC_table
 #    business-cycle peaks and troughs.
 #
 # 3. The combination of reduced lag, superior MSE performance, and robust
-#    tracking of dynamic swings makes I-SSA a compelling, data-driven
+#    tracking of dynamic swings makes I-SSA (trend) a compelling, data-driven
 #    alternative to the classical one-sided HP smoother for real-time
 #    macroeconomic monitoring. Unlike the HP filter — whose smoothness
 #    criterion explicitly penalises curvature (second-order differences) —
-#    I-SSA is amorphous in the sense that it does not impose aa extraneous 
+#    I-SSA is amorphous in the sense that it does not impose an extraneous 
 #    structural form on the extracted trend, allowing it to adapt more
 #    flexibly to the shape of the underlying signal by tracking non-stationary 
 #    levels. Importantly, these advantages persist even when the assumed model 
@@ -1425,7 +1418,7 @@ AUC_table
 # assumption, introducing a mild positive bias — where a positive bias
 # indicates that the data is smoother than the assumed DGP.
 #
-# Crucially, this TP-rate bias affects HP and I-SSA symmetrically: it is a
+# Crucially, this TP-rate bias affects HP and I-SSA equally: it is a
 # shared consequence of calibrating smoothers under one DGP and applying them
 # to data generated by another. Despite this common bias, I-SSA markedly
 # outperforms HP in terms of MSE at an equivalent TP rate, confirming that
@@ -1438,7 +1431,7 @@ AUC_table
 # Two natural default settings can be distinguished based on the dynamics
 # of the data:
 #
-# - Non-stationary (trending) series: the I-SSA smoother targets the TREND LEVEL
+# - Non-stationary (trending) series: the I-SSA smoother targets the TREND LEVEL.
 #   The random walk is recommended as the default DGP assumption, as applied 
 #   throughout the above exercises.
 #
@@ -1447,12 +1440,6 @@ AUC_table
 #   rate of change of the underlying level series). The white-noise
 #   hypothesis is recommended as the default DGP assumption in this
 #   setting, as illustrated in Tutorial 8.
-#
-# - Notably, the optimal growth estimate is not obtained by differencing the
-#   optimal level estimate; conversely, the optimal level estimate is not
-#   recovered by integrating (cumulating) the optimal growth estimate. Each
-#   target requires its own dedicated smoother specification in order
-#   to achieve efficiency and interpretability.
 #
 # In both cases, the default model may be replaced by one estimated directly
 # from the data. Doing so serves two purposes: it can improve filter
@@ -1499,7 +1486,7 @@ AUC_table
 # Finally, rather than tracking the raw data x_{t+delta} (smoothing), I-SSA can 
 # be directed to track an arbitrary (extraneous) target trend, see tutorial 6. 
 # Modifying filter characteristics in this way is referred to as customisation 
-# (see previous exerrcises). 
+# (see previous exercises). 
 # In this case, the resulting I-SSA trend inherits its meaning and 
 # interpretation directly from the benchmark, by virtue of optimal tracking. 
 # It should be noted, however, that customisation is generally not a 
