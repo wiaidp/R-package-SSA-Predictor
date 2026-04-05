@@ -286,6 +286,9 @@ MSSA_func<-function(split_grid,L,forecast_horizon_vec,grid_size,gammak_generic,r
         
   }
   
+  if (is.vector(rho1))
+    rho1<-matrix(rho1,nrow=1)
+  
 # Transpose if necessary:   
   if (dim(gammak_generic)[2]<dim(gammak_generic)[1])
     gammak_generic<-t(gammak_generic)
