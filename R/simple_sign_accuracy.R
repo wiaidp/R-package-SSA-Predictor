@@ -1641,7 +1641,6 @@ b_optim<-function(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde,rho1)
 # This function computes system matrices, in particular also for the I(1) case with cointegration
 compute_system_filters_func<-function(L,lambda_hp,a_vec,b_vec)
 {
-  
   HP_obj<-HP_target_mse_modified_gap(2*(L-1)+1,lambda_hp)
   hp_two<-HP_obj$target
   
@@ -1652,6 +1651,7 @@ compute_system_filters_func<-function(L,lambda_hp,a_vec,b_vec)
   gamma<-HP_obj$hp_mse
   ts.plot(gamma)
   hp_trend<-HP_obj$hp_trend
+  
 
 # Wold decompoistion (MA inversion)  
   xi<-c(1,ARMAtoMA(ar=a_vec,ma=b_vec,lag.max=L-1))
@@ -1715,3 +1715,166 @@ compute_system_filters_func<-function(L,lambda_hp,a_vec,b_vec)
   B
   return(list(B=B,M=M,gamma_tilde=gamma_tilde,gamma_mse=gamma_mse,Xi_tilde=Xi_tilde,Sigma=Sigma,Delta=Delta,Xi=Xi,hp_two=hp_two,hp_trend=hp_trend))
 }
+
+
+
+
+
+
+
+compute_issa_system_filters_func<-function(L,a_vec,b_vec)
+{
+  
+  
+  # Wold decompoistion (MA inversion)  
+  xi<-c(1,ARMAtoMA(ar=a_vec,ma=b_vec,lag.max=L-1))
+  
+  
+  # Compute all system matrices: all matrices are specified in Wildi (2026a)
+  Xi<-NULL
+  for (i in 1:L)
+    Xi<-rbind(Xi,c(xi[i:1],rep(0,L-i)))#c(1,0,0),c(1,1,0),c(1,1,1)))
+  Xi
+  
+  
+  Sigma<-NULL
+  for (i in 1:L)
+    Sigma<-rbind(Sigma,c(rep(1,i),rep(0,L-i)))#c(1,0,0),c(1,1,0),c(1,1,1)))
+  Sigma
+  
+  
+  # Invert: gives Delta
+  Delta<-solve(Sigma)
+  Delta
+  
+  # Convolve integration operator and Wold decomposition (section 5.3 in Wildi 2026a)  
+  Xi_tilde<-(Sigma)%*%Xi
+  
+  # Compute gamma_mse: the optimal MSE filter applied to x_tilde the non stationary data
+  # 1. Compute weights of MA-inversion of process i.e. x_tilde: this is applied to two-sided filter and it must be of the same length as that filter  
+  xi_int<-conv_two_filt_func(rep(1,length(hp_two)),xi)$conv
+  
+  
+  # Autocovariance generating matrix, see theorem 1  
+  M<-matrix(nrow=L,ncol=L)
+  M[L,]<-rep(0,L)
+  M[L-1,]<-c(rep(0,L-1),0.5)
+  for (i in 1:(L-2))
+    M[i,]<-c(rep(0,i),0.5,rep(0,L-1-i))
+  M<-M+t(M)
+  M
+  # Cointegration matrix, see section 5.3 technical paper  
+  B<-rbind(rep(-1,L-1),diag(rep(1,L-1)))
+  B
+  return(list(B=B,M=M,Xi_tilde=Xi_tilde,Sigma=Sigma,Delta=Delta,Xi=Xi))
+}
+
+
+
+ISSA_Trend_func<-function(ht_constraint,L,delta,a1=0,b1=0,lambda_start=0)
+{
+  if (ht_constraint<0)
+  {
+    print("ht_constraint must be positive")
+    return()
+  }
+# The HT constraint can be expressed either in terms of holding time or 
+# lag-one ACF. If ht_constraint>1 we interrpet this as the holding time. 
+# Otherwise it is interpreted as lag-one ACF
+  if (ht_constraint>1)
+  {
+    print("ht_constraint>1 is interpreted as a holding time")
+# I-SSA needs the lag-one ACF for implementing the HT constraint
+    rho1<-compute_rho_from_ht(ht_constraint)$rho
+  } else
+  {
+    print("0<ht_constraint<1 is interrpeted as lag-one ACF rho1")
+    rho1<-ht_constraint
+  }
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 1.1  Model Setup for I-SSA
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Compute system matrices and filters
+  filter_obj <- compute_issa_system_filters_func(L, a1, b1)
+  
+  B           <- filter_obj$B            # Cointegration matrix (see cited literature)
+  M           <- filter_obj$M            # Lag-one autocovariance generating matrix
+  Xi_tilde    <- filter_obj$Xi_tilde     # Convolution operator (see Section 5.3: Wold
+  #   decomposition of first differences convolved
+  #   with the integration operator)
+  Sigma       <- filter_obj$Sigma        # Integration operator (see Section 5.3)
+  Delta       <- filter_obj$Delta        # Differencing operator
+  Xi          <- filter_obj$Xi           # Wold MA representation in matrix form
+  
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 1.2  I-SSA Settings
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  # Target in levels: we want to track the random walk x_t directly,
+  # so the target filter is the identity (a unit spike at lag -delta).
+  # This differs from Exercise 6, where the target was the one-sided HP of x_t.
+  if (delta>0)
+  {
+    print("delta must by smaller or equal 0")
+    return()
+  }
+  target_filter <- c(rep(0, -delta), 1, rep(0, L + delta - 1))
+  
+  # Target in first differences: apply the summation operator to the level
+  # target filter. This yields a finite-length proxy of the effective
+  # first-difference target used in optimisation. The proxy converges to the
+  # true target as filter length L grows, because MA coefficients decay
+  # sufficiently fast under the cointegration constraint (see Section 5.3 in
+  # Wildi 2026a for details).
+  Xi_tilde <- (Sigma) %*% Xi
+  target_filter_diff <- Xi_tilde %*% target_filter
+  
+  
+  # The targets do not hint at HP: HP enters into I-SSA through its HT only
+  
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 1.3  Compute I-SSA Solution (Wildi 2026a, Sections 5.3–5.4)
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Numerical optimisation (optim) determines the optimal Lagrange multiplier
+  # lambda ensuring compliance with the HT constraint.
+  # Initialising at lambda = 0 corresponds to the unconstrained MSE benchmark.
+  # Note: lambda here is the SSA Lagrange multiplier and is unrelated to the HP
+  # regularisation parameter lambda_hp.
+  
+  # 1.3.1  I-SSA Optimisation
+  # ─────────────────────────────────────────────────────────────────────────────
+  lambda <- 0
+  
+  opt_obj <- optim(
+    lambda,
+    b_optim,
+    lambda,
+    target_filter,
+    Xi,
+    Sigma,
+    Xi_tilde,
+    M,
+    B,
+    target_filter_diff,
+    rho1
+  )
+  
+  # Optimal Lagrange multiplier
+  lambda_opt <- opt_obj$par
+  
+  # Compute the I(1) cointegrated I-SSA solution based on lambda_opt
+  bk_obj <- bk_int_func(
+    lambda_opt,
+    target_filter,
+    Xi,
+    Sigma,
+    Xi_tilde,
+    M,
+    B,
+    target_filter_diff,
+    rho1
+  )
+  b_x<-bk_obj$b_x
+  return(list(b_x=b_x,bk_obj=bk_obj,lambda_opt=lambda_opt,rho1=rho1,ht1=ht1))
+}
+

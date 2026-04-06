@@ -9,7 +9,7 @@
 # to Tutorial 8.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# The I-SSA Trend: A New Definition
+# The I-SSA Trend: A New Trend Definition
 # ─────────────────────────────────────────────────────────────────────────────
 # We introduce a new trend concept — the I-SSA trend — grounded in the
 # I-SSA smoothing framework. It is distinguished from classical trend
@@ -97,7 +97,7 @@ source(paste(getwd(), "/R/ROCplots.r", sep = ""))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Exercise 1: Random Walk
-# Backcasting: Symmetric Smoother with HT of Two-Sided HP
+# Backcasting: Symmetric I-SSA Smoother/Trend with HT of Two-Sided HP
 # ══════════════════════════════════════════════════════════════════════════════
 # We assume that x_t follows a random walk (i.e., first differences are white
 # noise). A very long series is simulated to ensure sample estimates converge
@@ -109,165 +109,110 @@ eps <- rnorm(len)
 x   <- cumsum(eps)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1.1  Model Setup for I-SSA
+# 1.1  Setup for I-SSA
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Filter design parameters
-L         <- 201
+L <- 201
+
 # HP Lambda Selection:
 # Lambda is the penalty weight assigned to the curvature term in the
-# Whittaker-Henderson (WH/HP) graduation criterion (see Tutorials 2.0 and 8).
-# A larger lambda enforces greater smoothness at the cost of reduced fidelity
-# to the observed series; a smaller lambda allows the trend to track the data
-# more closely at the cost of increased roughness.
+# Whittaker-Henderson (WH/HP) graduation criterion (see Tutorials 2.0
+# and 8). A larger lambda enforces greater smoothness at the cost of
+# reduced fidelity to the observed series; a smaller lambda allows the
+# trend to track the data more closely at the cost of increased roughness.
 #
-# The conventional value of 14,400 is the standard choice for monthly time
-# series, calibrated to yield a trend extraction broadly equivalent to that
-# of the HP filter applied to quarterly data with lambda = 1,600.
-# Exercise 5 will apply the resulting HP and I-SSA smoothers to the monthly
-# US Industrial Production Index (INDPRO).
+# The conventional value of 14,400 is the standard choice for monthly
+# series, calibrated to yield a trend broadly equivalent to that of the
+# HP filter applied to quarterly data with lambda = 1,600. Exercise 5
+# applies the resulting HP and I-SSA smoothers to the monthly US
+# Industrial Production Index (INDPRO).
 lambda_hp <- 14400
 
-# Compute system matrices and filters
-filter_obj <- compute_system_filters_func(L, lambda_hp, a1, b1)
-
-B           <- filter_obj$B            # Cointegration matrix (see cited literature)
-M           <- filter_obj$M            # Lag-one autocovariance generating matrix
-gamma_tilde <- filter_obj$gamma_tilde  # Transformed (HP) target
-gamma_mse   <- filter_obj$gamma_mse    # MSE-optimal filter (one-sided estimate of HP target)
-Xi_tilde    <- filter_obj$Xi_tilde     # Convolution operator (see Section 5.3: Wold
-#   decomposition of first differences convolved
-#   with the integration operator)
-Sigma       <- filter_obj$Sigma        # Integration operator (see Section 5.3)
-Delta       <- filter_obj$Delta        # Differencing operator
-Xi          <- filter_obj$Xi           # Wold MA representation in matrix form
-#   (see equation 22 in Wildi 2026a)
-hp_target   <- filter_obj$hp_two       # Two-sided HP target filter
-hp_trend    <- filter_obj$hp_trend     # Classic one-sided HP (HP-C): benchmark
-#   for I-SSA customisation
+HP_obj   <- HP_target_mse_modified_gap(2 * (L - 1) + 1, lambda_hp)
+hp_two   <- HP_obj$target
+hp_one   <- hp_trend <- HP_obj$hp_trend
+# hp_target is used solely to derive the HT constraint for I-SSA.
+# The HP filter itself plays no further role in the I-SSA computation.
+hp_target <- hp_two
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1.2  I-SSA Settings
+# 1.2. I-SSA Settings
 # ─────────────────────────────────────────────────────────────────────────────
 
-# 1.2.1  Holding-Time (HT) Constraint Calibration
+# 1.2.1. Holding-Time (HT) Constraint Calibration
 # ─────────────────────────────────────────────────────────────────────────────
-# The HT constraint is defined on first differences (see equation 29,
-# Wildi 2026a). The HT of the first differences of the two-sided HP applied
-# to x_t equals the HT of HP itself.
+# For non-stationary series, crossings about the mean are not well
+# defined. We therefore work with first differences and assume the
+# differenced series to be stationary, see tutorial 8. 
+# Accordingly, the HT constraint in
+# I-SSA is defined on first differences (see Equation 29 in Wildi 2026a).
+# Because first differences of a random walk are white noise, the HT is
+# obtained directly from compute_holding_time_func(), which assumes
+# white-noise input.
 rho1 <- compute_holding_time_func(hp_target)$rho_ff1
 ht1  <- compute_holding_time_func(hp_target)$ht
-# In first differences, a zero-crossing of the two-sided HP occurs on average
-# once every 60 observations.
+# In first differences, a zero-crossing of the two-sided HP smoother
+# occurs on average once every ht1 observations.
 ht1
-# Important: HP enters I-SSA through the HT constraint only.
-# The HP filter itself is not targeted explicitly; only its HT is matched.
+# Important: HP enters I-SSA solely through the HT constraint.
+# The HP filter itself is not used as a target; only its TP rate is matched.
 
-# 1.2.2  Specify Smoothing Lag and Targets
+# 1.2.2. Smoothing Lag and Target Specification
 # ─────────────────────────────────────────────────────────────────────────────
-delta <- -(L - 1) / 2 - 1
+# delta = 0          : nowcast (target is the current observation).
+# delta = -(L-1)/2   : symmetric backcast (target is the centre of the
+#                      filter window).
+delta <- -(L - 1) / 2
 
-# Target in levels: we want to track the random walk x_t directly,
-# so the target filter is the identity (a unit spike at lag -delta).
-# This differs from Exercise 6, where the target was the one-sided HP of x_t.
-target_filter <- c(rep(0, -delta - 1), 1, rep(0, L + delta))
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.3. I-SSA Trend Estimation
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Target in first differences: apply the summation operator to the level
-# target filter. This yields a finite-length proxy of the effective
-# first-difference target used in optimisation. The proxy converges to the
-# true target as filter length L grows, because MA coefficients decay
-# sufficiently fast under the cointegration constraint (see Section 5.3 in
-# Wildi 2026a for details).
-target_filter_diff <- cumsum(target_filter)
-
-# The following code in curly brackets is shown for completeness.
-if (F)
-{
-# The following generalises the cumsum above to cases where the Wold
-# decomposition Xi is no longer white noise.
-# - In the random-walk case, both expressions are equivalent.
-# - In all other cases, the expression below applies; using cumsum alone
-#   would yield an incorrect result.
-# - Background: we need a finite MA-inversion of the target on levels: this 
-#   is obtained by the convolution of the Wold-decomposition with the 
-#   integrator. The finite-length convolution can be obtained through the 
-#   matrix product Xi_tilde %*% target_filter where Xi_tilde <- (Sigma) %*% Xi,
-#   see Wildi 2026a, section 5.3.
+# 1.3.1. Calling ISSA_Trend_func()
+# ─────────────────────────────────────────────────────────────────────────────
+# ISSA_Trend_func() builds on the I-SSA framework from Tutorial 8. The key
+# difference is that the target is x_{t+delta} (smoothing of the observed
+# series) rather than a filtered version of x_t. The function returns an
+# I-SSA trend filter of length L whose TP rate — measured as zero-crossings
+# in first differences — matches the specified HT constraint (of the 
+# two-sided HP).
 #
-# Notes:
-# - Sigma is the finite-length summation (integration) operator that maps
-#   first differences back to levels.
-# - A finite-length integrator suffices here because:
-#     a) target_filter_diff is used solely for optimisation, not for
-#        effective smoothing of the data.
-#     b) For optimisation purposes, the relevant MA-inversion decays
-#        rapidly to zero under the cointegration constraint (hence a 
-#        finite-length target is sufficient).
-#     c) The cointegration constraint is invisible here: it is implemented 
-#        directly and automatically within the function bk_int_func(). The 
-#        constraint warrants a finite MSE even though non-stationary levels 
-#        may diverge asymptotically.
-  Xi_tilde <- (Sigma) %*% Xi
-  target_filter_diff <- Xi_tilde %*% target_filter
-}
+# The assumed DGP for first differences is an ARMA(p,q) with AR coefficients
+# a1 (vector of length p) and MA coefficients b1 (vector of length q).
+# lambda_init initialises the numerical optimisation; lambda_init = 0
+# corresponds to the MSE benchmark (the identity, i.e., no smoothing imposed).
+lambda_init   <- 0
+ht_constraint <- ht1
 
-par(mfrow = c(2, 1))
-ts.plot(target_filter,
-        main = paste("Target filter: backcast x_t with lag =", -delta),
-        ylab = "", xlab = "Lag")
-ts.plot(target_filter_diff,
-        main = "Finite-length target filter in differences (summation/integration of level target)",
-        ylab = "", xlab = "Lag")
+# Call 1: explicit specification of all arguments.
+ISSA_obj <- ISSA_Trend_func(ht_constraint, L, delta, a1, b1, lambda_init)
+bk_obj   <- ISSA_obj$bk_obj
 
-# The targets do not hint at HP: HP enters into I-SSA through its HT only
+# Call 2: default arguments. When a1, b1, and lambda_init are omitted,
+# ISSA_Trend_func() defaults to a random-walk DGP (white-noise first
+# differences). This call is equivalent to Call 1 above.
+ISSA_obj <- ISSA_Trend_func(ht_constraint, L, delta)
+bk_obj   <- ISSA_obj$bk_obj
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 1.3  Compute I-SSA Solution (Wildi 2026a, Sections 5.3–5.4)
-# ─────────────────────────────────────────────────────────────────────────────
-# Numerical optimisation (optim) determines the optimal Lagrange multiplier
-# lambda ensuring compliance with the HT constraint.
-# Initialising at lambda = 0 corresponds to the unconstrained MSE benchmark.
-# Note: lambda here is the SSA Lagrange multiplier and is unrelated to the HP
-# regularisation parameter lambda_hp.
+# Call 3: HT constraint supplied as a lag-one ACF.
+# The HT constraint may be specified in either of two equivalent forms:
+#   - ht_constraint > 1 : mean duration between zero-crossings (holding
+#     time in observation units); a confirmatory message is issued.
+#   - 0 < ht_constraint < 1 : lag-one ACF (rho); a confirmatory message
+#     is issued.
+# Supplying rho1 instead of ht1 yields an identical result.
+ht_constraint <- rho1
+ISSA_obj <- ISSA_Trend_func(ht_constraint, L, delta)
+bk_obj   <- ISSA_obj$bk_obj
 
-# 1.3.1  I-SSA Optimisation
-# ─────────────────────────────────────────────────────────────────────────────
-lambda <- 0
-
-opt_obj <- optim(
-  lambda,
-  b_optim,
-  lambda,
-  target_filter,
-  Xi,
-  Sigma,
-  Xi_tilde,
-  M,
-  B,
-  target_filter_diff,
-  rho1
-)
-
-# Optimal Lagrange multiplier
-lambda_opt <- opt_obj$par
-
-# Compute the I(1) cointegrated I-SSA solution based on lambda_opt
-bk_obj <- bk_int_func(
-  lambda_opt,
-  target_filter,
-  Xi,
-  Sigma,
-  Xi_tilde,
-  M,
-  B,
-  target_filter_diff,
-  rho1
-)
+# All three calls above are equivalent and produce identical I-SSA trends.
 
 # 1.3.2  Diagnostics
 # ─────────────────────────────────────────────────────────────────────────────
 # Verify convergence: bk_obj$rho_yy should match rho1.
-# If the values differ, increase the number of iterations in optim.
+# If the values differ, increase the number of iterations in optim or 
+# use a better choice for lambda_init.
 bk_obj$rho_yy   # Empirical lag-1 ACF of filter output (should equal rho1)
 rho1            # Imposed HT constraint
 
@@ -531,75 +476,15 @@ sq_se_dif
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2.1  Specify Smoothing Lag and Targets
+# 2.1  Specify Smoothing Lag and run I-SSA Trend
 # ─────────────────────────────────────────────────────────────────────────────
 delta <- 0
 
-# Target in levels: track the random walk x_t directly (identity target).
-# This differs from Exercise 6, where the target was the one-sided HP of x_t.
-target_filter <- c(rep(0, -delta), 1, rep(0, L + delta - 1))
+ISSA_obj<-ISSA_Trend_func(ht_constraint,L,delta)
 
-# Target in first differences: apply the summation operator to the level target.
-# This is a finite-length proxy of the effective first-difference target used
-# in optimisation. The proxy is equivalent to the effective target when L is
-# sufficiently large, because MA coefficients decay fast enough under the
-# cointegration constraint (see Section 5.3 in Wildi 2026a for details).
-target_filter_diff <- cumsum(target_filter)
+bk_obj<-ISSA_obj$bk_obj
 
-par(mfrow = c(2, 1))
-ts.plot(target_filter,
-        main = paste("Target filter: nowcast x_t (lag =", -delta,")"),
-        ylab = "", xlab = "Lag")
-ts.plot(target_filter_diff,
-        main = "Finite-length target filter in differences (summation/integration of level target)",
-        ylab = "", xlab = "Lag")
-
-# The targets do not hint at HP: HP enters into I-SSA through its HT only
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2.2  Compute I-SSA Solution (Wildi 2026a, Sections 5.3–5.4)
-# ─────────────────────────────────────────────────────────────────────────────
-# Numerical optimisation (optim) determines the optimal Lagrange multiplier
-# lambda ensuring compliance with the HT constraint.
-# Initialising at lambda = 0 corresponds to the unconstrained MSE benchmark.
-# Note: lambda here is the SSA Lagrange multiplier and is unrelated to the HP
-# regularisation parameter lambda_hp.
-
-# 2.2.1  I-SSA Optimisation
-# ─────────────────────────────────────────────────────────────────────────────
-lambda <- 0
-
-opt_obj <- optim(
-  lambda,
-  b_optim,
-  lambda,
-  target_filter,
-  Xi,
-  Sigma,
-  Xi_tilde,
-  M,
-  B,
-  target_filter_diff,
-  rho1
-)
-
-# Optimal Lagrange multiplier
-lambda_opt <- opt_obj$par
-
-# Compute the I(1) cointegrated I-SSA solution based on lambda_opt
-bk_obj <- bk_int_func(
-  lambda_opt,
-  target_filter,
-  Xi,
-  Sigma,
-  Xi_tilde,
-  M,
-  B,
-  target_filter_diff,
-  rho1
-)
-
-# 2.2.2  Diagnostics
+# 2.2 Diagnostics
 # ─────────────────────────────────────────────────────────────────────────────
 # Verify convergence: bk_obj$rho_yy should match rho1.
 # If the values differ, increase the number of iterations in optim.
@@ -784,20 +669,6 @@ sq_se_dif
 # Nowcast: as in exercise 2
 delta <- 0
 
-# Target : the same as in exercise 2 above
-target_filter <- c(rep(0, -delta), 1, rep(0, L + delta - 1))
-target_filter_diff <- cumsum(target_filter)
-
-par(mfrow = c(2, 1))
-ts.plot(target_filter,
-        main = paste("Target filter: nowcast x_t (lag =", -delta,")"),
-        ylab = "", xlab = "Lag")
-ts.plot(target_filter_diff,
-        main = "Finite-length target filter in differences (summation/integration of level target)",
-        ylab = "", xlab = "Lag")
-
-# The targets do not hint at HP: HP enters into I-SSA through its HT only
-
 # 3.1.2  Holding-Time (HT) Constraint Calibration
 # ─────────────────────────────────────────────────────────────────────────────
 # Here we depart from exercise 2.
@@ -807,43 +678,18 @@ rho1 <- compute_holding_time_func(hp_trend)$rho_ff1
 ht1  <- compute_holding_time_func(hp_trend)$ht
 ht1
 
+ht_constraint<-ht1
+
+# 3.2 I-SSA Trend
 # ─────────────────────────────────────────────────────────────────────────────
-# 3.2  Compute I-SSA Solution (Wildi 2026a, Sections 5.3–5.4)
+# 3.2.1 Run ISSA_Trend_func
 # ─────────────────────────────────────────────────────────────────────────────
 
-# 3.2.1  I-SSA Optimisation
-# ─────────────────────────────────────────────────────────────────────────────
-lambda <- 0
 
-opt_obj <- optim(
-  lambda,
-  b_optim,
-  lambda,
-  target_filter,
-  Xi,
-  Sigma,
-  Xi_tilde,
-  M,
-  B,
-  target_filter_diff,
-  rho1
-)
+ISSA_obj<-ISSA_Trend_func(ht_constraint,L,delta)
 
-# Optimal Lagrange multiplier
-lambda_opt <- opt_obj$par
+bk_obj<-ISSA_obj$bk_obj
 
-# Compute the I(1) cointegrated I-SSA solution based on lambda_opt
-bk_obj <- bk_int_func(
-  lambda_opt,
-  target_filter,
-  Xi,
-  Sigma,
-  Xi_tilde,
-  M,
-  B,
-  target_filter_diff,
-  rho1
-)
 
 # 3.2.2  Diagnostics
 # ─────────────────────────────────────────────────────────────────────────────
