@@ -231,12 +231,14 @@ bk_obj$mse_yz   # Theoretical MSE: tracking accuracy of I-SSA for x_{t+delta}
 
 # Extract the filter applied to the data
 b_x <- bk_obj$b_x
-# Extract the target
+# Target filter: it extracts x_{t+delta}. This is also the `trivial' MSE 
+# estimate. I-SSA is maximally close subject to the smoothing (HT) constraint. 
 target_filter<-ISSA_obj$target_filter
 
-# Verify the cointegration constraint: the difference should vanish (≈ 0),
+# Verify the cointegration constraint (see Wildi 2026a) : the difference of the 
+# summed smoother weights should vanish (≈ 0),
 # ensuring a finite MSE on non-stationary levels. In smoothing applications
-# the target filter is the identity (eventaully shifted by -delta>0)
+# the target filter is the identity (shifted by delta>0).
 sum(b_x) - sum(target_filter)
 
 # ─────────────────────────────────────────────────────────────────────────────
