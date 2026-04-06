@@ -1770,7 +1770,18 @@ compute_issa_system_filters_func<-function(L,a_vec,b_vec)
 }
 
 
-
+# New 2026 I-SSA trend function
+# This is based on I-SSA applied to an I(1) series
+# The target is x_{t+delta}, with -T<=delta<= 0: a now cast or backcast of 
+# the original I(1) data.
+# It imposes a HT constraint in stationary first differences of the process.
+# The HT constraint is interperetd as effective HT or as lag-one ACF depending 
+# on the value of ht_constraint.
+# A length L I-SSA trend is obtained, assuming the differenced data conforms
+# to an ARMA with parameters a1 (vector of length p) and b1 (vector of length q).
+# Default values are white noise.
+# One can supply a better initial value for the Lagrangian: lambda_start=0 
+# assumes an MSE nowcast, i.e., the identity (in smoothing).
 ISSA_Trend_func<-function(ht_constraint,L,delta,a1=0,b1=0,lambda_start=0)
 {
   if (ht_constraint<0)
