@@ -1875,6 +1875,6 @@ ISSA_Trend_func<-function(ht_constraint,L,delta,a1=0,b1=0,lambda_start=0)
     rho1
   )
   b_x<-bk_obj$b_x
-  return(list(b_x=b_x,bk_obj=bk_obj,lambda_opt=lambda_opt,rho1=rho1,ht1=ht1))
+  return(list(b_x=b_x,bk_obj=bk_obj,lambda_opt=lambda_opt,rho1=rho1,ht1=ht1,target_filter=target_filter))
 }
 

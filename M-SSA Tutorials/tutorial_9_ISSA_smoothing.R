@@ -1,6 +1,6 @@
 # ══════════════════════════════════════════════════════════════════════════════
 # Tutorial 9: I-SSA SMOOTHING
-# Introducing the I-SSA Trend
+# Introducing the I-SSA Trend in ISSA_Trend_func()
 # ══════════════════════════════════════════════════════════════════════════════
 
 # This tutorial extends the SSA smoothing framework of tutorial 8 to 
@@ -18,12 +18,14 @@
 # - Minimal structural imposition: the shape of the I-SSA trend is
 #   determined entirely by the data and the holding-time (HT) constraint.
 #   No artificial structure is imposed on the data-generating process,
-#   and no idealised appearance is prescribed for the smoothed series.
+#   and no idealised appearance is prescribed for the smoothed series (e.g., 
+#   locally linear, polynomial, spline, minimal curvature,...).
 #
 # - Economically meaningful turning points (TPs): TPs of a trend component
 #   typically signal important transitions in the underlying process and
-#   are directly relevant to decision makers. The HT constraint governs
-#   the frequency of such TPs in a transparent and interpretable way,
+#   are directly relevant to decision makers. The HT constraint in 
+#   the I-SSA Trend governs specifically the frequency (the mean duration 
+#   between consecutive) TPs in a transparent and interpretable way,
 #   linking the smoothing outcome directly to specific research objectives
 #   e.g., business-cycle analysis (crisis tracking) or algorithmic trading.
 #
@@ -35,7 +37,7 @@
 #   statistically efficient.
 #
 # Taken together, these properties make the I-SSA trend a compelling
-# alternative to classical trend definitions (HP, ideal trend, 
+# alternative to classical trend definitions (e.g., WH/HP, ideal trend, 
 # canonical trend or Wiener Kolmogorov trend extraction).
 
 
@@ -229,9 +231,12 @@ bk_obj$mse_yz   # Theoretical MSE: tracking accuracy of I-SSA for x_{t+delta}
 
 # Extract the filter applied to the data
 b_x <- bk_obj$b_x
+# Extract the target
+target_filter<-ISSA_obj$target_filter
 
 # Verify the cointegration constraint: the difference should vanish (≈ 0),
-# ensuring a finite MSE on non-stationary levels.
+# ensuring a finite MSE on non-stationary levels. In smoothing applications
+# the target filter is the identity (eventaully shifted by -delta>0)
 sum(b_x) - sum(target_filter)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -506,9 +511,12 @@ bk_obj$mse_yz   # Theoretical MSE: tracking accuracy of I-SSA for x_{t+delta}
 
 # Extract the filter applied to the data
 b_x <- bk_obj$b_x
+# Extract the target
+target_filter<-ISSA_obj$target_filter
 
 # Verify the cointegration constraint: the difference should vanish (≈ 0),
-# ensuring a finite MSE on non-stationary levels.
+# ensuring a finite MSE on non-stationary levels. In smoothing applications
+# the target filter is the identity (eventaully shifted by -delta>0)
 sum(b_x) - sum(target_filter)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -708,9 +716,12 @@ bk_obj$mse_yz   # Theoretical MSE: tracking accuracy of I-SSA for x_{t+delta}
 
 # Extract the filter applied to the data
 b_x <- bk_obj$b_x
+# Extract the target
+target_filter<-ISSA_obj$target_filter
 
 # Verify the cointegration constraint: the difference should vanish (≈ 0),
-# ensuring a finite MSE on non-stationary levels.
+# ensuring a finite MSE on non-stationary levels. In smoothing applications
+# the target filter is the identity (eventaully shifted by -delta>0)
 sum(b_x) - sum(target_filter)
 
 # ─────────────────────────────────────────────────────────────────────────────
