@@ -1,3 +1,5 @@
+# This tutorial is under revision/construction
+
 # ========================================================================
 # Tutorial 6: I-SSA 
 # Extension of SSA to non-stationary (I-ntegrated) processes
@@ -101,20 +103,11 @@
 # ────────────────────────────────────────────────────────────────
 #
 # Design a novel nowcast that jointly achieves:
-#   • Accurate trend tracking in level (accuracy)
-#   • Reliable recession signaling in differences (smoothness)
-#
-# These objectives conflict:
-#   - Accuracy on levels highlights Timeliness (coincidence)
-#   - Zero-crossing analysis in differences highlights Smoothness (few false alarms)
-#   - ATS-trilemma: Accuracy, Timeliness and Smoothness are competing requirements
-#
-# I-SSA resolves this multi-objective prediction problem:
-#   → Tracks the two-sided HP trend in levels (Accuracy)
-#   → Produces sparse, meaningful sign changes in differences (signal quality)
+#   • Accurate trend tracking in LEVEL (accuracy)
+#   • Smooth growth tracking in DIFFERENCES (smoothness)
 #
 # Result:
-#   A unified filter delivering both level nowcasts and business-cycle turning 
+#   A unified filter delivering both level nowcasts and growth change
 #   point signals.
 # ========================================================================
 
@@ -333,11 +326,11 @@ rho1 <- as.double(rho_hp_concurrent<-HT_HP_obj$rho_ff1)
 #     - It is derived from a theoretical formula and is therefore exact only if
 #       the assumed model (Xi) is the true data-generating process.
 #     - We will compare this theoretical value against the empirical estimate
-#       obtained by applying the filters directly to the data, as a model diagnostic.
+#       obtained by applying the filters directly to the data.
 #
 #   By the optimality properties of I-SSA, a trend nowcast that replicates the HT of HP
-#   (via the rho1 constraint) is expected to outperform the classic HP filter in terms
-#   of MSE on non-stationary levels. Moreover, no other linear predictor subject to the
+#   (via the rho1 constraint) is expected to be outperformed by I-SSA in terms
+#   of MSE on non-stationary levels. No other linear predictor subject to the
 #   same HT constraint can improve upon I-SSA if the model (Xi) is correctly specified.
 
 # The following code verifies optimality empirically and quantifies the MSE gain.
