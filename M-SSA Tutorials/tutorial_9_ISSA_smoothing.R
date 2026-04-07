@@ -146,16 +146,19 @@ x   <- cumsum(eps)
 L <- 201
 
 # HP Lambda Selection:
-# Lambda is the penalty weight on the curvature term in the
-# Whittaker-Henderson (WH/HP) graduation criterion (see Tutorials 2.0
-# and 8). A larger lambda enforces greater smoothness at the cost of
-# reduced fidelity to the observed data; a smaller lambda allows the
-# trend to track the data more closely at the cost of increased roughness.
+# Lambda is the penalty weight on the curvature term in the Whittaker-
+# Henderson (WH/HP) graduation criterion (see Tutorials 2.0 and 8). A 
+# larger lambda enforces smaller curvature (greater smoothness) at the 
+# cost of reduced fidelity to the observed data; a smaller lambda allows 
+# the trend to track the data more closely at the cost of increased 
+# roughness. Penalising curvature directly imposes an artificial structure 
+# on the trend — one that is not intrinsic to the underlying 
+# data-generating process (a random-walk).
 #
 # The conventional value of lambda = 14,400 is the standard choice for
 # monthly data, calibrated to yield a trend broadly consistent with that
 # of the HP filter applied to quarterly data with lambda = 1,600.
-# Exercise 5 applies the resulting HP and I-SSA smoothers to the monthly
+# Exercise 4 applies the resulting HP and I-SSA trends to the monthly
 # US Industrial Production Index (INDPRO).
 lambda_hp <- 14400
 
@@ -175,9 +178,9 @@ hp_target <- hp_two
 # 1.2.1. Holding-Time (HT) Constraint Calibration
 # ─────────────────────────────────────────────────────────────────────────────
 # For non-stationary series, crossings about the mean are not well
-# defined. We therefore work with first differences and assume the
-# differenced series to be stationary, see tutorial 8. 
-# Accordingly, the HT constraint in
+# defined. We therefore work with first differences to obtain a meanigful 
+# definition of mean (or zero-) crossings for the differenced (stationary) trend, 
+# see tutorial 8. Accordingly, the HT constraint in
 # I-SSA is defined on first differences (see Equation 29 in Wildi 2026a).
 # Because first differences of a random walk are white noise, the HT is
 # obtained directly from compute_holding_time_func(), which assumes
@@ -185,10 +188,11 @@ hp_target <- hp_two
 rho1 <- compute_holding_time_func(hp_target)$rho_ff1
 ht1  <- compute_holding_time_func(hp_target)$ht
 # In first differences, a zero-crossing of the two-sided HP smoother
-# occurs on average once every ht1 observations.
+# occurs on average once every ht1 observations, on average.
 ht1
 # Important: HP enters I-SSA solely through the HT constraint.
-# The HP filter itself is not used as a target; only its TP rate is matched.
+# The HP filter itself is not used as a target; only its TP rate is matched by
+# I-SSA.
 
 # 1.2.2. Smoothing Lag and Target Specification
 # ─────────────────────────────────────────────────────────────────────────────
