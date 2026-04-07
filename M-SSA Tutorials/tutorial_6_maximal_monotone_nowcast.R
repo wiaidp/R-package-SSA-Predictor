@@ -24,6 +24,9 @@
 # Issue:
 #   - Integrated (non-stationary) processes are not mean-reverting
 #   - ⇒ HT is not defined in (non-stationary) levels
+#   - ⇒ neither the target correlation nor the sign accuracy are properly 
+#       defined in (non-stationary) levels
+#
 
 
 # ────────────────────────────────────────────────────────────────
@@ -64,8 +67,7 @@
 #
 #   - Cointegration constraint:
 #       Ensures finite MSE between predictor and target
-
-
+#
 # Dual interpretation:
 #   - Maximize monotonicity for given MSE (in levels)
 #   - For a fixed MSE specification, the level predictor is
@@ -79,7 +81,8 @@
 #   Construct a maximal monotone I-SSA nowcast of the two-sided HP(14400)
 #   for monthly US industrial production (INDPRO)
 
-# Benchmarks:
+# Benchmarks against which I-SSA will be compared:
+#
 #   1) MSE-optimal nowcast (ARIMA(1,1,0))
 #      → Typically very noisy
 #
@@ -94,7 +97,7 @@
 
 # Expected outcome:
 #   - I-SSA ≈ HP-C in smoothness
-#   - I-SSA improves upon HP-C in MSE (or correlation / sign accuracy)
+#   - I-SSA improves upon HP-C in MSE (or pseudo correlation / sign accuracy)
 
 
 # Key questions:
