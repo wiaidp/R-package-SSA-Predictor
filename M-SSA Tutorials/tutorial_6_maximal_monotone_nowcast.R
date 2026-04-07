@@ -322,9 +322,14 @@ ts.plot(Xi[,1],main="Wold decomposition of AR(1)")
 HT_HP_obj<-compute_holding_time_func(Xi %*% hp_trend)
 
 # HT: expected duration (in months) between consecutive mean-crossings of the
-#   filtered process, where the filter is described by the MA inversion Xi
-#   (in this application: an AR(1) process)
+# one-sided HP, assuming HP is applied to the AR(1) process.
 HT_HP_obj$ht
+
+# For comparison: the HT when the same HP filter is applied to white noise.
+# This HT is shorter because white noise is less regular (more volatile) 
+# than an AR(1) process with positive autocorrelation, resulting in more 
+# frequent mean-crossings.
+compute_holding_time_func(hp_trend)$ht
 
 # First-order autocorrelation (rho1): stands in a one-to-one (bijective) correspondence
 #   with the HT above; see eq. 18, Wildi (2026a) for the analytical relationship
@@ -359,23 +364,43 @@ rho1 <- as.double(rho_hp_concurrent<-HT_HP_obj$rho_ff1)
 
 
 # ────────────────────────────────────────────────────────────────
-# Reference: HT of differenced MSE-optimal predictor (MSE-optimal in levels)
+# Reference: HT of the Differenced MSE-Optimal Predictor
 # ────────────────────────────────────────────────────────────────
+# For reference, we compute the HT of the MSE-optimal nowcast of the 
+# two-sided HP trend. To clarify the role of each competitor:
+#
+#   - Target        : the acausal two-sided HP trend (to be nowcasted)
+#   - Benchmark 1   : the classical one-sided HP — a standard nowcast of
+#                     the two-sided HP, serving as a benchmark for I-SSA
+#   - Benchmark 2   : the classical MSE-optimal nowcast of the two-sided HP —
+#                     by construction, no other nowcast can achieve a lower MSE
+#   - I-SSA         : replicates the HT of the one-sided HP (Benchmark 1)
+#
+# Key questions:
+#   - How much MSE does I-SSA sacrifice relative to the MSE-optimal nowcast
+#     (Benchmark 2) due to imposing the HT constraint?
+#   - How much MSE does I-SSA gain relative to the classical one-sided HP 
+#     (Benchmark 1) for identical HT?
+
 # Using the same derivation logic:
 #   Xi %*% gamma_mse characterizes the differenced representation
 #   of the MSE-optimal predictor in levels.
 
-rho_mse <- as.double(compute_holding_time_func(Xi %*% gamma_mse)$rho_ff1)
+mse_ht_obj<-compute_holding_time_func(Xi %*% gamma_mse)
+# The MSE optimal predictor has a much smaller HT than HP
+mse_ht_obj$ht
+HT_HP_obj$ht
 
-# Typically, rho_mse is small → frequent zero-crossings
 # This reflects the higher noise of MSE-optimal predictors in levels.
-# MSE optimality trades off smoothness for timeliness:
+# MSE optimality often trades off smoothness for timeliness:
 # such predictors are generally more reactive but noisier.
-rho_mse
-# Compare to HP: the latter is much smoother
-rho1
 # The plots below will illustrate the smoothness differences and their impact 
 #   on recession signaling
+
+# Note: rather than supplying the HT directly, we pass the lag-one ACF to I-SSA, 
+# from which the HT constraint is derived internally.
+rho_mse <- as.double(mse_ht_obj$rho_ff1)
+
 
 
 # ────────────────────────────────────────────────────────────────
