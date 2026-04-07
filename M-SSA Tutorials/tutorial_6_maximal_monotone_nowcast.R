@@ -232,7 +232,7 @@ x_tilde <- as.double(y_xts)
 # Note:
 # Earlier work (Wildi, 2024) focuses on SSA applied to log-differences,
 # whereas here we work with I-SSA and log-levels.
-# I-SSA must track the two-sided HP filter applied to levels.
+# I-SSA must track the two-sided HP filter applied to non-stationary levels.
 
 
 # ────────────────────────────────────────────────────────────────
@@ -255,6 +255,7 @@ sigma_ip<-sqrt(arima_obj$sigma2)
 
 # Filter design parameters
 L         <- 101
+# Classical HP setting for monthly data:
 lambda_hp <- 14400
 
 # Compute system matrices and filters
@@ -271,13 +272,15 @@ Xi           <- filter_obj$Xi           # Wold MA representation in matrix notat
 hp_two       <- filter_obj$hp_two       # Two-sided HP target
 hp_trend     <- filter_obj$hp_trend     # Classic one-sided HP (HP-C): benchmark for I-SSA customization
 
+# Optimal MSE filter (in levels) and target (in first differences), see
+# Wildi 2026a, sections 5.3-5.5
 par(mfrow=c(1,1))
 ts.plot(cbind(gamma_tilde,gamma_mse),col=c("black","brown"))
 mtext("Optimal MSE filter applied to data in levels",line=-1,col="brown")
-mtext("Serves as target in constrained optimization",line=-2)
+mtext("Target in constrained optimization",line=-2)
 
 # Plot Wold decomposition of differenced process: first column in matrix Xi
-ts.plot(Xi[,1],main="Wold decomposition of ARMA(1,1)")
+ts.plot(Xi[,1],main="Wold decomposition of AR(1)")
 
 
 
@@ -285,24 +288,36 @@ ts.plot(Xi[,1],main="Wold decomposition of ARMA(1,1)")
 # ────────────────────────────────────────────────────────────────
 # Holding-Time (HT) Constraint Calibration
 # ────────────────────────────────────────────────────────────────
-# The HT constraint is defined on first differences (see eq. 29, Wildi 2026a)
+# The HT constraint is defined on first differences (see eq. 29, Wildi 2026a).
 
-# Derivation of the HT of the first-differenced HP predictor:
+# Derivation of the HT of the first-differenced HP predictor (not trivial):
 #
 #   Xi       : convolution matrix (eq. 22, Wildi 2026a)
-#   Xi_tilde : Xi composed with Sigma (the integration operator); see section 5.3
+#   Xi_tilde : Xi composed with Sigma (the integration operator);
+#              see section 5.3 of Wildi 2026a
 #
-#   Xi_tilde %*% hp_trend provides a finite MA representation of the HP predictor in levels.
-#   Although this representation is not the predictor itself (which is non-stationary),
-#   it is suitable for differencing: finite and infinite MA filters behave equivalently
-#   under first differencing, so the stationary differences are well-defined.
+#   Xi_tilde %*% hp_trend yields a finite MA representation of the HP 
+#   predictor in levels. Although this representation is not the predictor 
+#   itself (which is non-stationary), it is suitable for optimisation for 
+#   the following reasons:
+#     - Optimisation addresses the filter error
+#     - Under the cointegration constraint, the filter error is stationary
+#       despite the series being non-stationary
+#     - Under stationarity, finite and infinite MA representations are
+#       equivalent (the MA inversions converge to zero)
 #
 #   Applying the differencing operator Delta yields:
 #       Delta %*% Xi_tilde %*% hp_trend = Xi %*% hp_trend
-#   (both expressions are algebraically identical)
+#   (both expressions are algebraically identical, see Wildi 2026a)
 #
-#   Therefore, Xi %*% hp_trend is the appropriate input for computing the holding time
-#   of the differenced HP trend (i.e., the classic concurrent trend nowcast in levels).
+#   Therefore, Xi %*% hp_trend is the appropriate input for computing the
+#   HT of the differenced HP trend (i.e., the classical concurrent trend 
+#   nowcast in levels).
+
+# This reasoning is non-trivial. Even if the individual steps are not 
+# immediately transparent, the sample results presented below will 
+# demonstrate the validity and pertinence of the approach from an empirical 
+# point of view.
 
 HT_HP_obj<-compute_holding_time_func(Xi %*% hp_trend)
 
