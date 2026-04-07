@@ -74,8 +74,8 @@
 #   arXiv: https://doi.org/10.48550/arXiv.2602.13722
 #
 # Parts in this  tutorial are  based on Wildi (2026b), Section 4.2. Additional 
-#   applications are given in Wildi (2024). Extensions to non-stationary series (I-SSA) 
-#   are presented in Wildi (2026a).
+#   applications are given in Wildi (2024). Extensions to non-stationary series 
+#   (I-SSA) are presented in Wildi (2026a).
 
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -118,8 +118,20 @@ source(paste(getwd(), "/R/ROCplots.r", sep = ""))
 # Backcasting: Symmetric I-SSA Smoother/Trend with HT of Two-Sided HP
 # ══════════════════════════════════════════════════════════════════════════════
 # We assume that x_t follows a random walk (i.e., first differences are white
-# noise). A very long series is simulated to ensure sample estimates converge
-# closely to their expected values (asymptotic regime).
+# noise). A very long series is simulated to ensure that sample estimates
+# converge closely to their expected values (asymptotic regime). We impose the
+# HT of the classical two-sided HP(14400) filter — typically used in
+# business-cycle analysis — on I-SSA in first differences, such that I-SSA
+# replicates the mean rate of turning points (TPs) of the HP filter. We then
+# measure and compare the data-fit (MSE) of both approaches. For an identical
+# mean TP rate, we argue that the TPs derived from the I-SSA trend — which
+# optimally tracks the observed data — are more intrinsic to the underlying
+# data-generating process and less an artefact of the filter's imposed
+# structure (i.e., the curvature penalty in WH/HP).
+# This design is validated in Exercise 4, where a nowcast of the Random-Walk 
+# I-SSA trend design, proposed here, is applied to an important monthly 
+# business-cycle indicator without any refitting to the data.
+
 a1 <- b1 <- 0
 len <- 10000000
 set.seed(12)
@@ -134,25 +146,27 @@ x   <- cumsum(eps)
 L <- 201
 
 # HP Lambda Selection:
-# Lambda is the penalty weight assigned to the curvature term in the
+# Lambda is the penalty weight on the curvature term in the
 # Whittaker-Henderson (WH/HP) graduation criterion (see Tutorials 2.0
 # and 8). A larger lambda enforces greater smoothness at the cost of
-# reduced fidelity to the observed series; a smaller lambda allows the
+# reduced fidelity to the observed data; a smaller lambda allows the
 # trend to track the data more closely at the cost of increased roughness.
 #
-# The conventional value of 14,400 is the standard choice for monthly
-# series, calibrated to yield a trend broadly equivalent to that of the
-# HP filter applied to quarterly data with lambda = 1,600. Exercise 5
-# applies the resulting HP and I-SSA smoothers to the monthly US
-# Industrial Production Index (INDPRO).
+# The conventional value of lambda = 14,400 is the standard choice for
+# monthly data, calibrated to yield a trend broadly consistent with that
+# of the HP filter applied to quarterly data with lambda = 1,600.
+# Exercise 5 applies the resulting HP and I-SSA smoothers to the monthly
+# US Industrial Production Index (INDPRO).
 lambda_hp <- 14400
 
 HP_obj   <- HP_target_mse_modified_gap(2 * (L - 1) + 1, lambda_hp)
 hp_two   <- HP_obj$target
 hp_one   <- hp_trend <- HP_obj$hp_trend
+
 # hp_target is used solely to derive the HT constraint for I-SSA.
 # The HP filter itself plays no further role in the I-SSA computation.
 hp_target <- hp_two
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.2. I-SSA Settings
