@@ -34,7 +34,6 @@
 # ────────────────────────────────────────────────────────────────
 #   - In first differences (stationary): I-SSA maximizes HT
 #   - In levels: I-SSA yields a maximal monotone predictor
-#   - For I(2) processes: I-SSA minimizes curvature
 #
 # See: Wildi (2026a), sections 5.3-5.5
 
@@ -75,11 +74,13 @@
 
 
 # ────────────────────────────────────────────────────────────────
-# Application (Section 5, Wildi 2026a)
+# This Tutorial is Based on Section 5, Wildi 2026a)
 # ────────────────────────────────────────────────────────────────
-# Objective:
-#   Construct a maximal monotone I-SSA nowcast of the two-sided HP(14400)
-#   for monthly US industrial production (INDPRO)
+# Challenge:
+#   Construct a I-SSA nowcast of the two-sided HP(14400) for monthly US 
+#   industrial production (INDPRO). The I-SSA nowcast must 
+#   i)   replicate the HT of the classic one-sided HP in first differences, and
+#   ii)  improve MSE performances when compared to the classic HP nowcast.
 
 # Benchmarks against which I-SSA will be compared:
 #
@@ -89,57 +90,17 @@
 #   2) One-sided concurrent HP (HP-C)
 #      → Standard business-cycle tool
 
-
-# I-SSA design:
-#   - Match monotonicity of HP-C (equivalently: HT in first differences)
-#   - Optimize tracking accuracy in levels under this constraint
-
-
-# Expected outcome:
-#   - I-SSA ≈ HP-C in smoothness
-#   - I-SSA improves upon HP-C in MSE (or pseudo correlation / sign accuracy)
-
-
 # Key questions:
 #   - How much MSE is lost relative to the unconstrained MSE predictor?
 #   - How much MSE is gained relative to HP-C for the same smoothness?
 
 
-# ════════════════════════════════════════════════════════════════
-# Optimizing MSE in Levels subject to HT in First Differences
-# ════════════════════════════════════════════════════════════════
 
-# ── I. Tracking Recessions and Expansions ───────────────────────
+# ────────────────────────────────────────────────────────────────
+# Objective: The “Double-Stroke” Principle 
+# ────────────────────────────────────────────────────────────────
 #
-# The one-sided (concurrent) HP filter applied to levels provides
-# a real-time trend estimate.
-#
-# First differences of this trend are interpreted as:
-#   - Negative values → slowdown / recession
-#   - Positive values → recovery / expansion
-#
-# Zero-crossings indicate turning points.
-
-
-# ── II. Alternatives to One-Sided HP ────────────────────────────
-#
-#   (i)  MSE-optimal nowcast:
-#        - Best tracking in levels
-#        - But very noisy in first differences (see plots below)
-#        - Unsuitable for zero-crossing analysis
-#
-#   (ii) I-SSA nowcast:
-#        - MSE-optimal subject to same smoothness as HP-C
-#
-
-# I-SSA objective:
-#   (a) Match HP-C smoothness to track recessions/expansions (HT in differences)
-#   (b) Minimize MSE in levels within this class
-
-
-# ── III. The “Double-Stroke” Principle ──────────────────────────
-#
-# Jointly achieving within a single coherent design:
+# Design a novel nowcast that jointly achieves:
 #   • Accurate trend tracking in level (accuracy)
 #   • Reliable recession signaling in differences (smoothness)
 #
@@ -272,12 +233,32 @@ Xi           <- filter_obj$Xi           # Wold MA representation in matrix notat
 hp_two       <- filter_obj$hp_two       # Two-sided HP target
 hp_trend     <- filter_obj$hp_trend     # Classic one-sided HP (HP-C): benchmark for I-SSA customization
 
-# Optimal MSE filter (in levels) and target (in first differences), see
-# Wildi 2026a, sections 5.3-5.5
+# Specifically:
+#   gamma_mse   : the MSE-optimal nowcast of the two-sided HP trend under 
+#                 the AR(1) model assumption: no other nowcast outperfroms
+#                 gamma_mse in terms of mean-squared filter error.
+#   gamma_tilde : the finite-length (truncated) MA-inversion of gamma_mse;
+#                 see Wildi 2026a, sections 5.3–5.5
+#
+# Technical note:
+#   gamma_tilde is used for optimisation only — not for filtering. Imposing 
+#   the cointegration constraint ensures that the filter error is stationary. 
+#   Under stationarity, MA-inversions of the filter error decay to zero, so 
+#   that infinite-length inversions can be replaced by finite-length 
+#   approximations. Consequently, a finite MA-inversion gamma_tilde suffices 
+#   for optimisation — even though the MA coefficients of the level filter 
+#   themselves do not decay to zero. 
+
+# The I-SSA concept is non-trivial. The theory is developed in Wildi 2026a,
+# section 5. Even if the individual steps are not 
+# immediately transparent, the sample results presented below will 
+# demonstrate the validity and pertinence of the approach from an empirical 
+# point of view.
+
 par(mfrow=c(1,1))
 ts.plot(cbind(gamma_tilde,gamma_mse),col=c("black","brown"))
 mtext("Optimal MSE filter applied to data in levels",line=-1,col="brown")
-mtext("Target in constrained optimization",line=-2)
+mtext("Finite MA-Inversion of MSE used for optimization",line=-2)
 
 # Plot Wold decomposition of differenced process: first column in matrix Xi
 ts.plot(Xi[,1],main="Wold decomposition of AR(1)")
@@ -380,7 +361,7 @@ rho1 <- as.double(rho_hp_concurrent<-HT_HP_obj$rho_ff1)
 #   - How much MSE does I-SSA sacrifice relative to the MSE-optimal nowcast
 #     (Benchmark 2) due to imposing the HT constraint?
 #   - How much MSE does I-SSA gain relative to the classical one-sided HP 
-#     (Benchmark 1) for identical HT?
+#     (Benchmark 1) for identical HT, due to optimality of I-SSA?
 
 # Using the same derivation logic:
 #   Xi %*% gamma_mse characterizes the differenced representation
@@ -406,7 +387,7 @@ rho_mse <- as.double(mse_ht_obj$rho_ff1)
 # ────────────────────────────────────────────────────────────────
 # Motivation for I-SSA
 # ────────────────────────────────────────────────────────────────
-# - MSE-optimal level predictors are efficient but very noisy
+# - MSE-optimal level predictors are efficient but often very noisy
 # - They generate excessive sign changes in first differences
 #   → unreliable signals of slowdowns/accelerations
 #
@@ -417,12 +398,13 @@ rho_mse <- as.double(mse_ht_obj$rho_ff1)
 #   
 #
 # - I-SSA combines both advantages:
-#   → replicates HP smoothness (via HT constraint): generate fewer spurious false alarms in first differences
+#   → replicates HP smoothness (via HT constraint): generate fewer spurious 
+#     false alarms in first differences
 #   → improves tracking of the two-sided HP in levels (lower MSE)
 #
 # Result:
 # A predictor that closely tracks the level while producing
-# sparse and informative sign changes in first differences.
+# sparse and informative sign changes in first differences: a DOUBLE-STROKE.
 
 
 # ────────────────────────────────────────────────────────────────
@@ -432,7 +414,8 @@ rho_mse <- as.double(mse_ht_obj$rho_ff1)
 # Lagrange multiplier λ ensuring compliance with the HT constraint.
 # Initialization at λ = 0 corresponds to the MSE benchmark.
 
-# Do not confuse this lambda with lambda_hp (the lambda regularization parameter of HP)
+# Do not confuse this lambda with lambda_hp (the lambda regularization 
+# parameter of HP)
 lambda <- 0
 
 # Classical numerical optimization procedure optim in R
@@ -452,6 +435,9 @@ opt_obj <- optim(
 
 # Optimal Lagrange multiplier
 lambda_opt <- opt_obj$par
+# Negative values of the Lagrange multiplier indicate stronger smoothing of 
+# I-SSA compared to the MSE benchmark.
+lambda_opt
 
 # Compute I(1) cointegrated I-SSA solution based on lambda_opt
 bk_obj <- bk_int_func(
@@ -466,16 +452,48 @@ bk_obj <- bk_int_func(
   rho1
 )
 
-# Diagnostics
-bk_obj$rho_yy   # should match rho1 (HT constraint): this verifies convergence of the optimization (if not: increase the number of iterations)
+# Diagnostics: bk_obj$rho_yy is the lag-one ACF of the optimised I-SSA 
+# trend in first differences. When numerical optimisation has succeeded, 
+# this value should match the imposed rho1 up to negligible error. In 
+# practice, the R function optim is sufficiently powerful that convergence 
+# is reliably achieved.
+bk_obj$rho_yy   # should match rho1 (HT constraint)
 rho1
-bk_obj$rho_yz   # correlation with target
-bk_obj$mse_yz*sigma_ip^2   # MSE with respect to MSE-optimal predictor (rescaled with residual variance from AR(1) model)
-# This MSE vanishes if I-SSA replicates exactly the MSE predictor 
-# (set lambda_opt<-0 and verify that bk_obj$mse_yz=0)
-# I-SSA optimization principle:
-# Match the classic MSE predictor as close as possible under the HT constraint.
 
+# The above function also computes the pseudo target correlation. Note that:
+#   - The target for I-SSA is the two-sided HP trend
+#   - Since the target is non-stationary, a conventional correlation is not 
+#     well-defined
+#   - A meaningful pseudo target correlation suitable for optimisation is 
+#     derived in Wildi (2026a), equation 29 (left-hand side)
+bk_obj$rho_yz   # pseudo correlation with target
+
+# The above function also computes the expected (theoretical) MSE of the 
+# optimal I-SSA nowcast, referenced against the MSE-optimal 
+# predictor of the two-sided HP under the posited AR(1) model (note: MSE 
+# is referenced against the optimal predictor, not the acausal HP itself).
+bk_obj$mse_yz * sigma_ip^2 # MSE rescaled by the residual variance of the fitted AR(1) model
+
+#-------------------------------------------------------------------------------
+# Note:
+# The above MSE vanishes if I-SSA exactly replicates the MSE-optimal nowcast 
+# (this happens when the imposed HT equals the HT of the MSE nowcast).
+#
+# Verifications: 
+# i) either set lambda_opt <- 0 above and confirm that bk_obj$mse_yz = 0, or
+# ii) set the HT in I-SSA to match the MSE nowcast and confirm that 
+# bk_obj$mse_yz = 0.
+#
+# Background on the I-SSA optimisation principle:
+#   - The I-SSA solution obtained by targeting the acausal two-sided HP 
+#     directly is identical to the solution obtained by targeting its causal 
+#     MSE-optimal predictor — see Wildi (2026a), section 2.
+#   - Hence, we can match the MSE-optimal predictor/nowcast (of the two-sided 
+#     HP) as closely as possible subject to the HT constraint.
+
+# Below, we verify that the sample MSE between the I-SSA trend and the 
+# MSE-optimal nowcast matches bk_obj$mse_yz * sigma_ip^2.
+#-------------------------------------------------------------------------------
 
 # Extract filter
 b_x   <- bk_obj$b_x     
@@ -527,6 +545,13 @@ for (i in 1:ncol(mplot)) {
 axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
 
+# The MSE filter assigns most weight to the most recent data point — a 
+# consequence of the data following a random walk. Consequently, its HT 
+# in first differences is very small, as verified above.
+# The decay profile of I-SSA is more complex than that of HP, and 
+# convergence to zero is faster. The characteristic nose-shaped profile 
+# near lag 0 is a consequence of the implicit zero-boundary constraint of 
+# (I-)SSA — see Theorem 1 in Wildi (2026a).
 
 # ────────────────────────────────────────────────────────────────
 # Filter data
@@ -535,6 +560,11 @@ y_ssa            <- filter(x_tilde, b_x,       side = 1)
 y_hp_concurrent  <- filter(x_tilde, hp_trend,  side = 1)
 y_mse            <- filter(x_tilde, gamma_mse, side = 1)
 y_target         <- filter(x_tilde, hp_two,    side = 2)
+
+# ────────────────────────────────────────────────────────────────
+# Plot Nowcasts and Target: in Levels
+# ────────────────────────────────────────────────────────────────
+
 
 colo <- c("black", "violet", "green", "blue", "red")
 
@@ -557,6 +587,17 @@ for (i in 1:ncol(mplot)) {
 axis(1, at = 1:nrow(mplot),
      labels = index(y_xts)[anf:length(y_xts)])
 axis(2); box()
+
+# We observe that the I-SSA trend tends to be more timely than the classical 
+# HP nowcast around economic peaks and troughs. At the same time, I-SSA 
+# appears as smooth as HP — as desired by design through the imposed HT 
+# constraint.
+ 
+
+
+# ────────────────────────────────────────────────────────────────
+# Plot Nowcasts and Target: in First Differences
+# ────────────────────────────────────────────────────────────────
 
 
 # Plot: first differences
@@ -627,6 +668,11 @@ axis(1, at = 1:nrow(mplot),
      labels = index(y_xts)[(anf + 1):length(y_xts)])
 axis(2); box()
 
+# We observe that the MSE-optimal nowcast (green, top panel) is very noisy 
+# in first differences. In contrast, HP-C and I-SSA are both smooth in 
+# first differences, and both trends drop below the zero-growth line at 
+# recessions — with occasional false signals during prolonged expansions.
+
 
 # ────────────────────────────────────────────────────────────────
 # Sample performance evaluation
@@ -651,6 +697,8 @@ mean((y_mse - y_ssa)^2, na.rm = TRUE)
 bk_obj$mse_yz*sigma_ip^2
 
 # Sample holding time of the classic MSE predictor (computed on first differences)
+# Note: the data are mean-centred to emphasise mean-crossings, which are 
+# directly governed by the HT constraint.
 compute_empirical_ht_func(scale(diff(y_mse)[anf:enf]))$empirical_ht
 # Theoretical HT under a true AR(1) model: good agreement with sample estimate
 compute_holding_time_from_rho_func(rho_mse)$ht
@@ -697,14 +745,16 @@ mat_perf
 # Findings from the summary table:
 #   - Classic MSE predictor: minimises MSE but is highly noisy (low HT),
 #     making it impractical for real-time recession monitoring.
-#   - HP-C (concurrent HP): much smoother (high HT), but MSE is approximately
+#   - HP-C (concurrent HP): much smoother (higher HT), but MSE is approximately
 #     100% larger than the MSE-optimal benchmark.
 #   - I-SSA: matches or slightly exceeds HP-C in smoothness, while incurring
 #     only approximately 50% larger MSE than the MSE-optimal benchmark.
 #   - Overall: I-SSA achieves an efficient trade-off on the smoothness-accuracy
-#     frontier, delivering large gains in smoothness at a moderate MSE cost
+#     frontier
+#     -delivering large gains in smoothness at a moderate MSE cost
 #     relative to the classic MSE-optimal predictor.
-
+#     -delivering substantial gains in MSE for identical (or slightly better) 
+#     smoothness  relative to the classic one-sided HP nowcast.
 
 
 # MSE of predictors vs. two-sided HP (target)
