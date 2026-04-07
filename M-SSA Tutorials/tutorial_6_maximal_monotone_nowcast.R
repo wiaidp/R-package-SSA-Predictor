@@ -150,7 +150,8 @@
 #   → Produces sparse, meaningful sign changes in differences (signal quality)
 #
 # Result:
-#   A unified filter delivering both level nowcasts and business-cycle turning point signals.
+#   A unified filter delivering both level nowcasts and business-cycle turning 
+#   point signals.
 # ========================================================================
 
 

@@ -54,12 +54,15 @@ rhomax_func<-function(L)
 }  
 
 
+
 compute_empirical_ht_func<-function(x)
-{  
-  len<-length(na.exclude(x))
+{ 
+  x<-na.exclude(x)
+  len<-length(x)-1
   empirical_ht<-len/length(which(sign(x[2:len])!=sign(x[1:(len-1)])))
   return(list(empirical_ht=empirical_ht))
 }
+
 
 #--------------------------------
 # Some useful convolution functions
