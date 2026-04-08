@@ -144,7 +144,7 @@ compute_issa_system_filters_func<-function(L,gamma_target,symmetric_target,delta
   Xi_tilde<-(Sigma)%*%Xi
   
   # Compute gamma_mse: the optimal MSE filter applied to x_tilde the non stationary data
-  # 1. Compute weights of MA-inversion of process i.e. x_tilde: this is applied to two-sided filter and it must be of the same length as that filter  
+  # 1. Compute weights of MA-inversion of process i.e. x_tilde: this is applied to two-sided filter and it must be of sufficient length for the MA-inversions to hold  
   xi_int<-conv_two_filt_func(rep(1,length(gamma_target)+abs(delta)),xi)$conv
   # 2. Convolution target filter and MA-inversion  
   hp_xi<-conv_two_filt_func(gamma_target,xi_int)$conv
@@ -159,7 +159,10 @@ compute_issa_system_filters_func<-function(L,gamma_target,symmetric_target,delta
       print("delta is set to -(L_target-1)/2")
       delta<--(L_target-1)/2
     }
-    hp_xi_causal<-hp_xi[(delta+1+(L_target-1)/2):(length(hp_xi))]
+    if ((delta+1+(L_target-1)/2)<1)
+      print("(delta+1+(L_target-1)/2)<1: delta is corrected")
+# Must add  (L_target-1)/2) to delta to be about the intended lag delta  
+    hp_xi_causal<-hp_xi[max((delta+1+(L_target-1)/2),0):(length(hp_xi))]
   } else
   {
 #    if (delta<0)
@@ -168,21 +171,22 @@ compute_issa_system_filters_func<-function(L,gamma_target,symmetric_target,delta
 #      print("delta is set to 0")
 #      delta<-0
 #    }
+    if (delta<0)
+      print("delta < 0: delta is corrected (delta=0)")
     hp_xi_causal<-hp_xi[max((delta+1),1):(length(hp_xi))]
   }
+  
   if (F)
   {
   # Adjust length to L  
-  if (length(hp_xi_causal)>L)
-    hp_xi_causal<-hp_xi_causal[1:L]
-  if (length(hp_xi_causal)<L)
-    hp_xi_causal<-c(hp_xi_causal,rep(0,L-length(hp_xi_causal)))
+    if (length(hp_xi_causal)>L)
+      hp_xi_causal<-hp_xi_causal[1:L]
+    if (length(hp_xi_causal)<L)
+      hp_xi_causal<-c(hp_xi_causal,rep(0,L-length(hp_xi_causal)))
+    gamma_mse<-deconvolute_func(hp_xi_causal,xi_int[1:L])$dec_filt
   }
-  # 4. Deconvolute filt2 from filt1: filt1 is the convolution
-  if (F)
-  {
-  gamma_mse<-deconvolute_func(hp_xi_causal,xi_int[1:L])$dec_filt
-  }
+
+# 4. Deconvolute filt2 from filt1: filt1 is the convolution
   gamma_mse<-deconvolute_func(hp_xi_causal,xi_int)$dec_filt
   gamma_mse<-gamma_mse[1:L]
 #  ts.plot(gamma_mse)
