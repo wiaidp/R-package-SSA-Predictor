@@ -109,14 +109,19 @@ b_optim<-function(lambda,gamma,Xi,Sigma,Xi_tilde,M,B,gamma_tilde,ht_constraint)
 
 
 
+
+
+
+
 # This function computes system matrices for I-SSA. 
 # The target gamma_target can be of larger length than L, to improve accuracy of finite length MA-inversions when computing the MSE optimal filter
 compute_issa_system_filters_func<-function(L,gamma_target,symmetric_target,delta,a1,b1)
 {
+# delta<--102
   if (symmetric_target)
   {
     # When symmetric, the target is mirrored at the center point 
-    gamma_target<-c(gamma_target[length(gamma_target):2],gamma_target)
+    gamma_target_sys<-c(gamma_target[length(gamma_target):2],gamma_target)
   }
   
   # Wold decomposition of ARMA (MA inversion)  
@@ -127,32 +132,29 @@ compute_issa_system_filters_func<-function(L,gamma_target,symmetric_target,delta
   Xi<-NULL
   for (i in 1:L)
     Xi<-rbind(Xi,c(xi[i:1],rep(0,L-i)))#c(1,0,0),c(1,1,0),c(1,1,1)))
-  Xi
-  
+
   
   Sigma<-NULL
   for (i in 1:L)
     Sigma<-rbind(Sigma,c(rep(1,i),rep(0,L-i)))#c(1,0,0),c(1,1,0),c(1,1,1)))
-  Sigma
-  
+
   
   # Invert: gives Delta
   Delta<-solve(Sigma)
-  Delta
-  
+
   # Convolve integration operator and Wold decomposition (section 5.3 in Wildi 2026a)  
   Xi_tilde<-(Sigma)%*%Xi
   
   # Compute gamma_mse: the optimal MSE filter applied to x_tilde the non stationary data
   # 1. Compute weights of MA-inversion of process i.e. x_tilde: this is applied to two-sided filter and it must be of sufficient length for the MA-inversions to hold  
-  xi_int<-conv_two_filt_func(rep(1,length(gamma_target)+abs(delta)),xi)$conv
+  xi_int<-conv_two_filt_func(rep(1,length(gamma_target_sys)+abs(delta)),xi)$conv
   # 2. Convolution target filter and MA-inversion  
-  hp_xi<-conv_two_filt_func(gamma_target,xi_int)$conv
+  hp_xi<-conv_two_filt_func(gamma_target_sys,xi_int)$conv
   # 3. Extract causal part i.e. remove future epsilon (which are replaced by forecast 0)
   # Distinguish symmetric and one-sided targets  
   if (symmetric_target)
   {
-    L_target<-length(gamma_target)
+    L_target<-length(gamma_target_sys)
     if (delta<(-(L_target-1)/2))
     {
       print("The backcast does not change for delta<=-(L_target-1)/2")
@@ -187,24 +189,19 @@ compute_issa_system_filters_func<-function(L,gamma_target,symmetric_target,delta
   }
 
 # 4. Deconvolute filt2 from filt1: filt1 is the convolution
+# 4.1 Ensure that the filters have identical length: otherwise the 
+# function deconvolute_func() pads the shorter filter with 0s which is 
+# not correct in the case of integrated processes (because coefficients do not decay to zero) 
+  common_len<-min(length(hp_xi_causal),length(xi_int))
+  hp_xi_causal<-hp_xi_causal[1:common_len]
+  xi_int<-xi_int[1:common_len]
   gamma_mse<-deconvolute_func(hp_xi_causal,xi_int)$dec_filt
-  gamma_mse<-gamma_mse[1:L]
-#  ts.plot(gamma_mse)
-  # Coefficients add to one (unit-root constraint inherited from gamma_target)  
-  
-  sum(gamma_mse)
-  
-  
-#  ts.plot(gamma_mse)
-
-
-  if (F)
-  {
-    # MSE filter for random-walk: the above specification is more general since it accounts for Wold decomposition of first differences too    
-    gamma_mse<-gamma_target[L:length(gamma_target)]+c(sum(gamma_target[(L+1):length(gamma_target)]),rep(0,L-1))
-    ts.plot(gamma_mse)
-  }
-  
+# Restrict to filter length L is not exact when backcasting (but OK for now/forecasting)
+# When backcasting (delta<0) the correct filter length increases by -delta=abs(delta): (L+ifelse(delta<0,abs(delta),0))
+# This is because the length of the symmetric target is 2*L-1: this is also larger than L
+  gamma_mse<-gamma_mse[1:(L+ifelse(delta<0,abs(delta),0))]
+# Cointegration constraint: the difference of summed coefficients (transfer functio in frequency zero) should vanish  
+  sum(gamma_mse)-sum(gamma_target_sys)
   # Compute transformed MSE filter: convolution of MSE (applied to non-stationary x_tilde) with Xi_tilde
   # This is used as the target in the optimization criterion
   # It is the finite MA approaximation of the MSE filter: it is applied to epsilon_t

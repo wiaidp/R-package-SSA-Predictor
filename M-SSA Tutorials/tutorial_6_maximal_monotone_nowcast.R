@@ -332,7 +332,7 @@ compute_holding_time_func(hp_c)$ht
 # ············································
 
 # Nowcast: predict the contemporaneous trend z_t
-delta <- 0
+delta <- delta_issa <- -150
 
 # ── Target specification ──────────────────────────────────────────
 # Option 1 (used by default):
@@ -349,7 +349,7 @@ if (FALSE) {
   #   the nowcast with the correct time index
   gamma_target     <- hp_two
   symmetric_target <- FALSE
-  delta            <- delta + (length(gamma_target) - 1) / 2
+  delta_issa            <- delta + (length(gamma_target) - 1) / 2
 }
 
 # ── Lagrange multiplier initialisation ───────────────────────────
@@ -379,7 +379,7 @@ lambda_start <- 0
 #
 # An error is raised if ht_constraint < -1, since a lag-one ACF below -1
 # is inadmissible (outside the valid autocorrelation range).
-ISSA_obj <- ISSA_func(ht_constraint, L, delta, gamma_target,
+ISSA_obj <- ISSA_func(ht_constraint, L, delta_issa, gamma_target,
                       symmetric_target, a1, b1, lambda_start)
 
 # ············································
@@ -445,7 +445,7 @@ bk_obj$rho_yz
 abs(ht_issa - ht_constraint)
 
 # Cointegration check: difference should vanish
-sum(b_x-gamma_mse)
+sum(b_x)-sum(gamma_mse)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -454,6 +454,13 @@ sum(b_x-gamma_mse)
 par(mfrow = c(1, 2))
 colo <- c("violet", "green", "blue", "red")
 
+if (delta<0)
+{
+  print("For a backcast the MSE filter has length L-delta>L")
+  print("For simplicity we truncate the filter to length L")
+  print("However, the truncated filter generally does not complify with the cointegration constraint anymore")
+  gamma_mse<-gamma_mse[1:L]
+}
 mplot <- cbind(
   hp_two,
   c(gamma_mse, rep(0, L - 1)),
@@ -513,7 +520,7 @@ axis(2); box()
 y_ssa            <- filter(x_tilde, b_x,       side = 1)
 y_hp_concurrent  <- filter(x_tilde, hp_c,  side = 1)
 y_mse            <- filter(x_tilde, gamma_mse, side = 1)
-y_target         <- filter(x_tilde, hp_two,    side = 2)
+y_hp_two         <- filter(x_tilde, hp_two,    side = 2)
 
 # ────────────────────────────────────────────────────────────────
 # Plot Nowcasts and Target: in Levels
@@ -526,7 +533,7 @@ par(mfrow = c(1, 1))
 anf <- L + 100
 enf <- length(x_tilde)
 
-mplot <- cbind(x_tilde, y_target, y_mse, y_ssa, y_hp_concurrent)[anf:enf, ]
+mplot <- cbind(x_tilde, y_hp_two, y_mse, y_ssa, y_hp_concurrent)[anf:enf, ]
 colnames(mplot) <- c("Data", "Target: HP-two", "MSE: HP-one", "I-SSA", "HP-C")
 
 plot(mplot[, 1], main = "Data and trends", axes = FALSE, type = "l",
@@ -566,7 +573,7 @@ enf <- length(x_tilde) - 1
 # Plot: first differences
 # ············································
 mplot <- apply(
-  cbind(x_tilde, y_target, y_mse, y_ssa, y_hp_concurrent),
+  cbind(x_tilde, y_hp_two, y_mse, y_ssa, y_hp_concurrent),
   2,
   diff
 )[anf:enf, ]
@@ -670,6 +677,12 @@ axis(2); box()
 # Key question: I-SSA is designed to outperform HP-C in MSE terms while
 # matching it in smoothness — do the sample results confirm this?
 
+# Target: two-sided HP shifted by delta
+if (delta>=0)
+  y_target<-c(y_hp_two[(1+delta):length(y_hp_two)],rep(NA,delta))
+if (delta<0)
+  y_target<-c(rep(NA,-delta),y_hp_two[1:(length(y_hp_two)+delta)])
+
 mean((y_target - y_mse)^2, na.rm = TRUE)           # MSE-optimal nowcast (lower bound)
 mean((y_target - y_ssa)^2, na.rm = TRUE)            # I-SSA nowcast
 mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Classic one-sided HP-C
@@ -710,7 +723,7 @@ ht_constraint   # Theoretical HT under AR(1) : should be close to the sample val
 
 # Two-sided HP target — substantially smoother than all causal predictors.
 # (Potentially too smooth, see tutorial 2.0)
-compute_empirical_ht_func(scale(diff(y_target)))$empirical_ht
+compute_empirical_ht_func(scale(diff(y_hp_two)))$empirical_ht
 
 
 # ────────────────────────────────────────────────────────────────
@@ -723,9 +736,9 @@ mat_perf <- matrix(nrow = 2, ncol = 3)
 
 # Row 1: Sample MSE relative to the two-sided HP target
 mat_perf[1, ] <- c(
-  mean((y_target - y_mse)^2, na.rm = TRUE),
-  mean((y_target - y_ssa)^2, na.rm = TRUE),
-  mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)
+  mean((y_hp_two - y_mse)^2, na.rm = TRUE),
+  mean((y_hp_two - y_ssa)^2, na.rm = TRUE),
+  mean((y_hp_two - y_hp_concurrent)^2, na.rm = TRUE)
 )
 
 # Row 2: Sample HT computed on first differences (unscaled, within analysis window)
@@ -888,7 +901,7 @@ axis(2); box()
 y_ssa            <- filter(x_tilde, b_x,       side = 1)
 y_hp_concurrent  <- filter(x_tilde, hp_c,  side = 1)
 y_mse            <- filter(x_tilde, gamma_mse, side = 1)
-y_target         <- filter(x_tilde, hp_two,    side = 2)
+y_hp_two         <- filter(x_tilde, hp_two,    side = 2)
 
 
 colo <- c("black", "violet", "green", "blue", "red")
@@ -898,7 +911,7 @@ par(mfrow = c(1, 1))
 anf <- L + 100
 enf <- length(x_tilde)
 
-mplot <- cbind(x_tilde, y_target, y_mse, y_ssa, y_hp_concurrent)[anf:enf, ]
+mplot <- cbind(x_tilde, y_hp_two, y_mse, y_ssa, y_hp_concurrent)[anf:enf, ]
 colnames(mplot) <- c("Data", "Target: HP-two", "MSE: HP-one", "I-SSA", "HP-C")
 
 plot(mplot[, 1], main = "Data and trends", axes = FALSE, type = "l",
@@ -927,7 +940,7 @@ enf <- length(x_tilde) - 1
 # Plot: first differences
 # ············································
 mplot<-output_mat <- apply(
-  cbind(x_tilde, y_target, y_mse, y_ssa, y_hp_concurrent),
+  cbind(x_tilde, y_hp_two, y_mse, y_ssa, y_hp_concurrent),
   2,
   diff
 )[anf:enf, ]
@@ -1000,6 +1013,12 @@ axis(2); box()
 #   As a sanity check, I-SSA MSE should therefore be no larger than
 #   HP-C MSE — ideally approximately equal, confirming that the rule of thumb 
 #   (increase ht_constraint by 50%) is well calibrated.
+
+# Target: two-sided HP shifted by delta
+if (delta>=0)
+  y_target<-c(y_hp_two[(1+delta):length(y_hp_two)],rep(NA,delta))
+if (delta<0)
+  y_target<-c(rep(NA,-delta),y_hp_two[1:(length(y_hp_two)+delta)])
 
 mean((y_target - y_ssa)^2, na.rm = TRUE)            # I-SSA nowcast
 mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Classic one-sided HP-C

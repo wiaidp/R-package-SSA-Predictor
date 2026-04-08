@@ -71,6 +71,8 @@ compute_empirical_ht_func<-function(x)
 conv_two_filt_func<-function(filt1,filt2)
 {
   L<-max(length(filt1),length(filt2))
+# Pad shorter filter with zeroes: this is OK if the coefficients decay to zero
+# Can be a problem for non-convergent inversions of integrated processes
   if (length(filt1)<L)
     filt1<-c(filt1,rep(0,L-length(filt1)))
   if (length(filt2)<L)
@@ -102,6 +104,8 @@ deconvolute_func<-function(filt1,filt2)
 {
   filt1<-as.vector(filt1)
   filt2<-as.vector(filt2)
+# Pad shorter filter with zeroes: this is OK if the coefficients decay to zero
+# Can be a problem for non-convergent inversions of integrated processes
   if (length(filt1)<length(filt2))
     filt1<-c(filt1,rep(0,length(filt2)-length(filt1)))
   if (length(filt2)<length(filt2))
