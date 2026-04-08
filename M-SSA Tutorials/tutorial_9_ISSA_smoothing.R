@@ -111,6 +111,7 @@ source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
 source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
 
 source(file.path(getwd(), "R/simple_sign_accuracy.r"))
+source(file.path(getwd(), "R/ISSA_functions.r"))
 # ROC plot
 source(paste(getwd(), "/R/ROCplots.r", sep = ""))
 
