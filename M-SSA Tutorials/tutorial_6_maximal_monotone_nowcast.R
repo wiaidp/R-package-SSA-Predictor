@@ -233,7 +233,7 @@ x_tilde <- as.double(y_xts)
 # Define the two-sided HP trend filter that I-SSA will approximate.
 
 # Filter length: 101 coefficients (captures the bulk of HP weight mass)
-L <- 101
+L <- 201
 
 # Standard HP smoothing parameter for monthly data
 lambda_hp <- 14400
@@ -248,7 +248,7 @@ hp_mse <- gamma <- HP_obj$hp_mse
 
 # hp_two : Full symmetric two-sided HP filter, reconstructed by
 #           mirroring hp_mse around the center coefficient
-hp_two <- c(hp_mse[L:2], hp_mse)
+hp_two <- HP_obj$target
 
 # hp_c   : Classic one-sided concurrent HP filter (HP-C),
 #           i.e. the standard real-time approximation
@@ -256,7 +256,7 @@ hp_c <- HP_obj$hp_trend
 
 # Visualise all three filter representations
 par(mfrow = c(1, 1))
-ts.plot(cbind(hp_two, c(hp_mse, rep(0, L - 1)), c(hp_c, rep(0, L - 1))),
+ts.plot(cbind(hp_two, hp_mse, hp_c),
         xlab = "Lags", col = rainbow(3))
 mtext("Two-sided HP (shifted right for display)", col = rainbow(3)[1], line = -1)
 mtext("Classic one-sided concurrent HP (HP-C)",   col = rainbow(3)[3], line = -2)
@@ -332,13 +332,19 @@ compute_holding_time_func(hp_c)$ht
 # ············································
 
 # Nowcast: predict the contemporaneous trend z_t
-delta <- delta_issa <- -150
+delta <- 0
 
+if (delta>(L-1)/2)
+{
+  print(paste("Warning: forecast horizon delta=",delta," is large.",sep="")) 
+  print("This may result in poorly conditioned MSE and I-SSA estimates ")
+}
 # ── Target specification ──────────────────────────────────────────
 # Option 1 (used by default):
-#   Supply the right half of the two-sided HP (hp_mse) and let the
-#   function mirror it to recover the full symmetric target internally
-gamma_target     <- hp_mse
+# 
+gamma_target     <- hp_two
+# Setting symmetric_target <- TRUE will shift δ to the centre of the 
+# causal target filter hp_two: this transforms hp_two to an acausal two-sided
 symmetric_target <- TRUE
 
 if (FALSE) {
@@ -347,9 +353,9 @@ if (FALSE) {
   #   No internal mirroring is needed (symmetric_target = FALSE), but
   #   δ must be shifted to the centre of the causal filter to align
   #   the nowcast with the correct time index
-  gamma_target     <- hp_two
+
   symmetric_target <- FALSE
-  delta_issa            <- delta + (length(gamma_target) - 1) / 2
+  delta          <- delta + (length(gamma_target) - 1) / 2
 }
 
 # ── Lagrange multiplier initialisation ───────────────────────────
@@ -379,7 +385,7 @@ lambda_start <- 0
 #
 # An error is raised if ht_constraint < -1, since a lag-one ACF below -1
 # is inadmissible (outside the valid autocorrelation range).
-ISSA_obj <- ISSA_func(ht_constraint, L, delta_issa, gamma_target,
+ISSA_obj <- ISSA_func(ht_constraint, L, delta, gamma_target,
                       symmetric_target, a1, b1, lambda_start)
 
 # ············································
@@ -463,9 +469,9 @@ if (delta<0)
 }
 mplot <- cbind(
   hp_two,
-  c(gamma_mse, rep(0, L - 1)),
-  c(b_x,       rep(0, L - 1)),
-  c(hp_c,  rep(0, L - 1))
+  gamma_mse,
+  b_x,
+  hp_c
 )
 colnames(mplot) <- c("HP-two", "MSE", "I-SSA", "HP-C")
 
@@ -784,7 +790,171 @@ mat_perf
 
 
 # ========================================================================
-# Exercise 2: Dual I-SSA — Maximal Monotone for a Given MSE Budget
+# Exercise 2: A Special Case: As Exercise 1 but a Symmetric Backcast
+# ========================================================================
+# ────────────────────────────────────────────────────────────────
+# 2.1
+# ────────────────────────────────────────────────────────────────
+# The right half of the two-sided HP filter has length:
+(L - 1) / 2
+
+# A symmetric backcast is obtained by setting δ to the negative of this
+# half-length, which centres the I-SSA prediction horizon at the midpoint
+# of the two-sided HP filter — i.e. the nowcast is shifted back in time
+# by (L-1)/2 periods, aligning it with the centre of the symmetric target:
+delta <- -(L - 1) / 2
+
+# Note on boundary behaviour:
+#   Any value δ ≤ -(L-1)/2 produces an identical solution, because the
+#   I-SSA filter cannot exploit information beyond the centre of the
+#   symmetric target. The implementation automatically clamps δ to
+#   -(L-1)/2 if a more negative value is supplied, and issues a brief
+#   informational message to flag the adjustment.
+
+if (FALSE) {
+  # Example: this more negative value triggers the automatic correction
+  # and yields the same filter coefficients as delta = -(L-1)/2
+  delta <- -150
+}
+
+# Additional warning message when delta is large:
+if (delta>(L-1)/2)
+{
+  print(paste("Warning: forecast horizon delta=",delta," is large.",sep="")) 
+  print("This may result in poorly conditioned MSE and I-SSA estimates ")
+}
+# ── Target specification ──────────────────────────────────────────
+# Option 1 (used by default):
+# 
+gamma_target     <- hp_two
+# Setting symmetric_target <- TRUE will shift δ to the centre of the 
+# causal target filter hp_two: this transforms hp_two to an acausal two-sided
+symmetric_target <- TRUE
+
+# ── Lagrange multiplier initialisation ───────────────────────────
+lambda_start <- 0
+
+# ────────────────────────────────────────────────────────────────
+# 2.2 Run I-SSA
+# ────────────────────────────────────────────────────────────────
+
+ISSA_obj <- ISSA_func(ht_constraint, L, delta, gamma_target,
+                      symmetric_target, a1, b1, lambda_start)
+
+# Unpack results
+bk_obj     <- ISSA_obj$bk_obj    # Main I-SSA object
+gamma_mse  <- ISSA_obj$gamma_mse # MSE-optimal filter coefficients (λ = 0 benchmark)
+b_x        <- ISSA_obj$b_x       # Optimised I-SSA filter coefficients
+lambda_opt<-ISSA_obj$lambda_opt  # optimal Lagrangian multiplier: lambda_opt=0 corresponds to the MSE benchmark.
+ht_issa<-bk_obj$ht_issa          # HT of optimized I-SSA: should match ht_constraint
+
+# The theoretical MSE is much smaller than in exercise 1 because we have `future' 
+#  data available in the backcast
+bk_obj$mse_yz * sigma_ip^2
+# But why does it not vanish exactly in this case?
+# The answer is given in the plot
+
+
+# ────────────────────────────────────────────────────────────────
+# 2.3 Plot filters
+# ────────────────────────────────────────────────────────────────
+par(mfrow = c(1, 2))
+colo <- c("violet", "green", "blue", "red")
+
+if (delta<0)
+{
+  print("For a backcast the MSE filter has length L-delta>L")
+  print("For simplicity we truncate the filter to length L")
+  print("However, the truncated filter generally does not complify with the cointegration constraint anymore")
+  gamma_mse<-gamma_mse[1:L]
+}
+mplot <- cbind(
+  hp_two,
+  gamma_mse,
+  b_x,
+  hp_c
+)
+colnames(mplot) <- c("HP-two", "MSE", "I-SSA", "HP-C")
+
+plot(mplot[, 1], main = "Trend filters", axes = FALSE, type = "l",
+     ylab = "", xlab = "Lags", col = colo[1], lwd = 1,
+     ylim = range(mplot))
+abline(h = 0)
+
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i])
+  mtext(colnames(mplot)[i], line = -i, col = colo[i])
+}
+
+axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
+axis(2); box()
+
+# Zoom on first 30 lags
+mplot <- mplot[1:30, ]
+
+plot(mplot[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
+     ylim = c(min(mplot[, "HP-C"]), max(mplot[, "I-SSA"])))
+abline(h = 0)
+
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i])
+  mtext(colnames(mplot)[i], line = -i, col = colo[i])
+}
+
+axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
+axis(2); box()
+
+# Inspecting the filter coefficient plots reveals three distinct profiles:
+#
+#   1. MSE-optimal filter:
+#        Coefficients are identical to the two-sided HP weights, as
+#        expected — the unconstrained MSE predictor reproduces the two-sided
+#        HP exactly when the backcast horizon aligns with the center point 
+#        of HP.
+#
+#   2. I-SSA filter:
+#        Displays an unusual oscillating pattern superimposed on the
+#        smooth MSE/HP baseline. This behaviour is not a numerical
+#        artefact but a theoretically necessary consequence of the
+#        constraint configuration (see points 3–5 below).
+#
+#   3. Origin of the oscillating pattern:
+#        The imposed HT constraint is substantially smaller than the
+#        natural HT of the MSE-optimal predictor (which itself inherits
+#        the high smoothness of the two-sided HP). Enforcing a much
+#        shorter HT forces I-SSA to generate more frequent mean-crossings
+#        in first differences than the MSE benchmark would naturally
+#        produce.
+#
+#   4. Competing requirements:
+#        I-SSA must simultaneously satisfy two conflicting objectives:
+#          • Track the two-sided HP target as closely as possible
+#            (minimise level MSE), and
+#          • Produce a prescribed — here artificially elevated — number
+#            of crossings in first differences (satisfy the low-HT
+#            constraint).
+#
+#   5. Resolution via oscillation:
+#        The only way to reconcile accurate level-tracking with a
+#        high crossing frequency is to inject a regular alternating
+#        (oscillatory) component into the filter coefficients. This
+#        component contributes negligibly to level MSE (the oscillations
+#        largely cancel when convolved with a smooth trend) but
+#        systematically increases the zero-crossing rate of the first-
+#        difference output, satisfying the HT constraint.
+#
+# Practical implication:
+#   This pathological behaviour signals that the HT constraint is set
+#   well outside the feasible range for meaningful backcasting — the
+#   constraint demands more volatility in the growth signal than the
+#   data or the target can support. In applied work, HT constraints
+#   should be set above (or equal to) the natural HT of the
+#   MSE-optimal predictor to avoid such degenerate solutions.
+
+
+
+# ========================================================================
+# Exercise 3: Dual I-SSA — Maximal Monotone for a Given MSE Budget
 # ========================================================================
 #
 # Recap of Exercise 1 (Primal formulation):
@@ -826,7 +996,7 @@ ht_constraint<-15
 
 
 # ────────────────────────────────────────────────────────────────
-# 2.1 I-SSA Optimisation
+# 3.1 I-SSA Optimisation
 # ────────────────────────────────────────────────────────────────
 
 delta <- 0
@@ -852,7 +1022,7 @@ sum(b_x-gamma_mse)
 
 
 # ────────────────────────────────────────────────────────────────
-# 2.2 Plot filters
+# 3.2 Plot filters
 # ────────────────────────────────────────────────────────────────
 par(mfrow = c(1, 2))
 colo <- c("violet", "green", "blue", "red")
@@ -896,7 +1066,7 @@ axis(2); box()
 # I-SSA coefficients decay slower than in exercise 1: stronger smoothing
 
 # ────────────────────────────────────────────────────────────────
-# 2.2 Filter Data and Plot in Levels
+# 3.3 Filter Data and Plot in Levels
 # ────────────────────────────────────────────────────────────────
 y_ssa            <- filter(x_tilde, b_x,       side = 1)
 y_hp_concurrent  <- filter(x_tilde, hp_c,  side = 1)
@@ -929,7 +1099,7 @@ axis(2); box()
 # I-SSA is sometimes lagging and sometimes leading HP-C
 
 # ────────────────────────────────────────────────────────────────
-# 2.3 Plot in First Differences
+# 3.4 Plot in First Differences
 # ────────────────────────────────────────────────────────────────
 
 # Select data from 1998 onwards
@@ -999,11 +1169,11 @@ axis(2); box()
 
 
 # ────────────────────────────────────────────────────────────────
-# 2.4 Sample Performance Evaluation
+# 3.5 Sample Performance Evaluation
 # ────────────────────────────────────────────────────────────────
 
 # ············································
-# 2.4.1 Tracking Accuracy (Level MSE)
+# 3.5.1 Tracking Accuracy (Level MSE)
 # ············································
 # Compute the sample MSE of each nowcast relative to the two-sided HP
 # trend (the infeasible but optimal benchmark target).
@@ -1026,7 +1196,7 @@ mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Classic one-sided HP-C
 # now develop its potential in terms of increased HT.
 
 # ············································
-# 2.4.2 Smoothness: Holding Time in First Differences
+# 3.5.2 Smoothness: Holding Time in First Differences
 # ············································
 
 # I-SSA: HT maximised subject to the HP-C MSE budget
