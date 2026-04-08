@@ -1285,9 +1285,10 @@ axis(2); box()
 target <- NBER_recessions
 
 # Build the ROC data matrix: binary target + first-differenced filter outputs.
+#  -Remove first element of target to match length of first differences.
 # First differences convert non-stationary levels to stationary growth signals
 # that can be thresholded to produce recession/expansion calls.
-ROC_data_all <- cbind(target, apply(output_mat[, c("I-SSA", "HP one-sided")], 2, diff))
+ROC_data_all <- cbind(target[-1], apply(output_mat[, c("I-SSA", "HP one-sided")], 2, diff))
 rownames(ROC_data_all) <- rownames(apply(output_mat, 2, diff))
 colnames(ROC_data_all) <- c("Target", colnames(output_mat[, c("I-SSA", "HP one-sided")]))
 
