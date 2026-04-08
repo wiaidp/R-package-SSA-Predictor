@@ -507,7 +507,7 @@ axis(2); box()
 #     in Wildi (2026a).
 
 # ────────────────────────────────────────────────────────────────
-# 1.7 Filter Data 
+# 1.7 Filter and Plot Data 
 # ────────────────────────────────────────────────────────────────
 # Apply side = 1 to one-sided designs and side = 2 to two-sided HP target
 y_ssa            <- filter(x_tilde, b_x,       side = 1)
@@ -516,7 +516,7 @@ y_mse            <- filter(x_tilde, gamma_mse, side = 1)
 y_target         <- filter(x_tilde, hp_two,    side = 2)
 
 # ────────────────────────────────────────────────────────────────
-# 1.8 Plot Nowcasts and Target: in Levels
+# Plot Nowcasts and Target: in Levels
 # ────────────────────────────────────────────────────────────────
 
 colo <- c("black", "violet", "green", "blue", "red")
@@ -555,7 +555,7 @@ axis(2); box()
 #
 
 # ────────────────────────────────────────────────────────────────
-# 1.9 Plot Nowcasts and Target: in First Differences
+# Plot Nowcasts and Target: in First Differences
 # ────────────────────────────────────────────────────────────────
 
 # Select data from 1998 onwards
@@ -655,11 +655,11 @@ axis(2); box()
 # We now verify these assertions by computing sample performances
 
 # ────────────────────────────────────────────────────────────────
-# 1.10 Sample Performance Evaluation
+# 1.8 Sample Performance Evaluation
 # ────────────────────────────────────────────────────────────────
 
 # ············································
-# 1.10.1 Tracking Accuracy (Level MSE)
+# 1.8.1 Tracking Accuracy (Level MSE)
 # ············································
 # Compute the sample MSE of each nowcast relative to the two-sided HP
 # trend (the infeasible but optimal target).
@@ -682,7 +682,7 @@ bk_obj$mse_yz * sigma_ip^2              # Theoretical prediction (rescaled to AR
 
 
 # ············································
-# 1.10.2 Smoothness: Holding Time in First Differences
+# 1.8.2 Smoothness: Holding Time in First Differences
 # ············································
 # The HT is computed on first differences of each nowcast to measure
 # the mean duration between consecutive mean-crossings of the growth signal.
@@ -714,7 +714,7 @@ compute_empirical_ht_func(scale(diff(y_target)))$empirical_ht
 
 
 # ────────────────────────────────────────────────────────────────
-# 1.11 Summary Table: MSE and Holding Time
+# 1.9 Summary Table: MSE and Holding Time
 # ────────────────────────────────────────────────────────────────
 # Consolidate tracking accuracy and smoothness metrics into a single table
 # for direct comparison across the three competing nowcasts.
@@ -771,22 +771,45 @@ mat_perf
 
 
 # ========================================================================
-# Exercise 2: Same as Exercise 1 but I-SSA Replicates MSE of HP-C
+# Exercise 2: Dual I-SSA — Maximal Monotone for a Given MSE Budget
 # ========================================================================
 #
-# In exercise 1 we derived I-SSA for a given HT (in differences) specified by HP-C
-# Primal problem
-# In we now derive a maximal monotone nowcast for MSE as given by HP-C
-# Dual problem
+# Recap of Exercise 1 (Primal formulation):
+#   The HT of HP-C (in first differences) was imposed as a constraint,
+#   and I-SSA minimised level MSE subject to that smoothness requirement.
+#   Result: I-SSA matched HP-C in smoothness while achieving better level-
+#   tracking accuracy (lower MSE).
+#
+# Exercise 2 (Dual formulation):
+#   The MSE of HP-C is now treated as the budget constraint, and I-SSA
+#   maximises HT (smoothness in first differences) subject to that MSE
+#   ceiling. Result: I-SSA matches HP-C in level-tracking accuracy while
+#   achieving greater smoothness (longer HT) — the maximal-monotone nowcast
+#   for the given MSE budget.
+#
+# Implementation note:
+#   I-SSA is currently implemented in primal form only; a direct MSE
+#   constraint cannot be specified. The dual problem is therefore solved
+#   indirectly via the following iterative strategy:
+#
+#     1. Start from the primal HT constraint used in Exercise 1.
+#     2. Increase the HT constraint by a trial increment.
+#     3. Re-run I-SSA and check whether the resulting sample MSE matches
+#        the HP-C sample MSE (within acceptable sampling error).
+#     4. Repeat until the MSE condition is satisfied.
+#
+# Rule of thumb:
+#   Empirical experience suggests that increasing the primal HT constraint
+#   by approximately 50% is a reliable starting point for matching the
+#   HP-C MSE level. This heuristic is applied below and then verified
+#   against the sample MSE of HP-C.
+#
+# All other hyperparameters (filter length L, model parameters a1/b1,
+# delta, target specification) are held fixed from Exercise 1.
+# ========================================================================
 
-# I-SSA is currently implemented in primal form uniquely. Therefore, we have 
-# to find a ht_constraint such that the resulting MSE of I-SSA matches HP-C.
-
-# A rule of thumb is an increase of HT by 50%
-# We now try this rule of thumb and verify if MSE of I-SSA and HP-C match (up to sample error)
-# All other hyperparameters are leaved unchanged
-
-ht_constraint<-5
+# Impose a ~50% larger HT than in exercise 1
+ht_constraint<-15
 
 
 # ────────────────────────────────────────────────────────────────
@@ -858,6 +881,7 @@ axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
 
 # I-SSA coefficients decay slower than in exercise 1: stronger smoothing
+
 # ────────────────────────────────────────────────────────────────
 # 2.2 Filter Data and Plot in Levels
 # ────────────────────────────────────────────────────────────────
@@ -890,7 +914,6 @@ axis(1, at = 1:nrow(mplot),
 axis(2); box()
 
 # I-SSA is sometimes lagging and sometimes leading HP-C
-# I-SSA should be smoother
 
 # ────────────────────────────────────────────────────────────────
 # 2.3 Plot in First Differences
