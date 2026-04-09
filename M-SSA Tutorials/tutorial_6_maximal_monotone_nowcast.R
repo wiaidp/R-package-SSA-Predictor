@@ -1063,7 +1063,7 @@ b_x        <- ISSA_obj$b_x       # Optimised I-SSA filter coefficients
 lambda_opt<-ISSA_obj$lambda_opt  # optimal Lagrangian multiplier: lambda_opt=0 corresponds to the MSE benchmark.
 ht_issa<-bk_obj$ht_issa          # HT of optimized I-SSA: should match ht_constraint
 
-# ── Theoretical MSE ───────────────────────────────────────────────
+# ── Theoretical MSE (measured against the MSE optimal nowcast ─────
 bk_obj$mse_yz * sigma_ip^2
 # ── Convergence check ─────────────────────────────────────────────
 abs(ht_issa - ht_constraint)
@@ -1084,32 +1084,26 @@ mplot <- cbind(
   c(hp_c,  rep(0, L - 1))
 )
 colnames(mplot) <- c("HP-two", "MSE", "I-SSA", "HP-C")
-
 plot(mplot[, 1], main = "Trend filters", axes = FALSE, type = "l",
      ylab = "", xlab = "Lags", col = colo[1], lwd = 1,
      ylim = range(mplot))
 abline(h = 0)
-
 for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
   mtext(colnames(mplot)[i], line = -i, col = colo[i])
 }
-
 axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
 
 # Zoom on first 30 lags
 mplot <- mplot[1:30, ]
-
 plot(mplot[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
      ylim = c(min(mplot[, "HP-C"]), max(mplot[, "I-SSA"])))
 abline(h = 0)
-
 for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
   mtext(colnames(mplot)[i], line = -i, col = colo[i])
 }
-
 axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
 
@@ -1149,7 +1143,8 @@ axis(2); box()
 # First informal inspection:
 # I-SSA is very smooth but not systematically faster than HP-C 
 # (as was the case in exercise 1)
-# We now emphasize TPs in the next plot
+# We will emphasize TPs in the next plot, but previously we check 
+# sample performances.
 
 
 # ────────────────────────────────────────────────────────────────
@@ -1159,25 +1154,28 @@ axis(2); box()
 # ············································
 # 3.4.1 Tracking Accuracy (Level MSE)
 # ············································
-# Compute the sample MSE of each nowcast relative to the two-sided HP
-# trend (the infeasible but optimal benchmark target).
-#
-# Design intention (dual formulation of I-SSA):
-#   For a given MSE budget matched to HP-C, I-SSA maximises HT.
-#   As a sanity check, I-SSA MSE should therefore be no larger than
-#   HP-C MSE — ideally approximately equal, confirming that the rule of thumb 
-#   (increase ht_constraint by 50%) is well calibrated.
+# Compute the sample MSE of each nowcast relative to the two-sided HP trend,
+# which serves as the infeasible but optimal benchmark.
 
-# Target: two-sided HP shifted by delta
-if (delta>=0)
-  y_target<-c(y_hp_two[(1+delta):length(y_hp_two)],rep(NA,delta))
-if (delta<0)
-  y_target<-c(rep(NA,-delta),y_hp_two[1:(length(y_hp_two)+delta)])
+# Calibration logic (dual formulation of I-SSA):
+#   For a given MSE budget matched to HP-C, I-SSA is designed to maximise HT.
+#   As a consistency check, the MSE of I-SSA should therefore not exceed that
+#   of HP-C, and should ideally be close to it. This would indicate that the
+#   rule of thumb used in calibration (increasing ht_constraint by 50%) is
+#   reasonably well tuned.
+
+# Benchmark target: two-sided HP trend shifted by delta
+if (delta >= 0)
+  y_target <- c(y_hp_two[(1 + delta):length(y_hp_two)], rep(NA, delta))
+if (delta < 0)
+  y_target <- c(rep(NA, -delta), y_hp_two[1:(length(y_hp_two) + delta)])
 
 mean((y_target - y_ssa)^2, na.rm = TRUE)            # I-SSA nowcast
-mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Classic one-sided HP-C
-# A slightly lower MSE for I-SSA confirms the rule of thumb. I-SSA can 
-# now develop its potential in terms of increased HT.
+mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Standard one-sided HP-C
+
+# Since I-SSA still delivers a lower MSE than HP-C, the resulting gain in
+# smoothness should be interpreted as conservative: additional smoothness could
+# likely be achieved by calibrating the MSE constraint more tightly to HP-C.
 
 # ············································
 # 3.4.2 Smoothness: Holding Time in First Differences
@@ -1194,6 +1192,7 @@ sample_ht_hpc
 # Percentage improvement in HT achieved by I-SSA over HP-C
 paste(round(100 * (sample_ht_issa - sample_ht_hpc) / sample_ht_hpc, 2), "%", sep = "")
 
+# We now emphasize TPs of the two nowcasts in the following two-panel plot.
 
 # ──────────────────────────────────────────────────────────────────────────
 # 3.5 Plot: Highlight Turning Points (TPs) — I-SSA Maximal Monotone Property
@@ -1206,7 +1205,6 @@ colo <- c("blue", "red")
 par(mfrow = c(2, 1))
 anf <- L 
 enf <- length(x_tilde)
-
 # Combine I-SSA and HP-C outputs into a single matrix for joint plotting
 mplot_tp <- cbind(y_ssa, y_hp_concurrent)[anf:enf, ]
 colnames(mplot_tp) <- c("I-SSA", "HP-C")
@@ -1261,13 +1259,13 @@ axis(1, at = 1:nrow(mplot_tp),
 axis(2); box()
 
 # ── Turning Point Counts ────────────────────────────────────────
-# HP-C generates more TPs than I-SSA despite achieving similar (or slightly
+length(TP_hp)    # Number of TPs for HP-C
+length(TP_issa)  # Number of TPs for I-SSA (expected to be fewer)
+# HP-C generates more TPs than I-SSA despite achieving similar (slightly
 # worse) MSE tracking accuracy. This illustrates the maximal monotone property
 # of I-SSA: among all linear predictors (nowcasts) with the same MSE tracking 
 # error, I-SSA maximises the mean duration between consecutive TPs, given a 
 # sufficiently long sample and a reasonably well-specified model.
-length(TP_hp)    # Number of TPs for HP-C
-length(TP_issa)  # Number of TPs for I-SSA (expected to be fewer)
 
 # ── Interpretation of the Two Panels ───────────────────────────
 # Top panel:    I-SSA series with its own TPs marked (blue dashed lines).
@@ -1293,6 +1291,8 @@ length(TP_issa)  # Number of TPs for I-SSA (expected to be fewer)
 #    This confirms that smoothness gains are not achieved at the cost of
 #    excessive timeliness losses.
 
+# In the last exercise we consider an inverse formulation, imposing 
+# a smaller (rather than larger)  HT than HP-C. 
 
 # ========================================================================
 # Exercise 4: I-SSA Double-Stroke Revisited
@@ -1352,7 +1352,6 @@ mplot <- cbind(
   c(hp_c,  rep(0, L - 1))
 )
 colnames(mplot) <- c("HP-two", "MSE", "I-SSA", "HP-C")
-
 plot(mplot[, 1], main = "Trend filters", axes = FALSE, type = "l",
      ylab = "", xlab = "Lags", col = colo[1], lwd = 1,
      ylim = range(mplot))
@@ -1369,7 +1368,6 @@ mplot <- mplot[1:30, ]
 plot(mplot[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
      ylim = c(min(mplot[, "HP-C"]), max(mplot[, "I-SSA"])))
 abline(h = 0)
-
 for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
   mtext(colnames(mplot)[i], line = -i, col = colo[i])
@@ -1377,7 +1375,7 @@ for (i in 1:ncol(mplot)) {
 axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
 
-# I-SSA coefficients decay faster than in exercise 1 (smaller HT)
+# I-SSA coefficients decay faster than in the previous exercises (smaller HT)
 
 # ────────────────────────────────────────────────────────────────
 # 4.3 Filter Data and Plot in Levels
@@ -1446,7 +1444,7 @@ mse_hpc<-mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Classic one-sided
 mse_issa
 mse_hpc
 # Percentage improvement in MSE achieved by   I-SSA over HP-C 
-paste("HP-C has a ",round(100*(mse_hpc-mse_issa)/mse_issa,2),"% larger MSE",sep="")
+paste("HP-C has a ",round(100*(mse_hpc)/mse_issa,2),"% larger MSE",sep="")
 
 
 # ············································
