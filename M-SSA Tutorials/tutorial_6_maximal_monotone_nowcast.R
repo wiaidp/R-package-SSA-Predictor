@@ -168,7 +168,7 @@ if (reload_data) {
   load(file = file.path(getwd(), "Data", "INDPRO"))
 }
 
-tail(INDPRO)   # Quick sanity-check: inspect the most recent observations
+tail(INDPRO)   # Quick sanity-check: inspect the last few observations
 
 
 # ············································
@@ -219,7 +219,8 @@ len     <- length(y)
 x_tilde <- as.double(y_xts)
 
 # Note:
-#   Wildi (2024) applies SSA directly to log-differences (stationary).
+#   Wildi (2024) applies SSA to log-differences (stationary). 
+#   An optimal nowcast of the non-stationary level is not considered.
 #   Here, I-SSA operates on log-LEVELS (non-stationary) and is designed
 #   to track the two-sided HP trend in levels directly.
 
@@ -229,7 +230,7 @@ x_tilde <- as.double(y_xts)
 # ────────────────────────────────────────────────────────────────
 # Define the two-sided HP trend filter that I-SSA will approximate.
 
-# Filter length: 101 coefficients (captures the bulk of HP weight mass)
+# Filter length: 201 coefficients (captures the bulk of HP weight mass)
 L <- 201
 
 # Standard HP smoothing parameter for monthly data
@@ -243,8 +244,7 @@ HP_obj <- HP_target_mse_modified_gap(L, lambda_hp)
 #           a white-noise input assumption
 hp_mse <- gamma <- HP_obj$hp_mse
 
-# hp_two : Full symmetric two-sided HP filter, reconstructed by
-#           mirroring hp_mse around the center coefficient
+# hp_two : Full symmetric classic two-sided HP filter
 hp_two <- HP_obj$target
 
 # hp_c   : Classic one-sided concurrent HP filter (HP-C),
@@ -357,8 +357,8 @@ ht_hp_applied_to_wn
 # ············································
 
 # Nowcast: predict the contemporaneous trend z_t
-delta <- 0
-
+delta <- 0  
+# Warning: avoid forecast horizons larger than (L-1)/2
 if (delta>(L-1)/2)
 {
   print(paste("Warning: forecast horizon delta=",delta," is large.",sep="")) 
@@ -369,13 +369,13 @@ if (delta>(L-1)/2)
 # 
 gamma_target     <- hp_two
 # Setting symmetric_target <- TRUE will shift δ to the centre of the 
-# causal target filter hp_two: this transforms hp_two to an acausal two-sided
+# causal target filter hp_two: this transforms the causal hp_two to an 
+# effectively acausal two-sided design, as required.
 symmetric_target <- TRUE
 
 if (FALSE) {
   # Option 2 (alternative, equivalent formulation):
   #   Supply the full causal (right-shifted) two-sided HP directly.
-  #   No internal mirroring is needed (symmetric_target = FALSE), but
   #   δ must be shifted to the centre of the causal filter to align
   #   the nowcast with the correct time index
 
@@ -385,7 +385,7 @@ if (FALSE) {
 
 # ── Lagrange multiplier initialisation ───────────────────────────
 # λ = 0 corresponds to the unconstrained MSE predictor (no HT penalty);
-# the optimiser will update λ to satisfy the HT constraint
+# the I-SSA optimiser will update λ to satisfy the HT constraint
 lambda_start <- 0
 
 # ············································
@@ -402,7 +402,7 @@ lambda_start <- 0
 #
 #   • As a lag-one autocorrelation (ACF):
 #       Values in the range -1 ≤ ht_constraint ≤ 1 are interpreted as a
-#       target lag-one ACF of the I-SSA first differences. 
+#       lag-one ACF of the I-SSA first differences. 
 #
 # The function automatically distinguishes between the two forms based on
 # the magnitude of ht_constraint and issues a confirmatory message
@@ -444,23 +444,18 @@ ht_issa<-bk_obj$ht_issa          # HT of optimized I-SSA: should match ht_constr
 # making it directly comparable to the sample MSE computed below.
 bk_obj$mse_yz * sigma_ip^2
 # The sample MSE between the MSE-optimal predictor and I-SSA (exercise 1.10.1)
-# should be close to this theoretical value; notable discrepancies indicate
+# should be close to this theoretical value; discrepancies indicate
 # either finite-sample variability or model misspecification.
 
 # ── Pseudo Target Correlation ─────────────────────────────────────
 # Because the two-sided HP target is non-stationary (integrated), a
 # conventional Pearson correlation between the target and the nowcast is
-# ill-defined: the denominator (variance) diverges as the sample grows.
+# ill-defined.
 #
 # I-SSA instead uses a pseudo target correlation derived via a finite-length
 # MA inversion of the integrated process, which maps the non-stationary
 # optimisation problem onto a well-defined stationary objective
-# (Wildi 2026a, eq. 29, LHS). This pseudo correlation:
-#   • Ranges in [-1, 1] and equals 1 when the nowcast perfectly tracks
-#     the target in the differenced (stationary) domain
-#   • Serves as the objective function maximised by I-SSA subject to the
-#     HT constraint, providing a meaningful measure of phase alignment
-#     between the I-SSA output and the two-sided HP trend
+# (Wildi 2026a, eq. 29, LHS). We do not discuss this any further.
 bk_obj$rho_yz
 
 
@@ -472,11 +467,28 @@ bk_obj$rho_yz
 # If optimisation converged, the achieved HT should equal ht_constraint
 # to numerical precision. A large discrepancy indicates convergence
 # failure; remedies: increase optim() iterations or provide a better
-# starting value for lambda_start
+# starting value for lambda_start (lambda_start<0 indicates smoothing).
 abs(ht_issa - ht_constraint)
 
-# Cointegration check: difference should vanish
+# ── Cointegration Check ────────────────────────────────────────
+# For I-SSA applied to non-stationary I(1) levels, a finite Mean Squared
+# Error (MSE) requires that I-SSA tracks the target filter (here HP-C, or
+# its MSE-optimal predictor) without systematic bias. Any non-zero bias
+# would lead to an asymptotically unbounded MSE.
+#
+# Unbiasedness is guaranteed when the two filters are cointegrated, i.e.,
+# when their coefficient sums are equal. Equivalently, this requires that
+# the transfer functions of both filters agree at the unit-root (zero)
+# frequency — ensuring that both filters apply the same long-run scaling
+# to the integrated input series.
+#
+# The cointegration check below verifies this condition:
+# the difference between the coefficient sums should be zero (or negligibly
+# small up to numerical precision).
 sum(b_x)-sum(gamma_mse)
+
+# This cointegration constraint is a key structural element in the I-SSA 
+# optimization criterion, see equation 30 in Wildi 2026a.
 
 
 # ────────────────────────────────────────────────────────────────
@@ -485,13 +497,6 @@ sum(b_x)-sum(gamma_mse)
 par(mfrow = c(1, 2))
 colo <- c("violet", "green", "blue", "red")
 
-if (delta<0)
-{
-  print("For a backcast the MSE filter has length L-delta>L")
-  print("For simplicity we truncate the filter to length L")
-  print("However, the truncated filter generally does not complify with the cointegration constraint anymore")
-  gamma_mse<-gamma_mse[1:L]
-}
 mplot <- cbind(
   hp_two,
   gamma_mse,
@@ -499,7 +504,6 @@ mplot <- cbind(
   hp_c
 )
 colnames(mplot) <- c("HP-two", "MSE", "I-SSA", "HP-C")
-
 plot(mplot[, 1], main = "Trend filters", axes = FALSE, type = "l",
      ylab = "", xlab = "Lags", col = colo[1], lwd = 1,
      ylim = range(mplot))
@@ -509,22 +513,18 @@ for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
   mtext(colnames(mplot)[i], line = -i, col = colo[i])
 }
-
 axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
 
 # Zoom on first 30 lags
 mplot <- mplot[1:30, ]
-
 plot(mplot[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
-     ylim = c(min(mplot[, "HP-C"]), max(mplot[, "I-SSA"])))
+     ylim = c(min(mplot[, "HP-C"]), max(mplot[, "I-SSA"])),main="First 30 lags")
 abline(h = 0)
-
 for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
   mtext(colnames(mplot)[i], line = -i, col = colo[i])
 }
-
 axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
 
@@ -561,7 +561,8 @@ colo <- c("black", "violet", "green", "blue", "red")
 
 # Plot: levels
 par(mfrow = c(1, 1))
-anf <- L + 100
+# Skip burn-in phase
+anf <- L 
 enf <- length(x_tilde)
 
 mplot <- cbind(x_tilde, y_hp_two, y_mse, y_ssa, y_hp_concurrent)[anf:enf, ]
@@ -574,7 +575,6 @@ for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
   mtext(colnames(mplot)[i], line = -i, col = colo[i])
 }
-
 axis(1, at = 1:nrow(mplot),
      labels = index(y_xts)[anf:length(y_xts)])
 axis(2); box()
@@ -596,8 +596,8 @@ axis(2); box()
 # Plot Nowcasts and Target: in First Differences
 # ────────────────────────────────────────────────────────────────
 
-# Select data from 1998 onwards
-anf <- L + 100
+# Skip burn-in phase
+anf <- L
 enf <- length(x_tilde) - 1
 
 # ············································
@@ -706,24 +706,48 @@ axis(2); box()
 #   MSE-optimal predictor  <  I-SSA  <  HP-C
 #
 # Key question: I-SSA is designed to outperform HP-C in MSE terms while
-# matching it in smoothness — do the sample results confirm this?
+# matching it in smoothness (HT) — do the sample results confirm this?
 
-# Target: two-sided HP shifted by delta
-if (delta>=0)
-  y_target<-c(y_hp_two[(1+delta):length(y_hp_two)],rep(NA,delta))
-if (delta<0)
-  y_target<-c(rep(NA,-delta),y_hp_two[1:(length(y_hp_two)+delta)])
+# ── Target Construction ────────────────────────────────────────
+# Shift the two-sided HP trend by delta periods to align it with the
+# nowcast outputs. A positive delta shifts the target forward (trims
+# the head); a negative delta shifts it backward (trims the tail).
+if (delta >= 0)
+  y_target <- c(y_hp_two[(1 + delta):length(y_hp_two)], rep(NA, delta))
+if (delta < 0)
+  y_target <- c(rep(NA, -delta), y_hp_two[1:(length(y_hp_two) + delta)])
 
-mean((y_target - y_mse)^2, na.rm = TRUE)           # MSE-optimal nowcast (lower bound)
-mean((y_target - y_ssa)^2, na.rm = TRUE)            # I-SSA nowcast
-mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Classic one-sided HP-C
+# ── Sample MSE Computation ─────────────────────────────────────
+mse_mse  <- mean((y_target - y_mse)^2,          na.rm = TRUE)  # MSE-optimal nowcast (theoretical lower bound)
+mse_issa <- mean((y_target - y_ssa)^2,           na.rm = TRUE)  # I-SSA nowcast
+mse_hpc  <- mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Concurrent (one-sided) HP-C
+
+# ── MSE Ratios Relative to HP-C ────────────────────────────────
+# All MSEs are normalised by the HP-C MSE, so HP-C has a ratio of 1.
+# Values below 1 indicate outperformance relative to HP-C.
+mse_mat <- matrix(c(mse_mse / mse_hpc, 1, mse_issa / mse_hpc), nrow = 1)
+colnames(mse_mat) <- c("MSE-Optimal", "HP-C", "I-SSA")
+rownames(mse_mat) <- "MSE Ratio (relative to HP-C)"
+round(mse_mat, 2)
+
+# ── Interpretation ─────────────────────────────────────────────
+# The results confirm the expected ranking:
+#   - MSE-optimal nowcast: achieves the lowest MSE, approximately one-third
+#     of the HP-C MSE, representing the best achievable level tracking
+#     accuracy (theoretical lower bound).
+#   - I-SSA: substantially outperforms HP-C, reducing the MSE by
+#     approximately one-half relative to HP-C, while matching it in
+#     smoothness (HT constraint).
+#   - HP-C: serves as the reference benchmark (ratio = 1.00 by construction).
+
 
 # Cross-check: compare the sample MSE between the MSE-optimal predictor
 # and I-SSA against its theoretical counterpart derived under the AR(1) model.
 # Close agreement validates both model adequacy and the I-SSA optimisation.
 mean((y_mse - y_ssa)^2, na.rm = TRUE)   # Sample estimate
-bk_obj$mse_yz * sigma_ip^2              # Theoretical prediction (rescaled to AR(1) innovation variance)
-
+bk_obj$mse_yz * sigma_ip^2              # Expected MSE computed internally by I-SSA (rescaled to AR(1) innovation variance)
+# Note: the reference is not the two-sided HP (as in mse_issa) but the 
+# optimal MSE predictor.
 
 # ············································
 # 1.8.2 Smoothness: Holding Time in First Differences
@@ -733,13 +757,16 @@ bk_obj$mse_yz * sigma_ip^2              # Theoretical prediction (rescaled to AR
 # Series are mean-centred (standardized) before computing zero-crossings.
 
 # MSE-optimal nowcast — expected to have the shortest HT (noisiest growth signal)
+# Sample HT
 compute_empirical_ht_func(scale(diff(y_mse)[anf:enf]))$empirical_ht
-# Compute HT of MSE nowcast
+# Compute expected (theoretical) HT of MSE nowcast
 # i) Convolve gamma_mse with Wold decomposition of AR(1)
 mse_convolved_with_xi <- conv_two_filt_func(xi, gamma_mse)$conv
 # ii) Apply compute_holding_time_func
 compute_holding_time_func(mse_convolved_with_xi)$ht
-
+# Sample and expected numbers should agree up to finite sample variation. 
+# If not, the principal reasons could be model misspecification or uncentered 
+# data.
 
 
 # I-SSA nowcast — HT constrained to match HP-C by design
@@ -794,18 +821,18 @@ mat_perf
 #
 #   HP-C (classic one-sided HP):
 #     • Higher HT — smooth growth signal suitable for phase detection
-#     • Sample MSE is approximately 100% larger than the MSE-optimal
+#     • Sample MSE is approximately 200% larger than the MSE-optimal
 #       benchmark, reflecting substantial level-tracking inefficiency
 #
 #   I-SSA:
 #     • Matches or marginally exceeds HP-C in smoothness (similar HT),
 #       confirming that the HT constraint is effectively enforced
-#     • Sample MSE is only approximately 50% larger than the MSE-optimal
-#       benchmark — roughly half the MSE penalty incurred by HP-C
+#     • Sample MSE is approximately 50% larger than the MSE-optimal
+#       benchmark and roughly half the MSE incurred by HP-C.
 #
 #   Overall conclusion:
-#     I-SSA occupies an efficient position on the smoothness–accuracy
-#     frontier, simultaneously delivering:
+#     I-SSA occupies a sweet spot (an efficient position on the 
+#     smoothness–accuracy frontier), simultaneously delivering:
 #       (a) Large smoothness gains over the MSE-optimal predictor at
 #           moderate MSE cost, and
 #       (b) MSE improvements over HP-C at identical (or
