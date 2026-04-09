@@ -1012,7 +1012,7 @@ lambda_opt
 #   achieving greater smoothness:
 #     -longer HT in difference
 #     -less turning points (TP) in level
-# Exercise 2 emphasizes the maximal-monotone property of the I-SSA nowcast
+# Exercise 3 emphasizes the maximal-monotone property of the I-SSA nowcast
 #   for the given MSE budget.
 #
 # Implementation note:
