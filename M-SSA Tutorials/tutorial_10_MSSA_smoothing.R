@@ -906,10 +906,17 @@ ts.plot(eigen_obj$vectors[, 1],
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Main Take-Aways
+# Main Takeaways
 # ─────────────────────────────────────────────────────────────────────────────
-# M-SSA smoothing generalizes SSA-smoothing (tutorial 8) to multivariate 
-# frameworks
+# M-SSA smoothing extends SSA smoothing (Tutorial 8) to a multivariate setting.
+#
+# For long backcast horizons, M-SSA effectively reduces to univariate SSA
+# smoothing. Its advantages become more pronounced as the backcast horizon
+# shortens, and especially in nowcasting and forecasting settings.
+#
+# In particular, M-SSA can exploit cross-series information, such as leading
+# indicators, to improve nowcast smoothing performance.
+
 
 
 
