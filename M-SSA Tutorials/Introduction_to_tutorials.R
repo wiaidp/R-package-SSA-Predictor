@@ -84,7 +84,7 @@
 # SSA is the original and simpler univariate version of M-SSA. 
 # It is a flexible prediction framework applicable to:
 #   • One-step ahead, multi-step ahead, backcasting,
-#     nowcasting, and forecasting settings
+#     nowcasting, and forecasting settings, as well as smoothing.
 #
 # SSA explicitly targets key predictor characteristics:
 #   • MSE performance (Mean-Squared Error) and sign accuracy
@@ -209,7 +209,8 @@
 #
 #   • Scope
 #       → SSA addresses univariate linear predictors;
-#         M-SSA extends the framework to multivariate designs
+#         M-SSA extends the framework to multivariate designs (see
+#         tutorials 7 and 10)
 
 # ─────────────────────────────────────────────────────────────────
 # ── SSA AS A PLUG-ON ──────────────────────────────────────────────
@@ -262,6 +263,15 @@
 # original economic meaning and content.
 
 # ─────────────────────────────────────────────────────────────────
+# ── SSA Extensions ───────────────────────────────────────────────
+# - I-SSA and maximal monotone predictors: extension to non-stationary
+#   integrated time series; see Tutorial 6.
+# - M-SSA: extension to multivariate prediction problems; see Tutorial 7.
+# - SSA smoothing: see Tutorial 8.
+# - I-SSA smoothing and the I-SSA trend: see Tutorial 9.
+# - M-SSA smoothing: see Tutorial 10.
+
+
 # =============================================================================
 # THEORETICAL FOUNDATION: THE SSA EFFICIENCY FRONTIER
 # =============================================================================
@@ -289,7 +299,7 @@
 #     subject to a ACCURACY constraint (target correlation >= rho*)
 #
 #   Both problems yield the SAME efficient frontier — SSA solves both
-#   simultaneously by varying the constraint level (h* or rho*).
+#   simultaneously by varying the constraint level (ht* or rho*).
 #
 # EFFICIENCY PROPERTY:
 #   No other linear predictor or filter can:
@@ -300,11 +310,13 @@
 #
 # PRACTICAL IMPLICATION:
 #   The constraint and objective are fully interchangeable:
-#     - Fix smoothness (holding time h*)    => maximize accuracy
+#     - Fix smoothness (holding time ht*)    => maximize accuracy
 #     - Fix accuracy  (target correlation rho*) => maximize smoothness
 #   The resulting filter is the same efficient design in both cases.
 #   This flexibility allows practitioners to parameterize SSA according
 #   to whichever performance dimension is most relevant for their application.
+# Currently, SSA, M-SSA and I-SSA are implemented in the primal form only: 
+#   -Maximize tracking accuracy subject to a HT constraint.
 # =============================================================================
 
 
@@ -316,7 +328,7 @@
 #   • For processes with a non-zero mean, zero-crossings should be
 #     replaced by mean-crossings throughout
 #   • An extension to non-stationary processes is given in Wildi (2026a) 
-#     → Max-monotone and min-curvature SSA predictors, see tutorial 7.6
+#     → Max-monotone and min-curvature SSA predictors, see tutorials 6 and 9
 #
 
 # ── Gaussianity ───────────────────────────────────────────────────
@@ -334,11 +346,14 @@
 
 
 # ── Crossings at non-mean thresholds ──────────────────────────────
-# When zero-crossings are measured at a threshold above or below
+# When crossings are measured at a threshold above or below
 # the mean (rather than at the mean itself):
 #
-#   • The holding-time (ht) statistic becomes biased at the
-#     absolute level
+#   • The holding-time (HT) statistic becomes biased when applied to the
+#     absolute level of the series:
+#       - The mean duration between threshold crossings depends on the
+#         location of the threshold itself.
+#       - By construction, HT refers to crossings of the mean level.
 #
 #   • However, relative performance against a benchmark is
 #     generally preserved:

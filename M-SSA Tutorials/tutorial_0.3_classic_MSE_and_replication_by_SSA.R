@@ -486,7 +486,7 @@ sum(gamma_conv[1:3]^2) / sum(gamma_conv^2)
 # than white noise, making the target filter easier to approximate.
 #
 # Smoothness and timeliness of the MSE predictor can be improved via SSA
-# (Selective Spectral Analysis) at the cost of a higher MSE;
+# at the cost of a higher MSE;
 # this trade-off is explored in Tutorials 1–5.
 
 # ── Frequency-domain diagnostics ─────────────────────────────────────────────

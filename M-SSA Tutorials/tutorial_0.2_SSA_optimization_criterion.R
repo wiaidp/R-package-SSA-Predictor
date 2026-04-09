@@ -19,7 +19,8 @@
 # ── COMPARISON WITH ALTERNATIVE APPROACHES ────────────────────────
 # Alternative methods exist for directly predicting the sign of a
 # target series. This tutorial argues that SSA is more statistically
-# efficient than such alternatives if the full (continuous) information (not only the signs) is available.
+# efficient than such alternatives if the full (continuous) information 
+# (not only the signs) is available.
 #
 # The key reason:
 #   → SSA exploits the full (continuous) information set of the time series,
