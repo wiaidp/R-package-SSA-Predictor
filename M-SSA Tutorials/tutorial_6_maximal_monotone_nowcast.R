@@ -790,7 +790,7 @@ mat_perf
 
 
 # ========================================================================
-# Exercise 2: A Special Case: As Exercise 1 but a Symmetric Backcast
+# Exercise 2: As Exercise 1 but a Symmetric Backcast
 # ========================================================================
 # ────────────────────────────────────────────────────────────────
 # 2.1
@@ -951,6 +951,9 @@ axis(2); box()
 #   should be set above (or equal to) the natural HT of the
 #   MSE-optimal predictor to avoid such degenerate solutions.
 
+# Note: a positive value of the Lagrangian multiplier signals un-smoothing
+# (more crossings) by I-SSA
+lambda_opt
 
 
 # ========================================================================
@@ -967,7 +970,10 @@ axis(2); box()
 #   The MSE of HP-C is now treated as the budget constraint, and I-SSA
 #   maximises HT (smoothness in first differences) subject to that MSE
 #   ceiling. Result: I-SSA matches HP-C in level-tracking accuracy while
-#   achieving greater smoothness (longer HT) — the maximal-monotone nowcast
+#   achieving greater smoothness:
+#     -longer HT in difference
+#     -less turning points (TP) in level
+# Exercise 2 emphasizes the maximal-monotone property of the I-SSA nowcast
 #   for the given MSE budget.
 #
 # Implementation note:
@@ -990,17 +996,22 @@ axis(2); box()
 # All other hyperparameters (filter length L, model parameters a1/b1,
 # delta, target specification) are held fixed from Exercise 1.
 # ========================================================================
+# NOTE: This exercise depends on the Wold decomposition xi defined in Exercise 1.
+# If Exercise 1 has not been run yet, please do so before proceeding.
 
-# Impose a ~50% larger HT than in exercise 1
-ht_constraint<-15
+# Building on the setup from Exercise 1, we modify only the HT parameter.
+
+# Set the HT to a value approximately 50% greater than the one used 
+# in Exercise 1.
+ht_constraint <- 15
 
 
 # ────────────────────────────────────────────────────────────────
 # 3.1 I-SSA Optimisation
 # ────────────────────────────────────────────────────────────────
-
+# Same settings as in exrecise 1
 delta <- 0
-gamma_target     <- hp_mse
+gamma_target     <- hp_two
 symmetric_target <- TRUE
 lambda_start <- 0
 
@@ -1063,7 +1074,7 @@ for (i in 1:ncol(mplot)) {
 axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
 
-# I-SSA coefficients decay slower than in exercise 1: stronger smoothing
+# I-SSA coefficients decay slower than in exercise 1 due to stronger smoothing
 
 # ────────────────────────────────────────────────────────────────
 # 3.3 Filter Data and Plot in Levels
@@ -1078,9 +1089,10 @@ colo <- c("black", "violet", "green", "blue", "red")
 
 # Plot: levels
 par(mfrow = c(1, 1))
-anf <- L + 100
+# Define the plotting window: skip the first L observations (burn-in period)
+# and plot through to the end of the sample.
+anf <- L 
 enf <- length(x_tilde)
-
 mplot <- cbind(x_tilde, y_hp_two, y_mse, y_ssa, y_hp_concurrent)[anf:enf, ]
 colnames(mplot) <- c("Data", "Target: HP-two", "MSE: HP-one", "I-SSA", "HP-C")
 
@@ -1091,89 +1103,22 @@ for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
   mtext(colnames(mplot)[i], line = -i, col = colo[i])
 }
-
 axis(1, at = 1:nrow(mplot),
      labels = index(y_xts)[anf:length(y_xts)])
 axis(2); box()
 
-# I-SSA is sometimes lagging and sometimes leading HP-C
-
-# ────────────────────────────────────────────────────────────────
-# 3.4 Plot in First Differences
-# ────────────────────────────────────────────────────────────────
-
-# Select data from 1998 onwards
-anf <- L + 100
-enf <- length(x_tilde) - 1
-
-# ············································
-# Plot: first differences
-# ············································
-mplot<-output_mat <- apply(
-  cbind(x_tilde, y_hp_two, y_mse, y_ssa, y_hp_concurrent),
-  2,
-  diff
-)[anf:enf, ]
-colnames(mplot) <- c("Diff-Data", "Target: HP-two", "MSE: HP-one", "I-SSA", "HP-C")
-rownames(mplot)<-as.character(index(y_xts))[(length(y_xts)-nrow(mplot)+1):length(y_xts)]
-tail(mplot)
-# ············································
-# Two panels plot: HP-C and I-SSA
-# ············································
-par(mfrow = c(2, 1))
-# Panel 1: HP-C vs target
-select_vec <- c(2, 5)
-plot(mplot[, select_vec[1]], main = "Zero Crossings HP-C in First Differences",
-     axes = FALSE, type = "l", col = colo[select_vec[1]], lwd = 1,
-     ylim = c(-0.013, 0.006))
-abline(v = 1 + which(sign(mplot[-1, select_vec[2]]) != sign(mplot[-nrow(mplot), select_vec[2]])),
-       col = colo[select_vec[2]], lty = 2)
-abline(h = 0)
-
-for (i in seq_along(select_vec)) {
-  lines(mplot[, select_vec[i]], col = colo[select_vec[i]])
-  mtext(colnames(mplot)[select_vec[i]], line = -i, col = colo[select_vec[i]])
-}
-axis(1, at = 1:nrow(mplot),
-     labels = index(y_xts)[(anf + 1):length(y_xts)])
-axis(2); box()
-
-# Panel 2: I-SSA vs target
-select_vec <- c(2, 4)
-plot(mplot[, select_vec[1]], main = "Zero Crossings I-SSA in First Differences",
-     axes = FALSE, type = "l", col = colo[select_vec[1]], lwd = 1,
-     ylim = c(-0.013, 0.006))
-abline(v = 1 + which(sign(mplot[-1, select_vec[2]]) != sign(mplot[-nrow(mplot), select_vec[2]])),
-       col = colo[select_vec[2]], lty = 2)
-abline(h = 0)
-
-for (i in seq_along(select_vec)) {
-  lines(mplot[, select_vec[i]], col = colo[select_vec[i]])
-  mtext(colnames(mplot)[select_vec[i]], line = -i, col = colo[select_vec[i]])
-}
-axis(1, at = 1:nrow(mplot),
-     labels = index(y_xts)[(anf + 1):length(y_xts)])
-axis(2); box()
-
-# A closer inspection of the filter outputs around NBER-dated recession
-# episodes reveals two complementary properties of I-SSA relative to HP-C:
-#
-#   Timeliness at turning points:
-#     I-SSA seems lagging when compared to HP-C. 
-#
-#   Reduction in false signals:
-#     I-SSA generates fewer zero-crossings (mean-crossings in first
-#     differences) than HP-C over the full sample. In practice, this means 
-#     that I-SSA raises fewer false (up/downturn) alarms.
-
+# First informal inspection:
+# I-SSA is very smooth but not systematically faster than HP-C 
+# (as was the case in exercise 1)
+# We now emphasize TPs in the next plot
 
 
 # ────────────────────────────────────────────────────────────────
-# 3.5 Sample Performance Evaluation
+# 3.4 Sample Performance Evaluation
 # ────────────────────────────────────────────────────────────────
 
 # ············································
-# 3.5.1 Tracking Accuracy (Level MSE)
+# 3.4.1 Tracking Accuracy (Level MSE)
 # ············································
 # Compute the sample MSE of each nowcast relative to the two-sided HP
 # trend (the infeasible but optimal benchmark target).
@@ -1196,7 +1141,7 @@ mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Classic one-sided HP-C
 # now develop its potential in terms of increased HT.
 
 # ············································
-# 3.5.2 Smoothness: Holding Time in First Differences
+# 3.4.2 Smoothness: Holding Time in First Differences
 # ············································
 
 # I-SSA: HT maximised subject to the HP-C MSE budget
@@ -1211,32 +1156,418 @@ sample_ht_hpc
 paste(round(100 * (sample_ht_issa - sample_ht_hpc) / sample_ht_hpc, 2), "%", sep = "")
 
 
-# ── Interpretation ────────────────────────────────────────────────
-# The results illustrate the dual I-SSA principle in action:
+# ──────────────────────────────────────────────────────────────────────────
+# 3.5 Plot: Highlight Turning Points (TPs) — I-SSA Maximal Monotone Property
+# ──────────────────────────────────────────────────────────────────────────
+
+colo <- c("blue", "red")
+
+# Define the plotting window: skip the first L observations (burn-in period)
+# and plot through to the end of the sample.
+par(mfrow = c(2, 1))
+anf <- L 
+enf <- length(x_tilde)
+
+# Combine I-SSA and HP-C outputs into a single matrix for joint plotting
+mplot_tp <- cbind(y_ssa, y_hp_concurrent)[anf:enf, ]
+colnames(mplot_tp) <- c("I-SSA", "HP-C")
+
+# ── Top Panel: I-SSA only, with its Turning Points marked ──────
+plot(mplot_tp[, 1],
+     main   = "I-SSA with Turning Points (blue dashed vertical lines)",
+     axes   = FALSE, type = "l",
+     xlab   = "", ylab  = "",
+     col    = colo[1], lwd = 1,
+     ylim   = c(min(mplot_tp), max(mplot_tp)))
+
+# Detect Turning Points (TPs) for HP-C and I-SSA.
+# A TP occurs where the sign of successive first differences reverses,
+# i.e., where diff[t] * diff[t+1] < 0 (a local peak or trough).
+TP_hp   <- which(diff(mplot_tp[1:(nrow(mplot_tp) - 1), "HP-C"])  *
+                   diff(mplot_tp[2:nrow(mplot_tp),       "HP-C"])  < 0)
+TP_issa <- which(diff(mplot_tp[1:(nrow(mplot_tp) - 1), "I-SSA"]) *
+                   diff(mplot_tp[2:nrow(mplot_tp),       "I-SSA"]) < 0)
+# Overlay I-SSA Turning Points as blue dashed vertical lines
+abline(v = 1 + TP_issa, col = "blue", lty = 2)
+
+# Add time-axis labels and box
+axis(1, at = 1:nrow(mplot_tp),
+     labels = index(y_xts)[anf:length(y_xts)])
+axis(2); box()
+
+# ── Bottom Panel: I-SSA and HP-C overlaid, with TPs of both series ──
+plot(mplot_tp[, 1],
+     main   = "I-SSA (blue) and HP-C (red) with Turning Points",
+     axes   = FALSE, type = "l",
+     xlab   = "", ylab  = "",
+     col    = colo[1], lwd = 1,
+     ylim   = c(min(mplot_tp), max(mplot_tp)))
+
+# Draw both series and add in-plot legend via marginal text
+for (i in 1:ncol(mplot_tp)) {
+  lines(mplot_tp[, i], col = colo[i])
+  mtext(colnames(mplot_tp)[i], line = -i, col = colo[i])
+}
+# Detect TPs for both filters (same logic as top panel)
+TP_hp   <- which(diff(mplot_tp[1:(nrow(mplot_tp) - 1), "HP-C"])  *
+                   diff(mplot_tp[2:nrow(mplot_tp),       "HP-C"])  < 0)
+TP_issa <- which(diff(mplot_tp[1:(nrow(mplot_tp) - 1), "I-SSA"]) *
+                   diff(mplot_tp[2:nrow(mplot_tp),       "I-SSA"]) < 0)
+# Overlay TPs: I-SSA (blue dashed) and HP-C (red dotted)
+abline(v = 1 + TP_issa, col = "blue", lty = 2)
+abline(v = 1 + TP_hp,   col = "red",  lty = 3)
+# Add time-axis labels and box
+axis(1, at = 1:nrow(mplot_tp),
+     labels = index(y_xts)[anf:length(y_xts)])
+axis(2); box()
+
+# ── Turning Point Counts ────────────────────────────────────────
+# HP-C generates more TPs than I-SSA despite achieving similar (or slightly
+# worse) MSE tracking accuracy. This illustrates the maximal monotone property
+# of I-SSA: among all linear predictors (nowcasts) with the same MSE tracking 
+# error, I-SSA maximises the mean duration between consecutive TPs, given a 
+# sufficiently long sample and a reasonably well-specified model.
+length(TP_hp)    # Number of TPs for HP-C
+length(TP_issa)  # Number of TPs for I-SSA (expected to be fewer)
+
+# ── Interpretation of the Two Panels ───────────────────────────
+# Top panel:    I-SSA series with its own TPs marked (blue dashed lines).
+# Bottom panel: Both I-SSA and HP-C, with HP-C TPs (red dotted) overlaid
+#               on I-SSA TPs (blue dashed).
 #
-#   Level-tracking accuracy (MSE):
-#     I-SSA and HP-C achieve similar MSE relative to the two-sided HP
-#     target. 
+# ──────────────────────────────────────────────────────────────────────────
+# Main Take-Aways:
+# ──────────────────────────────────────────────────────────────────────────
 #
-#   Smoothness (HT):
-#     I-SSA achieves a meaningfully longer HT than HP-C, reflecting the
-#     maximal-monotone property: given identical MSE, no other linear
-#     predictor produces fewer mean-crossings in first differences.
-#     
-#   In practical terms, this translates to:
-#     • Level tracking comparable to HP-C.
-#     • Fewer zero-crossings in differences (less noisy alarms) .
-# 
+# 1. Maximal Monotone Property:
+#    For equal or slightly better MSE, I-SSA produces fewer TPs than HP-C.
+#    No other linear predictor achieves a longer mean duration between TPs
+#    under the same conditions (sufficiently long sample, well-specified model,
+#    identical MSE tracking error), see Wildi 2026a.
+#
+# 2. Timeliness at TPs:
+#    Despite its greater smoothness (fewer TPs), I-SSA does not suffer from
+#    excessive lag at turning points. Across the sample, I-SSA is:
+#      - Coincident with HP-C at 5 TPs,
+#      - Leading HP-C at 1 TP, and
+#      - Lagging HP-C at 4 TPs.
+#    This confirms that smoothness gains are not achieved at the cost of
+#    excessive timeliness losses.
+
+
+# ========================================================================
+# Exercise 4: I-SSA Double-Stroke 
+# ========================================================================
+
+# We here illustrate that I-SSA can outperform HP-C in MSE tracking accuracy 
+# on stationary levels, as well as in recession signaling on stationary 
+# first differences (growth). For this purpose we design I-SSA with a HT in 
+# between the optimal MSE level tracker and HP-C's own HT. We then compute 
+# MSE performances as well as recession signaling based on the ROC curve.
+
+# NOTE: This exercise depends on the Wold decomposition xi defined in Exercise 1.
+# If Exercise 1 has not been run yet, please do so before proceeding.
+
+# Building on the setup from Exercise 1, we modify only the HT parameter.
+
+# Set the HT to a value midway the HT of HP_c (~10) and the MSE optimal 
+# nowcast (~2) in Exercise 1.
+ht_constraint <- (10+2)/2
+ht_constraint
+
+# ────────────────────────────────────────────────────────────────
+# 4.1 I-SSA Optimisation
+# ────────────────────────────────────────────────────────────────
+# Same settings as in exrecise 1
+delta <- 0
+gamma_target     <- hp_two
+symmetric_target <- TRUE
+lambda_start <- 0
+
+ISSA_obj <- ISSA_func(ht_constraint, L, delta, gamma_target,
+                      symmetric_target, a1, b1, lambda_start)
+
+bk_obj     <- ISSA_obj$bk_obj    # Main I-SSA object
+gamma_mse  <- ISSA_obj$gamma_mse # MSE-optimal filter coefficients (λ = 0 benchmark)
+b_x        <- ISSA_obj$b_x       # Optimised I-SSA filter coefficients
+lambda_opt<-ISSA_obj$lambda_opt  # optimal Lagrangian multiplier: lambda_opt=0 corresponds to the MSE benchmark.
+ht_issa<-bk_obj$ht_issa          # HT of optimized I-SSA: should match ht_constraint
+
+# ── Theoretical MSE ───────────────────────────────────────────────
+bk_obj$mse_yz * sigma_ip^2
+# ── Convergence check ─────────────────────────────────────────────
+abs(ht_issa - ht_constraint)
+# Cointegration check: difference should vanish
+sum(b_x-gamma_mse)
+
+
+# ────────────────────────────────────────────────────────────────
+# 4.2 Plot filters
+# ────────────────────────────────────────────────────────────────
+par(mfrow = c(1, 2))
+colo <- c("violet", "green", "blue", "red")
+mplot <- cbind(
+  hp_two,
+  c(gamma_mse, rep(0, L - 1)),
+  c(b_x,       rep(0, L - 1)),
+  c(hp_c,  rep(0, L - 1))
+)
+colnames(mplot) <- c("HP-two", "MSE", "I-SSA", "HP-C")
+
+plot(mplot[, 1], main = "Trend filters", axes = FALSE, type = "l",
+     ylab = "", xlab = "Lags", col = colo[1], lwd = 1,
+     ylim = range(mplot))
+abline(h = 0)
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i])
+  mtext(colnames(mplot)[i], line = -i, col = colo[i])
+}
+axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
+axis(2); box()
+
+# Zoom on first 30 lags
+mplot <- mplot[1:30, ]
+plot(mplot[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
+     ylim = c(min(mplot[, "HP-C"]), max(mplot[, "I-SSA"])))
+abline(h = 0)
+
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i])
+  mtext(colnames(mplot)[i], line = -i, col = colo[i])
+}
+axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
+axis(2); box()
+
+# I-SSA coefficients decay faster than in exercise 1 (smaller HT)
+
+# ────────────────────────────────────────────────────────────────
+# 4.3 Filter Data and Plot in Levels
+# ────────────────────────────────────────────────────────────────
+y_ssa            <- filter(x_tilde, b_x,       side = 1)
+y_hp_concurrent  <- filter(x_tilde, hp_c,  side = 1)
+y_mse            <- filter(x_tilde, gamma_mse, side = 1)
+y_hp_two         <- filter(x_tilde, hp_two,    side = 2)
+
+
+colo <- c("black", "violet", "green", "blue", "red")
+
+# Plot: levels
+par(mfrow = c(1, 1))
+# Define the plotting window: skip the first L observations (burn-in period)
+# and plot through to the end of the sample.
+anf <- L 
+enf <- length(x_tilde)
+mplot <- cbind(x_tilde, y_hp_two, y_mse, y_ssa, y_hp_concurrent)[anf:enf, ]
+colnames(mplot) <- c("Data", "Target: HP-two", "MSE: HP-one", "I-SSA", "HP-C")
+
+plot(mplot[, 1], main = "Data and trends", axes = FALSE, type = "l",
+     xlab = "", ylab = "", col = colo[1], lwd = 1)
+
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i])
+  mtext(colnames(mplot)[i], line = -i, col = colo[i])
+}
+axis(1, at = 1:nrow(mplot),
+     labels = index(y_xts)[anf:length(y_xts)])
+axis(2); box()
+
+# ── Preliminary Visual Inspection ──────────────────────────────
+# Before computing formal performance metrics, an initial visual inspection
+# of the two filters suggests the following:
+#   - I-SSA is less smooth than HP-C but responds faster and adapts more
+#     readily to narrow, short-lived recessionary dips in the series.
+#
+# We now proceed to compute and compare formal sample performance statistics
+# for both filters.
+
+# ────────────────────────────────────────────────────────────────
+# 4.4 Sample Performance Evaluation
+# ────────────────────────────────────────────────────────────────
+
+# ············································
+# 4.4.1 Tracking Accuracy (Level MSE)
+# ············································
+# Compute the sample MSE of each nowcast relative to the two-sided HP
+# trend (the infeasible but optimal benchmark target).
+#
+# Design intention (dual formulation of I-SSA):
+#   For a given HT, I-SSA maximises tracking accuracy.
+#   Since the imposed HT is smaller than HP-C, I-SSA should substantially 
+#   outperform HP-C in terms of MSE.
+
+# Target: two-sided HP shifted by delta
+if (delta>=0)
+  y_target<-c(y_hp_two[(1+delta):length(y_hp_two)],rep(NA,delta))
+if (delta<0)
+  y_target<-c(rep(NA,-delta),y_hp_two[1:(length(y_hp_two)+delta)])
+
+mse_issa<-mean((y_target - y_ssa)^2, na.rm = TRUE)            # I-SSA nowcast
+mse_hpc<-mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Classic one-sided HP-C
+
+mse_issa
+mse_hpc
+# Percentage improvement in MSE achieved by   I-SSA over HP-C 
+paste("HP-C has a ",round(100*(mse_hpc-mse_issa)/mse_issa,2),"% larger MSE",sep="")
+
+
+# ············································
+# 4.4.2 Smoothness: Holding Time in First Differences
+# ············································
+
+# I-SSA: HT maximised subject to the HP-C MSE budget
+sample_ht_issa <- compute_empirical_ht_func(scale(diff(y_ssa)[anf:enf]))$empirical_ht
+sample_ht_issa
+
+# HP-C: smoothness benchmark
+sample_ht_hpc <- compute_empirical_ht_func(scale(diff(y_hp_concurrent)[anf:enf]))$empirical_ht
+sample_ht_hpc
+
+# Percentage improvement in HT achieved by  HP-C over I-SSA 
+paste("HP-C has a ",round(100 * (sample_ht_hpc-sample_ht_issa) / sample_ht_issa, 2), "% larger HT", sep = "")
 
 
 
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.5 NBER Recession Detection
+# ─────────────────────────────────────────────────────────────────────────────
+# We evaluate the ability of each trend nowcast to detect NBER-dated recessions 
+# using Receiver Operating Characteristic (ROC) curves and the Area Under the 
+# Curve (AUC). First differences of the filter outputs serve as recession 
+# signals. AUC summarises overall detection skill — a value of 1 indicates 
+# perfect discrimination; 0.5 indicates no skill beyond random guessing.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.5.1 NBER dating
+# ─────────────────────────────────────────────────────────────────────────────
+
+output_mat <- cbind(y_ssa, y_hp_concurrent, y_target)
+dates<-as.character(index(y_xts))
+rownames(output_mat)<-dates
+colnames(output_mat)<-c("I-SSA","HP one-sided","HP two-sided")
+tail(output_mat)
+
+tail(nberDates())
+
+# Construct a binary recession indicator aligned to the filter output grid:
+# 1 = NBER recession month, 0 = expansion month
+NBER_recessions <- rep(0, nrow(output_mat))
+names(NBER_recessions) <- rownames(output_mat)
+
+# Assign recession episodes based on official NBER peak-to-trough dates
+recession_dates <- c(
+  which(names(NBER_recessions) >= "1970-01-01" & names(NBER_recessions) <= "1970-11-30"),  # 1969–70
+  which(names(NBER_recessions) >= "1973-12-01" & names(NBER_recessions) <= "1975-03-31"),  # 1973–75
+  which(names(NBER_recessions) >= "1980-02-01" & names(NBER_recessions) <= "1980-07-31"),  # 1980
+  which(names(NBER_recessions) >= "1981-08-01" & names(NBER_recessions) <= "1982-11-30"),  # 1981–82
+  which(names(NBER_recessions) >= "1990-08-01" & names(NBER_recessions) <= "1991-03-31"),  # 1990–91
+  which(names(NBER_recessions) >= "2001-04-01" & names(NBER_recessions) <= "2001-11-30"),  # 2001
+  which(names(NBER_recessions) >= "2008-01-01" & names(NBER_recessions) <= "2009-06-30"),  # 2008–09 (GFC)
+  which(names(NBER_recessions) >= "2020-01-01" & names(NBER_recessions) <= "2020-04-30")   # 2020 (COVID-19)
+)
+NBER_recessions[recession_dates] <- 1
+
+# Quick visual check of the recession indicator
+plot(NBER_recessions,
+     main = "NBER US Recession Dating", axes = FALSE, type = "l",
+     xlab = "", ylab = "", col = "black", lwd = 1)
+axis(1, at    = c(1, 4 * 1:(length(NBER_recessions) / 4)),
+     labels = names(NBER_recessions)[c(1, 4 * 1:(length(NBER_recessions) / 4))])
+axis(2); box()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.5.2 Compare NBER Dating with Differenced nowcasts 
+# ─────────────────────────────────────────────────────────────────────────────
+
+# The recession indicator serves as the binary classification target
+target <- NBER_recessions
+
+
+# Build the ROC data matrix: binary target + first-differenced filter outputs.
+#  -Remove first element of target to match length of first differences.
+# First differences convert non-stationary levels to stationary growth signals
+# that can be thresholded to produce recession/expansion calls.
+ROC_data_all <- cbind(target[-1], apply(output_mat[, c("I-SSA", "HP one-sided")], 2, diff))
+rownames(ROC_data_all) <- rownames(apply(output_mat, 2, diff))
+colnames(ROC_data_all) <- c("Target", colnames(output_mat[, c("I-SSA", "HP one-sided")]))
+
+year_2000<-which(index(y_xts)>"2000-01-01")[1]
+
+# Restrict to post-2000 sub-sample for comparability with HT analysis and to
+# avoid the high-growth pre-2000 period, which has a different drift regime
+# (mitigate non-stationarity)
+ROC_data <- ROC_data_all[year_2000:nrow(ROC_data_all), ]
+head(ROC_data)
+tail(ROC_data)
+# Compare NBER datings with differenced trend nowcasts: 
+#   Both nowcast smoothers track official NBER datings well
+ts.plot(scale(ROC_data,center=F,scale=T),col=c("black","blue","red"),main="Recessions vs. differenced smoothers")
+mtext("I-SSA",col="blue",line=-1)
+mtext("HP one-sided",col="red",line=-2)
 
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.5.3 ROC AnalysisC
+# ─────────────────────────────────────────────────────────────────────────────
+smoothROC <- T   # Apply smoothing to ROC curves for cleaner visualisation
+showROC   <- TRUE   # Display ROC plots
+lbls      <- "Hit"  # Axis label: hit rate (sensitivity) vs. false alarm rate
+lg_cex    <- 0.5    # Legend text size
+
+par(mfrow = c(1, 1))
 
 
+# Compute ROC curves and AUCs
+# Transform into a data frame (requested for ROC plot)
+ROC_data <- as.data.frame(ROC_data)
+
+# Plot ROC curves and compute AUC for each filter
+# As expected (from previous plot), both nowcast smoothers track recession 
+# datings well in first differences.
+showLegend <- TRUE
+AUC <- ROCplots(ROC_data, showROC, main = "ROC Analysis: Recession Detection", lbls = lbls,
+                smoothROC, colours = NULL, lwd = 2,
+                showLegend, lg_cex = 1, lg_ncol = 1)
+
+# Summarise AUC values
+AUC_table <- AUC$AUC
+names(AUC_table) <- colnames(ROC_data[, c("I-SSA", "HP one-sided")])
+
+# AUC results: higher values indicate better recession discrimination
+AUC_table
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Main Take-Aways: I-SSA Double-Stroke Design
+# ──────────────────────────────────────────────────────────────────────────
+#
+# 1. Tracking Accuracy:
+#    I-SSA can outperform HP-C in level tracking accuracy (i.e., yield a better
+#    level nowcast) and in recession signaling based on first differences 
+#    (growth rates).
+#
+# 2. HT Constraint — Rule of Thumb:
+#    As a practical guideline, the HT constraint can be set
+#    to a value between the optimal MSE level tracker and the chosen benchmark
+#    (here HP-C), offering a principled starting point for calibration.
+#
+# 3. Smoothness vs. Adaptiveness Trade-Off:
+#    The resulting I-SSA filter will be less smooth (i.e., exhibit more Turning
+#    Points in levels) but faster and more adaptive to structural changes in the
+#    series. This trade-off can be advantageous in terms of the balance between
+#    false alarms and hit rates, as reflected in the ROC curve and AUC metric.
+#
+# 4. Continued Relevance of the Maximal Monotone Design (Exercise 3):
+#    Despite the benefits of the Double-Stroke design, the maximal monotone
+#    I-SSA from Exercise 3 remains relevant in its own right. Its strong noise
+#    suppression — manifested as long mean durations between Turning Points —
+#    makes it well suited as a confirmatory analytical tool, complementing the
+#    more adaptive Double-Stroke variant.
+################################################################################
+################################################################################
 
 
 
