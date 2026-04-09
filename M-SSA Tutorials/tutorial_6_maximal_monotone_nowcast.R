@@ -1443,8 +1443,8 @@ mse_hpc<-mean((y_target - y_hp_concurrent)^2, na.rm = TRUE)  # Classic one-sided
 
 mse_issa
 mse_hpc
-# Percentage improvement in MSE achieved by   I-SSA over HP-C 
-paste("HP-C has a ",round(100*(mse_hpc)/mse_issa,2),"% larger MSE",sep="")
+# MSE Ratio (relative to HP-C): even better than in exercise 1.
+round(mse_issa/mse_hpc,2)
 
 
 # ············································
@@ -1459,8 +1459,9 @@ sample_ht_issa
 sample_ht_hpc <- compute_empirical_ht_func(scale(diff(y_hp_concurrent)[anf:enf]))$empirical_ht
 sample_ht_hpc
 
-# Percentage improvement in HT achieved by  HP-C over I-SSA 
-paste("HP-C has a ",round(100 * (sample_ht_hpc-sample_ht_issa) / sample_ht_issa, 2), "% larger HT", sep = "")
+# Smaller HT (the cost of improved MSE):
+sample_ht_issa/sample_ht_hpc
+
 
 
 
@@ -1541,7 +1542,7 @@ ROC_data <- ROC_data_all[year_2000:nrow(ROC_data_all), ]
 head(ROC_data)
 tail(ROC_data)
 # Compare NBER datings with differenced trend nowcasts: 
-#   Both nowcast smoothers track official NBER datings well.
+#   Both nowcasts track official NBER datings well.
 #   I-SSA seems systematically faster at recoveries.
 ts.plot(scale(ROC_data,center=F,scale=T),col=c("black","blue","red"),main="Recessions vs. differenced smoothers")
 mtext("I-SSA",col="blue",line=-1)
@@ -1614,13 +1615,15 @@ AUC_table
 # 1. Extension to Non-Stationary Series:
 #    We introduced the Integrated SSA (I-SSA),
 #    which extends the original SSA framework to non-stationary I(1)
-#    (integrated) time series.
+#    (integrated) time series. An extension to I(2) processes is derived in 
+#    Wildi 2026a.
 #
 # 2. Maximal Monotone: 
 #    I-SSA generalises the HT-based smoothness criterion of SSA to the
-#    property of maximal monotonicity, ensuring the longest
-#    expected time between consecutive crossover or turning points among all 
-#    linear predictors operating under the same constraints.
+#    property of maximal monotonicity in non-stationary levels, ensuring the 
+#    longest expected time between consecutive crossover or turning points 
+#    among all linear predictors operating under the same MSE-tracking 
+#    constraint.
 #
 # 3. Double-Stroke:
 #    I-SSA addresses two objectives within a single, coherent indicator:

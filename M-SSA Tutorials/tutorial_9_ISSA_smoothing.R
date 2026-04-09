@@ -15,37 +15,51 @@
 # I-SSA smoothing framework. It is distinguished from classical trend
 # definitions by the following key properties:
 #
-# - Minimal Imprint: The shape of the I-SSA trend is determined entirely by 
+# - MINIMAL IMPRINT: 
+#   The shape of the I-SSA trend is determined entirely by 
 #   the data and the holding-time (HT) constraint. No artificial structure is 
 #   imposed on the data-generating process, and no idealised appearance is 
 #   prescribed for the smoothed series (e.g., locally linear, polynomial, 
 #   spline, or minimal curvature).
 #
-# - Interpretability: The HT constraint in I-SSA is applied to first (or 
-#   second) differences of the trend, which are assumed stationary (see 
-#   tutorial 6). In first differences, the HT constraint governs the mean 
-#   duration between consecutive mean-crossings (zero-crossings when the mean 
-#   is zero or negligible). Consequently, the HT constraint controls the 
-#   frequency of crossover points — transitions between above- and 
-#   below-average growth — in the original (non-stationary) trend level. In 
-#   the special case where mean growth is zero or negligible, crossover points 
-#   coincide with turning points (local maxima and minima) of the trend level. 
-#   Both crossover points and turning points mark critical regime changes in 
-#   the data and are directly relevant to decision makers, provided the 
-#   underlying shift in direction is sufficiently sustained and material. By 
-#   targeting the mean duration between consecutive phases, the HT constraint 
-#   enables the analyst to tailor the decomposition to specific research 
-#   objectives — for example, business-cycle analysis (e.g., recession and 
-#   recovery tracking), financial applications (e.g., high-frequency trading 
-#   signals vs. long-term systematic investment strategies), or the study of 
-#   generic structural change processes.
+# - INTERPRETABILITY: 
+#   In I-SSA, the HT constraint is imposed on the first
+#   (or second) differences of the trend, which are assumed to be stationary
+#   (see Tutorial 6).
 #
-# - Logical Consistency and Statistical Efficiency: For a target mean phase 
-#   duration — i.e., mean duration between consecutive crossover or turning 
-#   points — imposed via the HT constraint, the I-SSA trend is determined by 
-#   tracking the non-stationary data as closely as possible (the objective 
-#   function in I-SSA). That is, for a given target frequency of phase changes, 
-#   the I-SSA trend provides the best possible fit to the observed data. 
+#   When applied to first differences, the HT constraint determines the mean
+#   duration between successive crossings of the mean — or zero-crossings when
+#   the mean is zero or negligible. In turn, this governs the frequency of
+#   crossover points in the original (non-stationary) trend level, that is,
+#   transitions between above-average and below-average growth.
+#
+#   In the special case of zero or negligible mean growth, these crossover
+#   points coincide with turning points (local maxima and minima) in the trend
+#   level.
+#
+#   Both crossover points and turning points represent economically meaningful
+#   regime changes and can therefore be directly relevant for decision-making,
+#   provided that the underlying change in direction is sufficiently persistent
+#   and material.
+#
+#   This persistence or materiality can be incorporated through the choice of
+#   the HT constraint, which specifies the desired mean duration between
+#   consecutive phases. As a result, the analyst can tailor the decomposition
+#   to the research objective at hand — for example, business-cycle analysis
+#   (e.g., recession and recovery monitoring), financial applications
+#   (e.g., high-frequency trading signals versus long-term systematic
+#   investment strategies), or the study of broader structural change
+#   processes.
+
+#
+# - LOGICAL CONSISTENCY AND STATISTICAL EFFICIENCY: 
+#   For a target mean phase duration — i.e., mean duration between consecutive 
+#   crossover or turning points — imposed via the HT constraint, the I-SSA 
+#   trend is determined by tracking the non-stationary data as closely as 
+#   possible (the objective function in I-SSA). That is, for a given target 
+#   frequency of phase changes, the I-SSA trend provides the best possible fit 
+#   to the observed data.
+#
 #   Identifying phases from an optimally data-tracking trend is both logically 
 #   consistent — anchoring regime-change signals directly in the observed data 
 #   — and statistically efficient — extracting the maximum available signal for 
