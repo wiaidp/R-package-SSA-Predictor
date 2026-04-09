@@ -4,8 +4,10 @@
 # ========================================================================
 # Topics:
 #   - Introduction of I-SSA
-#   - Joint unified treatment of level nowcasting and growth-sign signaling
-#   - Maximal monotone predictors
+#   - Double-Stroke: Joint unified treatment of level nowcasting and 
+#     growth-sign signaling (recession tracking) within a single consistent 
+#     design
+#   - Maximal monotone predictor
 # ========================================================================
 
 # ────────────────────────────────────────────────────────────────
@@ -44,7 +46,7 @@
 #
 # Primal and dual formulations of I-SSA:
 #   Primal : For a given HT in first differences, y_t maximises tracking of
-#            z_t in non-stationary levels (minimises level MSE).
+#            z_{t+δ} in non-stationary levels (minimises level MSE).
 #   Dual   : For a given level-tracking accuracy (e.g. MSE), I-SSA maximises
 #            HT in first differences Δy_t.
 #
@@ -85,10 +87,8 @@ rm(list = ls())
 library(xts)        # Extended time-series objects and utilities
 library(mFilter)    # HP and BK trend/cycle filters
 library(quantmod)   # Data retrieval (e.g. from FRED)
-# ROC curve calculation
-library(pROC)
-# NBER recession datings for the US
-library(tis)
+library(pROC)       # ROC curve calculation
+library(tis)        # NBER recession datings for the US
 
 
 # ────────────────────────────────────────────────────────────────
@@ -97,8 +97,7 @@ library(tis)
 source(file.path(getwd(), "R", "simple_sign_accuracy.r"))   # Core SSA routines
 source(file.path(getwd(), "R", "ISSA_functions.r"))         # Core I-SSA routines
 source(file.path(getwd(), "R", "HP_JBCY_functions.r"))      # HP-filter helpers and JBCY utilities
-# ROC plot
-source(paste(getwd(), "/R/ROCplots.r", sep = ""))
+source(paste(getwd(), "/R/ROCplots.r", sep = ""))           # ROC plot
 
 
 # ========================================================================
@@ -1276,7 +1275,7 @@ length(TP_issa)  # Number of TPs for I-SSA (expected to be fewer)
 
 
 # ========================================================================
-# Exercise 4: I-SSA Double-Stroke 
+# Exercise 4: I-SSA Double-Stroke Revisited
 # ========================================================================
 
 # We here illustrate that I-SSA can outperform HP-C in MSE tracking accuracy 
