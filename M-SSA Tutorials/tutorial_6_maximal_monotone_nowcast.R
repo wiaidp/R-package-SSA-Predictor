@@ -838,6 +838,20 @@ mat_perf
 #       (b) MSE improvements over HP-C at identical (or
 #           slightly better) smoothness — validating the double-stroke
 #           principle in an empirical setting.
+#
+# ── Outlook: Exercises 2, 3 and 4 ─────────────────────────────
+# Exercises 3 and 4 will explore alternative smoothness trade-offs,
+# examining settings that impose respectively more and less smoothness
+# than the baseline established in Exercise 1. An evaluation
+# criterion will be the ability of the nowcast to identify NBER-dated
+# recessions, quantified via a Receiver Operating Characteristic (ROC)
+# curve analysis and the corresponding Area Under the Curve (AUC).
+#
+# Before proceeding to Exercises 3 and 4, Exercise 2 examines a
+# degenerate case: targeting a symmetric backcast under
+# the conditions of Exercise 1. While this configuration is not
+# practically relevant, it provides useful theoretical insight into
+# the behaviour of the I-SSA optimisation framework.
 
 
 
@@ -852,8 +866,7 @@ mat_perf
 
 # A symmetric backcast is obtained by setting δ to the negative of this
 # half-length, which centres the I-SSA prediction horizon at the midpoint
-# of the two-sided HP filter — i.e. the nowcast is shifted back in time
-# by (L-1)/2 periods, aligning it with the centre of the symmetric target:
+# of the two-sided HP filter resulting in a symmetric backcast:
 delta <- -(L - 1) / 2
 
 # Note on boundary behaviour:
@@ -869,15 +882,9 @@ if (FALSE) {
   delta <- -150
 }
 
-# ── Target specification ──────────────────────────────────────────
-# Option 1 (used by default):
-# 
+# The remaining settings are copied from exercise 1
 gamma_target     <- hp_two
-# Setting symmetric_target <- TRUE will shift δ to the centre of the 
-# causal target filter hp_two: this transforms hp_two to an acausal two-sided
 symmetric_target <- TRUE
-
-# ── Lagrange multiplier initialisation ───────────────────────────
 lambda_start <- 0
 
 # ────────────────────────────────────────────────────────────────
@@ -907,13 +914,6 @@ bk_obj$mse_yz * sigma_ip^2
 par(mfrow = c(1, 2))
 colo <- c("violet", "green", "blue", "red")
 
-if (delta<0)
-{
-  print("For a backcast the MSE filter has length L-delta>L")
-  print("For simplicity we truncate the filter to length L")
-  print("However, the truncated filter generally does not complify with the cointegration constraint anymore")
-  gamma_mse<-gamma_mse[1:L]
-}
 mplot <- cbind(
   hp_two,
   gamma_mse,
@@ -921,42 +921,35 @@ mplot <- cbind(
   hp_c
 )
 colnames(mplot) <- c("HP-two", "MSE", "I-SSA", "HP-C")
-
 plot(mplot[, 1], main = "Trend filters", axes = FALSE, type = "l",
      ylab = "", xlab = "Lags", col = colo[1], lwd = 1,
      ylim = range(mplot))
 abline(h = 0)
-
 for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
   mtext(colnames(mplot)[i], line = -i, col = colo[i])
 }
-
 axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
-
 # Zoom on first 30 lags
 mplot <- mplot[1:30, ]
-
 plot(mplot[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
      ylim = c(min(mplot[, "HP-C"]), max(mplot[, "I-SSA"])))
 abline(h = 0)
-
 for (i in 1:ncol(mplot)) {
   lines(mplot[, i], col = colo[i])
   mtext(colnames(mplot)[i], line = -i, col = colo[i])
 }
-
 axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
 axis(2); box()
 
 # Inspecting the filter coefficient plots reveals three distinct profiles:
 #
 #   1. MSE-optimal filter:
-#        Coefficients are identical to the two-sided HP weights, as
-#        expected — the unconstrained MSE predictor reproduces the two-sided
-#        HP exactly when the backcast horizon aligns with the center point 
-#        of HP.
+#        Coefficients (green) are identical to the two-sided HP weights 
+#        (violet), as expected — the unconstrained MSE predictor reproduces 
+#        the two-sided HP exactly when the backcast horizon aligns with the 
+#        center point of HP.
 #
 #   2. I-SSA filter:
 #        Displays an unusual oscillating pattern superimposed on the
@@ -970,7 +963,7 @@ axis(2); box()
 #        the high smoothness of the two-sided HP). Enforcing a much
 #        shorter HT forces I-SSA to generate more frequent mean-crossings
 #        in first differences than the MSE benchmark would naturally
-#        produce.
+#        produce (un-smoothing).
 #
 #   4. Competing requirements:
 #        I-SSA must simultaneously satisfy two conflicting objectives:
@@ -992,13 +985,13 @@ axis(2); box()
 # Practical implication:
 #   This pathological behaviour signals that the HT constraint is set
 #   well outside the feasible range for meaningful backcasting — the
-#   constraint demands more volatility in the growth signal than the
-#   data or the target can support. In applied work, HT constraints
+#   constraint demands more spurious high-frequency noise than the
+#   optimal MSE backcast supports. In applied work, HT constraints
 #   should be set above (or equal to) the natural HT of the
 #   MSE-optimal predictor to avoid such degenerate solutions.
 
-# Note: a positive value of the Lagrangian multiplier signals un-smoothing
-# (more crossings) by I-SSA
+# Note: a positive value of the optimized Lagrangian multiplier signals 
+# un-smoothing (more crossings than MSE benchmark) by I-SSA
 lambda_opt
 
 
@@ -1012,7 +1005,7 @@ lambda_opt
 #   Result: I-SSA matched HP-C in smoothness while achieving better level-
 #   tracking accuracy (lower MSE).
 #
-# Exercise 2 (Dual formulation):
+# Exercise 3 (Dual formulation):
 #   The MSE of HP-C is now treated as the budget constraint, and I-SSA
 #   maximises HT (smoothness in first differences) subject to that MSE
 #   ceiling. Result: I-SSA matches HP-C in level-tracking accuracy while
