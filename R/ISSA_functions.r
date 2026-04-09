@@ -24,12 +24,12 @@ bk_int_func<-function(lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde,ht_cons
   # Otherwise it is interpreted as lag-one ACF
   if (ht_constraint>1)
   {
-    print("ht_constraint is interpreted as a holding time")
+#    print("ht_constraint is interpreted as a holding time")
     # I-SSA needs the lag-one ACF for implementing the HT constraint
     rho1<-compute_rho_from_ht(ht_constraint)$rho
   } else
   {
-    print("ht_constraint is interpreted as lag-one ACF")
+#    print("ht_constraint is interpreted as lag-one ACF")
     rho1<-ht_constraint
   }
   rho1<-as.double(rho1)
@@ -239,6 +239,21 @@ compute_issa_system_filters_func<-function(L,gamma_target,symmetric_target,delta
 # A symmetric target can also be handled by suypplying the casual form of the target and adding (L-1)/2+1 to delta (forecast, nowcast or backcast) 
 ISSA_func<-function(ht_constraint,L,delta,gamma_target,symmetric_target=F,a1=0,b1=0,lambda_start=0)
 {
+  if (ht_constraint<(-1))
+  {
+    print("ht_constraint must be larger than -1")
+    return()
+  }
+  # The HT constraint can be expressed either in terms of holding time or 
+  # lag-one ACF. If ht_constraint>1 we interrpet this as the holding time. 
+  # Otherwise it is interpreted as lag-one ACF
+  if (ht_constraint>1)
+  {
+    print("ht_constraint is interpreted as a holding time")
+  } else
+  {
+    print("ht_constraint is interpreted as lag-one ACF")
+  }
   
   # Compute system matrices and filters
   filter_obj <- compute_issa_system_filters_func(L,gamma_target,symmetric_target,delta,a1,b1)
