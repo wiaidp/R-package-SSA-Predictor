@@ -1513,8 +1513,10 @@ ROC_data_all <- cbind(target[-1], apply(output_mat[, c("I-SSA", "HP one-sided")]
 rownames(ROC_data_all) <- rownames(apply(output_mat, 2, diff))
 colnames(ROC_data_all) <- c("Target", colnames(output_mat[, c("I-SSA", "HP one-sided")]))
 
+# We can either use full data set
+ROC_data <- ROC_data_all
+# Or emphasize post 2000 data (the AUC is only marginally affected)
 year_2000<-which(index(y_xts)>"2000-01-01")[1]
-
 # Restrict to post-2000 sub-sample for comparability with HT analysis and to
 # avoid the high-growth pre-2000 period, which has a different drift regime
 # (mitigate non-stationarity)
@@ -1587,10 +1589,54 @@ AUC_table
 #    suppression — manifested as long mean durations between Turning Points —
 #    makes it well suited as a confirmatory analytical tool, complementing the
 #    more adaptive Double-Stroke variant.
-################################################################################
-################################################################################
 
 
+# ============================================================
+# Summary Tutorial 6
+# ============================================================
+# 1. Extension to Non-Stationary Series:
+#    We introduced the Integrated SSA (I-SSA),
+#    which extends the original SSA framework to non-stationary I(1)
+#    (integrated) time series.
+#
+# 2. Maximal Monotone: 
+#    I-SSA generalises the HT-based smoothness criterion of SSA to the
+#    property of maximal monotonicity, ensuring the longest
+#    expected time between consecutive crossover or turning points among all 
+#    linear predictors operating under the same constraints.
+#
+# 3. Double-Stroke:
+#    I-SSA addresses two objectives within a single, coherent indicator:
+#    (a) Optimised tracking accuracy in levels (level nowcasting), and
+#    (b) Efficient detection of downturns and upturns in first differences
+#        (i.e., growth rate signals), achieved by imposing a Holding-Time
+#        (HT) constraint on the filter output.
+#    Traditionally, these objectives have been pursued through separate,
+#    purpose-built filters whose designs may be mutually inconsistent.
+#    For instance, a filter optimised purely for MSE-based level tracking
+#    may produce excessive noise or spurious Turning Points in first
+#    differences — as illustrated by the MSE-optimal design in the
+#    exercises above — and, conversely, a filter designed for smooth
+#    Turning Point detection may sacrifice level tracking accuracy.
+#    By jointly addressing both objectives within a single optimisation
+#    framework, I-SSA offers a principled alternative that mitigates this
+#    inconsistency, potentially reducing or eliminating the need for
+#    parallel, specialised filter designs.
+#
+# ============================================================
+#  Outlook: I-SSA Trend
+# ============================================================
+#    Tutorial 9 will explore these themes further from a complementary
+#    perspective. A key distinction is that it omits any specification of
+#    a pre-defined target filter — such as the HP filter used here — which
+#    served as an artificial structuring element in the present Tutorial 6.
+#    Removing this constraint allows the I-SSA framework to be developed
+#    in a more self-contained and assumption-lean manner, relying solely
+#    on the properties of the data and the optimisation criteria, rather
+#    than on the choice of a reference benchmark. This leaner formulation
+#    gives rise to the so-called I-SSA Trend — a novel, data-driven trend
+#    concept that emerges directly from the I-SSA optimisation framework
+#    without reference to any pre-specified filter target.
 
 
 
