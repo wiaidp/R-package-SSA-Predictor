@@ -293,33 +293,61 @@ sigma_ip <- sqrt(arima_obj$sigma2)
 # ────────────────────────────────────────────────────────────────
 # 1.4 Holding-Time (HT) Constraint Derivation
 # ────────────────────────────────────────────────────────────────
-# The HT constraint is imposed on first differences of the I-SSA output
-# (see eq. 29, Wildi 2026a). I-SSA is required to match the HT of HP-C
-# so that both filters signal economic phases at the same rate.
+# The Holding-Time (HT) constraint is imposed on the first differences of the
+# I-SSA output (see Eq. 29, Wildi 2026a). Specifically, I-SSA is required to
+# match the HT of HP-C, ensuring that both filters signal economic cycle phases
+# (i.e., identify Crossover/Turning Points) at the same average rate.
 
-# Wold (MA-∞) representation of the AR(1) model for log-differences:
-# ξ_j = a1^j; truncated at lag L-1
+# ── Step 1: Wold (MA-∞) Representation of the AR(1) Model ─────
+# Compute the Wold coefficients ξ_j = a1^j for the AR(1) model fitted to
+# log-differences of INDPRO, truncated at lag L - 1.
+# These coefficients represent the impulse response of the AR(1) process,
+# expressing it as an infinite moving average of white-noise innovations.
 xi <- c(1, ARMAtoMA(ar = a1, ma = b1, lag.max = L - 1))
 
-# Convolve HP-C with the Wold coefficients ξ.
-# This transforms HP-C into the equivalent filter applied to white-noise
-# innovations, enabling HT computation under the AR(1) model
-# (HT formulas assume a white-noise input)
+# ── Step 2: Convolve HP-C with the Wold Coefficients ──────────
+# Convolving HP-C with the Wold coefficients ξ yields the equivalent filter
+# applied directly to white-noise innovations. This transformation is required
+# because the HT computation formulas assume a white-noise input; applying
+# HP-C to the AR(1) process is therefore equivalent to applying the convolved
+# filter to its underlying innovations.
 hp_c_convolved_with_xi <- conv_two_filt_func(xi, hp_c)$conv
 
-# Compute HT of HP-C under the AR(1) model for INDPRO:
-# HT = expected number of months between consecutive mean-crossings of
-# the HP-C output when the underlying series follows the above AR(1) process
-HT_HP_obj      <- compute_holding_time_func(hp_c_convolved_with_xi)
-ht_constraint  <- HT_HP_obj$ht   # This value will be enforced in I-SSA
+# Plot:
+#   - Red:    HP-C applied directly to the AR(1) process.
+#   - Orange: The convolved filter (hp_c_convolved_with_xi) applied to
+#             the white-noise innovations of the AR(1) process.
+ts.plot(cbind(hp_c, hp_c_convolved_with_xi),
+        col  = c("red", "orange"),
+        main = "Verification: HP-C vs. Convolved HP-C")
+mtext("Original HP-C (applied to AR(1))",         line = -1, col = "red")
+mtext("HP-C convolved with ξ (applied to innovations)", line = -2, col = "orange")
+# The outputs of both filters are identical.
+
+# ── Step 3: Compute the HT of HP-C under the AR(1) Model ──────
+# The HT is defined as the expected number of months between consecutive
+# mean-crossings of the HP-C output when the underlying data-generating
+# process is the fitted AR(1) model for INDPRO log-differences.
+# This value is subsequently enforced as the HT constraint in I-SSA
+# optimisation, so that I-SSA and HP-C signal Turning Points at the same rate.
+HT_HP_obj     <- compute_holding_time_func(hp_c_convolved_with_xi)
+ht_constraint <- HT_HP_obj$ht   # HT of HP-C under the AR(1) model
 ht_constraint
 
-#ht_constraint<-15
+# ── Reference: HT of HP-C Applied Directly to White Noise ─────
+# For comparison, we also compute the HT of HP-C when applied to a pure
+# white-noise input (i.e., ignoring the AR(1) autocorrelation structure).
+# This serves as a baseline and is expected to be shorter than ht_constraint,
+# because white noise has no persistence and therefore produces more frequent
+# sign changes (mean-crossings) than a positively autocorrelated AR(1) process.
+ht_hp_applied_to_wn <- compute_holding_time_func(hp_c)$ht
+ht_hp_applied_to_wn
 
-# Reference: HT of HP-C when applied directly to white noise.
-# This is shorter than ht_constraint because white noise is less persistent
-# (more frequent sign changes) than an AR(1) with positive autocorrelation
-compute_holding_time_func(hp_c)$ht
+# Summary:
+#   - ht_hp_applied_to_wn: HT of HP-C under white-noise input (shorter).
+#   - ht_constraint:       HT of HP-C under the AR(1) model (longer if a1>0).
+# The latter ht_constraint is relevant for imposing the HT to I-SSA, 
+# assuming the AR(1) model fits the data: first differences of INDPRO.
 
 
 # ────────────────────────────────────────────────────────────────
@@ -815,12 +843,6 @@ if (FALSE) {
   delta <- -150
 }
 
-# Additional warning message when delta is large:
-if (delta>(L-1)/2)
-{
-  print(paste("Warning: forecast horizon delta=",delta," is large.",sep="")) 
-  print("This may result in poorly conditioned MSE and I-SSA estimates ")
-}
 # ── Target specification ──────────────────────────────────────────
 # Option 1 (used by default):
 # 
@@ -1276,7 +1298,7 @@ ht_constraint
 # ────────────────────────────────────────────────────────────────
 # 4.1 I-SSA Optimisation
 # ────────────────────────────────────────────────────────────────
-# Same settings as in exrecise 1
+# Same settings as in exercise 1
 delta <- 0
 gamma_target     <- hp_two
 symmetric_target <- TRUE
@@ -1500,7 +1522,8 @@ ROC_data <- ROC_data_all[year_2000:nrow(ROC_data_all), ]
 head(ROC_data)
 tail(ROC_data)
 # Compare NBER datings with differenced trend nowcasts: 
-#   Both nowcast smoothers track official NBER datings well
+#   Both nowcast smoothers track official NBER datings well.
+#   I-SSA seems systematically faster at recoveries.
 ts.plot(scale(ROC_data,center=F,scale=T),col=c("black","blue","red"),main="Recessions vs. differenced smoothers")
 mtext("I-SSA",col="blue",line=-1)
 mtext("HP one-sided",col="red",line=-2)
