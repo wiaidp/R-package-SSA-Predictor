@@ -599,8 +599,9 @@ MSSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho0,
 
 # Extract key performance summaries.
 crit_sym     <- MSSA_obj$crit_rhoyz   # Target correlations with M-MSE.
-ht_sym       <- MSSA_obj$crit_rhoyy   # Achieved first-order ACFs.
-MSSA_obj$nu_opt                        # Optimal nu.
+rho_sym       <- MSSA_obj$crit_rhoyy   # Achieved first-order ACFs.
+# Check: these differences should all be small if the optimization converged
+rho_sym-rho0
 
 # Extract filter coefficient matrices.
 bk_mat_sym   <- MSSA_obj$bk_mat       # M-SSA applied to innovations epsilon_t.
@@ -674,12 +675,16 @@ box()
 # multivariate structure therefore offers no material advantage over the
 # corresponding univariate solution.
 
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.2. Replicating M-MSE (Identity Nowcast)
 # ─────────────────────────────────────────────────────────────────────────────
 # Repeat the nowcasting exercise from Exercise 1, but now calibrate the HT
 # targets to match the empirical HTs of the data. When the imposed HT equals
 # the HT of the data, M-SSA reduces to M-MSE (the identity in this case).
+
+# Nowcast (this differs from exercise 2.1)
 delta <- 0
 
 # Estimate the empirical HT of each series from the simulated sample.
@@ -689,9 +694,8 @@ ht_vec <- matrix(c(compute_empirical_ht_func(x_mat[, 1])$empirical_ht,
                    compute_empirical_ht_func(x_mat[, 3])$empirical_ht),
                  nrow = 1)
 colnames(ht_vec) <- paste("Series ", 1:3, sep = "")
+# This differs from exercises 1 and 2.1
 ht_vec
-#ht_vec <- matrix(c(4,5.5,2.2),nrow=1)
-
 
 # Convert empirical HTs to first-order ACFs for M-SSA input.
 rho0 <- apply(ht_vec, 1, compute_rho_from_ht)[[1]]$rho
@@ -703,15 +707,17 @@ MSSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho0,
 # Expected outcome: target correlations are (approximately) equal to one,
 # since the imposed HT matches the HT of the data and M-SSA replicates M-MSE.
 MSSA_obj$crit_rhoyz
-MSSA_obj$lambda_opt
-MSSA_obj$nu_opt
 
 # Extract filter coefficient matrices.
 bk_mat_mse     <- MSSA_obj$bk_mat       # M-SSA applied to innovations.
 bk_x_mat_mse   <- MSSA_obj$bk_x_mat    # M-SSA applied to observed series.
 gammak_mse_mse <- MSSA_obj$gammak_mse  # M-MSE applied to innovations.
 gammak_x_mse   <- MSSA_obj$gammak_x_mse # M-MSE applied to observed series (identity).
+
+
+
 # Plot filter weights for each target series.
+# Panel 1: series 1
 mplot<-cbind(bk_x_mat_mse[1:L,1],bk_x_mat_mse[L+1:L,1],bk_x_mat_mse[2*L+1:L,1])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 colo<-c("blue","red","green","violet","black")
@@ -731,7 +737,7 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
-
+# Panel 2: series 2
 mplot<-cbind(bk_x_mat_mse[1:L,2],bk_x_mat_mse[L+1:L,2],bk_x_mat_mse[2*L+1:L,2])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 
@@ -750,6 +756,7 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
+# Panel 3: series 3
 mplot<-cbind(bk_x_mat_mse[1:L,3],bk_x_mat_mse[L+1:L,3],bk_x_mat_mse[2*L+1:L,3])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 
@@ -775,21 +782,21 @@ box()
 # exact identity solution.
 
 
-
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.3. Extreme Smoothing
 # ─────────────────────────────────────────────────────────────────────────────
-# Impose nearly the maximum admissible degree of smoothing by setting all HTs equal
-# to the filter length L. At this boundary, the M-SSA smoother is no longer
-# approximately exponentially decaying in its lag structure.
+# Impose nearly the maximum admissible degree of smoothing by setting all HTs 
+# equal to the filter length L. At this boundary, the M-SSA smoother is heavily 
+# constrained by the extremely demanding smoothness requirement. In particular, 
+# the coefficient decay is very slow. 
 #
 # Practical note: extreme smoothing is not recommended in applications, as
 # it leaves very few effective degrees of freedom. If such strong smoothing
 # is required, the filter length L should be increased so that the target
 # HT satisfies HT < L/2.
 ht_vec <- matrix(c(L, L, L), nrow = 1)
+# Very large HTs: HT/L=1
+ht_vec
 
 # Convert the extreme HTs to first-order ACFs for M-SSA input.
 rho0 <- apply(ht_vec, 1, compute_rho_from_ht)[[1]]$rho
@@ -807,8 +814,11 @@ bk_mat_es     <- MSSA_obj$bk_mat       # M-SSA applied to innovations.
 bk_x_mat_es   <- MSSA_obj$bk_x_mat    # M-SSA applied to observed series.
 gammak_mse_es <- MSSA_obj$gammak_mse  # M-MSE applied to innovations.
 
+
+
 # Plot filter weights for each target series.
 
+# Panel 1: series 1
 mplot<-cbind(bk_x_mat_es[1:L,1],bk_x_mat_es[L+1:L,1],bk_x_mat_es[2*L+1:L,1])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 colo<-c("blue","red","green","violet","black")
@@ -828,7 +838,7 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
-
+# Panel 2: series 2
 mplot<-cbind(bk_x_mat_es[1:L,2],bk_x_mat_es[L+1:L,2],bk_x_mat_es[2*L+1:L,2])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 
@@ -847,6 +857,7 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
+# Panel 3: series 3
 mplot<-cbind(bk_x_mat_es[1:L,3],bk_x_mat_es[L+1:L,3],bk_x_mat_es[2*L+1:L,3])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 
@@ -879,7 +890,7 @@ M<-M_obj$M
 eigen_obj <- eigen(M)
 # Largest eigenvalue of M (upper bound on achievable rho0):
 max(eigen_obj$values)
-# Imposed rho0 (close to the maximum eigenvalue):
+# Imposed rho0 in the above example (close to the maximum eigenvalue):
 rho0
 
 # Plot the eigenvector corresponding to the maximum eigenvalue of M.
