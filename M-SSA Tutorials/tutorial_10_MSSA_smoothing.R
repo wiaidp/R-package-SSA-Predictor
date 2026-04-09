@@ -67,18 +67,24 @@ source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
 # M-SSA utility functions: data preparation, plotting helpers, and wrappers
 source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
 
-source(file.path(getwd(), "R/simple_sign_accuracy.r"))
 # ROC plot
 source(paste(getwd(), "/R/ROCplots.r", sep = ""))
 
-
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# There are potential problems when loading SSA together with MSSA.
+# Some function names are the same but the underlying functions are different.
+# Advice: M-SSA generalizes SSA, therefore there is no need to load the SSA 
+# functions in addition to M-SSA. All relevant function for M-SSA are packed 
+# in functions_MSSA.r. DO NOT SOURCE simple_sign_accuracy.r when working with 
+# M-SSA
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Exercise 1: M-SSA Smoothing
-# Nowcasting with Mild Smoothing
+# Nowcasting with Moderate Smoothing
 # ══════════════════════════════════════════════════════════════════════════════
 # This example is drawn from Wildi (2026b), Section 4.2. It is based on a
 # three-dimensional VAR(1) process.
@@ -222,7 +228,8 @@ MSSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho0,
 
 # Target correlations of M-SSA with the causal M-MSE smoother, for each
 # series i = 1, ..., n. If the HT of M-SSA matches that of M-MSE exactly,
-# these correlations equal one (M-SSA replicates M-MSE).
+# these correlations equal one (M-SSA replicates M-MSE). Smaller correlations
+# indicate stronger smoothing.
 MSSA_obj$crit_rhoyz
 # Target correlations of M-SSA with the acausal target. In a smoothing
 # context the target is always causal, so these values coincide with
@@ -231,9 +238,10 @@ MSSA_obj$crit_rhoy_target
 # First-order ACFs implied by the optimised smoother. If numerical
 # optimisation has converged, these should match rho0 closely.
 MSSA_obj$crit_rhoyy
-# Verify convergence: the two sets of values should agree.
+# Verify convergence: the two sets of values should agree up to negligible
+# errors.
 rho0
-# Optimal regularisation parameter nu for each series. Values of nu > 2
+# Optimal nu for each series. Values of nu > 2
 # indicate active smoothing (fewer zero-crossings than M-MSE).
 MSSA_obj$nu_opt
 
@@ -264,6 +272,8 @@ max(abs(t(gammak_mse) - xi))
 #    Since the target is x_t and delta = 0, the optimal MSE solution is the
 #    identity: the best causal approximation of x_t is x_t itself.
 gammak_x_mse <- MSSA_obj$gammak_x_mse
+# Verify the identity
+cbind(gammak_x_mse[ 1,], gammak_x_mse[ L + 1,], gammak_x_mse[ 2 * L + 1,])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -305,7 +315,8 @@ rho_ssa_3 <- bk_mat[, 3] %*% M_tilde %*% bk_mat[, 3] /
 compute_holding_time_from_rho_func(rho_ssa_1)$ht
 compute_holding_time_from_rho_func(rho_ssa_2)$ht
 compute_holding_time_from_rho_func(rho_ssa_3)$ht
-# Target HTs for reference:
+# Target HTs for reference: both numbers should match after successful 
+# optimization.
 ht_vec
 # M-MSE HTs (all smaller than the corresponding M-SSA HTs, confirming that
 # M-SSA imposes greater smoothness):
@@ -346,9 +357,14 @@ MSSA_obj$crit_rhoyz
 criterion_mat <- rbind(c(crit_mse_1, crit_mse_2, crit_mse_3),
                        c(crit_ssa_1, crit_ssa_2, crit_ssa_3))
 colnames(criterion_mat) <- c(paste("Series ", 1:n, paste = ""))
-rownames(criterion_mat) <- c("MSE", "SSA")
+rownames(criterion_mat) <- c("MSE smoother", "SSA smoother")
 criterion_mat
 
+# We now compute the sample performance measures. Convergence toward the
+# expected values reported above provides empirical support for the optimality
+# of M-SSA as a smoother: in that case, M-SSA also maximizes the sample
+# correlation between the estimate and the target, subject to the empirical
+# smoothness constraint.
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.7. Sample Performances
 # ─────────────────────────────────────────────────────────────────────────────
@@ -379,17 +395,16 @@ x_mat           <- sample_obj$x_mat
 # Convergence of sample to theoretical values confirms the validity of the
 # M-SSA approach. Increasing len improves agreement at the cost of
 # longer computation time.
-perf_mat <- matrix(
-  paste(round(perf_mat_true[,   c("Sign accuracy", "Cor. with MSE", "ht", 
-                                  "ht MSE")], 5),
-        " (",
-        round(perf_mat_sample[, c("Sign accuracy", "Cor. with MSE", "ht", 
-                                  "ht MSE")], 5),
-        ")", sep = ""),
-  ncol = 4)
+perf_mat <- matrix(paste(round(perf_mat_true[,c("Sign accuracy", 
+            "Cor. with MSE", "ht","ht MSE")], 5), " (",
+            round(perf_mat_sample[, c("Sign accuracy", "Cor. with MSE", "ht", 
+            "ht MSE")], 5), ")", sep = ""),ncol = 4)
 colnames(perf_mat) <- c("Sign accuracy", "Cor. with data", "HT M-SSA", 
                         "HT of data")
 perf_mat
+# Outcome: 
+# Sample performances (in parentheses) converge to expected values 
+# with increasing sample length.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.8. Plots
@@ -398,6 +413,8 @@ perf_mat
 # Plot 1: M-SSA filter weights (bk_x_mat) for each of the three targets.
 # Each panel shows the lag structure of the weights applied to all three
 # input series when constructing one smoothed output series.
+
+# Panel 1: Smoothers for first target x_{1t}
 mplot<-cbind(bk_x_mat[1:L,1],bk_x_mat[L+1:L,1],bk_x_mat[2*L+1:L,1])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 colo<-c("blue","red","darkgreen","violet","black")
@@ -416,8 +433,7 @@ abline(h=0)
 axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
-
-
+# Panel 2: Smoothers for second target x_{2t}
 mplot<-cbind(bk_x_mat[1:L,2],bk_x_mat[L+1:L,2],bk_x_mat[2*L+1:L,2])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 
@@ -435,7 +451,7 @@ abline(h=0)
 axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
-
+# Panel 3: Smoothers for third and last target x_{3t}
 mplot<-cbind(bk_x_mat[1:L,3],bk_x_mat[L+1:L,3],bk_x_mat[2*L+1:L,3])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 
@@ -454,7 +470,7 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
-
+#--------------
 # Plot 2: Cross-correlation functions (CCFs) against Series 2 (left panel)
 # and a short realisation of the VAR(1) process (right panel).
 # See Wildi (2026b), Section 4.2, for a discussion of this example.
@@ -484,13 +500,13 @@ abline(v=lag_max)
 axis(1,at=1:nrow(pc),labels=-lag_max+1:nrow(pc))
 axis(2)
 box()
-
+# Panel 2: short subsample
 ts.plot(x_mat[850:875,],col=colo,main="VAR(1)")
 for (i in 1:3)
   mtext(paste("Series ",i,sep=""),col=colo[i],line=-i,xlab="time",ylab="")
 
 
-
+#--------------
 # Plot 3: Observed data (black), M-SSA smoother (cyan), and M-MSE smoother
 # (violet) over a short window, with vertical dashed lines marking
 # zero-crossings of the M-SSA output.
@@ -521,6 +537,40 @@ for (i in 1:n)
   lines(scale(mplot,center=F,scale=T)[1],col=colo[1])
 }
 
+# Explanation:
+# - The first plot (smoother weights) shows that the second series (red) is a
+#   major source of information, as it receives relatively large weights across
+#   all three dimensions.
+#
+# - More generally, each series i is also an important determinant of its own
+#   target i.
+#
+# - The importance of the second series is also evident from the second plot:
+#   - In the left panel, the peaks of the CCF indicate that the second series
+#     is leading, since the CCF peaks for the first (blue) and third (green)
+#     series are shifted to the right.
+#   - This lead-lag pattern is confirmed in the subsample shown in the right
+#     panel, where series 2 (red) is systematically shifted to the left,
+#     consistent with a leading role.
+#
+# - The third plot (top-right panel) further suggests that series 2 is the
+#   smoothest of the three.
+#
+# - The prominent role of series 2 in the smoother weights from the nowcast
+#   experiment above can therefore be explained by the fact that series 2 is
+#   both leading and relatively smooth.
+#
+# - This experiment underscores the importance of leading indicators in a 
+#   multivariate framework.
+#
+# To conclude, Plot 3 illustrates the varying difficulty of the smoothing task:
+# - Series 2 (top-right panel) is the easiest to smooth, as the estimated
+#   smoother lies very close to the original data.
+# - For series 1 (top-left panel), the task is somewhat more demanding, since
+#   the smoother displays noticeably fewer zero-crossings than the original
+#   series.
+# - Series 3 (bottom panel) is the most challenging case, because the data are
+#   highly noisy while the imposed HT is relatively large.
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -533,12 +583,12 @@ for (i in 1:n)
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.1. Symmetric M-SSA Backcast Smoother
 # ─────────────────────────────────────────────────────────────────────────────
-# Extend Exercise 5 to the symmetric backcasting setting by shifting the
+# Extend Exercise 1 to the symmetric backcasting setting by shifting the
 # target to the centre of the filter window. Only delta needs to change;
-# all other settings remain identical to Exercise 5.
+# all other settings remain identical to Exercise 1.
 delta <- delta2 <- -(L - 1) / 2
 
-# Retain the same holding-time targets as in Exercise 5.
+# Retain the same holding-time targets as in Exercise 1.
 ht_vec <- matrix(c(min(8, L / 2), min(6, L / 2), min(10, L / 2)), nrow = 1)
 # Convert HTs to first-order ACFs for input to M-SSA.
 rho0 <- apply(ht_vec, 1, compute_rho_from_ht)[[1]]$rho
@@ -550,7 +600,7 @@ MSSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho0,
 # Extract key performance summaries.
 crit_sym     <- MSSA_obj$crit_rhoyz   # Target correlations with M-MSE.
 ht_sym       <- MSSA_obj$crit_rhoyy   # Achieved first-order ACFs.
-MSSA_obj$nu_opt                        # Optimal regularisation parameters.
+MSSA_obj$nu_opt                        # Optimal nu.
 
 # Extract filter coefficient matrices.
 bk_mat_sym   <- MSSA_obj$bk_mat       # M-SSA applied to innovations epsilon_t.
@@ -614,17 +664,20 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
-# Outcome: the symmetric M-SSA backcast smoother is virtually
-# indistinguishable from a univariate SSA smoother applied to each series
-# independently. The intuition is straightforward: when future observations
-# are available (backcasting), the additional series convey negligible
-# incremental information for constructing the optimal smoother, and the
-# multivariate structure offers no material gain over the univariate solution.
+# Outcome: The symmetric M-SSA backcast smoother is virtually
+# indistinguishable from a univariate SSA backcast smoother applied separately 
+# to each series (see Tutorial 8, Exercise 1).
+#
+# The intuition is straightforward: when future observations are available, as
+# in the backcasting case, the additional series provide little incremental
+# information for constructing the optimal smoother. In this setting, the
+# multivariate structure therefore offers no material advantage over the
+# corresponding univariate solution.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.2. Replicating M-MSE (Identity Nowcast)
 # ─────────────────────────────────────────────────────────────────────────────
-# Repeat the nowcasting exercise from Exercise 5, but now calibrate the HT
+# Repeat the nowcasting exercise from Exercise 1, but now calibrate the HT
 # targets to match the empirical HTs of the data. When the imposed HT equals
 # the HT of the data, M-SSA reduces to M-MSE (the identity in this case).
 delta <- 0
@@ -637,6 +690,8 @@ ht_vec <- matrix(c(compute_empirical_ht_func(x_mat[, 1])$empirical_ht,
                  nrow = 1)
 colnames(ht_vec) <- paste("Series ", 1:3, sep = "")
 ht_vec
+#ht_vec <- matrix(c(4,5.5,2.2),nrow=1)
+
 
 # Convert empirical HTs to first-order ACFs for M-SSA input.
 rho0 <- apply(ht_vec, 1, compute_rho_from_ht)[[1]]$rho
@@ -648,14 +703,16 @@ MSSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho0,
 # Expected outcome: target correlations are (approximately) equal to one,
 # since the imposed HT matches the HT of the data and M-SSA replicates M-MSE.
 MSSA_obj$crit_rhoyz
+MSSA_obj$lambda_opt
+MSSA_obj$nu_opt
 
 # Extract filter coefficient matrices.
-bk_mat_sym     <- MSSA_obj$bk_mat       # M-SSA applied to innovations.
-bk_x_mat_sym   <- MSSA_obj$bk_x_mat    # M-SSA applied to observed series.
-gammak_mse_sym <- MSSA_obj$gammak_mse  # M-MSE applied to innovations.
-
+bk_mat_mse     <- MSSA_obj$bk_mat       # M-SSA applied to innovations.
+bk_x_mat_mse   <- MSSA_obj$bk_x_mat    # M-SSA applied to observed series.
+gammak_mse_mse <- MSSA_obj$gammak_mse  # M-MSE applied to innovations.
+gammak_x_mse   <- MSSA_obj$gammak_x_mse # M-MSE applied to observed series (identity).
 # Plot filter weights for each target series.
-mplot<-cbind(bk_x_mat_sym[1:L,1],bk_x_mat_sym[L+1:L,1],bk_x_mat_sym[2*L+1:L,1])
+mplot<-cbind(bk_x_mat_mse[1:L,1],bk_x_mat_mse[L+1:L,1],bk_x_mat_mse[2*L+1:L,1])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 colo<-c("blue","red","green","violet","black")
 par(mfrow=c(1,3))
@@ -675,7 +732,7 @@ axis(2)
 box()
 
 
-mplot<-cbind(bk_x_mat_sym[1:L,2],bk_x_mat_sym[L+1:L,2],bk_x_mat_sym[2*L+1:L,2])
+mplot<-cbind(bk_x_mat_mse[1:L,2],bk_x_mat_mse[L+1:L,2],bk_x_mat_mse[2*L+1:L,2])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 
 plot(mplot[,1],main="SSA: second target",axes=F,type="l",xlab="Lag-structure",
@@ -693,7 +750,7 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
-mplot<-cbind(bk_x_mat_sym[1:L,3],bk_x_mat_sym[L+1:L,3],bk_x_mat_sym[2*L+1:L,3])
+mplot<-cbind(bk_x_mat_mse[1:L,3],bk_x_mat_mse[L+1:L,3],bk_x_mat_mse[2*L+1:L,3])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 
 plot(mplot[,1],main="SSA: third target",axes=F,type="l",xlab="Lag-structure",
@@ -746,13 +803,13 @@ MSSA_obj <- MSSA_func(split_grid, L, delta, grid_size, gamma_target, rho0,
 MSSA_obj$crit_rhoyz
 
 # Extract filter coefficient matrices.
-bk_mat_sym     <- MSSA_obj$bk_mat       # M-SSA applied to innovations.
-bk_x_mat_sym   <- MSSA_obj$bk_x_mat    # M-SSA applied to observed series.
-gammak_mse_sym <- MSSA_obj$gammak_mse  # M-MSE applied to innovations.
+bk_mat_es     <- MSSA_obj$bk_mat       # M-SSA applied to innovations.
+bk_x_mat_es   <- MSSA_obj$bk_x_mat    # M-SSA applied to observed series.
+gammak_mse_es <- MSSA_obj$gammak_mse  # M-MSE applied to innovations.
 
 # Plot filter weights for each target series.
 
-mplot<-cbind(bk_x_mat_sym[1:L,1],bk_x_mat_sym[L+1:L,1],bk_x_mat_sym[2*L+1:L,1])
+mplot<-cbind(bk_x_mat_es[1:L,1],bk_x_mat_es[L+1:L,1],bk_x_mat_es[2*L+1:L,1])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 colo<-c("blue","red","green","violet","black")
 par(mfrow=c(1,3))
@@ -772,7 +829,7 @@ axis(2)
 box()
 
 
-mplot<-cbind(bk_x_mat_sym[1:L,2],bk_x_mat_sym[L+1:L,2],bk_x_mat_sym[2*L+1:L,2])
+mplot<-cbind(bk_x_mat_es[1:L,2],bk_x_mat_es[L+1:L,2],bk_x_mat_es[2*L+1:L,2])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 
 plot(mplot[,1],main="SSA: second target",axes=F,type="l",xlab="Lag-structure",
@@ -790,7 +847,7 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
-mplot<-cbind(bk_x_mat_sym[1:L,3],bk_x_mat_sym[L+1:L,3],bk_x_mat_sym[2*L+1:L,3])
+mplot<-cbind(bk_x_mat_es[1:L,3],bk_x_mat_es[L+1:L,3],bk_x_mat_es[2*L+1:L,3])
 colnames(mplot)<-c("Series 1","Series 2","Series 3")
 
 plot(mplot[,1],main="SSA: third target",axes=F,type="l",xlab="Lag-structure",

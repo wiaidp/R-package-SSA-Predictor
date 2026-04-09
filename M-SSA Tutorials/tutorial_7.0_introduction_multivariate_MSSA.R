@@ -75,6 +75,16 @@ source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
 # Load M-SSA functions (multivariate extension of SSA)
 source(paste(getwd(), "/R/functions_MSSA.r", sep = ""))
 
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# There are potential problems when loading SSA together with MSSA.
+# Some function names are the same but the underlying functions are different.
+# Advice: M-SSA generalizes SSA, therefore there is no need to load the SSA 
+# functions in addition to M-SSA. All relevant function for M-SSA are packed 
+# in functions_MSSA.r. DO NOT SOURCE simple_sign_accuracy.r when working with 
+# M-SSA
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 
 # =============================================================================
 # Example 1: Replicating SSA via M-SSA in a Univariate Framework

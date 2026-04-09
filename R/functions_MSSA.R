@@ -602,7 +602,7 @@ fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_mssa_
     {
       
       lambda_middle<-(lambda_upper+lambda_lower)/2
-
+      
       bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_middle,eigen_M_tilde_adjusted,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj)
       
       rho_yy_middle=bk_obj$rho_yy
@@ -754,7 +754,6 @@ bk_func<-function(V,w,lower_limit_nu,lambda1,eigen_M_tilde_adjusted,gammak_targe
   bk<-bk*abs(t(bk)%*%I_tilde%*%gammak_n)[1,1]/as.double(t(bk)%*%I_tilde%*%bk)  
   return(list(bk=bk,rho_yy=rho_yy,rho_yz=rho_yz,c=c,nu=nu,w=w))
 }
-
 
 
 

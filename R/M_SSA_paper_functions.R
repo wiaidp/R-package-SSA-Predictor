@@ -576,7 +576,7 @@ sample_series_performances_smooth_func<-function(A,Sigma,len,bk_mat,bk_x_mat,gam
     for (j in L:len)#j<-L
       y[j]<-sum(apply(bk*eps_mat[j:(j-L+1),],2,sum))
     y_mat<-cbind(y_mat,y[1: min(len,1000)])
-    # Check:    
+    # Check: both outputs match when the MA-inversion is convergent   
     if (F)
     {
       # 3.2 use deconvoluted solution bk_x_mat applied to xt (obtained from theorem after inversion of convolution) 

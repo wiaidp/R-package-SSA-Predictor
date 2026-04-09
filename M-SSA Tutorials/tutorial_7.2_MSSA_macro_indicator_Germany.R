@@ -162,6 +162,16 @@ source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
 # Convenience wrapper functions for M-SSA workflows
 source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
 
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# There are potential problems when loading SSA together with MSSA.
+# Some function names are the same but the underlying functions are different.
+# Advice: M-SSA generalizes SSA, therefore there is no need to load the SSA 
+# functions in addition to M-SSA. All relevant function for M-SSA are packed 
+# in functions_MSSA.r. DO NOT SOURCE simple_sign_accuracy.r when working with 
+# M-SSA
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 
 #========================================================================
 # Exercise 1: Apply M-SSA to Quarterly German Macroeconomic Data
