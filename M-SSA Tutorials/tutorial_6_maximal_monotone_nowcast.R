@@ -1638,7 +1638,8 @@ AUC_table
 #    concept that emerges directly from the I-SSA optimisation framework
 #    without reference to any pre-specified filter target.
 
-
+# Meanwhile, Tutorial 7 introduces M-SSA, a generalization of SSA to a 
+# multivariate stationary framework.  
 
 
 
