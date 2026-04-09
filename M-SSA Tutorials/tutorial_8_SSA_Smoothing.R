@@ -264,7 +264,9 @@ library(mFilter)
 # LOAD CUSTOM M-SSA FUNCTION LIBRARIES
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Core M-SSA filter construction and optimisation routines
+# Core routines for M-SSA filter construction and optimization.
+# Only auxiliary utility functions are used to compute holding times.
+# M-SSA itself is not covered in this tutorial.
 source(paste(getwd(), "/R/functions_MSSA.r", sep = ""))
 
 # HP-filter utilities used in the JBCY paper (depends on mFilter)
