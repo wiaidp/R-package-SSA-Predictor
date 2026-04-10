@@ -178,14 +178,16 @@ rho_yz <- filter_mat[,1] %*% filter_mat[,2] /
          filter_mat[,2] %*% filter_mat[,2])
 rho_yz
 
-# c. Transform correlation into theoretical SA (see Wildi 2024 and 2026a)
+# c. Transform correlation into theoretical SA (see Wildi 2024, proof of 
+#    proposition 1)
 SA_true <- asin(rho_yz)/pi + 0.5
 SA_true
 # Compare with empirical SA from above
 SA_empirical
 
-
+#-----------------------------------------------------------
 # Empirical SA converges to SA_true as sample size increases
+#-----------------------------------------------------------
 
 # ── ALTERNATIVE EMPIRICAL SA ESTIMATE ──────────────────────────
 # Compute SA via empirical correlation
@@ -253,9 +255,11 @@ asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
 
 #############################################################################################################
 # Example 2
-# SSA is designed to align the signs of a predictor with those of a target series.
+# SSA is designed to align the signs of a predictor with those of a target 
+#   series.
 # While alternative sign-based methods exist, none— to our knowledge—
-#   allows for an explicit constraint on holding time (smoothness in terms of frequency of sign changes).
+#   allows for an explicit constraint on holding time (smoothness in terms of 
+#   frequency of sign changes).
 #
 # Beyond this additional flexibility, SSA is expected to be more efficient:
 #   - SSA maximizes the cross-correlation rho_yz between target and predictor,
@@ -263,12 +267,14 @@ asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
 #   - In contrast, purely sign-based methods rely on binary transformations,
 #       discarding magnitude information and thus reducing efficiency.
 #   - Under the assumptions considered here, the SSA predictor coincides with
-#       the maximum likelihood estimator and is therefore statistically efficient.
+#       the maximum likelihood estimator and is therefore statistically 
+#       efficient.
 #
-# We illustrate this by comparing SSA to a classical logistic regression (logit) model.
+# We illustrate this by comparing SSA to a classical logistic regression 
+#   (logit) model.
 # For simplicity, we consider the case where SSA reduces to the MSE predictor
 #   (i.e., no holding-time constraint is imposed).
-#   In this setting, SSA is equivalent to linear regression.
+# In this setting, SSA is equivalent to linear regression.
 
 # Sample length: 120 observations correspond to 10 years of monthly data 
 #   (typical business-cycle framework)
@@ -295,8 +301,8 @@ delta <- 0
 #-------------------------------
 # Logit model
 
-# 1. Construct binary target (map signs to {0,1})
-target <- (1 + sign(z)[(1+2*delta-1):len]) / 2
+# 1. Construct binary target (map signs to {0,1}): shift to the left by delta
+target <- c((1 + sign(z)[(1+delta):len]) / 2,rep(NA,delta))
 ts.plot(target)
 
 # 2. Build matrix of lagged explanatory variables
@@ -314,12 +320,11 @@ if (((L+1)/2+delta) < L)
     )
   }
 }
-
-dim(explanatory)
+colnames(explanatory)<-paste("Lag ",0:(ncol(explanatory)-1))
 tail(explanatory)
 
-# Arrange data so that the first column corresponds to the most recent observation
-sample <- data.frame(cbind(target, explanatory[,ncol(explanatory):1]))
+# Need a data frame
+sample <- data.frame(cbind(target, explanatory))
 
 # 3. Estimate logit model
 logit_model <- glm(target ~ ., family=binomial(link='logit'),
@@ -329,7 +334,7 @@ summary(logit_model)
 #-----------------------------
 # MSE predictor (linear regression)
 # Same regressors, but using the continuous target z
-mse_model <- lm(z ~ explanatory[,ncol(explanatory):1] - 1)
+mse_model <- lm(z ~ explanatory - 1)
 summary(mse_model)
 
 # Comparison:
@@ -358,30 +363,36 @@ sum(b_mse^2)
 sum(b_logit^2)
 
 # Apply filters to new data (out-of-sample)
-y_mse <- filter(x, b_mse)
-y_logit <- filter(x, b_logit)
+# Apply causal filters: side=1
+y_mse <- filter(x, b_mse,side=1)
+y_logit <- filter(x, b_logit,side=1)
 
 # Optional: include intercept (worsens performance slightly)
 if (F)
   y_logit <- y_logit + logit_model$coef[1]
   
-# Target
-z <- filter(x, gamma)
-
+# Target: symmetric filter (side=2)
+z <- filter(x, gamma,side=2)
 # Empirical sign accuracy
 sum((sign(y_mse*z)+1)/2, na.rm=T) / length(na.exclude(z))
 sum((sign(y_logit*z)+1)/2, na.rm=T) / length(na.exclude(z))
 # → MSE predictor outperforms logit
 
 #-------------------------------------------------
-# We now compare true (expected) sign accuracy
+# We now compute true (expected) sign accuracy
 
 # 1. MSE predictor
 filter_mat <- cbind(gamma,
                     c(rep(0,length(gamma)-length(b_mse)), b_mse))
+# Check: filters are aligned correctly
+filter_mat
+# Compute true target correlation (between MSE predictor and target z)
+# The formula assumes white noise 
 rho_yz <- filter_mat[,1] %*% filter_mat[,2] /
   sqrt(filter_mat[,1] %*% filter_mat[,1] *
          filter_mat[,2] %*% filter_mat[,2])
+# Compute true sign accuracy based on correlation (see Wildi 2024, proof of 
+# proposition 1)
 SA_true_mse <- asin(rho_yz)/pi + 0.5
 
 # 2. Logit predictor
@@ -395,14 +406,21 @@ SA_true_logit <- asin(rho_yz)/pi + 0.5
 # True SA comparison: empirical SA above converge to true values
 SA_true_mse
 SA_true_logit
+# Compare with empirical estimates:
+sum((sign(y_mse*z)+1)/2, na.rm=T) / length(na.exclude(z))
+sum((sign(y_logit*z)+1)/2, na.rm=T) / length(na.exclude(z))
 # → Confirms MSE dominance
 
 #-------------------------------------------
 # Monte Carlo study: 
-#   -simulate multiple series
+#   -Simulate multiple series (anzsim<-1000)
 #   -For each series, compute SA based on estimated model parameters
 #     (based on linear regression and logit models)
-#   -Compare empirical means and variances of SAs for both models
+#     Note: -We have verified above that empirical SA converge to expressions 
+#             based on model parameters
+#           -Therefore we can avoid simulating long time series by relying on 
+#             true SAs (based on empirical models).
+#   -Compare empirical means and variances of true SAs for both models
 # Outcome: 
 #   -Mean SA of regression is larger (regression outperforms logit)
 #   -Variance of SA is smaller (regression is more precise)
@@ -420,7 +438,7 @@ for (i in 1:anzsim)
   
   # Target
   z <- filter(x, gamma, side=2)
-  target <- (1 + sign(z)[(1+2*delta-1):len]) / 2
+  target <- c((1 + sign(z)[(1+delta):len]) / 2,rep(NA,delta))
   
   # Build regressors
   explanatory <- c(x[((L+1)/2+delta):len],
@@ -437,25 +455,27 @@ for (i in 1:anzsim)
       )
     }
   }
+  colnames(explanatory)<-paste("Lag ",0:(ncol(explanatory)-1))
   
-  sample <- data.frame(cbind(target,
-                             explanatory[,ncol(explanatory):1]))
+  
+  sample <- data.frame(cbind(target, explanatory))
   
   # Estimate models
   logit_model <- glm(target ~ ., family=binomial(link='logit'),
                      data=sample)
-  mse_model <- lm(z ~ explanatory[,ncol(explanatory):1] - 1)
+  mse_model <- lm(z ~ explanatory - 1)
   
   b_mse <- mse_model$coef
   b_logit <- logit_model$coef[-1]
   
-  # Compute true SA
+  # Compute true SA for MSE predictor
   filter_mat <- cbind(gamma,
                       c(rep(0,length(gamma)-length(b_mse)), b_mse))
   rho_yz <- filter_mat[,1] %*% filter_mat[,2] /
     sqrt(filter_mat[,1] %*% filter_mat[,1] *
            filter_mat[,2] %*% filter_mat[,2])
   SA_true_mse <- asin(rho_yz)/pi + 0.5
+# Compute true SA for logit predictor
   
   filter_mat <- cbind(gamma,
                       c(rep(0,length(gamma)-length(b_logit)), b_logit))

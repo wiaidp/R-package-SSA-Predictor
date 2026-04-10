@@ -2,11 +2,11 @@
 # M-SSA PREDICTOR: A TUTORIAL SERIES
 # ─────────────────────────────────────────────────────────────────
 
-# The M-SSA provides a unified framework for solving general prediction problems while simultaneously 
-# accommodating specific research priorities and objectives.
+# The M-SSA provides a unified framework for solving general prediction problems 
+# while simultaneously accommodating specific research priorities and objectives.
 
-# This series of tutorials introduces M-SSA,
-# with a focus on controlling key characteristics of the predictor.
+# This series of tutorials introduces M-SSA, with a focus on controlling key 
+# characteristics of the predictor.
 
 # ── BACKGROUND REFERENCES ────────────────────────────────────────
 # The following papers provide the theoretical foundations:
@@ -87,13 +87,13 @@
 #     nowcasting, and forecasting settings, as well as smoothing.
 #
 # SSA explicitly targets key predictor characteristics:
-#   • MSE performance (Mean-Squared Error) and sign accuracy
-#   • Noise suppression  (smoothness, wiggliness,
-#                         rate of zero-crossings)
-#   • It can also address Timeliness  `indirectly'   (lead, left-shift, reduced phase-lag)
+#   • MSE performance (Mean-Squared Error), target correlation and sign accuracy
+#   • Noise suppression  (smoothness, wiggliness, rate of zero-crossings)
+#   • It can also address Timeliness  `indirectly'   (lead, left-shift, 
+#     reduced phase-lag)
 #
-# Note: SSA can be configured to replicate the classical MSE
-# predictor as a special case — see Tutorial 0.3.
+# Note: SSA can be configured to replicate a linear MSE predictor as a 
+# special case — see Tutorial 0.3.
 
 # ── M-SSA: MULTIVARIATE EXTENSION ────────────────────────────────
 # M-SSA generalizes the SSA framework to a multivariate setting,
@@ -114,16 +114,16 @@
 #       → Unsystematic random dynamics ("wiggliness") contaminate
 #         the predictor — see Tutorial 0.3
 #
-#   • Lag bias
+#   • Lag/retardation 
 #       → The predictor systematically trails behind the target
 #         (right-shift or phase-lag) — see Tutorial 0.3
-# ─────────────────────────────────────────────────────────────────
-    
+
 # ── SSA OPTIMIZATION PRINCIPLE ────────────────────────────────────
 # See Tutorial 0.2 for implementation details.
 #
 # Core objective:
-#   Maximize sign-accuracy subject to a holding-time constraint
+#   Maximize sign-accuracy (or target correlation) subject to a 
+#   holding-time constraint
 #
 #   • Sign-accuracy
 #       → Probability that the (mean-zero) predictor correctly
@@ -208,9 +208,10 @@
 #         be used to make it faster, smoother, or both (see tutorials 1-5)
 #
 #   • Scope
-#       → SSA addresses univariate linear predictors;
-#         M-SSA extends the framework to multivariate designs (see
-#         tutorials 7 and 10)
+#       → SSA addresses univariate linear predictors for stationary processes;
+#         I-SSA extends this to non-stationary processes (see Tutorial 6);
+#         M-SSA generalizes the framework to multivariate designs (see
+#         Tutorial 7); optimal smoothing is covered in Tutorials 8, 9, and 10.
 
 # ─────────────────────────────────────────────────────────────────
 # ── SSA AS A PLUG-ON ──────────────────────────────────────────────
@@ -250,17 +251,20 @@
 # but always within the constraints of the forecast trilemma —
 # i.e., at the cost of increased MSE.
 
-# ── TRILEMMA TRADEOFF EVALUATION ──────────────────────────────────
-# The accompanying R package provides explicit decomposition of the
-# trilemma tradeoff, computing separate contributions from:
-#   • Smoothness
-#   • MSE
-#   • Timeliness
 
 # ── INTERPRETABILITY ──────────────────────────────────────────────
-# Since SSA tracks the benchmark optimally, it inherits and
-# preserves the interpretability of the latter — including its
-# original economic meaning and content.
+# Optimization criterion:
+#   The objective (sign accuracy, target correlation, or MSE) and the
+#   HT constraint are both readily interpretable.
+# Optimization:
+#   Numerical computations are fast and the search space is
+#   convex (except in singular cases requiring extreme smoothing),
+#   guaranteeing a unique solution.
+# Benchmark customization:
+#   Since SSA tracks the benchmark optimally, it inherits and
+#   preserves the interpretability of the latter — including its
+#   original economic meaning and content.
+# 
 
 # ─────────────────────────────────────────────────────────────────
 # ── SSA Extensions ───────────────────────────────────────────────
@@ -345,22 +349,6 @@
 #     → See applications in Wildi (2024) and simulation studies in Wildi (2026 a,b)
 
 
-# ── Crossings at non-mean thresholds ──────────────────────────────
-# When crossings are measured at a threshold above or below
-# the mean (rather than at the mean itself):
-#
-#   • The holding-time (HT) statistic becomes biased when applied to the
-#     absolute level of the series:
-#       - The mean duration between threshold crossings depends on the
-#         location of the threshold itself.
-#       - By construction, HT refers to crossings of the mean level.
-#
-#   • However, relative performance against a benchmark is
-#     generally preserved:
-#     → SSA remains smoother and produces fewer crossings than
-#       the benchmark even at off-mean thresholds
-#     → See Tutorials 1–5 for empirical illustration
-#
 # ─────────────────────────────────────────────────────────────────
 # ─────────────────────────────────────────────────────────────────
 # ── M-SSA, MDFA AND DFP/PCS PREDICTORS: A COMPARATIVE OVERVIEW ─────────────

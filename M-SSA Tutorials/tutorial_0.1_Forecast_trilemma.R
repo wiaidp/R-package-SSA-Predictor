@@ -102,6 +102,17 @@ abline(v = 1 + which(sign(y_sym[2:len]) != sign(y_sym[1:(len-1)])),
 # The predictor is delayed and noisier (more zero-crossings).
 # Smoothness proxy: mean distance between zero-crossings (holding time, ht)
 
+# We now compute the mean distance between consecutive zero-crossings.
+# The following function computes the average distance between zero-crossings.
+compute_empirical_ht_func<-function(x)
+{ 
+  x<-na.exclude(x)
+  len<-length(x)-1
+  empirical_ht<-len/length(which(sign(x[2:len])!=sign(x[1:(len-1)])))
+  return(list(empirical_ht=empirical_ht))
+}
+# This function is loaded with the above source command. 
+
 # Use a longer sample for stable estimates
 set.seed(16)
 len <- 12000
@@ -110,7 +121,7 @@ x <- epsilon
 y_mse <- filter(x, b_mse, side = 1)
 y_sym <- filter(x, gamma, side = 2)
 
-# Empirical holding time
+# Empirical holding time: 
 compute_empirical_ht_func(y_sym)
 compute_empirical_ht_func(y_mse)
 
@@ -120,10 +131,34 @@ compute_empirical_ht_func(y_sym)$empirical_ht /
   compute_empirical_ht_func(y_mse)$empirical_ht
 
 # Theoretical holding time (white noise case; see Wildi, 2024)
+# The following function is loaded with the above source command.
+# It computes the expected (true) HT of a `filter' with weights b.
+# It assumes that the filter is applied to white noise.
+# See Wildi, 2024 (equation 3).
+compute_holding_time_func<-function(b)
+{
+  if (length(b)>1)
+  {  
+    rho_ff1<-b[1:(length(b)-1)]%*%b[2:length(b)]/sum(b^2)
+    # Mean holding-time
+    ht<-1/(2*(0.25-asin(rho_ff1)/(2*pi)))
+    # Alternative expression  
+    if (F)
+      ht<-pi/acos(rho_ff1)
+  } else
+  {
+    ht<-2
+    rho_ff1<-0
+  }
+  return(list(ht=ht,rho_ff1=rho_ff1))
+}
+
 compute_holding_time_func(gamma)$ht
 compute_holding_time_func(b_mse)$ht
 
+#-------------------------------------------------------------------
 # Empirical ht converges to theoretical ht as sample size increases
+#-------------------------------------------------------------------
 
 # Measure relative delay (lag) via zero-crossing alignment
 filter_mat <- cbind(y_sym, y_mse)
@@ -160,7 +195,7 @@ axis(1, at = 1 + 0:6*K/6,
 axis(2)
 box()
 
-# Low-frequency components are delayed by ≈ 2.5 periods,
+# Low-frequency components (0<=omega<=2pi/6) are delayed by 2.5 periods,
 # consistent with time-domain estimates
 
 # Mean squared error (empirical)
@@ -171,7 +206,9 @@ mean((y_sym - y_mse)^2, na.rm = T)
 # Since x_t is white noise:
 sum(sigma^2 * gamma[1:((L-1)/2 + delta)]^2)
 
+#-------------------------------------------------------------------
 # Empirical MSE converges to theoretical MSE with larger samples
+#-------------------------------------------------------------------
 
 # Forecast performance criteria:
 # - MSE (accuracy)
