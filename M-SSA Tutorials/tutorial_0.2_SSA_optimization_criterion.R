@@ -429,7 +429,9 @@ sum((sign(y_logit*z)+1)/2, na.rm=T) / length(na.exclude(z))
 #             true SAs based on model parameters
 #           -Accordingly, we can avoid simulating long time series and rely on 
 #             true SAs instead (based on empirical models).
-#   -Compare empirical means and variances of true SAs for both models
+#   -True SAs based on empirical models are equivalent to out-of-sample 
+#       empirical SAs based on very long series.
+# Idea: Compare empirical means and variances of true SAs for both models
 # Outcome: 
 #   -Mean SA of regression is larger (regression outperforms logit)
 #   -Variance of SA is smaller (regression is more precise)
