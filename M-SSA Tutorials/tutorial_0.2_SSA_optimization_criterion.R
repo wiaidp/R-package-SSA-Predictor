@@ -28,7 +28,7 @@
 #     the data to a binary sequence, discarding valuable magnitude
 #     information in the process.
 #
-#   • Example 2 benchmarks SSA against a classical logit model,
+#   • Exercise 2 benchmarks SSA against a classical logit model,
 #     providing direct empirical evidence for this efficiency claim.
 # ─────────────────────────────────────────────────────────────────
 
@@ -57,7 +57,7 @@ source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
 
 
 #----------------------------------------------------------------
-# Example 1: White noise input (x_t = ε_t)
+# Exercise 1: White noise input (x_t = ε_t)
 
 # Define a symmetric target filter
 # (symmetry is not required in general; see Tutorials 2–5)
@@ -254,7 +254,7 @@ asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
 
 
 #############################################################################################################
-# Example 2
+# Exercise 2
 # SSA is designed to align the signs of a predictor with those of a target 
 #   series.
 # While alternative sign-based methods exist, none— to our knowledge—
@@ -297,12 +297,17 @@ ts.plot(cbind(x,z), col=c("black","red"),
 
 # Forecast horizon: nowcast
 delta <- 0
+# Ensure positiveness
+delta<-abs(delta)
+
+# Shift z forward by delta
+z<-c(z[(1+delta):len],rep(NA,delta))
 
 #-------------------------------
 # Logit model
 
 # 1. Construct binary target (map signs to {0,1}): shift to the left by delta
-target <- c((1 + sign(z)[(1+delta):len]) / 2,rep(NA,delta))
+target <- (1 + sign(z)) / 2
 ts.plot(target)
 
 # 2. Build matrix of lagged explanatory variables
@@ -391,9 +396,11 @@ filter_mat
 rho_yz <- filter_mat[,1] %*% filter_mat[,2] /
   sqrt(filter_mat[,1] %*% filter_mat[,1] *
          filter_mat[,2] %*% filter_mat[,2])
+rho_yz
 # Compute true sign accuracy based on correlation (see Wildi 2024, proof of 
 # proposition 1)
 SA_true_mse <- asin(rho_yz)/pi + 0.5
+SA_true_mse
 
 # 2. Logit predictor
 filter_mat <- cbind(gamma,
@@ -403,23 +410,25 @@ rho_yz <- filter_mat[,1] %*% filter_mat[,2] /
          filter_mat[,2] %*% filter_mat[,2])
 SA_true_logit <- asin(rho_yz)/pi + 0.5
 
-# True SA comparison: empirical SA above converge to true values
+# True SA comparison: 
 SA_true_mse
 SA_true_logit
-# Compare with empirical estimates:
+# Compare with empirical estimates (the latter converge to the former):
 sum((sign(y_mse*z)+1)/2, na.rm=T) / length(na.exclude(z))
 sum((sign(y_logit*z)+1)/2, na.rm=T) / length(na.exclude(z))
 # → Confirms MSE dominance
 
-#-------------------------------------------
-# Monte Carlo study: 
+
+#############################################################################################################
+# Exercise 3: Monte Carlo study 
+# The following Monte Carlo study is based on exercise 2: 
 #   -Simulate multiple series (anzsim<-1000)
 #   -For each series, compute SA based on estimated model parameters
 #     (based on linear regression and logit models)
-#     Note: -We have verified above that empirical SA converge to expressions 
-#             based on model parameters
-#           -Therefore we can avoid simulating long time series by relying on 
-#             true SAs (based on empirical models).
+#     Note: -We have verified in exercise 2 that empirical SAs converge to 
+#             true SAs based on model parameters
+#           -Accordingly, we can avoid simulating long time series and rely on 
+#             true SAs instead (based on empirical models).
 #   -Compare empirical means and variances of true SAs for both models
 # Outcome: 
 #   -Mean SA of regression is larger (regression outperforms logit)
@@ -436,9 +445,13 @@ for (i in 1:anzsim)
   # Simulate data
   x <- rnorm(len)
   
-  # Target
+  # Target regression: two-sided filter
   z <- filter(x, gamma, side=2)
-  target <- c((1 + sign(z)[(1+delta):len]) / 2,rep(NA,delta))
+  # Shift forward by delta
+  z<-c(z[(1+delta):len],rep(NA,delta))
+  
+  # Target logit
+  target <- (1 + sign(z)) / 2
   
   # Build regressors
   explanatory <- c(x[((L+1)/2+delta):len],
