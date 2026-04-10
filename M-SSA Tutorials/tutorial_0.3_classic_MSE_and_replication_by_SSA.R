@@ -144,7 +144,7 @@ compute_empirical_ht_func(y_mse)
 
 # Interpretation:
 #   - The predictor exhibits more frequent zero-crossings
-#   - These additional crossings can be interpreted as spurious signals
+#   - These additional crossings can be interpreted as spurious 
 
 # Compare with theoretical holding times
 compute_holding_time_func(gamma)$ht
@@ -182,7 +182,7 @@ mean((y_sym - y_mse)^2, na.rm=T)
 # Weights applied to future innovations
 gamma[1:3]
 
-# Expected MSE
+# Expected MSE: the empirical MSE converges to this population value
 sigma^2 * sum(gamma[1:3]^2)
 
 # Relative MSE (scaled by variance of target)
@@ -230,23 +230,26 @@ axis(2)
 box()
 
 # Interpretation:
-#   - Amplitude: 
-#       -Like the target, the MSE filter behaves as a low-pass filter
-#       -Amplitude of MSE smaller in passband (at lower frequencies): typical zero-shrinkage of MSE
-#       -Amplitude of MSE larger in stopband: typical noise leakage of MSE (more noisy zero-crossings)
+#   - Amplitude:
+#       - Like the target, the MSE filter behaves as a low-pass filter.
+#       - Amplitude of MSE is smaller in the passband (at lower frequencies):
+#           typical zero-shrinkage of MSE.
+#       - Amplitude of MSE is larger in the stopband: typical noise leakage
+#           of MSE (more noisy zero-crossings).
 #   - Phase shift:
-#       -Shift of two-sided (symmartic) filter is zero
-#       -Shift of MSE: approximately one-period delay in the passband,
-#         consistent with above time-domain estimates (based on function compute_min_tau_func())
+#       - Shift of the two-sided (symmetric) filter is zero.
+#       - Shift of MSE: approximately one-period delay in the passband,
+#           consistent with the above time-domain estimates
+#           (based on compute_min_tau_func()).
 
 # Advantage of frequency-domain diagnostics:
-#   - Depend only on filter coefficients (data-independent)
-#   - Provide a structural characterization of filter performance
+#   - Depends only on filter coefficients (data-independent).
+#   - Provides a structural characterization of filter performance.
 
 # Preview:
-#   - Faster SSA predictors → smaller phase shifts (Tutorials 2, 3, 5)
+#   - Faster SSA predictors → smaller phase shifts (Tutorials 2, 3, 5).
 #   - Smoother SSA predictors → stronger high-frequency attenuation
-#       (with exceptions; see Tutorial 4)
+#       (with exceptions; see Tutorial 4).
 
 # ── SPECTRAL DENSITY ───────────────────────────────────────────
 # For white noise input:
@@ -524,12 +527,13 @@ axis(2)
 box()
 
 # Interpretation:
-#   - Amplitude: 
-#     - Noise leakage is more pronounced than in Example 1 (amplitude larger in stopband): 
-#       the ARMA process generates a smoother series (stronger autocorrelation, lowpass, see plot below), 
-#       leaving less residual noise for the MSE filter to suppress.
+#   - Amplitude:
+#       - Noise leakage is more pronounced than in Example 1 (amplitude larger
+#           in the stopband): the ARMA process generates a smoother series
+#           (stronger autocorrelation, low-pass; see plot below), leaving less
+#           residual noise for the MSE filter to suppress.
 #   - Phase shift:
-#       -Shift is smaller than in example 1, since noise suppression is weaker
+#       - Shift is smaller than in Example 1, since noise suppression is weaker.
 
 # ── Spectral density of the MSE predictor ────────────────────────────────────
 # To compute the spectral density of y_mse, we must use gamma_conv_mse
@@ -697,9 +701,9 @@ delta <- 0
 
 # The symmetric two-sided target filter gamma, when written as a one-sided
 # causal filter, is right-shifted by (length(gamma) - 1) / 2 = 3 time units.
-# To recover the acausal two-sided target, the causal gamma must be left-shifted by the
-# same amount. Equivalently, this corresponds to forecasting the one-sided
-# causal filter (length(gamma) - 1) / 2 + delta steps ahead.
+# To recover the acausal two-sided target, the causal gamma must be left-shifted 
+# by the same amount. Equivalently, this corresponds to forecasting the 
+# one-sided causal filter (length(gamma) - 1) / 2 + delta steps ahead.
 forecast_horizon <- (length(gamma) - 1) / 2 + delta
 forecast_horizon
 
@@ -711,7 +715,8 @@ forecast_horizon
 # SSA_func will internally convolve gamma with xi.
 xi <- xi
 
-# gamma is specified as a causal filter in terms of x_t
+# Target filter gammak_generic
+# gammak_generic is specified as a causal filter in terms of x_t
 # The causal filter is symmetric around lag=(length(gamma) - 1) / 2 = 3 (instead of lag 0).
 # SSA_func will left-shift gamma by forecast_horizon to recover the intended acausal
 # two-sided target, and will convolve it with xi to express it in terms of
@@ -864,7 +869,7 @@ compute_holding_time_func(xi)$ht
 # Accordingly, ssa_x extends the native smoothing of the ARMA filter to
 # satisfy the imposed constraint. Note that holding times of convolved filters
 # do not combine additively — HT is a non-linear function of the lag-one ACF
-# (see Proposition 2, JBCY paper).
+# (see Proposition 2, Wildi 2024).
 
 # ── C. Empirical lag-one ACF and holding-time ─────────────────────────────────
 #
@@ -1082,41 +1087,50 @@ box()
 #
 # Convolution:
 #   - Splitting the estimation problem into Gamma (target filter applied to x_t)
-#     and Xi (Wold decomposition of x_t) is a modelling convenience, not a necessity.
-#   - The fundamental object of interest, from a theoretical standpoint, is always
-#     the convolved filter design, applied to epsilon_t:
+#     and Xi (Wold decomposition of x_t) is a modelling convenience, not a 
+#     necessity.
+#   - The fundamental object of interest, from a theoretical standpoint, is 
+#     always the convolved filter design applied to epsilon_t:
 #       * The convolved design is required for deriving optimal filters and
 #         computing theoretical performance measures.
-#       * Once obtained, the optimal x_t-filter can be recovered via simple deconvolution.
-#       * The x_t-filter is practically convenient, as it can be applied directly
-#         to the observed data x_t (rather than to the unobserved innovations epsilon_t).
-#   - Therefore, one can specify either:
-#       (i) the convolved target, applied to epsilon_t (omitting the Wold decomposition xi in the SSA call),
-#           or
-#      (ii) the original target, applied to x_t, and inform SSA about the data-generating process
-#           by supplying the Wold decomposition xi.
-#   - In the background, SSA always operates with convolved designs (the theory assumes white noise data).
+#       * Once obtained, the optimal x_t-filter can be recovered via simple 
+#         deconvolution.
+#       * The x_t-filter is practically convenient, as it can be applied 
+#         directly to the observed data x_t (rather than to the unobserved 
+#         innovations epsilon_t).
+#   - One can therefore specify either:
+#       (i)  The convolved target applied to epsilon_t — omitting the Wold 
+#            decomposition xi in the SSA call — or
+#       (ii) The original target applied to x_t, informing SSA about the
+#            data-generating process by supplying the Wold decomposition xi.
+#   - In the background, SSA always operates with convolved designs
+#     (the theory assumes white noise data).
 #
-# Target Swap: 
-#   - The SSA criterion is indifferent to swapping acausal target and causal MSE predictor as targets 
-#       for SSA (see literature).
+# Target Swap:
+#   - The SSA criterion is indifferent to swapping the acausal target and the
+#     causal MSE predictor as targets for SSA (see literature).
 #   - When targeting the acausal design, SSA acts as a predictor.
 #   - When targeting the causal MSE, SSA acts as a smoother for MSE:
-#       * customization of the MSE predictor by SSA
-#       * SSA remains as close as possible to the benchmark MSE while respecting the ht constraint
+#       * Customization of the MSE predictor by SSA.
+#       * SSA remains as close as possible to the benchmark MSE while
+#         respecting the HT constraint.
 #
-# Replication: 
+# Replication:
 #   - SSA can exactly replicate the MSE solution under appropriate settings:
-#       * Use the acausal target and impose the ht of MSE in the constraint
-#         (equivalently, rho1 equal to the first-order ACF of the MSE predictor)
-#       * Use the causal MSE as target with the same constraint
+#       * Use the acausal target and impose the HT of MSE in the constraint
+#         (equivalently, set rho1 equal to the first-order ACF of the MSE 
+#         predictor).
+#       * Alternatively, use the causal MSE as the target with the same 
+#         constraint.
 #
 # Consistency:
-#   - Theoretical criteria (target correlation or sign accuracy) and holding times (HT)
-#     align with empirical estimates when the model xi (Wold decomposition) is correctly specified.
-#   - Substantial discrepancies between empirical and theoretical values indicate
-#     model misspecification (wrong xi, non-zero mean) or the absence of numerical convergence
-#     (the latter is rare and can be remedied by increasing the number of iterations).
+#   - Theoretical criteria (target correlation or sign accuracy) and holding 
+#     times (HT) align with empirical estimates when the model xi 
+#     (Wold decomposition) is correctly specified.
+#   - Substantial discrepancies between empirical and theoretical values 
+#     indicate model misspecification (wrong xi or non-zero mean) or a lack of 
+#     numerical convergence (the latter is rare and can be remedied by 
+#     increasing the number of iterations).
 #
 #----------------------------------------------------------------
 # Final Remarks
@@ -1124,14 +1138,13 @@ box()
 #
 #   - The constraint rho1 can be freely modified in the above example:
 #       * If rho1 = rho(MSE): SSA replicates the MSE solution (as shown here).
-#       * If rho1 > rho(MSE): SSA yields a smoother output — common in practical
+#       * If rho1 > rho(MSE): SSA yields smoother output — common in practical
 #         applications.
-#       * If rho1 < rho(MSE): SSA yields less smooth output — with more zero-crossings.
+#       * If rho1 < rho(MSE): SSA yields less smooth output, with more
+#         zero-crossings.
 #
-#   - See the tutorials for practically (more) relevant applications.
+#   - See the following tutorials for more practically relevant applications.
 #================================================================
-
-
 
 
 
