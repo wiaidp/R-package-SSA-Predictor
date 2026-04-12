@@ -49,11 +49,11 @@
 rm(list=ls())
 
 # Load SSA-related functions
-source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
+source(paste(getwd(),"/R/SSA.r",sep=""))
 # Load tau-statistic (quantifies lead/lag performance)
-source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
+source(paste(getwd(),"/R utility functions/Tau_statistic.r",sep=""))
 # Load signal extraction functions (used in JBCY paper; depends on mFilter)
-source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+source(paste(getwd(),"/R utility functions/HP_JBCY_functions.r",sep=""))
 
 
 #----------------------------------------------------------------
@@ -113,6 +113,7 @@ ts.plot(cbind(y_sym,y_one_sided),
 #     x_{len+1}, x_{len+2}, …
 #   • These must be replaced by forecasts
 
+
 # MSE principle:
 #   • Substitute unknown future values with their MSE-optimal forecasts
 #   • This yields the MSE-optimal nowcast
@@ -121,7 +122,7 @@ ts.plot(cbind(y_sym,y_one_sided),
 #   • Optimal forecasts of future values are zero
 #   • ⇒ The MSE-optimal nowcast reduces to a truncated one-sided filter
 # ───────────────────────────────────────────────────────────────
-
+# Truncated (MSE nowcast) filter
 b_MSE <- gamma[((length(gamma)+1)/2):length(gamma)]
 
 plot(b_MSE, axes=F, type="l",
@@ -150,10 +151,23 @@ compute_empirical_ht_func(y_sym)
 compute_empirical_ht_func(y_mse)
 
 # 2. Theoretical ht (white noise case; see Wildi, 2024, 2026a)
-compute_holding_time_func(gamma)$ht
-compute_holding_time_func(b_MSE)$ht
+HT_true_gamma<-compute_holding_time_func(gamma)$ht
+HT_true_b<-compute_holding_time_func(b_MSE)$ht
+HT_true_gamma
+HT_true_b
 
-# Empirical estimates converge to theoretical values as len increases
+# 3. The theoretical HT is linked bijectively to the lag-one ACF, see 
+#     Wildi 2024 and 2026a
+rho_ff1<-b_MSE[1:(length(b_MSE)-1)]%*%b_MSE[2:length(b_MSE)]/sum(b_MSE^2)
+# True/expected holding-time of MSE nowcast
+pi/acos(rho_ff1)
+# The same as
+HT_true_b
+
+
+#--------------------------------------------------------------------
+# Empirical HTs converge to theoretical values as len increases
+#--------------------------------------------------------------------
 
 # ── SIGN ACCURACY (SA): EMPIRICAL ESTIMATE ─────────────────────
 # SA = probability that the predictor correctly matches the sign
@@ -171,8 +185,10 @@ SA_empirical
 filter_mat <- cbind(gamma,
                     c(rep(0, length(gamma)-length(b_MSE)), b_MSE))
 colnames(filter_mat)[2] <- "predictor"
+# Target (two-sided) and nowcast (one-sided) filters
+filter_mat
 
-# b. True correlation between target and predictor
+# b. True correlation between target and predictor, assuming white noise
 rho_yz <- filter_mat[,1] %*% filter_mat[,2] /
   sqrt(filter_mat[,1] %*% filter_mat[,1] *
          filter_mat[,2] %*% filter_mat[,2])
@@ -185,15 +201,17 @@ SA_true
 # Compare with empirical SA from above
 SA_empirical
 
+
 #-----------------------------------------------------------
 # Empirical SA converges to SA_true as sample size increases
 #-----------------------------------------------------------
 
 # ── ALTERNATIVE EMPIRICAL SA ESTIMATE ──────────────────────────
-# Compute SA via empirical correlation
+# Compute SA via empirical correlation: 
+#   Replace above rho_yz by sample estimate.
 asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi + 0.5
 
-# Compare with direct empirical SA
+# Compare with true (expected) empirical SA
 SA_empirical
 
 #===========================================================================================
@@ -223,22 +241,30 @@ SA_true
 asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
 
 
+
 # ── DISCUSSION: SSA PRINCIPLE ──────────────────────────────────
-# - The closed-form expression SA_true links filter weights directly
-#     to sign accuracy, enabling explicit optimization.
+# - The closed-form expressions SA_true, HT_true link filter weights directly
+#     to sign accuracy and HT, enabling explicit optimization.
 #
 # - SSA (Wildi, 2024; 2026a) maximizes SA subject to a constraint
 #     on holding time (smoothness).
 #
-# - Equivalent formulation (used in practice):
-#     maximize correlation rho_yz subject to a constraint on the
+# - Equivalent formulation (used in R-code):
+#     maximize target correlation rho_yz subject to a constraint on the
 #     lag-one ACF of the predictor.
 #     → Under Gaussianity, both approaches yield identical solutions.
+#     → The link between (SA_true, HT_true) and the filter weights is
+#         robust to departures from Gaussianity (Wildi, 2024; 2026a; 2026b).
+#     → Regardless of distributional assumptions, the formulation remains
+#         interpretable: the objective (target correlation) and the
+#         constraint (lag-one ACF) are both meaningful and intuitive.
 #
-# - SA and correlation are bijectively related via the arcsin transform
-#     (up to an affine transformation), so maximizing one implies
-#     maximizing the other.
-
+# Bijective Relationships:
+# - SA and rho_yz are bijectively related via the arcsin transform:
+#     maximizing one is equivalent to maximizing the other.
+# - HT and the lag-one ACF are bijectively related via the arccos transform:
+#     constraining one is equivalent to constraining the other.
+#
 # Invariance:
 # - SA, rho_yz, ht, and lag-one ACF are invariant to affine scaling.
 # - Hence, the SSA solution is defined only up to a scaling factor s.
@@ -249,7 +275,7 @@ asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
 #     imposed ht constraint.
 # - If the ht constraint equals the holding time of the MSE-optimal
 #     filter (ht_mse), SSA reproduces the MSE solution exactly
-#     (see Tutorial 0.3).
+#     (see Tutorial 0.3). In this sense, SSA generalizes the MSE approach.
 
 
 

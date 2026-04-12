@@ -32,7 +32,7 @@ Project Structure:
 
 
 
-The project directory is organized into five sub-folders:
+The project directory is organized into sub-folders:
 
 
 
@@ -42,9 +42,11 @@ The project directory is organized into five sub-folders:
 
 3.Papers
 
-4.R
+4.R (repository of SSA, I-SSA and M-SSA optimization)
 
-5.Results
+5.R utility functions 
+
+6.Results
 
 
 
