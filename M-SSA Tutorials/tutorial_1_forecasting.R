@@ -193,13 +193,13 @@ compute_empirical_ht_func(x)
 
 
 # ================================================================
-# Example 2: Inconsistent Settings
+# Example 2: Infeasible Settings  
 # ================================================================
 #
 # A MA filter of length L imposes an upper bound on the achievable holding
 # time (HT): the HT of the filtered output cannot be made arbitrarily large
 # for a fixed L (see Wildi, 2024, 2026a).
-# Requesting an HT that exceeds this bound leads to an inconsistent
+# Requesting an HT that exceeds this bound leads to an infeasible
 # specification. This example illustrates such a case and its consequences.
 
 
@@ -238,7 +238,7 @@ forecast_horizon <- 1
 #
 # The HT value below is intentionally set larger than what a filter of length
 # L = 5 can achieve (the max attainable HT is L+1=6 which is smaller than 7), 
-# thereby creating an inconsistent specification.
+# thereby creating an infeasible specification.
 # See Proposition 3 in Wildi (2024) for the formal statement of this bound.
 ht <- 7
 
@@ -263,7 +263,7 @@ rhomax_func(L)
 # ── SSA Optimisation ──────────────────────────────────────────────────────────
 #
 # Because rho1 exceeds rhomax_func(L) in this example, the call below will
-# raise an error, confirming that the specification is inconsistent.
+# raise an error, confirming that the specification is infeasible.
 SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
 
 
@@ -279,7 +279,7 @@ SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
 # Resolving the Inconsistency: Two Options
 # ================================================================
 #
-# Returning to the inconsistent specification from Example 2, the problem
+# Returning to the infeasible specification from Example 2, the problem
 # can be resolved by either:
 #   (a) Increasing L so that the filter is long enough to support the
 #       imposed HT, or
@@ -300,7 +300,7 @@ gammak_generic <- 1
 # One-step-ahead forecast horizon.
 forecast_horizon <- 1
 
-# HT is kept at the same value as in the inconsistent example.
+# HT is kept at the same value as in the infeasible example.
 ht <- 7
 
 # Convert HT to the lag-one ACF, which is the format required by SSA_func().
