@@ -3,7 +3,7 @@
 # ══════════════════════════════════════════════════════════════════════════════
 # This tutorial is about the univariate SSA in smoothing applications for 
 # stationary time series.
-# For extensions to non-stationary or multivariate series, see tutorial 9.
+# For extensions to non-stationary or multivariate series, see tutorials 9&10.
 
 # ──────────────────────────────────────────────────────────────────────────────
 # SMOOTHING VS. PREDICTION
@@ -82,7 +82,7 @@
 # differences (for an integrated process neither the mean nor the crossings are 
 # properly defined).
 #
-#   • SSA smoothing can be applied to non-stationary series, see example ???
+#   • SSA smoothing can be applied to non-stationary series, see tutorial 9
 #   • But the HT constraint must be specified in stationary differences.
 #
 # The Wold decomposition of the (stationary) data x_t enters SSA via the
@@ -267,13 +267,13 @@ library(mFilter)
 # Core routines for M-SSA filter construction and optimization.
 # Only auxiliary utility functions are used to compute holding times.
 # M-SSA itself is not covered in this tutorial.
-source(paste(getwd(), "/R/functions_MSSA.r", sep = ""))
+source(paste(getwd(), "/R/MSSA.r", sep = ""))
 
 # HP-filter utilities used in the JBCY paper (depends on mFilter)
-source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
+source(paste(getwd(), "/R utility functions/HP_JBCY_functions.r", sep = ""))
 
 # M-SSA utility functions: data preparation, plotting helpers, and wrappers
-source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
+source(paste(getwd(), "/R utility functions/M_SSA_utility_functions.r", sep = ""))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -786,7 +786,7 @@ acf(na.exclude(output_mat)[, 3], lag.max = 100, main = "HP")
 #    All of the above results extend from white noise to arbitrary stationary
 #    autocorrelated processes by supplying the appropriate ξ (Wold decomposition) 
 #    to the SSA design criterion. Non-stationary integrated processes are 
-#    discussed in example ???
+#    discussed in tutorial 9.
 #
 # ─────────────────────────────────────────────────────────────────────────────
 

@@ -210,16 +210,16 @@ library(pROC)
 # ==================================================================
 
 # Core M-SSA filter construction and optimization routines
-source(paste(getwd(), "/R/functions_MSSA.r", sep = ""))
+source(paste(getwd(), "/R/MSSA.r", sep = ""))
 
 # ROC plots
-source(paste(getwd(), "/R/ROCplots.r", sep = ""))
+source(paste(getwd(), "/R utility functions/ROCplots.r", sep = ""))
 
 # HP filter utilities used in the JBCY paper (relies on mFilter)
-source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
+source(paste(getwd(), "/R utility functions/HP_JBCY_functions.r", sep = ""))
 
 # M-SSA utility functions: data preparation, plotting helpers, wrappers
-source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
+source(paste(getwd(), "/R utility functions/M_SSA_utility_functions.r", sep = ""))
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # There are potential problems when loading SSA together with MSSA.

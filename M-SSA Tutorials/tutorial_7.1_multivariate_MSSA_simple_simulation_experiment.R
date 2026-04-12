@@ -1609,7 +1609,7 @@ ht_mssa_vec
 
 # All functions used above are also available in the external utility script.
 # This script will be relied upon in tutorials 7.2 and 7.3.
-source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
+source(paste(getwd(), "/R utility functions/M_SSA_utility_functions.r", sep = ""))
 
 
 
