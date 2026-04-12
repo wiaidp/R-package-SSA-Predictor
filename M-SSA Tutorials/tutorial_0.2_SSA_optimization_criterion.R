@@ -133,6 +133,8 @@ ts.plot(cbind(y_sym,y_one_sided),
 # MSE principle:
 #   • Substitute unknown future values with their MSE-optimal forecasts
 #   • This yields the MSE-optimal nowcast
+#   • The MSE optimal nowcast is better than the one-sided filter in 
+#     previous plot
 
 # Special case (white noise):
 #   • Optimal forecasts of future values are zero
@@ -172,6 +174,7 @@ compute_empirical_ht_func(y_sym)
 compute_empirical_ht_func(y_mse)
 
 # 2. Theoretical ht (white noise case; see Wildi, 2024, 2026a)
+# The above sample estimates converge to these values for long samples.
 HT_true_gamma<-compute_holding_time_func(gamma)$ht
 HT_true_b<-compute_holding_time_func(b_MSE)$ht
 HT_true_gamma
@@ -179,12 +182,13 @@ HT_true_b
 
 # 3. The theoretical HT is linked bijectively to the lag-one ACF, see 
 #     Wildi 2024 and 2026a
+# a. Lag-one ACF (assuming white noise)
 rho_ff1<-b_MSE[1:(length(b_MSE)-1)]%*%b_MSE[2:length(b_MSE)]/sum(b_MSE^2)
+# b. Bijective link via arccos function
 # True/expected holding-time of MSE nowcast
 pi/acos(rho_ff1)
 # The same as
 HT_true_b
-
 
 #--------------------------------------------------------------------
 # Empirical HTs converge to theoretical values as len increases, see 
@@ -336,9 +340,9 @@ asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi+0.5
 #   - SSA is compared against classical logistic regression.
 #   - Since logit cannot impose an ht constraint, we set SSA
 #     to its unconstrained form: the MSE predictor.
-#   - In this setting, SSA reduces to linear regression.
-#   - A direct like-for-like comparison between MSE and logit
-#     is therefore valid.
+#       → In this setting, SSA reduces to linear regression.
+#   - A direct like-for-like comparison between SSA (regression) 
+#     and logit is therefore valid.
 #───────────────────────────────────────────────────────────────────────────
 
 
@@ -460,7 +464,7 @@ summary(mse_model)
 #───────────────────────────────────────────────────────────────────────────
 # This section evaluates and compares the out-of-sample sign
 # accuracy (SA) of three predictors:
-#   1. MSE predictor       (linear regression on continuous z)
+#   1. MSE predictor       (sign of linear regression output)
 #   2. Naive logit         (sign of causal logit-filter output)
 #   3. Classic logit       (threshold-based P(sign=+1|x) > 0.5)
 #
@@ -470,6 +474,11 @@ summary(mse_model)
 # Theoretical SA is then derived analytically via the arcsin
 # transform of the population cross-correlation ρ_yz, and
 # compared against the large-sample empirical estimates.
+
+# Note: this experiment is based on a single realization of 
+#   length 120.
+# Exercise 3 presents a Monte Carlo simulation based on 
+#   multiple realizations. 
 #============================================================
 
 
@@ -544,13 +553,17 @@ explanatory <- as.data.frame(explanatory)
 y_logit_pred <- predict(logit_model,
                         newdata = as.data.frame(explanatory),
                         type    = "response")
-
+# Need a decision rule for the sign forecast:
+#   y_logit_pred > 50% corresponds to "plus" forecast (otherwise "minus"). 
+threshold_logit    <- 0.5
+mat<-cbind(y_logit_pred,sign(y_logit_pred-threshold_logit))
+colnames(mat)<-c("Logit predictor",paste("Sign predictor for threshold ",threshold_logit,sep=""))
+tail(mat,10)
 # Centre predictions around the classification threshold (0.5):
 #   > 0  → predicted positive regime
 #   < 0  → predicted negative regime
 # Note: threshold_logit = 0.54 yields near-perfect concordance with
 #       naive logit (not pursued here; 0.5 is the standard choice)
-threshold_logit    <- 0.5
 y_logit_centered   <- y_logit_pred - threshold_logit
 
 # Shift predictions forward by (L-1)/2 to match the nowcasting
@@ -566,6 +579,7 @@ sign_concordance_logit <- sum((sign(y_logit * y_logit_naive) + 1)/2,
                               na.rm = TRUE) / length(na.exclude(z))
 sign_concordance_logit
 # → Values close to 1 confirm near-identical sign predictions
+# → Setting threshold_logit = 0.54 leads to nearly 100% agreement
 
 
 #------------------------------------------------------------
@@ -701,7 +715,7 @@ SA_emp_logit_naive
 #   1. EQUIVALENCE OF LOGIT VARIANTS:
 #      SA_emp_logit_naive ≈ SA_emp_logit
 #      → Naive and classic logit yield near-identical sign predictions
-#        at threshold = 0.5; naive coefficients suffice for analysis.
+#        at threshold = 0.5; naive approach used for analysis.
 #
 #   2. MSE DOMINANCE (POPULATION):
 #      SA_true_mse > SA_true_logit_naive
@@ -724,6 +738,8 @@ SA_emp_logit_naive
 #   approach uses the full continuous information in z, whereas
 #   logistic regression operates on its binary projection —
 #   discarding magnitude information and reducing statistical power.
+
+# But we used a single realization only.
 #============================================================
 
 
@@ -749,7 +765,7 @@ SA_emp_logit_naive
 # By aggregating results across replications, we can compute the following
 # distributional moments of the out-of-sample SA performances:
 #
-#   · Probabilities : e.g., P(SA_logit > SA_MSE) — the proportion of
+#   · Probabilities : e.g., P(SA_logit < SA_MSE) — the proportion of
 #                     replications in which one model outperforms the other
 #   · Means         : the expected (average) SA for each model across
 #                     replications, reflecting typical performance
@@ -937,12 +953,12 @@ colnames(mat_perf) <- c("SA_MSE", "SA_Logit")
 # MONTE CARLO RESULTS: SUMMARY STATISTICS
 #------------------------------------------------------------
 
-# 1. MEAN SA: MSE predictor achieves higher average SA
+# Answer to Q1: MEAN SA: MSE predictor achieves higher average SA
 #    → Consistent with efficiency advantage over logit
 cat("\n--- Mean Sign Accuracy ---\n")
 print(apply(mat_perf, 2, mean))
 
-# 2. STANDARD DEVIATION: MSE predictor is more stably estimated
+# Answer to Q2: STANDARD DEVIATION: MSE predictor is more stably estimated
 #    → Logit's binary transformation inflates sampling variability
 cat("\n--- Standard Deviation of Sign Accuracy ---\n")
 print(apply(mat_perf, 2, sd))
@@ -965,7 +981,7 @@ print(t.test(mat_perf[,1], mat_perf[,2],
 
 
 #------------------------------------------------------------
-# WIN RATE: FREQUENCY OF MSE OUTPERFORMING LOGIT
+# Answer to Q3: WIN RATE: FREQUENCY OF MSE OUTPERFORMING LOGIT
 #------------------------------------------------------------
 # Proportion of replications in which SA_MSE > SA_Logit
 win_rate_logit <- length(which(mat_perf[,1] < mat_perf[,2])) / anzsim
