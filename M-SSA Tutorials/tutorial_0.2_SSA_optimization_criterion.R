@@ -576,21 +576,31 @@ y_logit <- c(rep(NA, (L-1)/2),
 tail(sign(cbind(y_logit_naive, y_logit)))
 
 sign_concordance_logit <- sum((sign(y_logit * y_logit_naive) + 1)/2,
-                              na.rm = TRUE) / length(na.exclude(z))
+                              na.rm = TRUE) / (len-(L-1)/2)
 sign_concordance_logit
 # → Values close to 1 confirm near-identical sign predictions
 # → Setting threshold_logit = 0.54 leads to nearly 100% agreement
 
 
 #------------------------------------------------------------
-# OPTIONAL: LOGIT INTERCEPT INCLUSION (not recommended)
+# OPTIONAL: LOGIT INTERCEPT INCLUSION 
 #------------------------------------------------------------
 # Including the intercept in the naive filter shifts the output
-# and typically degrades sign accuracy. Disabled by default.
+# and typically degrades sign accuracy because the intercept is not 
+# significant. Disabled by default.
 if (F)
   y_logit_naive <- y_logit_naive + logit_model$coef[1]
-  
-  
+
+# Note:
+# Including the intercept in the naive forecast replicates the classic
+# logit sign predictor based on threshold_logit=0.5 :
+sign_concordance_logit <- sum((sign(y_logit * 
+                            (y_logit_naive + logit_model$coef[1])) + 1)/2,
+                              na.rm = TRUE) / (len-(L-1)/2)
+sign_concordance_logit
+# The naive sign predictor differs from the classic logit predictor by 
+# ignoring a statistically insignificant shift.
+
 
 #------------------------------------------------------------
 # 2.2.4 EMPIRICAL SIGN ACCURACY (LARGE-SAMPLE)
@@ -789,6 +799,7 @@ SA_emp_logit_naive
 #   - Using true SA avoids the need to simulate very long
 #     out-of-sample series in each replication, substantially
 #     reducing computational cost without loss of validity.
+#     Nonetheless, we include sample estimates for completeness.
 #   - True SA based on estimated model parameters is therefore
 #     equivalent to out-of-sample empirical SA on a very long
 #     series — it reflects the population SA implied by the
@@ -831,7 +842,7 @@ SA_emp_logit_naive
 #       complementing the mean and variance comparisons above.
 #───────────────────────────────────────────────────────────────────────────
 
-set.seed(43)
+set.seed(243)
 anzsim  <- 1000   # Number of Monte Carlo replications
 len     <- 120    # Sample length per replication
 mat_perf <- NULL  # Storage matrix for SA results (anzsim × 2)
@@ -842,6 +853,8 @@ delta<-0          # Nowcast
 #------------------------------------------------------------
 for (sim in 1:anzsim) {
   
+  if (as.integer(sim/100)==sim/100)
+    print(paste(100*sim/anzsim,"%",sep=""))
   #----------------------------------------------------------
   # STEP 1: SIMULATE WHITE NOISE INPUT
   #----------------------------------------------------------
@@ -887,6 +900,7 @@ for (sim in 1:anzsim) {
   
   # Combine into a data frame for model fitting
   sample <- data.frame(cbind(target, explanatory))
+  colnames(sample)<-c("target",colnames(explanatory))
   
   #----------------------------------------------------------
   # STEP 5: ESTIMATE MODELS
@@ -903,6 +917,7 @@ for (sim in 1:anzsim) {
   # Extract estimated filter coefficients
   b_mse   <- mse_model$coef
   b_logit <- logit_model$coef[-1]   # Drop intercept 
+  
   
   #----------------------------------------------------------
   # STEP 6: COMPUTE TRUE SA — MSE PREDICTOR
@@ -939,14 +954,61 @@ for (sim in 1:anzsim) {
   # True SA via arcsin transform
   SA_true_logit <- asin(rho_yz_logit) / pi + 0.5
   
+  # For completeness we also compute sample estimates
+  #----------------------------------------------------------
+  # STEP 8: COMPUTE OUT-OF-SAMPLE SA 
+  #----------------------------------------------------------
+  # Out of sample data  
+  x <- rnorm(len)
+  # target  
+  z <- filter(x, gamma, side = 2)
+  # MSE
+  y_mse <- filter(x, b_mse, side = 1)
+  # --- Naive logit predictor ---
+  y_logit_naive <- filter(x, b_logit, side = 1)
+  # --- Classic logit predictor ---
+  # Reconstruct the lagged explanatory variable matrix for the
+  # out-of-sample data using the same structure as in-sample.
+  explanatory <- c(x[((L+1)/2 + delta):len],
+                   rep(NA, ((L+1)/2 + delta) - 1))
+  if (((L+1)/2 + delta) < L) {
+    for (i in 1:(L - ((L+1)/2 + delta))) {
+      explanatory <- cbind(
+        explanatory,
+        c(x[((L+1)/2 + delta - i):len],
+          rep(NA, ((L+1)/2 + delta - i) - 1))
+      )
+    }
+  }
+  colnames(explanatory) <- paste("Lag", 0:(ncol(explanatory) - 1))
+  tail(explanatory)
+  explanatory <- as.data.frame(explanatory)
+  # Generate predicted probabilities P(sign(z) = +1 | x)
+  y_logit_pred <- predict(logit_model,
+                          newdata = as.data.frame(explanatory),
+                          type    = "response")
+  threshold_logit    <- 0.5
+  y_logit_centered   <- y_logit_pred - threshold_logit
+  # Shift predictions forward by (L-1)/2 to match the nowcasting
+  # alignment used by the MSE and naive logit predictors
+  y_logit <- c(rep(NA, (L-1)/2),
+               y_logit_centered[1:(len - (L-1)/2)])
+# Empirical SAs  
+  SA_emp_mse <- sum((sign(y_mse         * z) + 1)/2, na.rm = TRUE) /
+    length(na.exclude(z))
+  SA_emp_logit_naive <- sum((sign(y_logit_naive * z) + 1)/2, na.rm = TRUE) /
+    length(na.exclude(z))
+  SA_emp_logit <- sum((sign(y_logit       * z) + 1)/2, na.rm = TRUE) /
+    length(na.exclude(z))
+
   #----------------------------------------------------------
   # STEP 8: STORE RESULTS
   #----------------------------------------------------------
-  mat_perf <- rbind(mat_perf, c(SA_true_mse, SA_true_logit))
+  mat_perf <- rbind(mat_perf, c(SA_true_mse, SA_true_logit,SA_emp_mse,SA_emp_logit_naive,SA_emp_logit))
 }
 
 # Label columns for clarity
-colnames(mat_perf) <- c("SA_MSE", "SA_Logit")
+colnames(mat_perf) <- c("SA_true_MSE", "SA_true_Logit","SA_emp_MSE","SA_emp_naive_logit","SA_emp_logit")
 
 
 #------------------------------------------------------------
@@ -967,18 +1029,25 @@ print(apply(mat_perf, 2, sd))
 #------------------------------------------------------------
 # STATISTICAL TEST: DIFFERENCE IN MEAN SA
 #------------------------------------------------------------
+# 1. Testing differences between true SA estimates:
 # One-sided Welch t-test:
-#   H0: mean(SA_MSE) ≤ mean(SA_Logit)
-#   H1: mean(SA_MSE) >  mean(SA_Logit)  ← expected direction
+#   H0: mean(SA_true_mse) ≤ mean(SA_true_Logit)
+#   H1: mean(SA_true_MSE) >  mean(SA_true_Logit)  ← expected direction
 #
 # Welch variant (var.equal = FALSE) used because MSE and logit
 # SA distributions have materially different variances.
 cat("\n--- Welch t-test: H1: mean(SA_MSE) > mean(SA_Logit) ---\n")
-print(t.test(mat_perf[,1], mat_perf[,2],
+print(t.test(mat_perf[,"SA_true_MSE"], mat_perf[,"SA_true_Logit"],
              paired      = FALSE,
              alternative = "greater",
              var.equal   = FALSE))
 
+# 2. Testing differences between sample SA estimates:
+print(t.test(mat_perf[,"SA_emp_MSE"], mat_perf[,"SA_emp_logit"],
+             paired      = FALSE,
+             alternative = "greater",
+             var.equal   = FALSE))
+# Outcome: significant differences 
 
 #------------------------------------------------------------
 # Answer to Q3: WIN RATE: FREQUENCY OF MSE OUTPERFORMING LOGIT
@@ -1028,168 +1097,5 @@ cat("MSE wins in  ", round((1 - win_rate_logit) * 100, 1),
 #    expectation and with high probability across samples.
 #    This illustrates the core efficiency argument for SSA.
 #============================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#───────────────────────────────────────────────────────────────────────────
-# Exercise 3: Monte Carlo study 
-#───────────────────────────────────────────────────────────────────────────
-# The following Monte Carlo study is based on exercise 2: 
-#   -Simulate multiple series (anzsim<-1000)
-#   -For each series, compute SA based on estimated model parameters
-#     (based on linear regression and logit models)
-#     Note: -We have verified in exercise 2 that empirical SAs converge to 
-#             true SAs based on model parameters
-#           -Accordingly, we can avoid simulating long time series and rely on 
-#             true SAs instead (based on empirical models).
-#   -True SAs based on empirical models are equivalent to out-of-sample 
-#       empirical SAs based on very long series.
-# Idea: Compare empirical means and variances of true SAs for both models
-# Outcome: 
-#   -Mean SA of regression is larger (regression outperforms logit)
-#   -Variance of SA is smaller (regression is more precise)
-#   -Regression outperforms logit with probability ~0.9 (in 90% of cases).
-set.seed(43)
-
-anzsim <- 1000
-len <- 120
-mat_perf <- NULL
-
-for (i in 1:anzsim)
-{
-  # Simulate data
-  x <- rnorm(len)
-  
-  # Target regression: two-sided filter
-  z <- filter(x, gamma, side=2)
-  # Shift forward by delta
-  z<-c(z[(1+delta):len],rep(NA,delta))
-  
-  # Target logit
-  target <- (1 + sign(z)) / 2
-  
-  # Build regressors
-  explanatory <- c(x[((L+1)/2+delta):len],
-                   rep(NA,((L+1)/2+delta)-1))
-  
-  if (((L+1)/2+delta) < L)
-  {
-    for (i in 1:(L-((L+1)/2+delta)))
-    {
-      explanatory <- cbind(
-        explanatory,
-        c(x[((L+1)/2+delta-i):len],
-          rep(NA,((L+1)/2+delta-i)-1))
-      )
-    }
-  }
-  colnames(explanatory)<-paste("Lag ",0:(ncol(explanatory)-1))
-  
-  
-  sample <- data.frame(cbind(target, explanatory))
-  
-  # Estimate models
-  logit_model <- glm(target ~ ., family=binomial(link='logit'),
-                     data=sample)
-  mse_model <- lm(z ~ explanatory - 1)
-  
-  b_mse <- mse_model$coef
-  b_logit <- logit_model$coef[-1]
-  
-  # Compute true SA for MSE predictor
-  filter_mat <- cbind(gamma,
-                      c(rep(0,length(gamma)-length(b_mse)), b_mse))
-  rho_yz <- filter_mat[,1] %*% filter_mat[,2] /
-    sqrt(filter_mat[,1] %*% filter_mat[,1] *
-           filter_mat[,2] %*% filter_mat[,2])
-  SA_true_mse <- asin(rho_yz)/pi + 0.5
-# Compute true SA for logit predictor
-  
-  filter_mat <- cbind(gamma,
-                      c(rep(0,length(gamma)-length(b_logit)), b_logit))
-  rho_yz <- filter_mat[,1] %*% filter_mat[,2] /
-    sqrt(filter_mat[,1] %*% filter_mat[,1] *
-           filter_mat[,2] %*% filter_mat[,2])
-  SA_true_logit <- asin(rho_yz)/pi + 0.5
-  
-  mat_perf <- rbind(mat_perf, c(SA_true_mse, SA_true_logit))
-}
-
-colnames(mat_perf) <- c("SA MSE","SA Logit")
-
-# Summary statistics
-# 1. Mean: regression outperforms logit (mean SA larger)
-apply(mat_perf, 2, mean)
-# 2. Standard error: regression has markedly smaller variance 
-apply(mat_perf, 2, sd)
-
-# Test difference in means
-t.test(mat_perf[,1], mat_perf[,2],
-       paired=F, alternative="greater", var.equal=F)
-
-# Frequency with which logit outperforms MSE: only in 10% of all cases
-length(which(mat_perf[,1] < mat_perf[,2])) / anzsim
-
-# Findings:
-#   - The MSE predictor achieves higher average sign accuracy (SA).
-#   - Its sampling variability is smaller, reflecting more precise estimation.
-#   - The efficiency loss of the logit model stems from discarding magnitude information.
-#   - The MSE predictor outperforms logit in the vast majority of samples (~90%).
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

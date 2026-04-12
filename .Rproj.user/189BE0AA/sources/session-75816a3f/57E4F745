@@ -3,7 +3,7 @@
     "path": "C:/Users/marca/OneDrive/2026/Projects/R-Package-SSA-predictor/M-SSA Tutorials/tutorial_0.2_SSA_optimization_criterion.R",
     "project_path": "M-SSA Tutorials/tutorial_0.2_SSA_optimization_criterion.R",
     "type": "r_source",
-    "hash": "2294197391",
+    "hash": "1546085960",
     "contents": "",
     "dirty": false,
     "created": 1775973353678.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "994,0",
-        "scrollLine": "972"
+        "cursorPosition": "1101,0",
+        "scrollLine": "1028"
     },
     "folds": "",
-    "lastKnownWriteTime": 1775998616,
+    "lastKnownWriteTime": 1776009645,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1775998616275,
+    "last_content_update": 1776009645768,
     "read_only": false,
     "read_only_alternatives": []
 }
