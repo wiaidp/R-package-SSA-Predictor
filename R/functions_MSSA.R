@@ -392,7 +392,7 @@ MSSA_func<-function(split_grid,L,forecast_horizon_vec,grid_size,gammak_generic,r
 
 
 
-# This function finds optimal lambda (note that nu=lambda+1/lambda)) through fast hlaf-splits of unit interval for lambda
+# This function finds optimal lambda (note that nu=lambda+1/lambda)) through fast bisection of unit interval for lambda
 # It implements solution in corollary 1 of BCY paper and corollary 2 of JTSE paper. Multivariate is based on IJFOR-paper
 # Meaning of parameters:
 # -gammak_generic is gamma of target as applied to xt (not MSE)
