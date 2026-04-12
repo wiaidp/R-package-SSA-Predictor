@@ -593,13 +593,14 @@ if (F)
 
 # Note:
 # Including the intercept in the naive forecast replicates the classic
-# logit sign predictor based on threshold_logit=0.5 :
+# logit sign predictor based on threshold_logit=0.5.
+# Check this assertion:
 sign_concordance_logit <- sum((sign(y_logit * 
                             (y_logit_naive + logit_model$coef[1])) + 1)/2,
                               na.rm = TRUE) / (len-(L-1)/2)
 sign_concordance_logit
-# The naive sign predictor differs from the classic logit predictor by 
-# ignoring a statistically insignificant shift.
+# The naive logit sign predictor differs from the classic logit predictor by 
+# ignoring a statistically insignificant shift (this will improve SA).
 
 
 #------------------------------------------------------------
@@ -957,6 +958,7 @@ for (sim in 1:anzsim) {
   # For completeness we also compute sample estimates
   #----------------------------------------------------------
   # STEP 8: COMPUTE OUT-OF-SAMPLE SA 
+  # (not strictly necessary but provided for completeness)
   #----------------------------------------------------------
   # Out of sample data  
   x <- rnorm(len)
@@ -1025,6 +1027,10 @@ print(apply(mat_perf, 2, mean))
 cat("\n--- Standard Deviation of Sign Accuracy ---\n")
 print(apply(mat_perf, 2, sd))
 
+# Note: Although the sample estimates (last three entries) are considerably 
+# noisier, the difference in standard deviation between SA_emp_logit and 
+# SA_emp_MSE remains roughly consistent with the difference observed between 
+# SA_true_logit and SA_true_MSE.
 
 #------------------------------------------------------------
 # STATISTICAL TEST: DIFFERENCE IN MEAN SA
@@ -1041,13 +1047,14 @@ print(t.test(mat_perf[,"SA_true_MSE"], mat_perf[,"SA_true_Logit"],
              paired      = FALSE,
              alternative = "greater",
              var.equal   = FALSE))
+# Outcome: statistically significant differences 
 
 # 2. Testing differences between sample SA estimates:
 print(t.test(mat_perf[,"SA_emp_MSE"], mat_perf[,"SA_emp_logit"],
              paired      = FALSE,
              alternative = "greater",
              var.equal   = FALSE))
-# Outcome: significant differences 
+# Outcome: statistically significant differences 
 
 #------------------------------------------------------------
 # Answer to Q3: WIN RATE: FREQUENCY OF MSE OUTPERFORMING LOGIT
