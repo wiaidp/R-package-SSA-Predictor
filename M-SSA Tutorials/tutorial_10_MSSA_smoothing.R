@@ -376,7 +376,7 @@ len <- 10000
 
 # Note: depending on len simulation may take some time to go through.
 # Source the simulation utilities used in Wildi (2026b).
-source(paste(getwd(), "/R/M_SSA_paper_functions.r", sep = ""))
+source(paste(getwd(), "/R utility functions/M_SSA_paper_functions.r", sep = ""))
 # Simulate the VAR(1) process and evaluate filter performance.
 setseed <- 16
 sample_obj     <- sample_series_performances_smooth_func(
