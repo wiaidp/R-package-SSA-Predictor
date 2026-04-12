@@ -585,22 +585,23 @@ sign_concordance_logit
 #------------------------------------------------------------
 # OPTIONAL: LOGIT INTERCEPT INCLUSION 
 #------------------------------------------------------------
-# Including the intercept in the naive filter shifts the output
-# and typically degrades sign accuracy because the intercept is not 
-# significant. Disabled by default.
+# Including the intercept in the naive filter shifts the output and typically
+# degrades sign accuracy, as the intercept is not statistically significant.
+# Disabled by default.
 if (F)
   y_logit_naive <- y_logit_naive + logit_model$coef[1]
-
-# Note:
-# Including the intercept in the naive forecast replicates the classic
-# logit sign predictor based on threshold_logit=0.5.
-# Check this assertion:
+  
+# Note: Including the intercept in the naive forecast replicates the classic
+# logit sign predictor based on a threshold of 0.5 (since the logit applies
+# a monotonic transformation, the sign of the output is preserved).
+# The following verifies this assertion:
 sign_concordance_logit <- sum((sign(y_logit * 
-                            (y_logit_naive + logit_model$coef[1])) + 1)/2,
+                              (y_logit_naive + logit_model$coef[1])) + 1)/2,
                               na.rm = TRUE) / (len-(L-1)/2)
 sign_concordance_logit
-# The naive logit sign predictor differs from the classic logit predictor by 
-# ignoring a statistically insignificant shift (this will improve SA).
+# The naive logit sign predictor differs from the classic logit predictor only
+# by excluding the statistically insignificant intercept, which in turn
+# improves sign accuracy (SA).
 
 
 #------------------------------------------------------------
