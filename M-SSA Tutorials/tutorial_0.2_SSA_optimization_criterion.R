@@ -187,7 +187,8 @@ HT_true_b
 
 
 #--------------------------------------------------------------------
-# Empirical HTs converge to theoretical values as len increases
+# Empirical HTs converge to theoretical values as len increases, see 
+# exercise 1.5 below
 #--------------------------------------------------------------------
 
 #───────────────────────────────────────────────────────────────────────────
@@ -226,9 +227,9 @@ SA_true
 # Compare with empirical SA from above
 SA_empirical
 
-
 #-----------------------------------------------------------
-# Empirical SA converges to SA_true as sample size increases
+# Empirical SA converges to SA_true as sample size increases, see 
+# exercise 1.5 below
 #-----------------------------------------------------------
 
 # ── ALTERNATIVE EMPIRICAL SA ESTIMATE ──────────────────────────
@@ -240,7 +241,7 @@ asin(cor(na.exclude(cbind(y_sym,y_mse)))[1,2])/pi + 0.5
 SA_empirical
 
 #───────────────────────────────────────────────────────────────────────────
-# Exercise 1.4 SAMPLE ESTIMATES CONVERGE TO TRUE (EXPECTED) VALUES FOR LARGE SAMPLE SIZES
+# Exercise 1.5 SAMPLE ESTIMATES CONVERGE TO TRUE (EXPECTED) VALUES FOR LARGE SAMPLE SIZES
 #───────────────────────────────────────────────────────────────────────────
 # Increase sample size to illustrate convergence: 1 million observations
 set.seed(65)
@@ -430,6 +431,9 @@ logit_model <- glm(target ~ .,
                    family = binomial(link = "logit"),
                    data   = sample)
 summary(logit_model)
+# Early lags tend to be more informative (larger t-values)
+# This is because the weights assigned by the two-sided filter decay,
+# assigning less importance to observations away from the center point.
 
 
 # Exercise 2.1.2: MSE PREDICTOR (LINEAR REGRESSION)
@@ -457,7 +461,7 @@ summary(mse_model)
 # This section evaluates and compares the out-of-sample sign
 # accuracy (SA) of three predictors:
 #   1. MSE predictor       (linear regression on continuous z)
-#   2. Naive logit         (sign of causal filter output)
+#   2. Naive logit         (sign of causal logit-filter output)
 #   3. Classic logit       (threshold-based P(sign=+1|x) > 0.5)
 #
 # A large synthetic sample (n = 10,000,000) is used to closely
@@ -470,25 +474,28 @@ summary(mse_model)
 
 
 #------------------------------------------------------------
-# STEP 1: GENERATE LARGE OUT-OF-SAMPLE DATASET
+# 2.2.1 GENERATE LARGE OUT-OF-SAMPLE DATASET
 #------------------------------------------------------------
 # n = 10,000,000 observations of white noise.
 # Sample size is chosen so that empirical SA ≈ population SA.
 set.seed(104)
 len <- 10000000
 x   <- rnorm(len)
+# Apply symmetric (acausal, two-sided) target filter
+# NAs appear at both ends due to missing boundary values
+z <- filter(x, gamma, side = 2)
+
 
 
 #------------------------------------------------------------
-# STEP 2: EXTRACT IN-SAMPLE FILTER COEFFICIENTS
+# 2.2.2 EXTRACT IN-SAMPLE FILTER COEFFICIENTS
 #------------------------------------------------------------
 # Retrieve estimated filter weights from in-sample models.
 #
 # MSE predictor: all coefficients are retained.
-# Logit predictor: the intercept is excluded.
-#   Rationale: SA is invariant to affine scaling and sign-
-#   based classification is unaffected by the intercept when
-#   the threshold is set to 0.5 (the default).
+# Naive logit predictor: the intercept is excluded.
+#   Rationale: The intercept is insignificant and out-of-sample 
+#   performances degrade
 b_mse   <- mse_model$coef
 b_logit <- logit_model$coef[-1]   # Intercept dropped
 
@@ -499,7 +506,7 @@ sum(b_logit^2)
 
 
 #------------------------------------------------------------
-# STEP 3: APPLY FILTERS OUT-OF-SAMPLE
+# 2.2.3 APPLY FILTERS OUT-OF-SAMPLE
 #------------------------------------------------------------
 # All predictors are applied causally (side = 1): they use
 # only current and past values of x, as required in real time.
@@ -512,7 +519,6 @@ y_mse <- filter(x, b_mse, side = 1)
 # Apply the estimated logit coefficient vector directly as a
 # causal linear filter. The sign of the output is used as the
 # predicted sign of the target — no threshold required.
-# This approach is valid because SA is scale-invariant.
 y_logit_naive <- filter(x, b_logit, side = 1)
 
 # --- Classic logit predictor ---
@@ -542,7 +548,7 @@ y_logit_pred <- predict(logit_model,
 # Centre predictions around the classification threshold (0.5):
 #   > 0  → predicted positive regime
 #   < 0  → predicted negative regime
-# Note: threshold = 0.54 yields near-perfect concordance with
+# Note: threshold_logit = 0.54 yields near-perfect concordance with
 #       naive logit (not pursued here; 0.5 is the standard choice)
 threshold_logit    <- 0.5
 y_logit_centered   <- y_logit_pred - threshold_logit
@@ -553,7 +559,7 @@ y_logit <- c(rep(NA, (L-1)/2),
              y_logit_centered[1:(len - (L-1)/2)])
 
 # Diagnostic: verify sign concordance between naive and classic logit
-# (should be near 1.0 — any discrepancy reflects threshold sensitivity)
+# (should be near 1.0 — discrepancies reflect threshold sensitivity)
 tail(sign(cbind(y_logit_naive, y_logit)))
 
 sign_concordance_logit <- sum((sign(y_logit * y_logit_naive) + 1)/2,
@@ -571,16 +577,9 @@ if (F)
   y_logit_naive <- y_logit_naive + logit_model$coef[1]
   
   
-#------------------------------------------------------------
-# STEP 4: RECONSTRUCT TARGET SIGNAL
-#------------------------------------------------------------
-# Apply the acausal target filter to the out-of-sample data.
-# This produces NAs at both ends due to boundary effects.
-z <- filter(x, gamma, side = 2)
-
 
 #------------------------------------------------------------
-# STEP 5: EMPIRICAL SIGN ACCURACY (LARGE-SAMPLE)
+# 2.2.4 EMPIRICAL SIGN ACCURACY (LARGE-SAMPLE)
 #------------------------------------------------------------
 # Sign accuracy (SA): proportion of periods where the
 # predictor's sign agrees with the target's sign.
@@ -734,9 +733,28 @@ SA_emp_logit_naive
 #───────────────────────────────────────────────────────────────────────────
 # EXERCISE 3: MONTE CARLO STUDY — MSE vs LOGIT SIGN ACCURACY
 #───────────────────────────────────────────────────────────────────────────
-# This Monte Carlo study extends Exercise 2 by evaluating the
-# relative performance of the MSE predictor and the logistic
-# regression (logit) model across repeated samples.
+# This Monte Carlo study extends Exercise 2 by evaluating the relative
+# out-of-sample Sign Accuracy (SA) performance of the MSE predictor and
+# the logistic regression (logit) model across a large number of repeated
+# independent samples.
+#
+# Motivation & Structure:
+#  - Exercise 2 was based on a single realization of the data-generating
+#    process, meaning its results are subject to sampling variability and
+#    may not generalize reliably.
+#  - Exercise 3 addresses this limitation by generating multiple independent
+#    realizations of the same experiment, enabling a proper Monte Carlo
+#    assessment of estimator performance.
+#
+# By aggregating results across replications, we can compute the following
+# distributional moments of the out-of-sample SA performances:
+#
+#   · Probabilities : e.g., P(SA_logit > SA_MSE) — the proportion of
+#                     replications in which one model outperforms the other
+#   · Means         : the expected (average) SA for each model across
+#                     replications, reflecting typical performance
+#   · Variances     : the dispersion of SA across replications, reflecting
+#                     the stability and reliability of each model
 #
 # DESIGN:
 #   - Number of replications : anzsim = 1,000
@@ -746,7 +764,7 @@ SA_emp_logit_naive
 #       2. Construct target z_t via symmetric filter γ
 #       3. Estimate MSE (linear regression) and logit models
 #       4. Compute TRUE SA for each model via the closed-form
-#          arcsin formula (see Exercise 2, Proposition 1)
+#          arcsin formula (see Exercise 2)
 # Note: we rely on the naive logit prediction for deriving the true SA.       
 #
 # RATIONALE FOR USING TRUE SA:
@@ -760,19 +778,48 @@ SA_emp_logit_naive
 #     series — it reflects the population SA implied by the
 #     in-sample estimated filter.
 #
-# RESEARCH QUESTION:
-#   Does the MSE predictor achieve higher sign accuracy than
-#   logit, and is it more precisely estimated across samples?
+#───────────────────────────────────────────────────────────────────────────
+# RESEARCH QUESTIONS
+#───────────────────────────────────────────────────────────────────────────
+# The Monte Carlo study is designed to address the following three research
+# questions regarding the out-of-sample Sign Accuracy (SA) of the MSE
+# predictor relative to the logistic regression (logit) model:
 #
-# EXPECTED OUTCOME:
-#   - MSE > Logit  (regression outperforms logit)
-#============================================================
+#  Q1 · MEAN PERFORMANCE
+#       Does the MSE predictor achieve higher sign accuracy than logit
+#       on average across replications?
+#
+#         H0: mean(SA_MSE) ≤ mean(SA_logit)
+#         H1: mean(SA_MSE) >  mean(SA_logit)
+#
+#       This question addresses whether MSE is systematically the better
+#       model in terms of expected predictive accuracy.
+#
+#  Q2 · ESTIMATION STABILITY
+#       Is the MSE predictor more stable (less variable) across repeated
+#       samples than the logit model?
+#
+#         H0: Var(SA_MSE) ≥ Var(SA_logit)
+#         H1: Var(SA_MSE) <  Var(SA_logit)
+#
+#       This question addresses whether MSE produces more consistent and
+#       reliable sign predictions across different realizations of the data.
+#
+#  Q3 · OUTPERFORMANCE PROBABILITY
+#       How likely is it that the MSE predictor outperforms logit in any
+#       given out-of-sample replication?
+#
+#         P(SA_MSE > SA_logit) = ?
+#
+#       This question provides a replication-level view of dominance,
+#       complementing the mean and variance comparisons above.
+#───────────────────────────────────────────────────────────────────────────
 
 set.seed(43)
 anzsim  <- 1000   # Number of Monte Carlo replications
 len     <- 120    # Sample length per replication
 mat_perf <- NULL  # Storage matrix for SA results (anzsim × 2)
-
+delta<-0          # Nowcast
 
 #------------------------------------------------------------
 # MONTE CARLO LOOP
@@ -839,11 +886,12 @@ for (sim in 1:anzsim) {
   
   # Extract estimated filter coefficients
   b_mse   <- mse_model$coef
-  b_logit <- logit_model$coef[-1]   # Drop intercept (SA is scale-invariant)
+  b_logit <- logit_model$coef[-1]   # Drop intercept 
   
   #----------------------------------------------------------
   # STEP 6: COMPUTE TRUE SA — MSE PREDICTOR
   #----------------------------------------------------------
+  # These correspond to population out-of-sample SA (see exercise 2)
   # Zero-pad b_mse to match the length of γ, then compute
   # population cross-correlation ρ_yz (white noise assumption)
   filter_mat_mse <- cbind(
