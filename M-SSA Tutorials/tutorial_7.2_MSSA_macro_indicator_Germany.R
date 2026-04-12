@@ -154,13 +154,13 @@ library(sandwich)
 # Load M-SSA Functionality from Source Files
 
 # Core M-SSA filter design and optimization functions
-source(paste(getwd(), "/R/functions_MSSA.r", sep = ""))
+source(paste(getwd(), "/R/MSSA.r", sep = ""))
 
 # Signal extraction functions developed for the JBCY paper (depends on mFilter)
-source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
+source(paste(getwd(), "/R utility functions/HP_JBCY_functions.r", sep = ""))
 
 # Convenience wrapper functions for M-SSA workflows
-source(paste(getwd(), "/R/M_SSA_utility_functions.r", sep = ""))
+source(paste(getwd(), "/R utility functions/M_SSA_utility_functions.r", sep = ""))
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # There are potential problems when loading SSA together with MSSA.

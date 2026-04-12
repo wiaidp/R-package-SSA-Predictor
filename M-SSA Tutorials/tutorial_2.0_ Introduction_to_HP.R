@@ -60,13 +60,13 @@ library(xts)
 # Standard R-package for HP and other filters 
 library(mFilter)
 # McElroys package for HP
-source(paste(getwd(),"/R/hpFilt.r",sep=""))
+source(paste(getwd(),"/R utility functions/hpFilt.r",sep=""))
 # Load all relevant SSA-functions
-source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
+source(paste(getwd(),"/R/ssa.r",sep=""))
 
 
 # Load signal extraction functions used for JBCY paper (relies on mFilter)
-source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+source(paste(getwd(),"/R utility functions/HP_JBCY_functions.r",sep=""))
 
 # Load data from FRED with library quantmod
 library(quantmod)

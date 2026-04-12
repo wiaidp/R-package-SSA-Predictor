@@ -181,7 +181,7 @@ set_hyper<-function()
 
 
 SSA_func<-function(L,forecast_horizon_vec,gammak_generic,rho1,xi=NULL,Sigma=NULL,split_grid=20,grid_size=10,with_negative_lambda=F,lower_limit_nu="rhomax")
-{ 
+{ # rho1<-rho  forecast_horizon_vec<-forecast_horizon
 # Check dimensions  
   if (!is.null(Sigma))
   {  
@@ -382,7 +382,7 @@ SSA_func<-function(L,forecast_horizon_vec,gammak_generic,rho1,xi=NULL,Sigma=NULL
 #   -This is much faster than grid-search (or much more precise for the same computation time)
 #   -Potential problem: it assumes |nu|>2 (i.e. nu=lambda+1/lambda and solution is unique)
 
-fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<-function(split_grid,L,gammak_generic,rho1,forecast_horizon,xi=NULL,lower_limit_nu="rhomax",Sigma=NULL,symmetric_target=F)
+fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<-function(split_grid,L,gammak_generic,rho1,forecast_horizon,xi=NULL,lower_limit_nu="rhomax",Sigma=NULL,symmetric_target=F,grid_size=10)
 {
 # Check lower_limit_nu: if is different from the three options one assumes standard setting rhomax: a Warning is printed  
   if (!lower_limit_nu%in%c("rhomax","2","0"))
@@ -515,7 +515,7 @@ fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<
 # Compute lag-one acf at lower right (positive) half: lambda just marginally larger than 0 (lambda=0 would lead to a singularity in lambda+1/lambda)    
     lambda_lower<-0.00000001
 # Compute optimal filter based on theorem 1 when nu=lambda+1/lambda and lambda is marginally larger than 0    
-    bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_lower,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj,grid_size)
+    bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_lower,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj)
 # Compute lag-one acf of corresponding solution: this is the smallest lag-one acf (lower bound) if lambda>0    
     rho_yy_lower=bk_obj$rho_yy
 # If lower bound of lag-one acf at right (positive) half is smaller than rho1 (holding-time constraint) then the 
@@ -528,7 +528,7 @@ fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<
 # Compute lag-one acf at upper boundary (solution corresponding to highest possible lag-one acf)    
       lambda_upper<-1
 # Compute filter corresponding to nu=lambda+1/lambda=1+1=2      
-      bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_upper,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj,grid_size)
+      bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_upper,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj)
 # Lag-one acf of corresponding solution      
       rho_yy_upper=bk_obj$rho_yy
 # Check: if maximal possible lag-one acf is smaller than holding-time constraint: print error message and return      
@@ -550,7 +550,7 @@ fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<
 # Optimal filter for lower boundary      
       lambda_lower<--1
       
-      bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_lower,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj,grid_size)
+      bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_lower,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj)
 # Lag-one acf      
       rho_yy_lower=bk_obj$rho_yy
 # If smallest possible lag-one acf is larger than holding-time constraint then print an error message and return       
@@ -570,7 +570,7 @@ fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<
       
       lambda_upper<--0.00000001
 # Compute corresponding SSA filter      
-      bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_upper,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj,grid_size)
+      bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_upper,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj)
 # Lag one of filter      
       rho_yy_upper=bk_obj$rho_yy
       
@@ -582,7 +582,7 @@ fast_halfway_triangulation_find_lambda1_subject_to_holding_time_constraint_func<
 # This technical issues could not be addressed in JBCY paper (new paper in preparation)      
       lambda_middle<-(lambda_upper+lambda_lower)/2
 # Compute SSA-filter      
-      bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_middle,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj,grid_size)
+      bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda_middle,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj)
 # Compute lag-one acf of SSA-filter: should come as close as possible to lag-one acf of holding-time constraint      
       rho_yy_middle=bk_obj$rho_yy
 # New upper and lower limits for search of lambda: length is halved at each iteration step      
@@ -1181,7 +1181,7 @@ target_func_one_sided<-function(xi,gammak_generic,forecast_horizon,Sigma)
 #     -this case can occur only if grid-search has been called
 #  otherwise (lower_limit_nu!="0") we focus on |nu|>2 or |nu|>2*rho_max only (uniqueness).
 #     -this case occurs only if fast triangulation has been called
-bk_func<-function(V,w,lower_limit_nu,lambda1,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj,grid_size=NULL)
+bk_func<-function(V,w,lower_limit_nu,lambda1,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj)
 { #lambda1<-lambda_opt   lower_limit_nu<-lower_limit_nu_triangulation
   
   
@@ -1374,7 +1374,7 @@ Compute_SSA_for_given_lambda<-function(lambda,split_grid,L,gammak_generic,rho1,f
     
     
     # Compute SSA-filter      
-    bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj,grid_size)
+    bk_obj<-bk_func(V,w,lower_limit_nu_triangulation,lambda,eigen_M_tilde,gammak_target_mse,m,M_tilde,I_tilde,eigen_M_obj)
     # Compute lag-one acf of SSA-filter: should come as close as possible to lag-one acf of holding-time constraint      
     rho_yy=bk_obj$rho_yy
     # Solution is determined up to sign, see theorem 1 in JBCY-paper: change sign of filterif necessary    

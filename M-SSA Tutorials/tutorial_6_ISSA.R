@@ -94,10 +94,10 @@ library(tis)        # NBER recession datings for the US
 # ────────────────────────────────────────────────────────────────
 # Load custom I-SSA and signal-extraction functions
 # ────────────────────────────────────────────────────────────────
-source(file.path(getwd(), "R", "simple_sign_accuracy.r"))   # Core SSA routines
-source(file.path(getwd(), "R", "ISSA_functions.r"))         # Core I-SSA routines
-source(file.path(getwd(), "R", "HP_JBCY_functions.r"))      # HP-filter helpers and JBCY utilities
-source(paste(getwd(), "/R/ROCplots.r", sep = ""))           # ROC plot
+source(file.path(getwd(), "R", "ssa.r"))   # Core SSA routines
+source(file.path(getwd(), "R", "ISSA.r"))         # Core I-SSA routines
+source(file.path(getwd(), "R utility functions", "HP_JBCY_functions.r"))      # HP-filter helpers and JBCY utilities
+source(paste(getwd(), "/R utility functions/ROCplots.r", sep = ""))           # ROC plot
 
 
 # ========================================================================

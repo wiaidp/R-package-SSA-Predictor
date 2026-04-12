@@ -88,15 +88,15 @@ library(quantmod)
 
 
 # Load all relevant SSA-functions
-source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
+source(paste(getwd(),"/R/ssa.r",sep=""))
 # Load tau-statistic: quantifies time-shift performances (lead/lag)
-source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
+source(paste(getwd(),"/R utility functions/Tau_statistic.r",sep=""))
 
 # Load signal extraction functions used for JBCY paper (relies on mFilter)
-source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+source(paste(getwd(),"/R utility functions/HP_JBCY_functions.r",sep=""))
 
 # Load hamilton regression with unit root constraint
-source(paste(getwd(),"/R/hamilton_unit_root.r",sep=""))
+source(paste(getwd(),"/R utility functions/hamilton_unit_root.r",sep=""))
 
 
 # ==================================================================================

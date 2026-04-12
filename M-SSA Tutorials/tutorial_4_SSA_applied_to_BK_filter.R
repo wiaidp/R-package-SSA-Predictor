@@ -55,13 +55,13 @@ library(mFilter)   # HP and BK filters
 library(quantmod)  # Data retrieval (FRED)
 
 # Load SSA helper functions
-source(paste(getwd(), "/R/simple_sign_accuracy.r", sep = ""))
+source(paste(getwd(), "/R/ssa.r", sep = ""))
 
 # Load the tau-statistic (lead/lag performance measure)
-source(paste(getwd(), "/R/Tau_statistic.r", sep = ""))
+source(paste(getwd(), "/R utility functions/Tau_statistic.r", sep = ""))
 
 # Load signal-extraction utilities (used in the JBCY paper; requires mFilter)
-source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
+source(paste(getwd(), "/R utility functions/HP_JBCY_functions.r", sep = ""))
 
 
 # ── Data retrieval ────────────────────────────────────────────────────────────

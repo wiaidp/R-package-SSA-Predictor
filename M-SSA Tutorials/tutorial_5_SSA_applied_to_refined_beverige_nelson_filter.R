@@ -91,10 +91,10 @@ library(quantmod)
 
 
 # Load all relevant SSA-functions
-source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
+source(paste(getwd(),"/R/ssa.r",sep=""))
 
 # Load signal extraction functions used for JBCY paper (relies on mFilter)
-source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+source(paste(getwd(),"/R utility functions/HP_JBCY_functions.r",sep=""))
 
 
 
@@ -109,7 +109,7 @@ rm(list = ls(all = TRUE))
 gc()
 
 # Load all required BN filter functions from the companion functions file.
-source(paste(getwd(), "/R/bnf_fcns.R", sep = ""))
+source(paste(getwd(), "/R utility functions/bnf_fcns.R", sep = ""))
 
 # Load the US real GDP dataset.
 # The dataset is stored as a CSV file without a header row.
@@ -251,7 +251,7 @@ tail(cbind(y_check, bnf$cycle))   # Confirm agreement at the end of sample.
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Load signal extraction functions used for JBCY paper (relies on mFilter)
-source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+source(paste(getwd(),"/R utility functions/HP_JBCY_functions.r",sep=""))
 
 
 # ── Frequency-domain analysis of the refined BN filter ─────────────
@@ -486,8 +486,8 @@ axis(2); abline(h = 0); box()
 # ══════════════════════════════════════════════════════════════════════════════
 
 library(mFilter)
-source(paste(getwd(), "/R/HP_JBCY_functions.r",   sep = ""))
-source(paste(getwd(), "/R/simple_sign_accuracy.r", sep = ""))
+source(paste(getwd(), "/R utility functions/HP_JBCY_functions.r",   sep = ""))
+source(paste(getwd(), "/R/ssa.r", sep = ""))
 
 # ── 5.1  Compute HP(1600) filters (quarterly design) ─────────────────────────
 # Use the same filter length as rbn, ensuring a like-for-like comparison.
@@ -746,9 +746,9 @@ box()
 # 5. Compare rbn with HP-gap and rbn_trend with HP_trend
 
 library(mFilter)
-source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+source(paste(getwd(),"/R utility functions/HP_JBCY_functions.r",sep=""))
 # Load all relevant SSA-functions
-source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
+source(paste(getwd(),"/R/ssa.r",sep=""))
 
 # 5.1 Compute HP(1600): quarterly data
 # Same length as rbn

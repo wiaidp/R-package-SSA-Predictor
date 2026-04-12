@@ -68,16 +68,16 @@ library(xts)
 library(mFilter)
 
 # Load all relevant SSA-functions
-source(paste(getwd(),"/R/simple_sign_accuracy.r",sep=""))
+source(paste(getwd(),"/R/ssa.r",sep=""))
 # Load tau-statistic: quantifies time-shift performances (lead/lag)
-source(paste(getwd(),"/R/Tau_statistic.r",sep=""))
+source(paste(getwd(),"/R utility functions/Tau_statistic.r",sep=""))
 
 # Load signal extraction functions used for JBCY paper (relies on mFilter)
-source(paste(getwd(),"/R/HP_JBCY_functions.r",sep=""))
+source(paste(getwd(),"/R utility functions/HP_JBCY_functions.r",sep=""))
 
 
 # ================================================================
-# Example 1
+# Example 1 ILLUSTRATE HT
 # ================================================================
 
 # Illustrate the holding time concept; see Wildi (2024, 2026a) for theoretical 
@@ -276,7 +276,7 @@ SSA_obj <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
 #                    decomposition of x_t, fully characterising its dynamics.
 
 # ================================================================
-# Resolving the Inconsistency: Two Options
+# Resolving the problem: Two Options
 # ================================================================
 #
 # Returning to the infeasible specification from Example 2, the problem
@@ -402,11 +402,12 @@ rho1 <- compute_rho_from_ht(ht)
 # L should satisfy two conditions simultaneously:
 #   - Large enough to capture the relevant filter dynamics.
 #     The practical rule of thumb L >= 2 * HT (see Example 2) is applied here.
-#   - Small enough to remain well below the available sample length.
+#   - Small enough to remain below the available sample length.
 # A chosen L is adequate when the filter coefficients decay sufficiently
 # close to zero at the far lags.
 # Note: a larger L does not cause overfitting of the SSA filter itself;
 # overfitting can only arise from an overfitted Wold decomposition xi.
+# Overfitting spills over from xi to b.
 L <- 20
 
 # Target Specification
@@ -513,7 +514,8 @@ cor(yhat,
 #
 # - When the HT imposed on SSA matches the native HT of the MSE solution,
 #   SSA exactly replicates the MSE predictor — see Tutorial 0.3 and
-#   Example 4 below for a detailed illustration.
+#   Example 4 below for a detailed illustration. In this case 
+#   SSA_obj$crit_rhoyz = 1.
 
 
 
@@ -598,7 +600,7 @@ ssa_eps[2:L] / ssa_eps[1:(L - 1)]
 # Background:
 #   In the previous examples, we assumed:
 #     - x_t  follows an AR(1) process  (xi encodes the Wold decomposition)
-#     - z_t  is the identity target     (z_{t+delta} = x_t shifted forward)
+#     - z_t  is the identity target     (z_{t+delta} = x_{t+delta})
 #
 #   An equivalent alternative formulation is:
 #     - x_t  = epsilon_t  (white noise input; xi = NULL)
@@ -1080,6 +1082,8 @@ compute_holding_time_func(ssa_eps)$ht  # Analytical HT of the corrected filter.
 #   SSA filters here assume white noise input (xi = NULL), meaning we do NOT
 #   fit a parametric time-series model to the data. This is intentional:
 #   it avoids over-fitting ("data mining") and keeps the filter design robust.
+#   Many interesting economic time series are close to white noise 
+#   when differenced.
 #
 # Overview of what this example produces:
 #   1. A suite of HP-filter designs (two-sided target, one-sided concurrent,
@@ -1324,7 +1328,7 @@ box()
 #-----------------------------------------------------------------------------
 # Note on downstream use:
 #   These filters are applied to the monthly US Industrial Production (INDPRO)
-#   series in Tutorial 5, where their real-time business-cycle dating performance
+#   series in Tutorial 2, where their real-time business-cycle dating performance
 #   is evaluated empirically.
 #   Results replicate Figure 9 in Wildi, M. (2024).
 #-----------------------------------------------------------------------------

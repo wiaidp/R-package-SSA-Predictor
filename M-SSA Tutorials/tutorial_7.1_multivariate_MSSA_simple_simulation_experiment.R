@@ -103,11 +103,11 @@ library(MTS)
 # ------------------------------------------------------------
 
 # Core M-SSA functions (multivariate signal extraction and filter design)
-source(paste(getwd(), "/R/functions_MSSA.r", sep = ""))
+source(paste(getwd(), "/R/MSSA.r", sep = ""))
 
 # Auxiliary signal extraction functions developed for the JBCY paper
 # (depends on the mFilter package)
-source(paste(getwd(), "/R/HP_JBCY_functions.r", sep = ""))
+source(paste(getwd(), "/R utility functions/HP_JBCY_functions.r", sep = ""))
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # There are potential problems when loading SSA together with MSSA.
