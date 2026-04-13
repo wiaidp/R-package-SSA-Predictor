@@ -1170,37 +1170,6 @@ mtext("SSA filter output",      col = "blue", line = -2)
 compute_empirical_ht_func(scale(SSA_out))
 compute_empirical_ht_func(scale(ham_out))
 
-# --- Level- and Scale-Adjusted SSA Cycle ---
-# To enable a direct comparison with the original (classic) Hamilton cycle,
-# we regress original_hamilton_cycle on cycle_diff and SSA_out to estimate
-# the required level shift and scale factor (cf. Example 1 for methodology).
-lm_obj <- lm(original_hamilton_cycle ~ cycle_diff + SSA_out - 1)
-coef   <- lm_obj$coef
-
-# Construct the adjusted SSA cycle aligned to the original Hamilton cycle
-scale_shifted_SSA <- coef[1] * cycle_diff + coef[2] * SSA_out
-
-# Plot the adjusted SSA cycle against the original Hamilton cycle.
-# Note: scale_shifted_SSA has missing values at the start due to filter initialization.
-ts.plot(scale_shifted_SSA, col = colo[1],
-        main = "Level-Adjusted SSA Cycle vs. Original Hamilton Cycle",
-        ylim = c(min(original_hamilton_cycle, na.rm = TRUE),
-                 max(original_hamilton_cycle, na.rm = TRUE)))
-mtext("Adjusted and scaled SSA cycle", col = colo[1], line = -1)
-mtext("Original Hamilton cycle",       col = "black", line = -2)
-lines(original_hamilton_cycle)
-abline(h = 0)
-
-# Result: SSA generates approximately 50% fewer zero-crossings than the original Hamilton cycle.
-compute_empirical_ht_func(scale(scale_shifted_SSA))
-compute_empirical_ht_func(scale(original_hamilton_cycle))
-
-# Note on time-frame alignment:
-# scale_shifted_SSA is shorter than original_hamilton_cycle due to filter initialization lag.
-# We align the comparison window by restricting original_hamilton_cycle to the same span.
-# This correction does not materially affect the conclusions.
-compute_empirical_ht_func(scale(original_hamilton_cycle[L:length(original_hamilton_cycle)]))
-
 
 #-----------------------------------------------
 # 4.7 Forecasting: Timeliness and Lead/Lag Analysis
