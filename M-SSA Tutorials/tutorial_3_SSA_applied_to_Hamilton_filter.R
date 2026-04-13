@@ -76,72 +76,89 @@
 
 # ─────────────────────────────────────────────────────────────────
 
-
-# Make a clean-sheet, load packages and functions
-
-rm(list=ls())
+# Clear the workspace and load required packages and functions.
+rm(list = ls())
 
 library(xts)
-# This package implements the `never hpfilter', i.e., the Hamilton filter:  
-# It is used here for background information only (generate some plots)
+
+# The 'neverhpfilter' package implements the Hamilton filter ("never use the
+# HP-filter"). It is used here for background information and plotting only.
 library(neverhpfilter)
-# Load data from FRED with library quantmod
+
+# Load data from FRED using the quantmod library.
 library(quantmod)
-# Load data from FRED with library alfred (does not require an API-key)
+
+# Load data from FRED using the alfred library (no API key required).
 install.packages("alfred")
 library(alfred)
 
+# Load all relevant SSA functions.
+source(paste(getwd(), "/R/ssa.r", sep = ""))
+
+# Load the tau-statistic: quantifies time-shift performance (lead/lag).
+source(paste(getwd(), "/R utility functions/Tau_statistic.r", sep = ""))
+
+# Load signal extraction functions used for the JBCY paper (requires mFilter).
+source(paste(getwd(), "/R utility functions/HP_JBCY_functions.r", sep = ""))
+
+# Load the Hamilton regression function with a unit-root constraint.
+source(paste(getwd(), "/R utility functions/hamilton_unit_root.r", sep = ""))
 
 
-# Load all relevant SSA-functions
-source(paste(getwd(),"/R/ssa.r",sep=""))
-# Load tau-statistic: quantifies time-shift performances (lead/lag)
-source(paste(getwd(),"/R utility functions/Tau_statistic.r",sep=""))
-
-# Load signal extraction functions used for JBCY paper (relies on mFilter)
-source(paste(getwd(),"/R utility functions/HP_JBCY_functions.r",sep=""))
-
-# Load hamilton regression with unit root constraint
-source(paste(getwd(),"/R utility functions/hamilton_unit_root.r",sep=""))
-
-
-# ==================================================================================
+# ──────────────────────────────────────────────────────────────────────────
 # Example 1
-# ==================================================================================
+# ──────────────────────────────────────────────────────────────────────────
 # Application of SSA to the Hamilton Filter (HF) using quarterly U.S. GDP data.
-# We first demonstrate HF using the R-package 'neverhpfilter',
-# which also provides the data source (GDPC1).
+# We first demonstrate HF using the 'neverhpfilter' package, which also
+# provides the data source (GDPC1).
 data(GDPC1)
 
-# Apply the Hamilton filter: decompose log-GDP (scaled by 100) into trend and cycle.
-# h = 8 quarters (2-year forecast horizon), p = 4 lags (quarterly AR order).
-gdp_trend <- yth_filter(100*log(GDPC1), h = 8, p = 4, output = c("x", "trend"))
+# Apply the Hamilton filter: decompose log-GDP (scaled by 100) into trend
+# and cycle. h = 8 quarters (2-year forecast horizon); p = 4 lags
+# (quarterly autoregressive order).
+gdp_trend <- yth_filter(
+  100 * log(GDPC1), h = 8, p = 4, output = c("x", "trend")
+)
 
 # Plot the original log-GDP series together with the estimated trend.
-plot.xts(gdp_trend, grid.col = "white", legend.loc = "topleft", main = "Log of GDP and trend")
+plot.xts(
+  gdp_trend,
+  grid.col    = "white",
+  legend.loc  = "topleft",
+  main        = "Log of GDP and trend"
+)
 
-# Extract the cyclical and irregular (random) components from the Hamilton filter.
-gdp_cycle <- yth_filter(100*log(GDPC1), h = 8, p = 4, output = c("cycle", "random"))
+# Extract the cyclical and irregular (random) components from the Hamilton
+# filter.
+gdp_cycle <- yth_filter(
+  100 * log(GDPC1), h = 8, p = 4, output = c("cycle", "random")
+)
 
 # Note: The cycle and random components often exhibit strong correlation,
-# which contradicts standard business-cycle assumptions of independence.
-# The cycle is centered around zero. HF removes up to p unit roots,
-# where p is the autoregressive order used in the regression.
-plot.xts(gdp_cycle, grid.col = "white", legend.loc = "topleft", main = "Cycle and irregular")
+# which contradicts the standard business-cycle assumption of independence.
+# The cycle is centred around zero. HF removes up to p unit roots, where p
+# is the autoregressive order used in the regression.
+plot.xts(
+  gdp_cycle,
+  grid.col   = "white",
+  legend.loc = "topleft",
+  main       = "Cycle and irregular"
+)
 
-#---------------------------------------------------------
-# We now abandon the 'neverhpfilter' package and re-implement the Hamilton filter from scratch.
-# This custom implementation allows us to:
-#   (1) Graft SSA onto the Hamilton filter design.
-#   (2) Modify filter characteristics beyond the original specification.
+# ──────────────────────────────────────────────────────────────────────────
+# We now abandon 'neverhpfilter' and re-implement the Hamilton filter from
+# scratch. This custom implementation allows us to:
+#   (1) Target the Hamilton filter design in SSA.
+#   (2) Modify filter characteristics beyond the original specification 
+#       (customization).
 
 # Retrieve quarterly real GDP data directly from FRED.
-# No API key needed for basic use with alfred R-package
+# No API key is needed for basic use with the alfred package.
 reload_data <- FALSE
 
 if (reload_data) {
   GDPC1 <- get_fred_series("GDPC1", series_name = "GDP")
-  GDPC1<-as.xts(GDPC1)
+  GDPC1 <- as.xts(GDPC1)
   save(GDPC1, file = file.path(getwd(), "Data", "GDPC1"))
 } else {
   load(file = file.path(getwd(), "Data", "GDPC1"))
@@ -149,27 +166,29 @@ if (reload_data) {
 head(GDPC1)
 tail(GDPC1)
 
-
 # Convert the xts object to a plain numeric (double) vector.
-# Reason: xts objects carry hidden metadata and conventions that make
-# direct application of SSA error-prone, unintuitive, and unpredictable
-# (e.g., applying a linear filter to an xts object can yield unexpected results).
+# Reason: xts objects carry hidden metadata and index conventions that make
+# direct application of SSA error-prone and unpredictable (e.g., applying a
+# linear filter to an xts object can yield unexpected results).
 #
-# We also truncate the sample at end-2019 to exclude the COVID-19 pandemic period.
+# We also truncate the sample at end-2019 to exclude the COVID-19 pandemic.
 # Pandemic-era outliers severely distort the Hamilton regression coefficients.
-# The pandemic's impact on the filter is analyzed separately in the final example.
-y <- as.double(log(GDPC1["/2019"]))
+# The pandemic's impact on the filter is analysed separately in the final
+# example.
+y   <- as.double(log(GDPC1["/2019"]))
 len <- length(y)
 
-#------------------
-# 1.1 Hamilton Filter
+# ──────────────────────────────────────────────────────────────────────────
+# 1.1 Replicate Hamilton Filter
+# ──────────────────────────────────────────────────────────────────────────
 # Hamilton's recommended settings for quarterly macroeconomic data:
-h <- 2 * 4   # forecast horizon: 8 quarters (2 years ahead)
-p <- 4       # number of autoregressive lags in the regression
+h <- 2 * 4  # Forecast horizon: 8 quarters (2 years ahead).
+p <- 4      # Number of autoregressive lags in the regression.
 
-# Construct the regressor matrix for the OLS regression:
-# y_{t+h} is regressed on y_t, y_{t-1}, ..., y_{t-p+1}
-# The first column corresponds to y_t (contemporaneous lag relative to the forecast origin).
+# Construct the regressor matrix for OLS:
+# y_{t+h} is regressed on y_t, y_{t-1}, ..., y_{t-p+1}.
+# The first column corresponds to y_t (the contemporaneous lag relative to
+# the forecast origin).
 explanatory <- y[(p):(len - h)]
 for (i in 1:(p - 1))
   explanatory <- cbind(explanatory, y[(p - i):(len - h - i)])
@@ -178,43 +197,50 @@ for (i in 1:(p - 1))
 target <- y[(h + p):len]
 
 # Fit the Hamilton regression over the full available sample.
-# Note: The estimation window is very long, reaching back to the post-WWII period.
-# A shorter subsample starting in 1990 is explored in Example 4.
-# This long-sample issue does not qualitatively affect the relative advantages of SSA over HF.
+# Note: The estimation window reaches back to the post-WWII period. A shorter
+# sub-sample starting in 1990 is explored below with monthly data. 
 lm_obj <- lm(y[(h + p):len] ~ explanatory)
 
-# Interpretation of regression output:
-# Typically, only the first lag coefficient is statistically significant —
-# a common finding when applying HF to non-stationary macroeconomic series.
-# Note that the sum of the lag coefficients
-# deviates from 1, so (1 - sum(coefficients)) ≠ 0.
-# Consequence: the forecast residual y_{t+h} - ŷ_{t+h} is stationary in-sample
-# (due to overfitting) but may become non-stationary out-of-sample,
-# meaning the forecast and the actual future value are not 'cointegrated'
-# (the MSE of the forecast diverges asymptotically).
-# As a result, the model must be continuously re-estimated as new data arrives,
-# which introduces forecast revisions over time.
 summary(lm_obj)
+# Outcomes:
+# 1. Typically only the first lag coefficient is statistically significant — a
+#     common finding when applying HF to non-stationary macroeconomic series.
+# 2, The sum of the lag coefficients deviates from 1, so
+#     (1 - sum(coefficients)) ≠ 0.
+#     Consequence: the forecast residual y_{t+h} - ŷ_{t+h} is stationary
+#     in-sample but may become non-stationary out-of-sample,
+#     meaning the forecast and the actual future value are not `cointegrated'.
 
-# Construct the Hamilton filter coefficient vector.
-# Structure: [1, 0, ..., 0 (h-1 zeros), -β_1, -β_2, ..., -β_p]
-# The leading 1 corresponds to the h-step-ahead observation y_{t+h},
-# and the remaining entries are the negated OLS slope coefficients.
+# Construct the Hamilton filter:
+#   • Structure: [1, 0, ..., 0 (h-1 zeros), -β_1, -β_2, ..., -β_p]
+#   • The leading 1 corresponds to y_{t+h}; the remaining entries are the
+#     negative OLS coefficients.
 hamilton_filter <- c(1, rep(0, h - 1), -lm_obj$coefficients[1 + 1:p])
-par(mfrow=c(1,1))
-ts.plot(hamilton_filter, main = paste("Hamilton filter: GDP from ",
-                                      index(GDPC1["/2019"])[1], " to 2019", sep = ""))
+par(mfrow = c(1, 1))
+ts.plot(
+  hamilton_filter,
+  main = paste(
+    "Hamilton filter: GDP from ",
+    index(GDPC1["/2019"])[1], " to 2019",
+    sep = ""
+  )
+)
 
-# Extract the regression intercept (used later for replication and comparison).
-# Mean-centering of the cycle is skipped here.
+# Extract the regression intercept (used later for replication and
+# comparison). 
+#   - Mean-centring of the cycle is skipped.
+#   - SSA optimization (target correlation) is indifferent to 
+#     level adjustments; the HT constraints assumes crossings of 
+#     the mean level. 
 intercept <- lm_obj$coefficients[1]
   
 # --- Replicate the Hamilton Filter Output ---
 # Construct the data matrix for filter application.
-# Columns 1 through h correspond to the h-step-ahead and intermediate observations.
-# Since the Hamilton filter coefficients are zero for lags 1 through h-1,
-# those columns do not affect the output; we fill them by repeating 'target' h times
-# for convenience. Columns h+1 through h+p contain the lagged regressors.
+# Columns 1 through h correspond to the h-step-ahead and intermediate
+# observations. Because the Hamilton filter coefficients are zero for lags
+# 1 through h-1, those columns do not affect the output; they are filled by
+# repeating 'target' h times for convenience. Columns h+1 through h+p
+# contain the lagged regressors.
 data_mat <- cbind(matrix(rep(target, h), ncol = h), explanatory)
 
 # Apply the Hamilton filter: compute forecast residuals (= cycle estimate).
@@ -222,149 +248,152 @@ data_mat <- cbind(matrix(rep(target, h), ncol = h), explanatory)
 residuals <- data_mat %*% hamilton_filter - intercept
 
 # Verify replication: the computed residuals should be numerically identical
-# to the OLS residuals stored in lm_obj$residuals. Both series should overlap perfectly.
-ts.plot(cbind(residuals, lm_obj$residuals),
-        main = "Replication of Hamilton cycle: both series overlap")
+# to the OLS residuals in lm_obj$residuals. Both series must overlap
+# perfectly in the plot.
+ts.plot(
+  cbind(residuals, lm_obj$residuals),
+  main = "Replication of Hamilton cycle: both series overlap"
+)
 
-# Diagnostic check: the lag coefficients should sum close to 1,
-# as required for the filter to cancel the stochastic trend (unit root) in log-GDP.
-# Deviation from 1 indicates residual non-stationarity risk out-of-sample.
+# ──────────────────────────────────────────────────────────────────────────
+# 1.2 Unit-Root Adjustment
+# ──────────────────────────────────────────────────────────────────────────
+
+# Diagnostic check: the lag coefficients should sum close to 1, as required
+# for the filter to cancel the stochastic trend (unit root) in log-GDP.
+# Deviation from 1 indicates a risk of residual non-stationarity
+# out-of-sample.
 sum(lm_obj$coefficients[1 + 1:p])
 
-# The sum of all Hamilton filter coefficients should be exactly zero
-# to guarantee cancellation of a (single) unit root out-of-sample (cointegration condition if the process is I(1)).
+# The sum of all Hamilton filter coefficients should be exactly zero to
+# guarantee cancellation of a single unit root out-of-sample (cointegration
+# condition for an I(1) process).
 sum(hamilton_filter)
 
-# The sum is not exactly zero due to in-sample overfitting in the OLS regression.
-# This is a mild but notable drawback of HF compared to HP:
-#   HP gap filter coefficients sum to exactly zero by construction,
-#   though HP tends to generate spurious cyclical fluctuations (see Tutorial 2, Example 7).
+# The sum of the Hamilton filter coefficients is not exactly zero. Applying
+# the filter out-of-sample would therefore generate a non-stationary cycle.
+# To avoid this non-stationarity when replicating HF within SSA, it is
+# useful to impose a unit-root adjustment. The adjustment is minor and affects 
+# the cycle dynamics marginally. 
 
 # --- Unit-Root Adjustment of the Hamilton Filter ---
-# Impose unit-root to regression
-Diff=T
-Ham_obj<-HamiltonFilter_Restricted(y, p, h, Diff )
-# Verify: sum = 1
+Diff      <- TRUE
+Ham_obj   <- HamiltonFilter_Restricted(y, p, h, Diff)
+
+# Verify that the slope coefficients sum to exactly 1 under the constraint.
 sum(Ham_obj$coefficients[-1])
-#Ham_obj$cycle_xts
-#Ham_obj$trend_xts 
-hamilton_filter_adjusted<-c(1,rep(0,h-1),-Ham_obj$coefficients[-1])
+
+# Construct the adjusted Hamilton filter coefficient vector.
+hamilton_filter_adjusted <- c(1, rep(0, h - 1), -Ham_obj$coefficients[-1])
+
+# Verify that the adjusted filter coefficients sum to exactly zero,
+# confirming proper unit-root cancellation.
 sum(hamilton_filter_adjusted)
-#Ham_obj$verification 
 
-# Compute the adjusted cycle: apply the corrected filter to the data matrix.
-# No intercept subtraction needed here, as the zero-sum constraint absorbs the mean.
+# Comparison:
+# Plot original and adjusted HF
+par(mfrow = c(1, 1))
+ts.plot(
+  cbind(hamilton_filter,hamilton_filter_adjusted),col=c("black","grey"),
+  main = paste(
+    "Original and adjusted HF",
+    sep = ""
+  )
+)
+mtext("Original",line=-1)
+mtext("Adjusted",col="grey",line=-2)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# 1.3 Plot and Compare Cycles
+# ──────────────────────────────────────────────────────────────────────────
+
+# Compute the adjusted cycle: apply the adjusted filter to the data matrix.
+# No intercept subtraction needed here, as the zero-sum constraint absorbs 
+# the mean.
 residuals_adjusted <- data_mat %*% hamilton_filter_adjusted
-
-# Optional: center the adjusted cycle around zero.
-# Skipped here; we retain the un-centered adjusted cycle for the SSA customization.
-if (F)
-  residuals_adjusted <- residuals_adjusted - mean(residuals_adjusted)
 
 # --- Visual Comparison of Cycle Estimates ---
 
 # Plot 1: Three cycle variants overlaid.
 #   Red:    Original Hamilton cycle (OLS forecast residuals).
 #   Orange: Hamilton cycle shifted upward by the regression intercept.
-#   Blue:   Unit-root-adjusted, un-centered cycle.
-# The three series differ primarily in level; their dynamic patterns are virtually identical.
+#   Blue:   Unit-root-adjusted, uncentred cycle.
+# The three series differ primarily in level; their dynamic patterns are
+# virtually identical.
 par(mfrow = c(1, 1))
-ts.plot(cbind(residuals, residuals + intercept, residuals_adjusted),
-        col = c("red", "orange", "blue"), main = "Cycles")
-mtext("Unit-root adjusted un-centered cycle", col = "blue",   line = -1)
-mtext("Hamilton Cycle",                        col = "red",    line = -2)
-mtext("Hamilton cycle shifted by regression intercept", col = "orange", line = -3)
+ts.plot(
+  cbind(residuals, residuals + intercept, residuals_adjusted),
+  col  = c("red", "orange", "blue"),
+  main = "Cycles"
+)
+mtext("Unit-root adjusted uncentred cycle",   col = "blue",   line = -1)
+mtext("Hamilton Cycle",                       col = "red",    line = -2)
+mtext("Hamilton cycle shifted by intercept",  col = "orange", line = -3)
 abline(h = 0)
 
-# Plot 2: Four-panel comparison of log-GDP and cycle variants.
+# Plot 2: Three-panel comparison of log-GDP and cycle variants.
 par(mfrow = c(2, 2))
 ts.plot(y, main = "Log(GDPC1)")
-
 # Overlay original (red) and adjusted (blue) cycles.
-ts.plot(cbind(residuals, residuals_adjusted), col = c("red", "blue"), main = "Cycles")
-mtext("Hamilton Cycle",                       col = "red",  line = -1)
-mtext("Unit-root adjusted un-centered cycle", col = "blue", line = -2)
+ts.plot(
+  cbind(residuals, residuals_adjusted),
+  col  = c("red", "blue"),
+  main = "Cycles"
+)
+mtext("Hamilton Cycle",                     col = "red",  line = -1)
+mtext("Unit-root adjusted uncentred cycle", col = "blue", line = -2)
 abline(h = 0)
-
 # Plot the pointwise difference between the two cycle estimates over time.
 ts.plot(residuals - residuals_adjusted, main = "Cycle difference")
 
-# Analysis:
-# - The level of the adjusted cycle drifts slowly over time,
-#   reflecting the gradual slowdown in the growth rate (drift) of log-GDP.
-# - Consequently, the level difference between the two cycles is largest
-#   in the early sample (when GDP growth was stronger) and shrinks
-#   toward the end of the sample (when growth was weaker).
-# - We give a slight preference to the adjusted cycle, as it is conceptually
-#   closer to the NBER definition of recessions (periods of negative output growth):
-#     * The original Hamilton cycle is negative roughly 50% of the time,
-#       requiring an upward level shift to serve as a recession indicator.
-#     * The adjusted cycle is already 'uplifted' relative to the original,
-#       though it may sit somewhat too high during the pre-financial-crisis period.
-# - The cycle difference (bottom panel) has un upward drift,
-#   directly reflecting the time-varying drift in the underlying series.
-# - Since both cycles are statistical constructs rather than observable quantities,
-#   the choice between them is ultimately subjective and application-dependent.
 
-################################################################################
+# ==========================================================================
 # MAIN TAKE-AWAY:
-#   - The adjusted and original cycles share nearly identical dynamics;
-#     the primary difference is a slowly evolving level offset.
-#   - SSA customization will therefore have comparable effects on either cycle variant,
-#     so the choice between them does not materially affect SSA-based conclusions.
-#   - For technical reasons (zero-sum filter constraint, cointegration property),
-#     we proceed with the adjusted, un-centered cycle as the basis for SSA grafting.
-################################################################################
+#   - The adjusted and original cycles share NEARLY IDENTICAL DYNAMICS;
+#     the primary difference is a slowly evolving level offset (bottom plot).
+#   - SSA CUSTOMIZATION WILL THEREFORE HAVE COMPARABLE EFFECTS ON EITHER
+#     CYCLE VARIANT, SO THE CHOICE BETWEEN THEM DOES NOT MATERIALLY AFFECT
+#     SSA-BASED CONCLUSIONS.
+#   - For technical reasons (zero-sum filter constraint, cointegration
+#     property), we proceed with the adjusted, uncentred cycle as the
+#     basis for SSA customization.
+# ==========================================================================
 
 # Store the level difference between the original and adjusted cycles.
-# This offset is used later to back-transform SSA results back to the
-# original Hamilton cycle scale, enabling direct comparison.
+# This offset is used later to back-transform SSA results to the original
+# Hamilton cycle scale, enabling direct comparison.
 cycle_diffh <- residuals - residuals_adjusted
 
-#---------------------------------------------------
-# 1.2 Transformation: From Levels to Differences
+# ──────────────────────────────────────────────────────────────────────────
+# 1.4 Transformation: From Levels to Differences
+# ──────────────────────────────────────────────────────────────────────────
 #
-# To graft SSA onto the Hamilton filter (for customization), we must first transform the problem
-# so that the filter operates on stationary (differenced) data.
-# Theoretical background: Wildi, M. (2024), https://doi.org/10.1007/s41549-024-00097-5
+# To apply SSA to the Hamilton filter (for customisation), we must first
+# transform the problem so that the filter operates on stationary
+# (differenced) data.
+# Theoretical background: Wildi, M. (2024),
+# https://doi.org/10.1007/s41549-024-00097-5
 #
-# Motivation:
-#   - The concept of zero-crossings (and holding times) is not well-defined
-#     for non-stationary (integrated) series (a formal extension of SSA to integrated processes is given in Wildi (2026a))
-#   - We therefore re-express HF as an equivalent filter applied to first differences
-#     rather than levels.
-#   - This transformation applies broadly to all bandpass-cycle filters that operate
-#     on data in levels: CF, BK (Tutorial 4), HP-gap (Tutorials 2 and 5).
-#
-# Key ideas:
-#   - The filter INPUT (log-GDP) is non-stationary (integrated).
-#   - The filter OUTPUT (cycle estimate) is approximately stationary.
-#   - Therefore, the bandpass filter must annihilate the unit root at frequency zero.
-#     (HF can remove more than one unit root, depending on the AR order p.)
-#   - We can always construct an equivalent filter — called 'ham_diff' below —
-#     that, when applied to first differences, replicates the output of the original
-#     Hamilton filter applied to levels.
-#   - See Section 2.3 and Proposition 4 of the JBCY paper for the formal derivation.
 
 # Construct the equivalent difference-domain filter 'ham_diff'.
-# Set the filter length L: must be at least as long as the adjusted Hamilton filter.
+# Set the filter length L: must be at least as long as the adjusted
+# Hamilton filter.
 L <- 20
 L <- max(length(hamilton_filter_adjusted), L)
 
 # Zero-pad the adjusted Hamilton filter to length L if necessary.
 if (L > length(hamilton_filter_adjusted))
-  hamilton_filter_adjusted_L <- c(hamilton_filter_adjusted,
-                                  rep(0, L - length(hamilton_filter_adjusted)))
+  hamilton_filter_adjusted_L <- c(
+    hamilton_filter_adjusted,
+    rep(0, L - length(hamilton_filter_adjusted))
+  )
 
 # Derive 'ham_diff' by convolving the (zero-padded) Hamilton filter with
-# the summation (unit-root) filter. This encodes the assumption of one unit root
-# and yields a filter suitable for application to first-differenced data.
+# the summation (unit-root) filter. 
 ham_diff <- conv_with_unitroot_func(hamilton_filter_adjusted_L)$conv
 
 # Plot and compare the two equivalent filter representations.
-# Note: 'ham_diff' coefficients decay to zero for lags beyond the length of
-# 'hamilton_filter_adjusted', confirming that L = length(hamilton_filter_adjusted)
-# would suffice as the minimum filter length.
 par(mfrow = c(2, 1))
 ts.plot(ham_diff,
         main = "Hamilton filter expressed in terms of first differences")
@@ -392,20 +421,23 @@ ts.plot(residual_diff, col = "blue",
         main = "HF applied to levels vs. differences: outputs should overlap")
 lines(residuals_adjusted[(L - p - h + 2):length(residuals)], col = "red")
 
-# With this equivalence established, we can now graft SSA onto HF by working
+# With this equivalence established, we can apply SSA to HF by working
 # entirely in the difference domain — using 'ham_diff' as the target filter.
-# The same transformation is required for BK (Tutorial 4) and HP-gap (Tutorials 2 and 5).
+# Note: the same transformation is required for BK (Tutorial 4) and HP-gap 
+# (Tutorials 2 and 5).
 
-#-------------------------------------------------------------------------------
-# 1.3 Holding Times
+# ──────────────────────────────────────────────────────────────────────────
+# 1.4 Holding Times
+# ──────────────────────────────────────────────────────────────────────────
 #
 # Before applying SSA, we characterize the zero-crossing frequency of the
-# Hamilton filter via its theoretical holding time (computed under white noise input).
+# Hamilton filter via its theoretical holding time (computed under white noise 
+# input).
 
 # Compute the theoretical holding time of 'ham_diff'.
 ht_ham_diff_obj <- compute_holding_time_func(ham_diff)
 
-# Result: approximately one zero-crossing every 1.5 years.
+# Result: approximately one zero-crossing every 1.25 years.
 ht_ham_diff_obj$ht
 
 # Compute the empirical holding time directly from the adjusted Hamilton cycle.
@@ -413,220 +445,170 @@ compute_empirical_ht_func(residuals_adjusted)
 
 # The empirical holding time is substantially longer than the theoretical value.
 # Reason: the adjusted cycle is un-centered (slowly drifting positive mean),
-# which suppresses zero-crossings and inflates the empirical holding time.
+# which suppresses zero-crossings and biases the empirical holding time.
 par(mfrow = c(1, 1))
 ts.plot(residuals_adjusted)
 abline(h = 0)
 
-# Centering the cycle narrows the gap between empirical and true HT: 1 crossing all 2 years
+# Centering the cycle narrows the gap between empirical and true HT: 
+# 1 crossing all 2 years
 compute_empirical_ht_func(scale(residuals_adjusted))
 
 
-# In principle, a level shift (translation) of the series does not affect
-# the SSA computation itself. However, the theoretical holding time no longer
-# reflects the empirical zero-crossing rate, introducing a bias — see
-# Tutorial 1, Example 7, for a detailed discussion.
-# This bias will be corrected when we back-transform the SSA output to match
-# the original Hamilton cycle later in this example.
 
-#-----------------------------------------------------------------------
-# 1.4 Autocorrelation Structure
+
+# ──────────────────────────────────────────────────────────────────────────
+# 1.5 Autocorrelation Structure
+# ──────────────────────────────────────────────────────────────────────────
 #
-# Section 2 of the JBCY paper extends the SSA framework to autocorrelated input data.
-# We first inspect the ACF of the differenced series to assess dependency.
+# ACF of the differenced GDP.
 acf(x, main = "ACF of first-differenced log-GDP")
 
 # The ACF reveals weak serial dependence in the GDP growth rate series.
-# In such cases, we recommend defaulting to the white noise assumption
-# (Section 1 of the JBCY paper) for the following reasons:
-#   - The white noise assumption is broadly appropriate for many economic series
-#     (consistent with Granger's typical spectral shape for macroeconomic data).
-#   - The resulting SSA design is revision-free (filter coefficients are fixed).
-#   - This simplification is also adopted in Section 4 of the JBCY paper when
-#     applying HP and SSA to INDPRO (see Tutorial 5).
+# For illustration and simplicity we here assume white noise:
+#   - The resulting SSA design is revision-free (filter coefficients are
+#     fixed).
+#   - This simplification is also adopted in Wildi (2024).
 #
-# Set xi = NULL to indicate white noise (i.e., x_t = epsilon_t, no Wold decomposition needed).
+# Set xi = NULL to indicate white noise (i.e., x_t = epsilon_t; no Wold
+# decomposition needed).
 xi <- NULL
 
-# Note: Examples 3 and 4 demonstrate how to incorporate a fitted time-series model
-# when the data exhibits meaningful autocorrelation.
 
-#--------------------------------------
-# 1.5 Applying SSA to the Hamilton Filter
-#
-# We are now ready to graft SSA onto HF. The setup satisfies the key requirements:
-#   - Stationarity: achieved via the transformation to 'ham_diff'.
-#   - Wold decomposition: specified by xi (white noise in this case).
-# Remaining caveat: the adjusted cycle is un-centered and slowly drifting,
-# so the theoretical holding time is biased (see Section 1.3 and Tutorial 1, Example 7).
+# ──────────────────────────────────────────────────────────────────────────
+# 1.6 Apply SSA to the Hamilton Filter
+# ──────────────────────────────────────────────────────────────────────────
+# 1.6.1 SSA settings
+# --------------------------------------------------------------------------
 
-# Recall the theoretical holding time of the Hamilton filter (~1.5 years).
+# Theoretical holding time of the Hamilton filter (~1.25 years).
 ht_ham_diff_obj$ht
 
-# Our objective is a smoother SSA filter relative to HF.
-# We increase the holding-time target by 50%: the SSA output will automatically
-# exhibit fewer zero-crossings (i.e., smoother, less noisy cycle estimates).
+# Our objective is a smoother SSA filter relative to HF. We increase the
+# holding-time target by 50%: the SSA output will automatically exhibit
+# fewer zero-crossings (i.e., smoother).
 ht <- 1.5 * ht_ham_diff_obj$ht
 
-# Convert the target holding time to the corresponding autocorrelation parameter rho1,
-# which is the direct input accepted by the SSA optimization function.
+# Convert the target holding time to the corresponding autocorrelation
+# parameter rho1, which is the direct input to the SSA optimisation
+# function.
 rho1 <- compute_rho_from_ht(ht)
 
-# Specify the SSA target filter: SSA should approximate the Hamilton-diff filter.
-# Since we work in the difference domain, we supply 'ham_diff' as the target.
+# Specify the SSA target filter: 
+# - Since we work in first differences, we supply 'ham_diff' as
+#   the target.
 gammak_generic <- ham_diff
 
-# Set forecast horizon: nowcast (h = 0 means no look-ahead).
+# Set forecast horizon: nowcast (h = 0).
+# Note: HF is a causal filter. If h=0, SSA does not predict HF; it smooths it.
+# If the HT constraint matches the HT of HF, and h=0, SSA replicates HF exactly.
 forecast_horizon <- 0
 
-# Run the SSA optimization.
-# If xi is not supplied, the function defaults to white noise input.
-SSA_obj_ham_diff <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
+# 1.6.2 Run SSA
+# --------------------------------------------------------------------------
+
+# Run the SSA optimisation. If xi is not supplied, the function defaults
+# to the white noise assumption.
+SSA_obj_ham_diff <- SSA_func(L, forecast_horizon, gammak_generic, rho1)
 
 # The SSA function returns two filters:
-#   ssa_x:   the primary filter, applied directly to the observed data x_t.
-#   ssa_eps: the convolved filter that would be applied to the white noise
-#            innovations epsilon_t (used mainly to verify the holding-time constraint).
-# Under the white noise assumption (x_t = epsilon_t), both filters are identical.
+#   ssa_x:   the primary filter applied directly to the observed data x_t.
+#   ssa_eps: the convolved filter applied to the white noise innovations
+#            epsilon_t (used mainly to verify the holding-time constraint).
+# Under the white noise assumption (x_t = epsilon_t), both are identical.
 SSA_filt_ham_diff <- SSA_obj_ham_diff$ssa_x
 
-# Optional sanity check: confirm that ssa_x and ssa_eps are numerically identical
-# (difference should be zero under white noise).
-if (F) {
-  SSA_obj_ham_diff$ssa_x - SSA_obj_ham_diff$ssa_eps
-}
+# Sanity check: confirm that ssa_x and ssa_eps are numerically
+# identical (difference should be zero under white noise).
+max(abs(SSA_obj_ham_diff$ssa_x - SSA_obj_ham_diff$ssa_eps))
+
+# 1.6.3 Plot filters
+# --------------------------------------------------------------------------
 
 # Plot the target (Hamilton-diff) and SSA filters for visual comparison.
 par(mfrow = c(1, 1))
 mplot <- cbind(ham_diff, SSA_filt_ham_diff)
-ts.plot(mplot, ylim = c(min(mplot), max(mplot)), col = c("black", "blue"),
-        main = "Target filter and SSA filter")
-mtext("Hamilton filter (difference domain)",          col = "black", line = -1)
-mtext(paste("SSA: holding time increased by ",
-            100 * (ht / ht_ham_diff_obj$ht - 1), "%", sep = ""),
-      col = "blue", line = -2)
+ts.plot(
+  mplot,
+  ylim = c(min(mplot), max(mplot)),
+  col  = c("black", "blue"),
+  main = "Target filter and SSA filter"
+)
+mtext(
+  "Hamilton filter (applied to differenced data)",
+  col  = "black",
+  line = -1
+)
+mtext(
+  paste(
+    "SSA: holding time increased by ",
+    100 * (ht / ht_ham_diff_obj$ht - 1), "%",
+    sep = ""
+  ),
+  col  = "blue",
+  line = -2
+)
 abline(h = 0)
 
-# Verify convergence of the SSA optimization:
-# The effective holding time of the SSA filter should match the imposed target 'ht'.
+# 1.6.4 Check of numerical convergence
+# --------------------------------------------------------------------------
+
+# Verify convergence of the SSA optimisation: the effective holding time
+# of the SSA filter should match the imposed target 'ht'.
 ht_obj <- compute_holding_time_func(SSA_filt_ham_diff)
 
-# Effective holding time of SSA filter:
+# Effective holding time of the SSA filter:
 ht_obj$ht
 
 # Target holding time:
 ht
 
-# Both values should agree up to rounding errors, confirming convergence to the
-# global optimum. In practice, convergence is reliable for standard forecast problems
-# of this type, as the optimization landscape is well-behaved. Otherwise one can augment
-# the number of iteration steps.
+# Both values should agree up to rounding errors, confirming convergence
+# to the global optimum. 
 
-#--------------------------------------------------
-# 1.6 Filter the Series and Compute Performance Measures
+# ──────────────────────────────────────────────────────────────────────────
+# 1.7 Filter the Series and Compute Performance Measures
+# ──────────────────────────────────────────────────────────────────────────
 #
-# Our version of HF preserves the slowly changing drift (slope) in log-GDP
-# rather than removing it. Whether this is desirable depends on the application;
-# we consider it appropriate here.
-# Below, we also provide a simple back-transformation that aligns the SSA output
-# with the original (approximately zero-centered) Hamilton cycle.
-
 # Apply the SSA filter to the differenced log-GDP series.
 SSA_out <- filter(x, SSA_filt_ham_diff, side = 1)
 
 # Compare theoretical (imposed) and empirical holding times for SSA.
-# They differ because the output series is not centered around zero
-# (the drifting mean suppresses zero-crossings, inflating the empirical ht).
+# They differ because the output series is not centred.
 ht
 compute_empirical_ht_func(SSA_out)
 
-# Repeat for the Hamilton filter output, for reference.
+# Repeat for the Hamilton filter output.
 ham_out <- filter(x, ham_diff, side = 1)
 ht_ham_diff_obj$ht
 compute_empirical_ht_func(ham_out)
 
-# Result: the empirical holding time of SSA is  larger than that of HF 
-# Conjecture: the observed discrepancy is due to the level-bias discussed in Section 1.3.
-# Verification:
-# Compare empirical HT of centered cycles: now SSA has ~30% less crossings, as expected
-# But the sample estimates still differ from true values (due to the remaining non-stationary drift)
+# Compare empirical HTs of centred cycles. 
+# - SSA now shows ~30% fewer crossings, as desired. 
+# - Sample estimates deviate from true values due to misspecification 
+#   (white noise assumption, non-stationarity).
 compute_empirical_ht_func(scale(SSA_out))
 compute_empirical_ht_func(scale(ham_out))
 
-
 # Visual comparison of SSA and Hamilton filter outputs.
-# Both cycles are closely aligned; the Hamilton filter is slightly noisier
-# (more spectral leakage outside the target band).
-# SSA generates less crossings at the mean-line (blue horizontal)
+# Both cycles are closely aligned; SSA generates fewer crossings at the mean 
+# line (blue horizontal).
 mplot <- cbind(SSA_out, ham_out)
-colo <- c("blue", "red")
+colo  <- c("blue", "red")
 par(mfrow = c(1, 1))
-ts.plot(mplot[, 1], col = colo[1],
-        main = "SSA vs. Hamilton (level offset not yet corrected)")
+ts.plot(
+  mplot[, 1],
+  col  = colo[1],
+  main = "SSA vs. Hamilton (level offset not yet corrected)"
+)
 mtext("SSA",      col = colo[1], line = -1)
 mtext("Hamilton", col = colo[2], line = -2)
 lines(mplot[, 2], col = colo[2])
-abline(h = mean(mplot[,1],na.rm=T),col="blue")
+abline(h = mean(mplot[, 1], na.rm = T), col = "blue")
 
-# Note: the level offset between the two series has not yet been corrected here.
-
-# --- Back-Transformation: Align SSA with the Original Hamilton Cycle ---
-#
-# To enable direct comparison with the original (OLS-based) Hamilton cycle,
-# we apply a two-step adjustment to the SSA output:
-#
-#   Step 1: Account for the level offset between the adjusted and original cycles,
-#           captured by 'cycle_diff' (= original Hamilton cycle - adjusted cycle).
-#   Step 2: Correct for scaling differences between SSA_out, cycle_diff, and
-#           original_hamilton_cycle, which arise from different filter normalizations.
-#
-# Rather than computing the exact scaling analytically from filter properties,
-# we use a simple OLS regression of the original Hamilton cycle on both components.
-# This is justified because the scaling correction is minor relative to other sources
-# of uncertainty.
-lm_obj <- lm(original_hamilton_cycle ~ cycle_diff + SSA_out - 1)
-coef <- lm_obj$coef
-
-# Construct the back-transformed SSA series: a weighted combination of the
-# level-offset correction and the scaled SSA output.
-scale_shifted_SSA <- coef[1] * cycle_diff + coef[2] * SSA_out
-
-# Plot: back-transformed SSA vs. original Hamilton cycle.
-# The SSA series is shorter (NAs at the start) due to filter initialization.
-ts.plot(scale_shifted_SSA, col = colo[1],
-        main = "Back-transformed SSA cycle vs. original Hamilton cycle")
-mtext("Shifted and scaled SSA",   col = colo[1],   line = -1)
-mtext("Original Hamilton cycle",  col = "black",   line = -2)
-lines(original_hamilton_cycle)
-abline(h = 0)
-
-# Compare empirical holding times after back-transformation.
-# SSA produces approximately 30% fewer zero-crossings than the Hamilton filter,
-# confirming the desired smoothness improvement.
-# Note: the empirical holding times are closer to the theoretical values
-# because the back-transformation has corrected key sources of mis-specification
-# (level offset and scaling), as discussed in Tutorial 1, Exercise 7.
-# But the series is still non-stationary (WWII dynamics differ from `modern' dynamics)
-compute_empirical_ht_func(original_hamilton_cycle)
-compute_empirical_ht_func(scale_shifted_SSA)
-
-# Compute the relative lead/lag between SSA and HF via the Tau-statistic.
-# Reference: Wildi, M. (2024), https://doi.org/10.1007/s41549-024-00097-5
-#
-# Methodology:
-#   - One series is shifted relative to the other across a range of lead/lag values.
-#   - At each shift, the absolute difference in zero-crossing timings between
-#     the two series is computed.
-#   - The shift minimizing this timing difference is the estimated lead or lag.
-#
-# Result: the minimum is achieved at lead/lag = 0, confirming that the SSA nowcast
-# and the Hamilton cycle are temporally synchronized (no lead or lag).
-mat <- cbind(scale_shifted_SSA, original_hamilton_cycle)
-lead_lag_obj <- compute_min_tau_func(mat)
-# SSA improves smoothness (larger HT) without sacrificing timeliness in this case
 
 #-----------------------------------------------
-# 1.7 Forecasting: Gaining Timeliness Without Sacrificing Smoothness
+# 1.8 Forecasting: Gaining Timeliness Without Sacrificing Smoothness
 #
 # The previous section confirmed that the SSA nowcast (forecast_horizon = 0)
 # is synchronized with the Hamilton cycle while being smoother.
