@@ -3,7 +3,7 @@
     "path": "C:/Users/wlmr/R-package-SSA-Predictor/M-SSA Tutorials/tutorial_6_ISSA.R",
     "project_path": "M-SSA Tutorials/tutorial_6_ISSA.R",
     "type": "r_source",
-    "hash": "358842361",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1776074075683.0,
@@ -12,8 +12,8 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "65,29",
-        "scrollLine": "22"
+        "cursorPosition": "171,0",
+        "scrollLine": "147"
     },
     "folds": "",
     "lastKnownWriteTime": 1776074391,
