@@ -1,26 +1,26 @@
 {
-    "id": "84CB81BF",
+    "id": "B71AF52F",
     "path": "C:/Users/wlmr/R-package-SSA-Predictor/M-SSA Tutorials/tutorial_3_SSA_applied_to_Hamilton_filter.R",
     "project_path": "M-SSA Tutorials/tutorial_3_SSA_applied_to_Hamilton_filter.R",
     "type": "r_source",
-    "hash": "2735107617",
+    "hash": "416733240",
     "contents": "",
     "dirty": false,
-    "created": 1776074549420.0,
+    "created": 1776074984791.0,
     "source_on_save": false,
     "relative_order": 2,
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "880,0",
-        "scrollLine": "850"
+        "cursorPosition": "2,66",
+        "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1776074726,
+    "lastKnownWriteTime": 1776075069,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1776074726401,
+    "last_content_update": 1776075069876,
     "read_only": false,
     "read_only_alternatives": []
 }
