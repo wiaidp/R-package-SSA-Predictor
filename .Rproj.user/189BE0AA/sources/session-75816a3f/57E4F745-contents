@@ -918,7 +918,7 @@ for (sim in 1:anzsim) {
   
   # Extract estimated filter coefficients
   b_mse   <- mse_model$coef
-  b_logit <- logit_model$coef[-1]   # Drop intercept 
+  b_logit <- logit_model$coef[-1]   # Drop intercept (see above comments)
   
   
   #----------------------------------------------------------
@@ -1007,11 +1007,13 @@ for (sim in 1:anzsim) {
   #----------------------------------------------------------
   # STEP 8: STORE RESULTS
   #----------------------------------------------------------
-  mat_perf <- rbind(mat_perf, c(SA_true_mse, SA_true_logit,SA_emp_mse,SA_emp_logit_naive,SA_emp_logit))
+  mat_perf <- rbind(mat_perf, c(SA_true_mse, SA_true_logit,SA_emp_mse,
+                                SA_emp_logit_naive,SA_emp_logit))
 }
 
 # Label columns for clarity
-colnames(mat_perf) <- c("SA_true_MSE", "SA_true_Logit","SA_emp_MSE","SA_emp_naive_logit","SA_emp_logit")
+colnames(mat_perf) <- c("SA_true_MSE", "SA_true_Logit","SA_emp_MSE",
+                        "SA_emp_naive_logit","SA_emp_logit")
 
 
 #------------------------------------------------------------
