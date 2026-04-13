@@ -1101,7 +1101,7 @@ box()
 #   symmetric (two-sided) HP filter as the optimization target for SSA.
 #
 # Key challenge:
-#   - The hp_target provided by the R-package mFilter is a causal (one-sided) filter.
+#   - The hp_target (two-sided HP) provided by the R-package mFilter is a causal filter.
 #     However, for a symmetric two-sided HP filter, we need a non-causal (two-sided) implementation.
 #   - To work around this, we do NOT shift the target directly. Instead, we encode the non-causality
 #     by specifying a suitable forecast horizon that corresponds to the center of the symmetric filter.
@@ -1145,7 +1145,7 @@ hp_target <- HP_obj$target
 # Visual inspection of the HP target filter coefficients
 par(mfrow = c(1, 1))
 ts.plot(hp_target,
-        main = "Symmetric HP Filter Coefficients",
+        main = "Symmetric HP Filter Coefficients: Causal filter",
         ylab = "Filter Weights",
         xlab = "Lag")
 
@@ -1178,7 +1178,7 @@ gammak_generic <- hp_target
 # if it requires predicting (L_sym-1)/2 steps into the future, correctly reflecting
 # the non-causal (symmetric) nature of the target.
 forecast_horizon <- (L_sym - 1) / 2
-
+forecast_horizon
 # Set the one-sided (causal) filter length for SSA, matching Example 1.
 L <- 201
 
@@ -1292,8 +1292,8 @@ cor(mplot)
 #   - Row 1 of the correlation matrix shows the empirical correlations of the SSA filter output
 #     with HP-MSE and HP-Symmetric respectively.
 #   - These empirical values should closely match the analytical criteria:
-#       * cor(SSA, HP-MSE)       ≈ crit_rhoyz       (correlation with one-sided MSE filter)
-#       * cor(SSA, HP-Symmetric) ≈ crit_rhoy_target  (correlation with two-sided target)
+#       * cor(SSA, HP-MSE)       ≈ SSA_obj_HP$crit_rhoyz       (correlation with one-sided MSE filter)
+#       * cor(SSA, HP-Symmetric) ≈ SSA_obj_HP$crit_rhoy_target  (correlation with two-sided target)
 #   - Note: The MSE filter has a slightly HIGHER correlation with the symmetric HP target
 #     than SSA does, by design — the MSE filter is specifically constructed to maximize
 #     this target correlation (at the cost of timeliness/phase adjustment).
@@ -1304,8 +1304,9 @@ cor(mplot)
 # Example 5: Working with Autocorrelated Data (Instead of White Noise)
 # ==========================================================================
 # Overview:
-#   Previous examples assumed white noise input (xt = epsilon_t). In practice, macroeconomic
-#   time series are autocorrelated (even after first differences). This example demonstrates how to correctly apply SSA when
+#   Previous examples assumed white noise input (xt = epsilon_t). In practice, 
+#   macroeconomic time series are autocorrelated (after first differences). 
+#   This example demonstrates how to correctly apply SSA when
 #   the input data follows an ARMA process.
 #
 # Key idea:
@@ -1668,10 +1669,11 @@ abline(h=0)
 #     what practitioners believe HP-concurrent is doing.
 #
 # What this example does NOT address:
-#   - The majority of HP use-cases, where practitioners are satisfied with HP-concurrent
+#   - The majority of HP use-cases, where practitioners are SATISFIED WITH HP-CONCURRENT
 #     as a pertinent BCA tool (even if it does not optimally track the two-sided target).
 #   - Examples 2, 3, and 5 "engraft" SSA onto HP-concurrent for users who prefer the
 #     HP-concurrent as their design benchmark.
+#   - Shortly: If you are satisfied with classic HP-concurrent you may skip this exercise.
 #
 # What this example DOES address:
 #   - Analysts specifically interested in OPTIMALLY TRACKING the symmetric (two-sided) HP
@@ -1797,7 +1799,7 @@ mtext(paste("Target acausal filter: center is at lag 0.",
       line = -1, col = "violet")
 mtext(paste("                                                   ",
             "Causal symmetric HP as calculated by mFilter: center is at lag ",
-            (L_sym + 1) / 2, sep = ""),
+            (L_sym - 1) / 2, sep = ""),
       line = -3, col = "brown")
 axis(1, at = 1:length(acausal_sym), labels = -forecast_horizon + 1:length(acausal_sym))
 axis(2)
@@ -1860,7 +1862,7 @@ ht_mse           # Holding time of hp_mse (white noise assumption) — reference
 #   - Specific priorities (e.g., emphasizing timeliness over smoothness, or vice versa)
 #   Using ht_hp_conv_mse as baseline (rather than an ad hoc value) enables principled comparisons.
 ht <- 1.5 * ht_hp_conv_mse
-
+ht
 # Convert the holding time to the lag-one autocorrelation rho1 required by SSA_func().
 # Higher ht => slower, smoother filter => larger rho1.
 rho1 <- compute_rho_from_ht(ht)
@@ -1904,6 +1906,7 @@ SSA_obj_HP <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
 # mse_eps: the MSE-optimal filter as returned by SSA_func(), applied to epsilon_t.
 #   This should be identical to hp_conv_mse[1:L] computed above.
 #   If the two lines in the plot below overlap perfectly, our manual calculation is confirmed.
+# Note warnings can be ignored: zero-padding filters that are too short.
 mse_eps <- SSA_obj_HP$mse_eps
 ts.plot(cbind(hp_conv_mse[1:L], mse_eps),
         main = "MSE Estimate: SSA_func vs. Manual Calculation (lines should overlap perfectly)",
@@ -1936,6 +1939,15 @@ par(mfrow=c(1,1))
 mplot<-cbind(SSA_example4,SSA_example5,SSA_filt_HP)
 colnames(mplot)<-c("Example 4","Example 5","Example 6")
 
+plot(mplot[,1],main=paste("HP(",lambda_monthly,")",sep=""),axes=F,type="l",xlab="Lag-structure",ylab="filter-weights",ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))),col=colo[1],lwd=2,lty=1)
+mtext(colnames(mplot)[1],col=colo[1],line=-1)
+lines(mplot[,2],col=colo[2],lwd=2,lty=1)
+mtext(colnames(mplot)[2],col=colo[2],line=-2)
+lines(mplot[,3],col=colo[3],lwd=2,lty=1)
+mtext(colnames(mplot)[3],col=colo[3],line=-3)
+axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
+axis(2)
+
 # Why do the filters from examples 4 (black) and 6 (blue) look so similar?
 #   - Example 4: used the same symmetric two-sided HP target, but assumed white noise
 #     input (xi = NULL) and a shorter holding-time constraint (ht = 12).
@@ -1956,14 +1968,6 @@ colnames(mplot)<-c("Example 4","Example 5","Example 6")
 #     this increased estimation uncertainty.
 
 
-plot(mplot[,1],main=paste("HP(",lambda_monthly,")",sep=""),axes=F,type="l",xlab="Lag-structure",ylab="filter-weights",ylim=c(min(na.exclude(mplot)),max(na.exclude(mplot))),col=colo[1],lwd=2,lty=1)
-mtext(colnames(mplot)[1],col=colo[1],line=-1)
-lines(mplot[,2],col=colo[2],lwd=2,lty=1)
-mtext(colnames(mplot)[2],col=colo[2],line=-2)
-lines(mplot[,3],col=colo[3],lwd=2,lty=1)
-mtext(colnames(mplot)[3],col=colo[3],line=-3)
-axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
-axis(2)
 
 # -----------------------------------------------------------------------
 # Now that the optimal filters have been identified and computed, we:
@@ -2010,7 +2014,8 @@ HP_concurrent <- filter(x, hp_trend, side = 1)
 # The classic HP concurrent filter produces more zero-crossings (less smooth output) than SSA.
 compute_empirical_ht_func(HP_concurrent)
 # As shown below, the classic HP concurrent is also inferior to SSA in terms of
-# correlation with the symmetric target — misspecification hurts on both dimensions because of severe misspecification.
+# correlation with the symmetric target — misspecification hurts on both dimensions because 
+# of severe misspecification.
 
 # -----------------------------------------------------------------------
 # Plot all filter outputs over a short representative sample window
@@ -2096,17 +2101,18 @@ cor_mat[3, ]
 cor_mat[3, 2]   # MSE vs. target
 cor_mat[3, 1]   # SSA vs. target
 
-# MSE also outperforms the classic HP concurrent in correlation with the target.
+# MSE outperforms the classic HP concurrent in correlation with the target.
 cor_mat[3, 2]   # MSE vs. target
 cor_mat[3, 4]   # Classic HP concurrent vs. target
 
-# Key finding: SSA outperforms the classic HP concurrent on BOTH dimensions —
-#   * Higher correlation with the symmetric target (better accuracy), AND
-#   * More zero-crossings (better smoothness / fewer false signals).
-# This confirms that the ARIMA(0,2,2) assumption underlying hp_trend is severely
-# misspecified for typical economic time series.
+# SSA also outperforms the classic HP concurrent in correlation with the target.
 cor_mat[3, 1]   # SSA vs. target
 cor_mat[3, 4]   # Classic HP concurrent vs. target
+# Key finding: SSA outperforms the classic HP concurrent on BOTH dimensions —
+#   * Higher correlation with the symmetric target (better accuracy), AND
+#   * Less zero-crossings (better smoothness / fewer false signals).
+# This confirms that the ARIMA(0,2,2) assumption underlying hp_trend is severely
+# misspecified for typical economic time series.
 
 # -----------------------------------------------------------------------
 # Verify that empirical SSA performance matches the theoretical criterion values
@@ -2491,7 +2497,7 @@ heatmap.2(target_mat[nrow(target_mat):1, ],
 # Interpretation of the heat map:
 #   - Fixed ht, increasing forecast horizon:
 #       Correlations decrease monotonically. Gaining timeliness (more steps ahead)
-#       for a fixed smoothness level always increases MSE.
+#       for a fixed smoothness level always increases MSE (decreases target correlation).
 #   - Fixed forecast horizon, varying ht:
 #       Correlations peak at the MSE-optimal ht for that horizon. Above and below
 #       this peak the SSA smoothness constraint is binding: correlation is sacrificed
@@ -2564,14 +2570,15 @@ box()
 #     also decreases (the ht constraint forces less smoothing than is optimal).
 #   - Reading across curves at the reference level (cor_val = 0.105):
 #       A fixed accuracy target of 0.105 can be achieved at approximately:
-#         ht ~ 20  for forecast horizon 21,
-#         ht ~ 16  for forecast horizon 22,
-#         ht ~ 9   for forecast horizon 23.
+#         ht ~ 20  for forecast horizon 21 (red vertical line),
+#         ht ~ 16  for forecast horizon 22 (green vertical line),
+#         ht ~ 9   for forecast horizon 23 (blue vertical line).
 #       This illustrates the smoothness–timeliness trade-off: gaining timeliness
-#       (larger forecast horizon) requires accepting a shorter holding-time (less smooth).
+#       (larger forecast horizon) requires accepting a shorter holding-time 
+#       (less smooth) for given (fixed) target correlation.
 #
 #   Note: In Examples 1–6, we traded timeliness (larger forecast horizon) against
-#   accuracy (lower correlation) for a fixed ht — one face of the trilemma.
+#   accuracy (lower target correlation) for a fixed ht — one face of the trilemma.
 #   See also Tutorial 5 for applied examples of this trade-off.
 
 # ------------------------------------------------------------------------
@@ -2668,7 +2675,10 @@ if (F)
 #   - This frontier provides a principled and quantitative basis for
 #     navigating the accuracy–timeliness dimension of the prediction trilemma,
 #     complementing the Accuracy-Smoothness trade-off inherent to (M-)SSA.
-
+#
+# ------------------------------------------------------------------------
+# An alternative frequency-domain approach to the forecast trilemma
+# ------------------------------------------------------------------------
 #   -The MDFA tutorial (https://wiaidp.github.io/MDFA-tutorial) proposes an alternative frequency-domain trilemma
 #
 # ------------------------------------------------------------------------
