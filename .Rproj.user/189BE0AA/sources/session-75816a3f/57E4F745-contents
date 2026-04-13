@@ -1045,14 +1045,14 @@ print(apply(mat_perf, 2, sd))
 # SA distributions have materially different variances.
 cat("\n--- Welch t-test: H1: mean(SA_MSE) > mean(SA_Logit) ---\n")
 print(t.test(mat_perf[,"SA_true_MSE"], mat_perf[,"SA_true_Logit"],
-             paired      = FALSE,
+             paired      = T,
              alternative = "greater",
              var.equal   = FALSE))
 # Outcome: statistically significant differences 
 
 # 2. Testing differences between sample SA estimates:
 print(t.test(mat_perf[,"SA_emp_MSE"], mat_perf[,"SA_emp_logit"],
-             paired      = FALSE,
+             paired      = T,
              alternative = "greater",
              var.equal   = FALSE))
 # Outcome: statistically significant differences 
@@ -1069,6 +1069,10 @@ cat("Logit wins in", round(win_rate_logit * 100, 1),
 cat("MSE wins in  ", round((1 - win_rate_logit) * 100, 1),
     "% of replications\n")
 # → MSE dominates in approximately 90% of all replications
+
+# Test of significance
+binom.test(length(which(mat_perf[,1] < mat_perf[,2])), anzsim, p = 0.5,
+           alternative ="less",conf.level = 0.95)
 
 
 #------------------------------------------------------------
