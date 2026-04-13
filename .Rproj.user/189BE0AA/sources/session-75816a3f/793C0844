@@ -3,7 +3,7 @@
     "path": "C:/Users/marca/OneDrive/2026/Projects/R-Package-SSA-predictor/M-SSA Tutorials/tutorial_2.0_ Introduction_to_HP.R",
     "project_path": "M-SSA Tutorials/tutorial_2.0_ Introduction_to_HP.R",
     "type": "r_source",
-    "hash": "0",
+    "hash": "2042909920",
     "contents": "",
     "dirty": false,
     "created": 1775990086341.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "52,0",
-        "scrollLine": "46"
+        "cursorPosition": "1688,10",
+        "scrollLine": "1672"
     },
     "folds": "",
-    "lastKnownWriteTime": 1775990141,
+    "lastKnownWriteTime": 1776059402,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1775990142026,
+    "last_content_update": 1776059402171,
     "read_only": false,
     "read_only_alternatives": []
 }

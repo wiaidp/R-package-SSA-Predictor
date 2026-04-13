@@ -126,7 +126,8 @@ source(paste(getwd(),"/R utility functions/HP_JBCY_functions.r",sep=""))
 # Introduction — See also Tutorial 2.0
 # ============================================================
 # This script covers:
-#   Derivation of the Hodrick-Prescott (HP) filter and brief analysis of the classic one-sided (concurrent) HP trend filter
+#   Derivation of the Hodrick-Prescott (HP) filter and brief analysis of the 
+#   classic one-sided (concurrent) HP trend filter.
 # ============================================================
 
 # ------------------------------------------------------------
@@ -303,7 +304,7 @@ box()
 
 
 # ==========================================================================
-# Example 1:
+# Example 1: Apply SSA to HP-MSE
 # ==========================================================================
 # Target: HP-MSE (Mean Squared Error optimal concurrent HP filter under white noise assumption)
 
@@ -402,8 +403,6 @@ axis(1,at=1:nrow(mplot),labels=-1+1:nrow(mplot))
 axis(2)
 box()
 
-
-
 # Right panel: SSA-HP filter vs. HP-MSE concurrent filter
 #   SSA shifts/redistributes weight to satisfy the smoothness (ht) constraint
 #   while remaining as close as possible (in correlation) to the HP-MSE target
@@ -464,9 +463,9 @@ rho1                    # imposed constraint — both should match closely
 crit_example1 <- SSA_obj_HP$crit_rhoyz
 crit_example1   # theoretical correlation between SSA output and HP-MSE target
 
+# WE now compute the sample target correlation: this should converge to crit_example1
 # a. Compute HP-MSE nowcast (target filter output) on the simulated data
 MSE_nowcast <- filter(x, hp_mse, side = 1)
-
 # b. Compute sample correlation between SSA output and HP-MSE nowcast
 cor(yhat, MSE_nowcast, use = 'pairwise.complete.obs')
 # Should be very close to crit_example1 — confirms the analytical criterion is empirically accurate
@@ -559,7 +558,7 @@ SSA_filt_HP <- ssa_eps <- SSA_obj_HP$ssa_eps
 # Plot: SSA filter weights vs. classic HP concurrent filter weights
 #
 # Visual note: the SSA filter typically exhibits a characteristic "tip" or spike
-# at the most recent lag (lag 0). This arises from an implicit boundary constraint
+# to the right of the most recent lag (lag 0). This arises from an implicit boundary constraint
 # in the SSA optimization: the filter coefficient at lag -1 is constrained to vanish.
 # See Theorem 1 in the JBCY paper for a formal derivation of this property.
 
@@ -680,9 +679,8 @@ par(mfrow = c(1, 1))
 #-----------------------------------------------------------------------------------
 # Amplitude functions
 #
-# Background: The HP filter is a lowpass filter applied to differenced data (returns).
-#   Its amplitude function describes how much of each frequency component is retained
-#   in the filter output.
+# Background: The amplitude function describes how much of each frequency 
+# component is retained in the filter output.
 #
 # Key observation:
 #   The SSA amplitude function lies closer to zero in the stopband (high frequencies)
@@ -781,8 +779,7 @@ box()
 # Approach:
 #   SSA allows the user to request a lead by setting forecast_horizon > 0.
 #   Here we consider a one-year-ahead forecast (forecast_horizon = 12 months).
-#   See Wildi, M. (2024), for the
-#   theoretical foundation.
+#   See Wildi, M. (2024), for the theoretical foundation.
 #
 # Key design choice — holding time is kept fixed (ht = 12, same as Example 2):
 #   By holding ht constant across Examples 2 and 3, we isolate the pure effect of
@@ -855,7 +852,7 @@ SSA_filt_HP <- ssa_eps <- SSA_obj_HP$ssa_eps
 #    not affect the smoothness or timing properties of the filter output.
 #
 # 2. Boundary constraint tip:
-#    As in Example 2, the SSA filter exhibits a characteristic spike at the most
+#    As in Example 2, the SSA filter exhibits a characteristic tip towards the most
 #    recent lag (lag 0), arising from the implicit constraint that the filter
 #    coefficient at lag -1 must vanish. See Theorem 1 in the JBCY paper.
 
