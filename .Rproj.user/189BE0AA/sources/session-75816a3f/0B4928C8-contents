@@ -26,7 +26,7 @@
 # =============================================================================
 #
 # 1. HF AS A LOW-PASS FILTER:
-#      When expressed in terms of first differences (see Exercises 1.4 and 1.9),
+#      When expressed in terms of FIRST DIFFERENCES (see Exercises 1.4 and 1.9),
 #      HF behaves as a low-pass filter. This property confers two important
 #      advantages for business cycle analysis (BCA):
 #
@@ -85,7 +85,7 @@
 #      of filters that cannot be improved in one dimension without sacrificing
 #      another. HF does not lie on this frontier:
 #        - SSA can strictly improve the smoothness (noise suppression) of HF
-#          without meaningfully sacrificing accuracy or timeliness.
+#          without materially sacrificing accuracy or timeliness.
 #          See Example 2.9 for empirical confirmation.
 #        - An analogous result holds for HP-based filters; see Tutorial 2.1.
 #        - This inefficiency provides a clear and well-motivated rationale for
@@ -97,14 +97,15 @@
 #      targeting different points on the ATS frontier:
 #
 #        (a) Smoothness improvement only:
-#              Target: reduce high-frequency noise without affecting timeliness.
+#              Target: reduce high-frequency noise while maximizing tracking 
+#                      accuracy.
 #              Method: impose a holding time 50% larger than HF's empirical
 #                      holding time as a constraint within the SSA optimisation.
 #              Reference: Exercises 1.6 and 2.7.
 #
 #        (b) Simultaneous smoothness and timeliness improvement:
 #              Target: reduce noise AND advance turning-point detection.
-#              Method: impose the enlarged holding-time constraint while
+#              Method: impose the holding-time constraint while
 #                      simultaneously extending the SSA forecast horizon,
 #                      shifting the filter output ahead of real time.
 #              Reference: Exercises 1.8 and 2.9.
@@ -125,11 +126,19 @@
 #      See Exercise 2.11 for the full analysis.
 # =============================================================================
 
-
+# -----------------------------------------------------------------------------
+# Tutorial Structure
+# -----------------------------------------------------------------------------
+#
+# Example 1:  SSA applied to the Hamilton filter using quarterly US GDP,
+#             estimated over the full post-WWII sample.
+#
+# Example 2:  SSA applied to the Hamilton filter using monthly PAYEMS
+#             employment data, estimated over the post-1990 sub-sample.
 # -----------------------------------------------------------------------------
 # Broader Motivation
 # -----------------------------------------------------------------------------
-# The goal of this tutorial is not to advocate for (or against) a particular 
+# The goal of this tutorial is not to advocate for or against a particular 
 # business cycle tool or filter design. Rather, it illustrates a general and 
 # broadly applicable principle:
 #
@@ -137,7 +146,7 @@
 #   systematically improved by SSA with respect to two practically
 #   important BCA priorities:
 #     1. Smoothness:  suppression of high-frequency noise, reducing false signals.
-#     2. Timeliness:  earlier and more reliable detection of cyclical turning points.
+#     2. Timeliness:  earlier detection of cyclical turning points.
 #
 # HF serves here as a convenient, well-known baseline platform and a concrete
 # showcase for the SSA optimisation principle. Throughout the tutorial, a range
