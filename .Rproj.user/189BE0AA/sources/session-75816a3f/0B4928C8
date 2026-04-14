@@ -3,7 +3,7 @@
     "path": "C:/Users/marca/OneDrive/2026/Projects/R-Package-SSA-predictor/M-SSA Tutorials/tutorial_3_SSA_applied_to_Hamilton_filter.R",
     "project_path": "M-SSA Tutorials/tutorial_3_SSA_applied_to_Hamilton_filter.R",
     "type": "r_source",
-    "hash": "2858266268",
+    "hash": "3078364734",
     "contents": "",
     "dirty": false,
     "created": 1775990182460.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "0,0",
-        "scrollLine": "0"
+        "cursorPosition": "2139,0",
+        "scrollLine": "2107"
     },
     "folds": "",
-    "lastKnownWriteTime": 1776145926,
+    "lastKnownWriteTime": 1776159192,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1776145926828,
+    "last_content_update": 1776159192930,
     "read_only": false,
     "read_only_alternatives": []
 }
