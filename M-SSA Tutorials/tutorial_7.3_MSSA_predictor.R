@@ -43,14 +43,14 @@
 #
 #   2. Demonstrate mid-term forecasting up to 6 quarters (1.5 years) ahead.
 #      - Performances of institutional forecasters ("big five" German research institutes)
-#        degrade steeply beyond a one-quarter horizon (see Heinisch & Neufing, forthcoming).
-#      - We illustrate that consistent BIP predictability beyond half a year is achievable.
+#        degrade steeply beyond a two-quarters horizon (see Heinisch & Neufing, forthcoming).
+#      - We illustrate that consistent BIP predictability is achievable further into the future.
 #      - Note: Institutional forecasters excel at nowcasting GDP, outperforming M-SSA here,
 #        by exploiting a rich cross-section of many series and mixed-frequency (monthly/quarterly)
 #        linkages. M-SSA here uses a deliberately small set of key indicators in a purely
 #        quarterly framework. High-frequency data tends to be too noisy to be of relevance 
 #        multiple quarters ahead.
-#      - This tutorial provides novel insights into mid-term GDP (i.e., not only German BIP) forecasting.
+#      - This tutorial provides novel insights into mid-term GDP forecasting.
 #
 #   3. Forecast strategy: raw BIP and HP-filtered BIP trend growth (HP-BIP).
 
@@ -80,7 +80,9 @@
 #   - FED Chair Jerome Powell, speaking at the University of Chicago Booth
 #     School of Business (March 7, 2025), stated:
 #       "As we parse the incoming information, we are focused on separating
-#        the signal from the noise as the outlook evolves,"
+#        the signal from the noise as the outlook evolves".
+#
+#     The M-SSA predictor pursues an explicit separation of signal from noise.
 #
 #
 #   4. Evaluate forecast performance using three complementary metrics:
