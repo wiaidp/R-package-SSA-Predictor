@@ -45,7 +45,7 @@
 ###################################################################
 
 
-# ──────────────── GUIDED TOUR ACROSS SSA/TUTORIAL ───────────────────
+# ────────────── GUIDED TOUR ACROSS (M-/I-) SSA/TUTORIAL ─────────────
 
 # ── A. PREDICTION OBJECTIVES ────────────────────────────────────────
 # The structure of a prediction problem shapes which predictor
@@ -135,7 +135,7 @@
 # applications of M-SSA are developed in Tutorial 7.
 
 
-# ── SSA / I-SSA / M-SSA SMOOTHING ───────────────────────────────────────────
+# ── F. SSA / I-SSA / M-SSA SMOOTHING ───────────────────────────────────────────
 #
 # Beyond classic target tracking and customization, SSA and its extensions 
 # (I-SSA, M-SSA) can be directed at the original data series itself rather 
@@ -150,12 +150,13 @@
 #       directly controlled by the analyst through the holding-time parameter,
 #       without reference to any external benchmark, see tutorials 8 and 10.
 #
-#   - A NEW TREND DEFINITION:
+#   - A NEW I-SSA TREND DEFINITION:
 #       The smoothed output can be interpreted as a principled, operationally
-#       well-defined trend: the smoothest signal consistent with the data up
-#       to the prescribed holding-time tolerance. This trend definition is
-#       grounded in the SSA optimality framework rather than in ad hoc frequency
-#       cut-offs or regression specifications. See tutorial 9.
+#       well-defined trend: the closest approximation to the (non-stationary) 
+#       data subject to a pre-specified (imposed) mean distance between 
+#       consecutive turning points. This trend definition is
+#       grounded in the SSA optimality framework: it is interpretable, 
+#       logically consistent and statistically efficient. See tutorial 9.
 #
 # The theoretical foundations, algorithmic details, and empirical applications
 # of SSA/I-SSA/M-SSA smoothing are developed in Tutorials 8–10.
@@ -184,7 +185,8 @@
 #       → Equivalent to controlling holding-time under Gaussianity;
 #         near-equivalent for non-Gaussian processes in practice
 #
-# Details and empirical applications are developed in Tutorial 0.2.
+# Details and empirical applications are developed in Tutorial 0.2 and then 
+# applied all along the tutorial series.
 #
 # Theoretical background:
 #   → Section 2 Wildi (2024), Wildi (2026b); section 4 Wildi (2026a) 
