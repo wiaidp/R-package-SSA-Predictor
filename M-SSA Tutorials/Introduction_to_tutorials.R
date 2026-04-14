@@ -17,7 +17,8 @@
 # The following papers provide the theoretical foundations:
 #
 #   Wildi, M. (2024) Business Cycle Analysis and Zero-Crossings of
-#     Time Series: a Generalized Forecast Approach. Published in Journal of Business-Cycle Research
+#     Time Series: a Generalized Forecast Approach. Journal of 
+#     Business-Cycle Research,
 #     https://doi.org/10.1007/s41549-024-00097-5
 #
 #   Wildi, M. (2026a) Sign Accuracy, Mean-Squared Error and the Rate
@@ -312,11 +313,11 @@
 #   guaranteeing convergence to the unique global optimum.
 
 # CUSTOMIZATION:
-#   When operated in plug-on mode, SSA does not replace the benchmark filter
-#   (e.g., Hodrick Prescott, Hamilton, Baxter King, Beveridge Nelson, ARMA, VARMA) 
-#   but rather grafts onto it, seeking the optimal causal approximation to 
-#   the benchmark subject to the imposed ATS constraints.
-#   This design choice has three important consequences:
+#   When operated in plug-on mode, SSA grafts onto a benchmark filter (e.g., 
+#   Hodrick Prescott, Hamilton, Baxter King, Beveridge Nelson, ARMA, VARMA), 
+#   seeking the optimal causal approximation to the benchmark subject to the 
+#   imposed smoothness (holding-time) constraint. This design choice has 
+#   three important consequences:
 #
 #   - INHERITED INTERPRETABILITY:
 #       Because SSA tracks the benchmark as closely as possible within the
