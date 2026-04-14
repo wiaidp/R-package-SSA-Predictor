@@ -1,68 +1,152 @@
-# This tutorial is currently under revision
-# Emphasize shorter span with data >1990 to reomve non-stationarity issues.
-# Stabilizes HF filter regression equation, model for DGP and HTs.
 
-
-# ========================================================================
+# =============================================================================
 # Tutorial 3: SSA Applied to Hamilton's Regression Filter (HF)
-# ========================================================================
-# This tutorial demonstrates how SSA can be applied to Hamilton's regression
-# filter (HF) to improve its real-time business cycle analysis (BCA) properties.
+# =============================================================================
+# # James D. Hamilton, 2017. "Why You Should Never Use the Hodrick-Prescott Filter," 
+# NBER Working Papers 23429, National Bureau of Economic Research, Inc.
+
+# Overview:
+#   This tutorial demonstrates how SSA customization can be applied to
+#   Hamilton's regression filter (HF) to improve its real-time business cycle
+#   analysis (BCA) properties along two key dimensions: smoothness and timeliness.
 #
-# Two datasets are used for illustration:
-#   - Example 1: Quarterly US GDP
-#   - Examples 2 & 3: Monthly US non-farm payroll employment
-# Both long samples (starting post-WWII) and shorter samples (starting at the
-# Great Moderation, ~1985) are analysed to assess robustness across regimes.
+# Datasets:
+#   - Example 1:        Quarterly US GDP
+#   - Examples 2 & 3:  Monthly US non-farm payroll employment (PAYEMS)
 #
-# ------------------------------------------------------------------------
-# Main findings:
-# ------------------------------------------------------------------------
+# Sample coverage:
+#   Both long samples (post-WWII for GDP) and shorter samples (post-Great 
+#   Moderation, ~1990 onwards for PAYEMS) are analysed. 
 #
-#   1. HF is a low-pass filter (when expressed in terms of returns/differences):
-#        - It mitigates the generation of spurious business cycles.
-#        - This is a key advantage over band-pass designs such as Baxter-King (BK),
-#          Christiano-Fitzgerald (CF), and the HP-gap filter, which are all prone
-#          to spurious cycles — see Tutorials 2 (Example 7), 4, and 5.
+# Recommendation: to mitigate non-stationarity avoid working on unnecessarily 
+# long historical samples when fitting parameters to data.
+
+# =============================================================================
+# Summary of Main Findings
+# =============================================================================
 #
-#   2. HF removes the residual weak drift in the differenced series:
-#        - It can handle arbitrary integration orders by increasing the AR lag
-#          order p in the regression specification.
+# 1. HF AS A LOW-PASS FILTER:
+#      When expressed in terms of first differences (see Exercises 1.4 and 1.9),
+#      HF behaves as a low-pass filter. This property confers two important
+#      advantages for business cycle analysis (BCA):
 #
-#   3. HF is inherently sample-dependent (defined by an in-sample regression):
-#        - The out-of-sample cycle is non-stationary because the estimated
-#          regression coefficients do not sum to one (the filter does not cancel unit roots out-of-sample).
-#        - The regression must be continuously updated as new observations arrive,
-#          which introduces undesirable real-time revisions to historical estimates.
+#        (a) Mitigation of spurious cycles:
+#              Low-pass behaviour suppresses the artificial oscillations that
+#              band-pass filters tend to impose on the data, regardless of
+#              whether such oscillations are present in the underlying series.
 #
-#   4. HF has a relatively short holding-time and a relatively large phase-lag:
-#        - Short holding-time => noisy zero-crossings (many false turning-point signals).
-#        - Large phase-lag => retardation (turning points are detected with delay).
-#        - Both characteristics make HF a natural candidate for SSA enhancement.
+#        (b) Advantage over classic band-pass designs:
+#              Filters such as Baxter-King (BK), Christiano-Fitzgerald (CF),
+#              and the HP-gap are all band-pass in nature and therefore prone
+#              to spurious cycle generation. HF avoids this pathology by design.
+#              See Tutorials 2.0 (Example 7), 4, and 5 for detailed evidence.
 #
-#   5. SSA nowcast target: approximately 30% fewer zero-crossings than HF
-#        (i.e., a ~30% larger holding-time), suppressing noise while retaining
-#        the low-pass character of the original filter.
 #
-#   6. SSA forecasts (6-month and 12-month horizons):
-#        - Remain smooth (holding-time constraint is satisfied).
-#        - Are leading relative to HF (reduced phase-lag / improved timeliness).
+# 2. HF ACCOMMODATES ARBITRARY INTEGRATION ORDERS:
+#      By increasing the AR lag order p in the regression specification, HF can
+#      accommodate series integrated to an arbitrary order. This makes it
+#      well-suited for macroeconomic indicators whose growth rates evolve slowly
+#      over long historical samples — a common feature of post-WWII data.
 #
-# ------------------------------------------------------------------------
-# Broader motivation:
-# ------------------------------------------------------------------------
-# The goal of this tutorial is not to advocate for any specific Business Cycle tool.
-# Rather, it illustrates a general principle:
 #
-#   Any linear filter — including HF — can be replicated and systematically
-#   improved by SSA with respect to two practical BCA priorities:
-#     1. Smoothness: suppression of high-frequency noise (fewer false signals).
-#     2. Timeliness: earlier detection of cyclical turning points.
+# 3. HF IS SAMPLE-DEPENDENT:
+#      HF is defined by regression coefficients estimated on a specific sample.
+#      As a result, the extracted cycle is inherently sample-specific:
+#        - Estimating the regression on the full post-WWII sample versus the
+#          post-1990 sub-sample yields substantially different filter coefficients
+#          and, consequently, different cycle definitions.
+#        - Users should be aware that HF comparisons across studies may reflect
+#          differences in estimation samples as much as differences in the data.
 #
-# In this context, HF serves as a convenient baseline platform and a showcase
-# for the SSA optimisation principle. A range of quantitative performance
-# measures is provided to confirm the practical value of the approach.
-# ========================================================================
+#
+# 4. HF PRODUCES NON-STATIONARY CYCLES OUT-OF-SAMPLE:
+#      (Note: this finding does not contradict Finding 2 above.)
+#
+#      HF is estimated as an unrestricted OLS regression, without imposing
+#      any constraint on the unit-root structure of the data. As a consequence:
+#        - IN-SAMPLE:  the HF cycle is stationary by construction (OLS residuals
+#                      are centred and well-behaved within the estimation window).
+#        - OUT-OF-SAMPLE: the HF filter weights do not sum to zero, so the filter
+#                      fails to cancel the unit root(s) in the data. The extracted
+#                      cycle therefore becomes non-stationary beyond the estimation
+#                      window.
+#
+#      Two remedies are discussed in this tutorial:
+#        (i)  Regular re-estimation: updating the regression with new observations
+#             restores in-sample stationarity, at the cost of real-time revisions
+#             to historical cycle estimates.
+#        (ii) Unit-root-constrained regression: imposing a zero-sum constraint on
+#             the filter coefficients ensures unit-root cancellation out-of-sample
+#             for a single (or more) integrated root. See Exercises 1.2 and 2.3.
+#
+#
+# 5. HF IS NOT ON THE EFFICIENT ATS FRONTIER:
+#      The Accuracy-Timeliness-Smoothness (ATS) frontier characterises the set
+#      of filters that cannot be improved in one dimension without sacrificing
+#      another. HF does not lie on this frontier:
+#        - SSA can strictly improve the smoothness (noise suppression) of HF
+#          without meaningfully sacrificing accuracy or timeliness.
+#          See Example 2.9 for empirical confirmation.
+#        - An analogous result holds for HP-based filters; see Tutorial 2.1.
+#        - This inefficiency provides a clear and well-motivated rationale for
+#          applying SSA customization to HF.
+#
+#
+# 6. SSA CUSTOMIZATION STRATEGIES:
+#      Two complementary SSA customization approaches are demonstrated,
+#      targeting different points on the ATS frontier:
+#
+#        (a) Smoothness improvement only:
+#              Target: reduce high-frequency noise without affecting timeliness.
+#              Method: impose a holding time 50% larger than HF's empirical
+#                      holding time as a constraint within the SSA optimisation.
+#              Reference: Exercises 1.6 and 2.7.
+#
+#        (b) Simultaneous smoothness and timeliness improvement:
+#              Target: reduce noise AND advance turning-point detection.
+#              Method: impose the enlarged holding-time constraint while
+#                      simultaneously extending the SSA forecast horizon,
+#                      shifting the filter output ahead of real time.
+#              Reference: Exercises 1.8 and 2.9.
+#
+#
+# 7. PANDEMIC ROBUSTNESS:
+#      The COVID-19 pandemic generated extreme outliers in economic aggregates
+#       — observations so large that they approximate impulse inputs to
+#      the filters. This provides a natural experiment for studying filter
+#      dynamics empirically, without simulation:
+#        - The post-pandemic "phantom peak" in each filter's output directly
+#          reflects the shape and decay rate of its impulse response function.
+#        - Filters with faster-decaying impulse responses recover more quickly
+#          from the shock, producing shorter-lived distortions.
+#        - SSA forecast filters are shown to recover materially faster than HF,
+#          an advantage that is especially relevant in the presence of singular
+#          macro events.
+#      See Exercise 2.11 for the full analysis.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# Broader Motivation
+# -----------------------------------------------------------------------------
+# The goal of this tutorial is not to advocate for (or against) a particular 
+# business cycle tool or filter design. Rather, it illustrates a general and 
+# broadly applicable principle:
+#
+#   Any causal linear filter — including HF — can be replicated and
+#   systematically improved by SSA with respect to two practically
+#   important BCA priorities:
+#     1. Smoothness:  suppression of high-frequency noise, reducing false signals.
+#     2. Timeliness:  earlier and more reliable detection of cyclical turning points.
+#
+# HF serves here as a convenient, well-known baseline platform and a concrete
+# showcase for the SSA optimisation principle. Throughout the tutorial, a range
+# of quantitative performance measures — including holding times, amplitude
+# functions, phase-shift functions, and empirical zero-crossing counts — is
+# provided to confirm the practical value of the SSA approach.
+# =============================================================================
+
+
 
 # ── BACKGROUND ────────────────────────────────────────────────────
 #   Wildi, M. (2024)
@@ -408,7 +492,6 @@ residual_diff <- na.exclude(filter(x, ham_diff, side = 1))
 
 # Align series lengths by prepending NAs (cycle series are shorter due to
 # filter initialization at the start of the sample).
-cycle_diff <- c(rep(NA, length(x) - length(cycle_diffh)), cycle_diffh)
 original_hamilton_cycle <- c(rep(NA, length(x) - length(residuals)), residuals)
 
 # Visual check: both approaches should produce overlapping cycle estimates.
@@ -760,10 +843,6 @@ box()
 
 
 
-
-
-
-
 # ──────────────────────────────────────────────────────────────────────────
 # Example 2: Monthly Data
 # ──────────────────────────────────────────────────────────────────────────
@@ -960,7 +1039,6 @@ len_diff <- length(x)
 residual_diff <- na.exclude(filter(x, ham_diff, side = 1))
 
 # Align series lengths by prepending NAs (filter outputs are shorter than input)
-cycle_diff             <- c(rep(NA, length(x) - length(cycle_diffh)),  cycle_diffh)
 original_hamilton_cycle <- c(rep(NA, length(x) - length(residuals)),    residuals)
 
 # Confirmation plot: both approaches should produce identical cycle estimates
@@ -1056,7 +1134,6 @@ compute_empirical_ht_func(scale(residuals_adjusted))
 # RESULT: 
 # After adjustment of autocorrelation and non-vansishing mean, expected and 
 # sample Holding Times (mean crossings) are in close agreement
-
 
 # ──────────────────────────────────────────────────────────────────────────
 # 2.7 Apply SSA (Post-1990, ARMA-Informed)
@@ -1156,7 +1233,7 @@ ht_ham_conv_obj$ht
 # --- Visual Comparison of SSA and Hamilton Outputs ---
 # Both outputs appear visually similar, but Hamilton exhibits greater high-frequency
 # leakage, producing noisier zero-crossings relative to SSA.
-mplot <- na.exclude(cbind(SSA_out, ham_out))
+mplot <- scale(na.exclude(cbind(SSA_out, ham_out)))
 colo  <- c("blue", "red")
 ts.plot(mplot[, 1], col = colo[1])
 lines(mplot[, 2], col = colo[2])
@@ -1171,62 +1248,131 @@ compute_empirical_ht_func(scale(SSA_out))
 compute_empirical_ht_func(scale(ham_out))
 
 
-#-----------------------------------------------
-# 4.7 Forecasting: Timeliness and Lead/Lag Analysis
-#-----------------------------------------------
-# OBJECTIVE:
-#   Augment the forecast horizon (delta in the JBCY paper) to construct faster (leading) SSA filters.
-#   The holding time constraint is kept fixed, so noise suppression is preserved
-#   while timeliness is improved — no smoothness-timeliness trade-off is incurred.
 
-# Define two forecast horizons for comparison against the nowcast (delta = 0):
-#   - 6 months ahead (half-year)
-#   - 12 months ahead (full year)
-# SSA_func accepts a vector of horizons and returns a filter matrix
-# (one column per forecast horizon).
+# ──────────────────────────────────────────────────────────────────────────
+# 2.9 Forecasting: Timeliness and Lead/Lag Analysis
+# ──────────────────────────────────────────────────────────────────────────
+# =============================================================================
+# OBJECTIVE
+# =============================================================================
+# Goal:
+#   Construct faster (more timely) concurrent SSA filters by augmenting the
+#   forecast horizon. 
+#
+# Design strategy:
+#   - The holding-time constraint is held fixed throughout, ensuring that the
+#     noise-suppression properties of the filter are preserved regardless of
+#     the chosen forecast horizon.
+#   - Extending the forecast horizon improves timeliness (reduces phase lag)
+#     while maintaining smoothness — achieving both desirable properties
+#     simultaneously.
+#
+# Trade-off:
+#   - The dual gain in smoothness and timeliness comes at a cost: accuracy
+#     (as measured by target correlation) deteriorates disproportionately
+#     as the forecast horizon is extended.
+#   - In other words, the filter becomes faster and smoother, but at the
+#     expense of tracking the target signal less faithfully.
+#
+# Note:
+#   - The forecast horizon addresses timeliness indirectly. The novel 
+#     look-ahead DFP and PCS are Pareto optimal and trace the accuracy-
+#     timeliness frontier (tutorial in preparation).
+#
+# =============================================================================
+# 2.9.1 Forecast Horizon Specification
+# =============================================================================
+# We define two forecast horizons to compare against the concurrent (nowcast)
+# filter (delta = 0):
+#   - delta =  6: six months ahead  (half-year horizon)
+#   - delta = 12: twelve months ahead (full-year horizon)
+#
+# Note: SSA_func accepts a vector of horizons and returns a filter matrix
+#       with one column per forecast horizon.
 forecast_horizon <- c(6, 12)
 
-# Fit SSA with the ARMA(1,1) Wold decomposition xi and both forecast horizons
+
+# =============================================================================
+# 2.9.2 SSA Filter Estimation: Forecast Horizons
+# =============================================================================
+# Fit SSA filters for both forecast horizons using:
+#   - Filter length L
+#   - ARMA(1,1) Wold decomposition coefficients xi
+#   - Autocovariance sequence gammak_generic
+#   - HT constraint parameter rho1
+#   - xi Wold decomposition of ARMA(1,1)
+#
+# The returned object contains filters expressed in both the x_t domain
+# and the epsilon_t (innovations) domain.
 SSA_obj_ham_diff <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
 
-# Extract the filters in the x_t domain (one column per forecast horizon)
+# Extract the estimated filter coefficients in the x_t domain
+# (one column per forecast horizon):
 SSA_filt_ham_diff_x_forecast <- SSA_obj_ham_diff$ssa_x
 
-# --- Visualize Filter Coefficient Morphing ---
-# As the forecast horizon increases, the filter assigns progressively less weight
-# to the remote past (morphing towards a leading shape), while the holding time
-# constraint ensures that smoothness is maintained across all horizons.
+
+# =============================================================================
+# 2.9.3 Visualization: Filter Coefficient Morphing Across Horizons
+# =============================================================================
+# As the forecast horizon increases, the filter shifts progressively more weight
+# toward recent observations and away from the remote past — a morphing toward
+# a leading (anticipating) shape.
+#
+# Crucially, the holding-time constraint is held fixed across all horizons,
+# so smoothness (noise suppression) is preserved as timeliness improves.
 par(mfrow = c(1, 1))
 ts.plot(SSA_filt_ham_diff_x_forecast,
         col  = c("orange", "darkgreen"),
-        main = "SSA Forecast Filter Coefficients vs. Nowcast",
+        main = "SSA Filter Coefficients: Nowcast vs. Forecast Horizons",
         ylim = c(min(SSA_filt_ham_diff_x), max(SSA_filt_ham_diff_x_forecast)))
 lines(SSA_filt_ham_diff_x, col = "blue")
-mtext(paste("Forecast horizon delta =", forecast_horizon[1]), col = "orange",    line = -1)
-mtext(paste("Forecast horizon delta =", forecast_horizon[2]), col = "darkgreen", line = -2)
-mtext("Nowcast (delta = 0)",                                   col = "blue",      line = -3)
+mtext(paste("SSA forecast: delta =", forecast_horizon[1]), col = "orange",    line = -1)
+mtext(paste("SSA forecast: delta =", forecast_horizon[2]), col = "darkgreen", line = -2)
+mtext("SSA nowcast: delta = 0",                            col = "blue",      line = -3)
 
-# --- Verify Global Convergence for All Forecast Horizons ---
-# Apply compute_holding_time_func to each column of ssa_eps (filter in epsilon_t domain).
-# Matching values across all horizons confirm that the optimization converged
-# to the global maximum for each forecast horizon independently.
+
+# =============================================================================
+# 2.9.4 Convergence Verification: Holding Times Across Forecast Horizons
+# =============================================================================
+# We apply compute_holding_time_func to each column of ssa_eps (the filter
+# expressed in the epsilon_t innovations domain).
+#
+# If the holding times match the target ht across all forecast horizons,
+# this confirms that the optimizer converged to the global optimum
+# for each horizon.
 apply(SSA_obj_ham_diff$ssa_eps, 2, compute_holding_time_func)
-ht  # Targeted holding time for reference
+ht   # Target holding time (for reference)
 
-#----------------------
-# Apply Forecast Filters to the Return Series x
-#----------------------
 
-# 6-month-ahead SSA forecast filter output
+# =============================================================================
+# 2.9.5 Apply Forecast Filters to the First-Differenced Series
+# =============================================================================
+# Compute the filter output for each forecast horizon by convolving the
+# estimated filter coefficients with the first-differenced input series x.
+
+# Six-month-ahead SSA forecast filter output:
 SSA_out_forecast_6  <- filter(x, SSA_filt_ham_diff_x_forecast[, 1], side = 1)
 
-# 12-month-ahead SSA forecast filter output
+# Twelve-month-ahead SSA forecast filter output:
 SSA_out_forecast_12 <- filter(x, SSA_filt_ham_diff_x_forecast[, 2], side = 1)
 
-# --- Plot All Filter Outputs ---
-# Expected pattern: SSA forecast outputs are left-shifted (leading) relative to Hamilton;
-# smoothness is approximately equal across all SSA variants.
-mplot <- na.exclude(cbind(SSA_out, SSA_out_forecast_6, SSA_out_forecast_12, ham_out))
+
+# =============================================================================
+# Visualization: All Filter Outputs
+# =============================================================================
+# We overlay all filter outputs (nowcast + two forecast horizons + Hamilton)
+# to assess the timeliness-smoothness trade-off visually.
+#
+# Expected pattern:
+#   - SSA forecast outputs are left-shifted (leading) relative to the Hamilton
+#     filter, with the degree of lead increasing with the forecast horizon.
+#   - Smoothness (cycle duration) is approximately equal across all SSA variants,
+#     reflecting the binding holding-time constraint.
+mplot <- scale(na.exclude(cbind(SSA_out, SSA_out_forecast_6, SSA_out_forecast_12, ham_out)))
+colo  <- c("blue", "orange", "darkgreen", "red")
+
+par(mfrow = c(1, 1))
+mplot <- scale(na.exclude(cbind(SSA_out, SSA_out_forecast_6, SSA_out_forecast_12, ham_out)))
 colo  <- c("blue", "orange", "darkgreen", "red")
 par(mfrow = c(1, 1))
 ts.plot(mplot[, 1], col = colo[1], ylim = c(min(mplot), max(mplot)))
@@ -1239,214 +1385,277 @@ mtext(paste("SSA forecast: delta =", forecast_horizon[2]), col = colo[3], line =
 mtext("Hamilton filter",                                    col = colo[4], line = -4)
 abline(h = 0)
 
-# --- Empirical Holding Times ---
-# All SSA variants achieve longer holding times than Hamilton,
-# confirming stronger noise suppression without sacrificing timeliness.
-compute_empirical_ht_func(scale(SSA_out))            # SSA nowcast
-compute_empirical_ht_func(scale(SSA_out_forecast_6))   # SSA 6-month forecast
-compute_empirical_ht_func(scale(SSA_out_forecast_12))  # SSA 12-month forecast
-compute_empirical_ht_func(scale(ham_out))              # Hamilton benchmark
-
-# --- Lead/Lag Analysis via Tau-Statistic (Zero-Crossing Shifts) ---
-# Compute the minimum-tau shift between each SSA output and Hamilton.
-# A negative shift indicates that SSA leads Hamilton at zero-crossings.
-max_lead <- 10
-
-# SSA nowcast vs. Hamilton: expected to be approximately synchronized
-shift_obj <- compute_min_tau_func(mplot[, c(1, 4)], max_lead)
-
-# SSA 6-month forecast vs. Hamilton: expected to lead Hamilton by approximately 1.5 quarters
-shift_obj <- compute_min_tau_func(mplot[, c(2, 4)], max_lead)
-
-# SSA 12-month forecast vs. Hamilton: expected to lead Hamilton by approximately two quarters
-shift_obj <- compute_min_tau_func(mplot[, c(3, 4)], max_lead)
-
-# NOTE: The frequency-domain analysis in section 4.8 provides a formal, complementary
-#       characterization of the same smoothness and timeliness properties observed above.
-
-
-#----------------------------------------
-# 4.8 Amplitude and Phase-Shift Functions
-#----------------------------------------
-# PURPOSE:
-#   - Amplitude function: quantifies noise leakage at high frequencies;
-#     values closer to zero indicate stronger suppression of high-frequency noise
-#     and correspond to longer holding times.
-#   - Phase-shift function: quantifies timing distortion in the passband;
-#     a more negative (or smaller) shift at low frequencies indicates a relative lead.
+# =============================================================================
+# 2.9.6 Empirical Holding Times: SSA Variants vs. Hamilton Benchmark
+# =============================================================================
+# We compute empirical holding times (average duration between zero-crossings)
+# for all filter outputs.
 #
-# These frequency-domain diagnostics formally confirm the empirical findings in section 4.7.
+# Expected result:
+#   - All SSA variants should achieve longer holding times than Hamilton,
+#     confirming that the holding-time constraint enforces
+#     stronger noise suppression across all forecast horizons.
+#   - Holding times should be approximately equal (up to random sampling 
+#     error) across SSA variants, since all share the same constraint.
+compute_empirical_ht_func(scale(SSA_out))             # SSA nowcast  (delta = 0)
+compute_empirical_ht_func(scale(SSA_out_forecast_6))  # SSA forecast (delta = 6)
+compute_empirical_ht_func(scale(SSA_out_forecast_12)) # SSA forecast (delta = 12)
+compute_empirical_ht_func(scale(ham_out))             # Hamilton benchmark
 
-# --- Grid Setup ---
-# Number of equidistant frequency ordinates over [0, pi]
+
+# =============================================================================
+# 2.10 Amplitude and Phase-Shift Functions
+# =============================================================================
+# PURPOSE:
+#   Provide formal frequency-domain diagnostics that confirm the empirical
+#   findings of Section 2.7. Two complementary functions are examined:
+#
+#   Amplitude function:
+#     - Quantifies the filter's gain at each frequency.
+#     - High-frequency amplitude close to zero indicates strong noise suppression,
+#       which corresponds directly to longer holding times (smoother output).
+#
+#   Phase-shift function:
+#     - Quantifies timing distortion introduced by the filter at each frequency.
+#     - A more negative (smaller) phase shift in the passband (low frequencies)
+#       indicates a relative lead — i.e., the filter output anticipates
+#       turning points in the target signal.
+#
+# Together, these diagnostics characterise the smoothness-timeliness trade-off
+# across the SSA nowcast, SSA forecast variants, and the Hamilton benchmark.
+
+
+# -----------------------------------------------------------------------------
+# Setup: Frequency Grid and Color Palette
+# -----------------------------------------------------------------------------
+# Number of equidistant frequency ordinates over [0, pi]:
 K <- 600
-
-# --- Color Palette ---
-# Colors assigned to: SSA-nowcast, SSA-forecast(6m), SSA-forecast(12m), Hamilton
+# Colors assigned consistently across all plots:
+#   Column 1 — SSA nowcast  (delta = 0)
+#   Column 2 — SSA forecast (delta = 6 months)
+#   Column 3 — SSA forecast (delta = 12 months)
+#   Column 4 — Hamilton benchmark
 colo <- c("black", "blue", "darkgreen", "red")
-
-# --- Compute Amplitude and Phase-Shift for All Four Filters ---
-# All filters are in the x_t domain (applied to log-return series)
+# -----------------------------------------------------------------------------
+# Compute Amplitude and Phase-Shift Objects for All Four Filters
+# -----------------------------------------------------------------------------
+# All filters are expressed in the x_t domain (i.e., applied to log-return series).
+# amp_shift_func returns both the amplitude and phase-shift at each frequency ordinate.
 amp_obj_SSA_now    <- amp_shift_func(K, as.vector(SSA_filt_ham_diff_x),               F)
 amp_obj_SSA_for_6  <- amp_shift_func(K, as.vector(SSA_filt_ham_diff_x_forecast[, 1]), F)
 amp_obj_SSA_for_12 <- amp_shift_func(K, as.vector(SSA_filt_ham_diff_x_forecast[, 2]), F)
-amp_obj_ham        <- amp_shift_func(K, ham_diff,                                       F)
-
-# --- Panel Layout: Amplitude (top) and Phase-Shift (bottom) ---
+amp_obj_ham        <- amp_shift_func(K, ham_diff,                                      F)
+# -----------------------------------------------------------------------------
+# Panel Layout: Amplitude (top panel) and Phase-Shift (bottom panel)
+# -----------------------------------------------------------------------------
 par(mfrow = c(2, 1))
-
-# ============================================================
 # PLOT 1: Amplitude Functions
-# ============================================================
-
-# Assemble amplitude matrix
+# =============================================================================
+# Assemble amplitude matrix (one column per filter):
 mplot <- cbind(
   amp_obj_SSA_now$amp,
   amp_obj_SSA_for_6$amp,
   amp_obj_SSA_for_12$amp,
   amp_obj_ham$amp
 )
-
-# Normalize each amplitude to 1 at frequency zero (DC component)
-# Enables scale-free comparison of noise suppression across all filters
+# Normalize each amplitude curve to unity at frequency zero (DC component).
+# This enables a scale-free comparison of noise-suppression profiles across
+# filters with potentially different overall gains.
 mplot[, 1] <- mplot[, 1] / mplot[1, 1]
 mplot[, 2] <- mplot[, 2] / mplot[1, 2]
 mplot[, 3] <- mplot[, 3] / mplot[1, 3]
 mplot[, 4] <- mplot[, 4] / mplot[1, 4]
-
-# Descriptive column names encoding filter type, half-length, and forecast horizon
 colnames(mplot) <- c(
-  paste("SSA(", round(ht, 1), ",", 0,                  ")", sep = ""),
-  paste("SSA(", round(ht, 1), ",", forecast_horizon[1], ")", sep = ""),
-  paste("SSA(", round(ht, 1), ",", forecast_horizon[2], ")", sep = ""),
+  paste("SSA(", round(ht, 1), ",", 0,                   ")", sep = ""),
+  paste("SSA(", round(ht, 1), ",", forecast_horizon[1],  ")", sep = ""),
+  paste("SSA(", round(ht, 1), ",", forecast_horizon[2],  ")", sep = ""),
   "Hamilton"
 )
-
-# Plot amplitude functions:
-# Smaller amplitude at high frequencies => stronger noise suppression => longer holding time
+# Plot all normalized amplitude functions.
+# Interpretation: a smaller amplitude at high frequencies implies stronger
+# attenuation of noise, consistent with a longer empirical holding time.
 plot(mplot[, 1], type = "l", axes = F,
      xlab = "Frequency", ylab = "",
-     main = "Amplitude: Hamilton Filter vs. SSA Variants (Post-1990)",
+     main = "Amplitude Functions: Hamilton vs. SSA Variants (Post-1990)",
      ylim = c(min(mplot), max(mplot)), col = colo[1])
 mtext(colnames(mplot)[1], line = -1, col = colo[1])
-
-# Overlay remaining amplitude curves
+# Overlay amplitude curves for remaining filters:
 if (ncol(mplot) > 1) {
   for (i in 2:ncol(mplot)) {
     lines(mplot[, i], col = colo[i])
     mtext(colnames(mplot)[i], col = colo[i], line = -i)
   }
 }
-
 axis(1, at = 1 + 0:6 * K / 6,
      labels = expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
-
-# ============================================================
 # PLOT 2: Phase-Shift Functions
-# ============================================================
-
-# Assemble phase-shift matrix
+# =============================================================================
+# Assemble phase-shift matrix (one column per filter):
 mplot <- cbind(
   amp_obj_SSA_now$shift,
   amp_obj_SSA_for_6$shift,
   amp_obj_SSA_for_12$shift,
   amp_obj_ham$shift
 )
-
-# Reuse same column names as amplitude plot for consistency
 colnames(mplot) <- c(
-  paste("SSA(", round(ht, 1), ",", 0,                  ")", sep = ""),
-  paste("SSA(", round(ht, 1), ",", forecast_horizon[1], ")", sep = ""),
-  paste("SSA(", round(ht, 1), ",", forecast_horizon[2], ")", sep = ""),
+  paste("SSA(", round(ht, 1), ",", 0,                   ")", sep = ""),
+  paste("SSA(", round(ht, 1), ",", forecast_horizon[1],  ")", sep = ""),
+  paste("SSA(", round(ht, 1), ",", forecast_horizon[2],  ")", sep = ""),
   "Hamilton"
 )
-
-# Plot phase-shift functions:
-# Smaller (more negative) shift at low frequencies => relative lead in the passband
+# Plot all phase-shift functions.
+# Interpretation: a smaller phase shift at low (passband) frequencies
+# indicates that the filter output leads the target signal — i.e., turning
+# points are anticipated. A larger shift implies a delay in signal detection.
 plot(mplot[, 1], type = "l", axes = F,
      xlab = "Frequency", ylab = "",
-     main = "Phase-Shift: Hamilton Filter vs. SSA Variants (Post-1990)",
+     main = "Phase-Shift Functions: Hamilton vs. SSA Variants (Post-1990)",
      ylim = c(min(mplot), max(mplot)), col = colo[1])
 mtext(colnames(mplot)[1], line = -1, col = colo[1])
-
-# Overlay remaining phase-shift curves
+# Overlay phase-shift curves for remaining filters:
 if (ncol(mplot) > 1) {
   for (i in 2:ncol(mplot)) {
     lines(mplot[, i], col = colo[i])
     mtext(colnames(mplot)[i], col = colo[i], line = -i)
   }
 }
-
 axis(1, at = 1 + 0:6 * K / 6,
      labels = expression(0, pi/6, 2*pi/6, 3*pi/6, 4*pi/6, 5*pi/6, pi))
 axis(2)
 box()
 
-# ============================================================
-# DISCUSSION: Post-1990 Subsample vs. Full Sample (Examples 2–3)
-# ============================================================
 #
-# IMPROVED STATIONARITY AND HOLDING TIME CONSISTENCY:
-#   - Discarding pre-1990 data (WWII through the Great Inflation era) substantially
-#     reduces structural non-stationarity, yielding a more homogeneous estimation environment.
-#   - As a result, the agreement between theoretical and empirical holding times improves
-#     somehow compared to Examples 2 and 3 (full sample).
-#   - Empirical holding times (mean crossings) of SSA match the intended 50% increase over
-#     the Hamilton benchmark. 
+# =============================================================================
+# DISCUSSION: Frequency-Domain Diagnostics — Amplitude and Phase-Shift
+# =============================================================================
 #
-# HAMILTON FILTER LAG (POST-1990):
-#   - The positive phase-shift (lag) of the Hamilton filter is smaller in the post-1990
-#     subsample than in the full-sample analyses of Examples 2–3.
-#   - This confirms that the Hamilton filter's lag is data-window dependent,
-#     reflecting its reliance on regression parameters estimated from the chosen sample.
+# The two plots above reveal a clear and consistent pattern across three
+# evaluation criteria: smoothness, timeliness, and accuracy.
+#
+# -----------------------------------------------------------------------------
+# Smoothness:
+# -----------------------------------------------------------------------------
+#   - In the top panel (amplitude functions), all SSA designs exhibit smaller
+#     amplitudes than the Hamilton filter (HF) at high frequencies.
+#   - Stronger attenuation of high-frequency components translates directly
+#     into fewer zero-crossings and smoother filter output — confirming that
+#     the holding-time constraint is binding and effective across all SSA variants.
+#
+# -----------------------------------------------------------------------------
+# Timeliness:
+# -----------------------------------------------------------------------------
+#   - In the bottom panel (phase-shift functions), increasing the forecast
+#     horizon progressively reduces the phase shift at low (passband) frequencies.
+#   - A smaller phase shift implies that the filter output leads
+#     the target HF signal — i.e., turning points are detected earlier as the
+#     forecast horizon grows.
+#
+# -----------------------------------------------------------------------------
+# Accuracy:
+# -----------------------------------------------------------------------------
+#   - As the forecast horizon increases, the SSA amplitude functions deviate
+#     more strongly from the Hamilton filter target at low frequencies,
+#     indicating growing passband distortion and a loss of accuracy.
+#   - Zero-shrinkage pulls SSA filter coefficients toward zero, further
+#     attenuating the passband gain. This effect is not visible in the plots
+#     due to the unit normalization applied at frequency zero.
+#   - Notably, the SSA nowcast (black curve) is nearly indistinguishable
+#     from the Hamilton filter across the entire passband:
+#       * Amplitude functions are virtually identical at low frequencies.
+#       * Phase-shift functions are virtually identical at low frequencies,
+#         implying equivalent timeliness between the two.
+#     The SSA nowcast thus matches Hamilton in both accuracy and timeliness,
+#     while strictly dominating it in smoothness (stronger high-frequency
+#     attenuation).
+#
+# -----------------------------------------------------------------------------
+# Key Implication:
+# -----------------------------------------------------------------------------
+#   - The fact that SSA nowcast (black) outperforms HF in smoothness 
+#     (amplitude in stop band) without sacrificing accuracy (amplitude in 
+#     passband) or timeliness (phase-shift in passband) demonstrates that HF is
+#     suboptimal: it does not lie on the efficient Accuracy-Timeliness-
+#     Smoothness (ATS) frontier.
+#   - Put differently, a better filter exists — one that achieves the same
+#     signal-tracking (amplitude in passband) and timing performance 
+#     (time-shift in passband) as HF while attenuating noise (amplitude in 
+#     stop band) more effectively.
+#   - Extending the forecast horizon beyond the nowcast trades accuracy for
+#     timeliness (for fixed HT smoothness) , tracing out a frontier of 
+#     Pareto-improving designs relative to Hamilton along the smoothness-
+#     timeliness dimension.
+# Note: 
+#   - Similar findings applied to HP (tutorial 2.1) where SSA could replicate
+#     HP smoothness (HT) while improving MSE substantially.
 
 
-#----------------------------------------------------------------------------------------------
-# 4.9 Out-of-Sample Application Including the Pandemic Period
-#----------------------------------------------------------------------------------------------
+
+# =============================================================================
+# 2.11 Out-of-Sample Application Including the Pandemic Period
+# =============================================================================
 # PURPOSE:
-#   Apply all filters estimated on the 1990–2019 subsample unchanged (no re-estimation)
-#   to the extended series including the pandemic period (2020 onwards).
+#   Apply all filters estimated on the 1990–2019 subsample — without any
+#   re-estimation — to the extended series that includes the pandemic period
+#   (2020 onwards). This out-of-sample exercise serves two purposes:
+#     (1) Assess whether filter properties established in-sample hold up when
+#         exposed to extreme, unprecedented observations.
+#     (2) Exploit the pandemic shock as a natural impulse experiment
+#         to visualise each filter's impulse response function directly 
+#         in the data.
 #
 # KEY INSIGHT:
-#   The extreme pandemic outliers act as near-perfect impulses in the return series.
-#   Because the filters are linear, each outlier triggers a response proportional to
-#   the filter's impulse response function (sign-inverted filter coefficients).
-#   This provides a rare and instructive opportunity to visualize filter dynamics directly
-#   in the observed output — without any simulation.
+#   The extreme pandemic outliers appear as impulses in the log-differenced
+#   series. By linearity, each filter responds to such an impulse with an output
+#   proportional to its impulse response function. 
 
-# --- Load Extended Sample (1990 to Present, Including Pandemic) ---
+
+# -----------------------------------------------------------------------------
+# Load Extended Sample: 1990 to Present (Including Pandemic)
+# -----------------------------------------------------------------------------
 y <- as.double(log(PAYEMS["1990/"]))
 x <- diff(y)
 
-# Visualize log-returns: the pandemic shock (early 2020) appears as extreme outliers
+# Visualise log-returns: the pandemic shock (early 2020) manifests as extreme
+# outliers — a large negative return followed by a large positive rebound.
 par(mfrow = c(1, 1))
 ts.plot(x, main = "Log-Returns of PAYEMS: 1990–Present (Including Pandemic)")
 abline(h = 0)
 
-#----------------------
-# Apply All Pre-Estimated Filters Out-of-Sample (No Re-Estimation)
-#----------------------
 
-# 1. SSA nowcast filter
+# -----------------------------------------------------------------------------
+# Apply All Pre-Estimated Filters Out-of-Sample (No Re-Estimation)
+# -----------------------------------------------------------------------------
+# Filter coefficients are held fixed at their 1990–2019 in-sample estimates.
+# Any differences in output across filters reflect differences in filter design,
+# not differences in the estimation sample.
+
+# 1. SSA nowcast filter (delta = 0):
 SSA_out <- filter(x, SSA_filt_ham_diff_x, side = 1)
 
-# 2. Hamilton filter
+# 2. Hamilton filter (benchmark):
 ham_out <- filter(x, ham_diff, side = 1)
 
-# 3. SSA 6-month-ahead forecast filter
+# 3. SSA 6-month-ahead forecast filter (delta = 6):
 SSA_out_forecast_6 <- filter(x, SSA_filt_ham_diff_x_forecast[, 1], side = 1)
 
-# 4. SSA 12-month-ahead forecast filter
+# 4. SSA 12-month-ahead forecast filter (delta = 12):
 SSA_out_forecast_12 <- filter(x, SSA_filt_ham_diff_x_forecast[, 2], side = 1)
 
-# --- Visualize All Filter Outputs (Including Pandemic Period) ---
-# Notable pattern: the pandemic dip (large negative impulse) is followed by a secondary
-# positive peak whose magnitude and timing differ across filter designs.
-# This is a direct consequence of the negative lobe in each filter's impulse response:
-# the filters temporarily "mirror" the pandemic shock before returning to baseline.
+
+# -----------------------------------------------------------------------------
+# Visualise All Filter Outputs Over the Extended Sample
+# -----------------------------------------------------------------------------
+# Expected pattern:
+#   The large negative pandemic impulse (early 2020) is followed by a secondary
+#   positive "phantom" peak in each filter output. This phantom peak is a filter
+#   artifact — a direct consequence of the negative lobe in each filter's impulse
+#   response — and does not reflect any real economic signal.
+#   Its magnitude and timing vary across filter designs, reflecting differences
+#   in coefficient shape and rate of decay.
+
+par(mfrow = c(1, 1))
 mplot <- na.exclude(cbind(SSA_out, SSA_out_forecast_6, SSA_out_forecast_12, ham_out))
 colo  <- c("blue", "orange", "darkgreen", "red")
 par(mfrow = c(1, 1))
@@ -1462,12 +1671,16 @@ mtext(paste("SSA forecast: delta =", forecast_horizon[2]), col = colo[3], line =
 mtext("Hamilton filter",                                    col = colo[4], line = -4)
 abline(h = 0)
 
-# --- Revisit Filter Coefficients to Interpret the Pandemic Response ---
-# The secondary post-pandemic peak in each filtered output directly reflects the shape
-# of the corresponding filter's coefficients (sign-inverted impulse response).
-# Comparing filter coefficients explains both:
-#   (a) the magnitude of the secondary peak, and
-#   (b) its location on the time axis (which differs across forecast horizons).
+
+# -----------------------------------------------------------------------------
+# Revisit Filter Coefficients to Interpret the Pandemic Response
+# -----------------------------------------------------------------------------
+# The shape of the phantom post-pandemic peak in each filtered output is 
+# determined by the corresponding filter's coefficient sequence (impulse response).
+# Plotting the coefficients side by side explains:
+#   (a) The relative magnitude of the phantom peak across filter designs.
+#   (b) The temporal location of the phantom peak, which shifts with the
+#       forecast horizon due to the morphing of coefficient weights.
 par(mfrow = c(1, 1))
 ts.plot(SSA_filt_ham_diff_x_forecast,
         col  = c("orange", "darkgreen"),
@@ -1478,29 +1691,31 @@ mtext(paste("Forecast horizon delta =", forecast_horizon[1]), col = "orange",   
 mtext(paste("Forecast horizon delta =", forecast_horizon[2]), col = "darkgreen", line = -2)
 mtext("Nowcast (delta = 0)",                                   col = "blue",      line = -3)
 
-# --- Interpretation: Forecast Filters Recover Faster from Extreme Outliers ---
+
+# -----------------------------------------------------------------------------
+# Interpretation: Forecast Filters Recover More Rapidly from Extreme Outliers
+# -----------------------------------------------------------------------------
+# The phantom post-pandemic peak is a filter artifact whose duration is governed
+# by the rate at which the filter's impulse response decays to zero.
 #
-# The secondary "phantom" peak in the filtered output is a filter artifact, not a real signal.
-# Its timing and height are fully determined by the filter's impulse response structure.
+# Key finding — advantage of longer forecast horizons in the presence of outliers:
+#   - Forecast filters (delta > 0) assign less weight to the remote past and
+#     consequently decay to zero faster than the nowcast or Hamilton filter.
+#   - As a result, they "forget" extreme singular observations — such as the
+#     pandemic shock — more quickly, limiting the duration of filter-induced
+#     distortions in the output.
+#   - Specifically: the 12-month-ahead SSA forecast filter clears the pandemic
+#     outlier approximately 1.5 years after its occurrence.
+#   - By contrast, the SSA nowcast and Hamilton filter require an additional
+#     10–11 months to fully dissipate the impulse response, sustaining the
+#     phantom peak for a materially longer period.
 #
-# Advantage of longer forecast horizons in the presence of outliers:
-#   - Forecast filters decay to zero more rapidly than the nowcast or Hamilton filter.
-#   - Consequently, they "forget" extreme or singular observations (e.g., the pandemic shock)
-#     more quickly, reducing the duration of filter-induced distortions.
-#   - Example: the 12-month-ahead SSA forecast filter clears the pandemic outlier
-#     approximately 1.5 years after its occurrence.
-#   - By contrast, the SSA nowcast and Hamilton filter require an additional 10–11 months
-#     to fully dissipate the impulse response, prolonging the phantom peak.
-#
-# Remark on the HP filter in this context:
-#   - The classic HP-trend filter's impulse response decays faster than Hamilton's.
-#   - Therefore, gross outliers such as the pandemic would produce less pronounced and
-#     shorter-lived phantom peaks under HP — one practical advantage of HP over Hamilton
-#     that is rarely discussed in the "never use HP" literature.
+
+
 
 
 ###################################################################################################
-# SUMMARY OF EXAMPLES 1–4
+# SUMMARY 
 ###################################################################################################
 #
 # PROPOSED FRAMEWORK:
