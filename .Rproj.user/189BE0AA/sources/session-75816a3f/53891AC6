@@ -3,7 +3,7 @@
     "path": "C:/Users/marca/OneDrive/2026/Projects/R-Package-SSA-predictor/M-SSA Tutorials/Introduction_to_tutorials.R",
     "project_path": "M-SSA Tutorials/Introduction_to_tutorials.R",
     "type": "r_source",
-    "hash": "3834249517",
+    "hash": "603085290",
     "contents": "",
     "dirty": false,
     "created": 1776161703344.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "44,63",
-        "scrollLine": "23"
+        "cursorPosition": "338,43",
+        "scrollLine": "323"
     },
     "folds": "",
-    "lastKnownWriteTime": 1776162702,
+    "lastKnownWriteTime": 1776173429,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1776162702214,
+    "last_content_update": 1776173429883,
     "read_only": false,
     "read_only_alternatives": []
 }

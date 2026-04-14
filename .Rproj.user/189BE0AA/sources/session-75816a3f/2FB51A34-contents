@@ -51,8 +51,10 @@
 #            HT in first differences Δy_t.
 #
 # Maximal monotone property:
-#   - If Δy_t is zero-mean, zero-crossings of Δy_t are turning points (TPs) of
-#     y_t which is maximally monotone: no other linear predictor of z_t has
+#   - Zero-crossings of Δy_t are turning points (TPs) of
+#     y_t. If Δy_t is zero-mean, then SSA maximizes the duration between 
+#     zero-crossings (dual formulation) and therefore y_t is maximally 
+#     monotone: no other linear predictor of z_t has
 #     a longer mean duration between consecutive TPs than I-SSA.
 #   - If E[Δy_t] = μ ≠ 0, HT regulates the mean duration between above-average
 #     (Δy_t > μ) and below-average (Δy_t < μ) growth episodes (crossover
@@ -89,6 +91,10 @@ library(mFilter)    # HP and BK trend/cycle filters
 library(quantmod)   # Data retrieval (e.g. from FRED)
 library(pROC)       # ROC curve calculation
 library(tis)        # NBER recession datings for the US
+# Load data from FRED with library alfred (does not require an API-key)
+install.packages("alfred")
+library(alfred)
+
 
 
 # ────────────────────────────────────────────────────────────────
@@ -162,14 +168,13 @@ source(paste(getwd(), "/R utility functions/ROCplots.r", sep = ""))           # 
 reload_data <- FALSE
 
 if (reload_data) {
-  getSymbols("INDPRO", src = "FRED")
+  INDPRO <- get_fred_series("INDPRO", series_name = "INDPRO")
+  INDPRO<-as.xts(INDPRO)
   save(INDPRO, file = file.path(getwd(), "Data", "INDPRO"))
 } else {
   load(file = file.path(getwd(), "Data", "INDPRO"))
 }
-
 tail(INDPRO)   # Quick sanity-check: inspect the last few observations
-
 
 # ············································
 # 1.1.2 Sample selection and transformations
@@ -442,7 +447,9 @@ ht_issa<-bk_obj$ht_issa          # HT of optimized I-SSA: should match ht_constr
 # Rescaling by σ² (the AR(1) innovation variance) converts the theoretical
 # MSE from normalised innovation units to the original INDPRO innovations,
 # making it directly comparable to the sample MSE computed below.
+
 bk_obj$mse_yz * sigma_ip^2
+
 # The sample MSE between the MSE-optimal predictor and I-SSA (exercise 1.10.1)
 # should be close to this theoretical value; discrepancies indicate
 # either finite-sample variability or model misspecification.

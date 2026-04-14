@@ -1,0 +1,17 @@
+# ── THE FORECAST TRILEMMA ─────────────────────────────────────────
+# MSE performance, smoothness, and timeliness constitute a
+# forecast trilemma — see Tutorial 0.1.
+# These three objectives are inherently in tension:
+#
+#   • The classical MSE predictor does not directly optimize
+#     for smoothness or timeliness.
+#
+# As a consequence, the MSE predictor typically exhibits:
+#
+#   • Noise leakage
+#       → Unsystematic random dynamics ("wiggliness") contaminate
+#         the predictor — see Tutorial 0.3
+#
+#   • Lag/retardation 
+#       → The predictor systematically trails behind the target
+#         (right-shift or phase-lag) — see Tutorial 0.3

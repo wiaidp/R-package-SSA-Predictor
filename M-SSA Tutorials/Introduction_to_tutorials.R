@@ -36,15 +36,18 @@
 #   Halle Institute for Economic Research.
 #   https://doi.org/10.18717/dp99kr-7336
 #
-# ============================================================
-
-#
 # Note: Working paper versions are available in the 'Papers' folder
 # of this GitHub repository. Working papers contain full proofs and
 # detailed technical results, whereas published versions are more
 # streamlined, occasionally moving proofs to online appendices.
 
-# ── PREDICTION OBJECTIVES ────────────────────────────────────────
+
+###################################################################
+
+
+# ──────────────── GUIDED TOUR ACROSS SSA/TUTORIAL ───────────────────
+
+# ── A. PREDICTION OBJECTIVES ────────────────────────────────────────
 # The structure of a prediction problem shapes which predictor
 # properties matter most. Key distinctions include:
 #
@@ -64,9 +67,8 @@
 #       → Level accuracy vs. sign-change detection
 #         vs. lead/lag behavior (advancement or retardation) vs. 
 #         noise suppression/smoothness/regularity
-# ─────────────────────────────────────────────────────────────────
 
-# ── ANALYST PREFERENCES AND PREDICTOR PRIORITIES ─────────────────
+# ── B. ANALYST PREFERENCES AND PREDICTOR PRIORITIES ─────────────────
 # Beyond problem structure, subjective preferences, priorities, and
 # risk aversion of the analyst further shape which predictor
 # properties are emphasized.
@@ -86,46 +88,79 @@
 #         predictor relative to the target (i.e., how early or late
 #         an alarm is triggered)
 
-# ── SSA: SIMPLE (or SMOOTH) SIGN ACCURACY ─────────────────────────────
-# SSA is the original and simpler univariate version of M-SSA. 
-# It is a flexible prediction framework applicable to:
-#   • One-step ahead, multi-step ahead, backcasting,
-#     nowcasting, and forecasting settings, as well as smoothing.
+
+# ── C. SSA: SMOOTH SIGN ACCURACY ─────────────────────────────
+#
+# SSA is a flexible univariate prediction framework applicable to
+# stationary time series:
+#   • One-step ahead or multi-step ahead forecasting: tutorial 1
+#   • Backcasting, nowcasting, and forecasting of Signals (Trends/cycles)
+#     tutorials 2-7
+#   • Smoothing: tutorials 8-10
 #
 # SSA explicitly targets key predictor characteristics:
-#   • MSE performance (Mean-Squared Error), target correlation and sign accuracy
-#   • Noise suppression  (smoothness, wiggliness, rate of zero-crossings)
+#   • sign accuracy, target correlation and  MSE (Mean-Squared Error), see, 
+#     e.g., tutorial 0.2.
+#   • Noise suppression  (smoothness, wiggliness, rate of zero-crossings), see, 
+#     e.g., tutorial 0.2.
 #   • It can also address Timeliness  `indirectly'   (lead, left-shift, 
-#     reduced phase-lag)
+#     reduced phase-lag), see, e.g., tutorial 0.1 and tutorials 2-7.
 #
-# Note: SSA can be configured to replicate a linear MSE predictor as a 
-# special case — see Tutorial 0.3.
 
-# ── M-SSA: MULTIVARIATE EXTENSION ────────────────────────────────
-# M-SSA generalizes the SSA framework to a multivariate setting,
-# allowing joint control of predictor characteristics across
-# multiple time series, see tutorial 7.
+# ── D. I-SSA: NON-STATIONARY PROCESSES ──────────────────────────────────
+#
+# I-SSA generalises the univariate SSA framework to handle integrated 
+# (non-stationary) processes. 
+#   - SIMULTANEOUS LEVEL AND GROWTH TRACKING:
+#     I-SSA jointly addresses two complementary objectives in a single design:
+#       (i)  Target tracking in levels: minimising the mean-squared error
+#            between the filter output and the target signal on the
+#            non-stationary level series.
+#       (ii) Growth-sign tracking in first differences: ensuring that the
+#            direction of change (sign of the first difference) in the
+#            filter output correctly reflects the direction of change in
+#            the underlying target, a property that is critical for
+#            real-time turning-point detection.
+# The theoretical foundations, algorithmic details, and empirical applications
+# of I-SSA are developed in Tutorial 6.
 
-# ── THE FORECAST TRILEMMA ─────────────────────────────────────────
-# MSE performance, smoothness, and timeliness constitute a
-# forecast trilemma — see Tutorial 0.1.
-# These three objectives are inherently in tension:
-#
-#   • The classical MSE predictor does not directly optimize
-#     for smoothness or timeliness.
-#
-# As a consequence, the MSE predictor typically exhibits:
-#
-#   • Noise leakage
-#       → Unsystematic random dynamics ("wiggliness") contaminate
-#         the predictor — see Tutorial 0.3
-#
-#   • Lag/retardation 
-#       → The predictor systematically trails behind the target
-#         (right-shift or phase-lag) — see Tutorial 0.3
 
-# ── SSA OPTIMIZATION PRINCIPLE ────────────────────────────────────
-# See Tutorial 0.2 for implementation details.
+# ── E. M-SSA: MULTIVARIATE EXTENSION ────────────────────────────────
+#
+# M-SSA generalises the univariate SSA framework to a multivariate setting,
+# enabling the simultaneous extraction of cycle or trend signals from multiple
+# time series under a common set of smoothness constraints. 
+#
+# The theoretical foundations, algorithmic implementation, and empirical
+# applications of M-SSA are developed in Tutorial 7.
+
+
+# ── SSA / I-SSA / M-SSA SMOOTHING ───────────────────────────────────────────
+#
+# Beyond classic target tracking and customization, SSA and its extensions 
+# (I-SSA, M-SSA) can be directed at the original data series itself rather 
+# than at a pre-specified benchmark filter or target. In this mode, the
+# smoothness constraint is applied directly to the raw input, giving rise to
+# two conceptually novel constructs:
+#
+#   - A NEW SMOOTHING PARADIGM:
+#       Rather than approximating a fixed target filter, SSA minimises the
+#       distance to the observed data subject to the holding-time constraint.
+#       The result is a data-adaptive smoother whose degree of smoothness is
+#       directly controlled by the analyst through the holding-time parameter,
+#       without reference to any external benchmark, see tutorials 8 and 10.
+#
+#   - A NEW TREND DEFINITION:
+#       The smoothed output can be interpreted as a principled, operationally
+#       well-defined trend: the smoothest signal consistent with the data up
+#       to the prescribed holding-time tolerance. This trend definition is
+#       grounded in the SSA optimality framework rather than in ad hoc frequency
+#       cut-offs or regression specifications. See tutorial 9.
+#
+# The theoretical foundations, algorithmic details, and empirical applications
+# of SSA/I-SSA/M-SSA smoothing are developed in Tutorials 8–10.
+
+# ── G. SSA OPTIMIZATION PRINCIPLE ───────────────────────────────────
 #
 # Core objective:
 #   Maximize sign-accuracy (or target correlation) subject to a 
@@ -149,10 +184,14 @@
 #       → Equivalent to controlling holding-time under Gaussianity;
 #         near-equivalent for non-Gaussian processes in practice
 #
+# Details and empirical applications are developed in Tutorial 0.2.
+#
 # Theoretical background:
 #   → Section 2 Wildi (2024), Wildi (2026b); section 4 Wildi (2026a) 
 
-# ── MOTIVATION: WHY ZERO-CROSSINGS MATTER ─────────────────────────
+
+# ── H. MOTIVATION: WHY ZERO-CROSSINGS MATTER ─────────────────────────
+#
 # In many applications, zero-crossings (sign changes) serve as
 # markers of significant events, triggering decisions or
 # interventions by analysts, decision-makers, or market participants.
@@ -181,7 +220,7 @@
 #
 # Limitations of the classical MSE predictor:
 #   → Tends to be noisy (spurious alarms) and lagging
-#     behind the target — see Tutorial 0.3
+#     behind the target — see Tutorial 0.3 (+tutorials 2-7)
 #
 # SSA improves upon the MSE benchmark by offering:
 #   • Noise suppression  → fewer spurious alarms
@@ -190,7 +229,29 @@
 # Notably, SSA can be simultaneously smoother and faster than the
 # benchmark — see Tutorials 2–5.
 
-# ── SSA: BACKGROUND AND SCOPE ─────────────────────────────────────
+
+# ── I. FORECAST TRILEMMA ─────────────────────────────────────────
+#
+# MSE performance, smoothness, and timeliness constitute a
+# forecast trilemma — see Tutorial 0.1.
+# These three objectives are inherently in tension:
+#
+#   • The classical MSE predictor does not directly optimize
+#     for smoothness or timeliness.
+#
+# As a consequence, the MSE predictor typically exhibits:
+#
+#   • Noise leakage
+#       → Unsystematic random dynamics ("wiggliness") contaminate
+#         the predictor — see Tutorial 0.3
+#
+#   • Lag/retardation 
+#       → The predictor systematically trails behind the target
+#         (right-shift or phase-lag) — see Tutorial 0.3
+
+
+# ── J. SSA (M-SSA/I-SSA): SCOPE ─────────────────────────────────────
+#
 # SSA navigates the forecast trilemma through two hyperparameters:
 #   • Holding-time (or equivalently, first-order ACF)
 #   • Forecast horizon
@@ -201,9 +262,9 @@
 # Key properties:
 #
 #   • Generalization of MSE
-#       → Assigning full weight to MSE replicates the classical
+#       → Imposing the HT of MSE to SSA replicates the classical
 #         predictor exactly — see Tutorial 0.3 and the remark
-#         after Theorem 1 in the JBCY paper
+#         after Theorem 1 in Wildi 2024, 2026a
 #
 #   • Generalization of linear predictors
 #       → In principle, any linear forecast rule can be replicated
@@ -213,14 +274,9 @@
 #       → Once a classical linear forecast is replicated, SSA can
 #         be used to make it faster, smoother, or both (see tutorials 1-5)
 #
-#   • Scope
-#       → SSA addresses univariate linear predictors for stationary processes;
-#         I-SSA extends this to non-stationary processes (see Tutorial 6);
-#         M-SSA generalizes the framework to multivariate designs (see
-#         Tutorial 7); optimal smoothing is covered in Tutorials 8, 9, and 10.
 
-# ─────────────────────────────────────────────────────────────────
-# ── SSA AS A PLUG-ON ──────────────────────────────────────────────
+# ── K. SSA AS A PLUG-ON ──────────────────────────────────────────────
+#
 # SSA can be used in two distinct modes:
 #
 #   • Standalone
@@ -230,7 +286,7 @@
 #   • Plug-on
 #       → SSA is grafted onto an existing benchmark predictor,
 #         enhancing its smoothness and/or timeliness in a
-#         controlled and predictable manner
+#         controlled and predictable manner, see section 3.2 in Wildi 2026b
 #
 # In this tutorial series, plug-on applications are demonstrated
 # for the following benchmarks:
@@ -238,52 +294,49 @@
 #   • MSE predictor              → Tutorials 0–5
 #   • Hodrick-Prescott (HP) filter  → Tutorials 2, 6 and 7
 #   • Hamilton filter (HF)          → Tutorial 3
-#   • Baxter-King (BK) filter        → Tutorial 4
-#   • Beveridge-Nelson (refined)     → Tutorial 5
+#   • Baxter-King (BK) filter       → Tutorial 4
+#   • Beveridge-Nelson (refined)    → Tutorial 5
 
 
-# ── TYPICAL PLUG-ON CONFIGURATIONS IN THIS TUTORIAL SERIES ──────────────
-# In the tutorials, SSA plug-on applications are configured to:
+# ── L. INTERPRETABILITY ──────────────────────────────────────────────
 #
-#   • Increase holding-time (ht)
-#       → Mean duration between consecutive zero-crossings
-#         extended by up to 50%, reducing spurious noisy alarms
-#         by up to 33%
-#
-#   • Advance the benchmark (lead / left-shift)
-#       → Typically between 1 and 6 time units ahead of the target
-#
-# More aggressive settings (faster and/or smoother) are possible,
-# but always within the constraints of the forecast trilemma —
-# i.e., at the cost of increased MSE.
-
-
-# ── INTERPRETABILITY ──────────────────────────────────────────────
-# Optimization criterion:
+# OPTIMIZATION CRITERION:
 #   The objective (sign accuracy, target correlation, or MSE) and the
-#   HT constraint are both readily interpretable.
-# Optimization:
+#   HT constraint are interpretable and intuitively appealing.
+
+# OPTIMIZATION:
 #   Numerical computations are fast and the search space is
 #   convex (except in singular cases requiring extreme smoothing),
-#   guaranteeing a unique solution.
-# Benchmark customization:
-#   Since SSA tracks the benchmark optimally, it inherits and
-#   preserves the interpretability of the latter — including its
-#   original economic meaning and content.
-# 
+#   guaranteeing convergence to the unique global optimum.
 
-# ─────────────────────────────────────────────────────────────────
-# ── SSA Extensions ───────────────────────────────────────────────
-# - I-SSA and maximal monotone predictors: extension to non-stationary
-#   integrated time series; see Tutorial 6.
-# - M-SSA: extension to multivariate prediction problems; see Tutorial 7.
-# - SSA smoothing: see Tutorial 8.
-# - I-SSA smoothing and the I-SSA trend: see Tutorial 9.
-# - M-SSA smoothing: see Tutorial 10.
-
+# CUSTOMIZATION:
+#   When operated in plug-on mode, SSA does not replace the benchmark filter
+#   (e.g., Hodrick Prescott, Hamilton, Baxter King, Beveridge Nelson, ARMA, VARMA) 
+#   but rather grafts onto it, seeking the optimal causal approximation to 
+#   the benchmark subject to the imposed ATS constraints.
+#   This design choice has three important consequences:
+#
+#   - INHERITED INTERPRETABILITY:
+#       Because SSA tracks the benchmark as closely as possible within the
+#       imposed constraints, the resulting filter inherits the economic
+#       interpretation of the benchmark. The SSA output can be read and
+#       communicated in exactly the same terms as the original filter.
+#
+#   - PRESERVED ECONOMIC CONTENT:
+#       The original economic meaning embedded in the benchmark — whether it
+#       captures the business cycle, the output gap, or employment deviations
+#       from trend — is carried through to the SSA filter by construction.
+#       SSA refines the benchmark's real-time properties without redefining
+#       what is being measured.
+#
+#   - TRANSPARENT IMPROVEMENTS:
+#       Any gains in smoothness or timeliness relative to the benchmark are
+#       directly attributable to the SSA constraints, making the source of
+#       improvement explicit and quantifiable rather than an opaque artefact
+#       of a black-box procedure.
 
 # =============================================================================
-# THEORETICAL FOUNDATION: THE SSA EFFICIENCY FRONTIER
+# THEORETICAL FOUNDATION: THE SSA EFFICIENT FRONTIER
 # =============================================================================
 # Wildi (2026a, 2026b) establish a fundamental DUALITY RESULT for SSA and
 # its multivariate extension M-SSA:
@@ -329,30 +382,6 @@
 #   -Maximize tracking accuracy subject to a HT constraint.
 # =============================================================================
 
-
-# ── ASSUMPTIONS ───────────────────────────────────────────────────
-#
-# ── Stationarity and zero mean ────────────────────────────────────
-# For simplicity, the target and predictor are assumed to be
-# stationary and zero-mean.
-#   • For processes with a non-zero mean, zero-crossings should be
-#     replaced by mean-crossings throughout
-#   • An extension to non-stationary processes is given in Wildi (2026a) 
-#     → Max-monotone and min-curvature SSA predictors, see tutorials 6 and 9
-#
-
-# ── Gaussianity ───────────────────────────────────────────────────
-# The formal theoretical framework assumes Gaussian processes.
-#   • Under Gaussianity, sign-accuracy and holding-time map exactly
-#     onto correlation and first-order ACF, respectively
-#     → See Section 2 of the JBCY, SSA, and M-SSA papers
-#
-#   • SSA is robust to departures from Gaussianity
-#     (e.g., volatility clustering, heavy tails)
-#     → This robustness follows from a central limit theorem argument
-#     → Typical deviations from Gaussianity, as commonly encountered
-#       in economic time series, do not materially affect performance
-#     → See applications in Wildi (2024) and simulation studies in Wildi (2026 a,b)
 
 
 # ─────────────────────────────────────────────────────────────────
