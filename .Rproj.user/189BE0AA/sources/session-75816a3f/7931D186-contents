@@ -84,7 +84,18 @@
 #   SSA makes this trade-off explicit and controllable via its
 #   optimization criterion. 
 
-#   SSA delineates the efficient Accuracy-Smoothness frontier, see Wildi (2026a), (2026b) 
+# In its original (primal) form, SSA traces the efficient Accuracy-Smoothness
+# frontier by delivering the highest tracking accuracy (measured in terms of 
+# sign accuracy, target correlation or MSE) for
+# any feasible smoothness (holding-time) constraint. Equivalently, in its dual
+# form, SSA maximises the holding time for any given feasible MSE budget. Both
+# characterisations are equivalent formulations of the frontier, see Wildi (2026a)
+# and (2026b). Incorporating the forecast horizon as a third degree of freedom
+# extends the two-dimensional Accuracy-Smoothness frontier to the full
+# three-dimensional Accuracy-Timeliness-Smoothness (ATS) trilemma, within
+# which SSA identifies the optimal filter design for any prescribed combination
+# of timeliness (forecast horizon) and smoothness (holding-time) targets, see 
+# example 3. 
 
 
 # ── BACKGROUND ────────────────────────────────────────────────────
@@ -92,11 +103,15 @@
 #     Business Cycle Analysis and Zero-Crossings of Time Series:
 #     a Generalized Forecast Approach.
 #     https://doi.org/10.1007/s41549-024-00097-5
-
-# Theoretical background:
+#
 #   Wildi, M. (2026a) Sign Accuracy, Mean-Squared Error and the Rate
 #     of Zero Crossings: a Generalized Forecast Approach.
 #     https://doi.org/10.48550/arXiv.2601.06547
+#
+# Wildi, M. (2026b). The Accuracy-Smoothness Dilemma in Prediction:
+#   A Novel Multivariate M-SSA Forecast Approach.
+#   Journal of Time Series Analysis, http://doi.org/10.1111/jtsa.70058 
+#   arXiv: https://doi.org/10.48550/arXiv.2602.13722
 
 # ─────────────────────────────────────────────────────────────────
 
@@ -1319,9 +1334,9 @@ cor(mplot)
 #       * ssa_x   : the filter applied directly to the observed series xt
 #       * ssa_eps : the equivalent filter applied to the white noise innovations epsilon_t
 
-######################################################################################################################
+# ------------------------------------------------------------------------
 # 5.1 Generate and Filter Autocorrelated Data
-######################################################################################################################
+# ------------------------------------------------------------------------
 
 set.seed(4)       # Set seed for reproducibility of the simulated series
 len <- 1200       # Sample length: 1200 observations (e.g., 100 years of monthly data)
@@ -1357,9 +1372,9 @@ ts.plot(y_hp,
         ylab = "Filtered Series",
         xlab = "Time")
 
-######################################################################################################################
+# ------------------------------------------------------------------------
 # 5.2 Holding Time: Correcting for Autocorrelation via the Wold Decomposition
-######################################################################################################################
+# ------------------------------------------------------------------------
 # The holding time (ht) measures the expected number of observations between consecutive
 # zero-crossings of the filter output. A larger ht => smoother output with fewer sign changes.
 #
@@ -1439,9 +1454,9 @@ compute_empirical_ht_func(y_hp)   # Should now closely match ht_hp_conv_obj$ht
 #   different business cycles — even if lambda is the same. This was highlighted in Tutorial 2.0.
 #   The Wold decomposition-based correction is essential for consistent cross-series comparisons.
 
-######################################################################################################################
+# ------------------------------------------------------------------------
 # 5.3 SSA Design: Hyperparameters and Filter Specification for Autocorrelated Data
-######################################################################################################################
+# ------------------------------------------------------------------------
 
 # Target holding time for SSA:
 #   We want SSA to produce a SMOOTHER output than HP-concurrent (i.e., fewer zero-crossings).
@@ -1501,9 +1516,9 @@ SSA_obj_HP <- SSA_func(L, forecast_horizon, gammak_generic, rho1, xi)
 SSA_filt_HP <- ssa_x <- SSA_example5 <- SSA_obj_HP$ssa_x   # Filter for observed data xt
 ssa_eps <- SSA_obj_HP$ssa_eps                                # Filter for innovations epsilon_t
 
-######################################################################################################################
+# ------------------------------------------------------------------------
 # 5.4 Plot: Compare Filters in Both the xt and epsilon_t Domains
-######################################################################################################################
+# ------------------------------------------------------------------------
 
 par(mfrow = c(2, 1))
 
@@ -1543,7 +1558,7 @@ axis(2)
 box()
 
 
-######################################################################################################################
+# ------------------------------------------------------------------------
 # 5.5 Filter Series and Compare Classic Concurrent HP with SSA
 #
 # Overview:
@@ -1554,7 +1569,7 @@ box()
 #   1. Verify that the empirical holding time of SSA matches the target (ht = 1.5 * ht_HP).
 #   2. Confirm that SSA produces ~50% fewer zero-crossings than HP-concurrent.
 #   3. Visually inspect the qualitative difference between the two filter outputs.
-######################################################################################################################
+# ------------------------------------------------------------------------
 
 # Generate a long ARMA(1,1) series for accurate empirical evaluation.
 # Using len=100,000 observations ensures that empirical statistics (e.g., holding times,
@@ -1668,12 +1683,20 @@ abline(h=0)
 #     (ARMA(1,1)), we obtain a genuinely optimal concurrent filter — one that actually does
 #     what practitioners believe HP-concurrent is doing.
 #
-# What this example does NOT address:
-#   - The majority of HP use-cases, where practitioners are SATISFIED WITH HP-CONCURRENT
-#     as a pertinent BCA tool (even if it does not optimally track the two-sided target).
-#   - Examples 2, 3, and 5 "engraft" SSA onto HP-concurrent for users who prefer the
-#     HP-concurrent as their design benchmark.
-#   - Shortly: If you are satisfied with classic HP-concurrent you may skip this exercise.
+# What This Example Does NOT Address:
+#
+#   - It does not address use-cases in which practitioners are satisfied with
+#     the HP-concurrent filter as a pertinent BCA tool, even if HP-concurrent
+#     does not optimally track the two-sided (symmetric) HP target.
+#
+#   - Users who prefer HP-concurrent as their design benchmark are better
+#     served by Examples 2, 3, and 5, which "engraft" SSA directly onto
+#     HP-concurrent, preserving its familiar cycle definition while improving
+#     its ATS properties.
+#
+#   - In short: if HP-concurrent is your preferred benchmark and you are
+#     satisfied with its BCA performance, this example can be skipped without
+#     loss of continuity.
 #
 # What this example DOES address:
 #   - Analysts specifically interested in OPTIMALLY TRACKING the symmetric (two-sided) HP
@@ -1685,9 +1708,9 @@ abline(h=0)
 #   target (symmetric HP), the data model (ARMA), and the forecast horizon (nowcast of
 #   a non-causal filter) are all intertwined. Read the comments carefully.
 
-######################################################################################################################
+# ------------------------------------------------------------------------
 # 6.1 Specify the Symmetric HP Filter as the Optimization Target
-######################################################################################################################
+# ------------------------------------------------------------------------
 
 # Filter length for the symmetric HP filter.
 # We use L_sym=401 (twice the one-sided filter length L=201, minus 1) so that when the
@@ -1849,9 +1872,11 @@ ht_hp_conv_mse <- ht_hp_conv_mse_obj$ht
 ht_hp_conv_mse   # Holding time of MSE-optimal filter (ARMA data) — should be > ht_mse
 ht_mse           # Holding time of hp_mse (white noise assumption) — reference from Example 1
 
-######################################################################################################################
+
+
+# ------------------------------------------------------------------------
 # 6.2 SSA Design: Optimal Tracking of the Symmetric HP Filter with Autocorrelated Data
-######################################################################################################################
+# ------------------------------------------------------------------------
 
 # Target holding time for SSA:
 #   We augment the MSE-optimal holding time by 50%, requesting a smoother filter than MSE.
