@@ -31,7 +31,9 @@
 #   • Exercise 2 benchmarks SSA against a classical logit model,
 #     providing direct empirical evidence for this efficiency claim.
 #
-#   • Exercise 3 provides more refined and detailed out-of-sample comparisons.
+#   • Exercise 3 extends exercise 2 to a comprehensive Monte Carlo 
+#     simulation experiment, providing more refined and detailed 
+#     out-of-sample comparisons and statistical significance tests.
 # ─────────────────────────────────────────────────────────────────
 
 # ── BACKGROUND ────────────────────────────────────────────────────
