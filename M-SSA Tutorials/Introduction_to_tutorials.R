@@ -1,12 +1,13 @@
 # ─────────────────────────────────────────────────────────────────
-# M-SSA PREDICTOR: A TUTORIAL SERIES
+# SSA, I-SSA, M-SSA PREDICTOR: A TUTORIAL SERIES
 # ─────────────────────────────────────────────────────────────────
 
-# The M-SSA provides a unified framework for solving general prediction problems 
-# while simultaneously accommodating specific research priorities and objectives.
+# The SSA and its extensions I-SSA and M-SSA provide a unified framework for 
+# solving general prediction problems while simultaneously accommodating 
+# specific research priorities and objectives.
 
-# This series of tutorials introduces M-SSA, with a focus on controlling key 
-# characteristics of the predictor.
+# This series of tutorials introduces SSA, I-SSA and M-SSA, with a focus on 
+# controlling key characteristics of the predictor.
 
 # Optimization criteria are simple, effective and interpretable. Optimization 
 # problems have unique solutions and the optimization algorithms converge 
@@ -160,7 +161,7 @@
 #       logically consistent and statistically efficient. See tutorial 9.
 #
 # The theoretical foundations, algorithmic details, and empirical applications
-# of SSA/I-SSA/M-SSA smoothing are developed in Tutorials 8–10.
+# of (SSA/I-SSA/M-SSA) SMOOTHING are developed in Tutorials 8–10.
 
 # ── G. SSA OPTIMIZATION PRINCIPLE ───────────────────────────────────
 #
@@ -174,7 +175,7 @@
 #
 #   • Holding-time
 #       → Expected duration between consecutive zero-crossings
-#         (sign changes) of the predictor
+#         (sign changes) of the (mean zero, stationary) predictor
 #
 # As implemented in the R code, the criterion is reformulated as:
 #

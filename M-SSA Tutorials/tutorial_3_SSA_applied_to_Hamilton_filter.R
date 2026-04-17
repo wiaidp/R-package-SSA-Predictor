@@ -12,7 +12,7 @@
 #
 # Datasets:
 #   - Example 1:        Quarterly US GDP
-#   - Examples 2 & 3:  Monthly US non-farm payroll employment (PAYEMS)
+#   - Example 2:        Monthly US non-farm payroll employment (PAYEMS)
 #
 # Sample coverage:
 #   Both long samples (post-WWII for GDP) and shorter samples (post-Great 
@@ -31,11 +31,12 @@
 #      advantages for business cycle analysis (BCA):
 #
 #        (a) Mitigation of spurious cycles:
-#              Low-pass behaviour suppresses the artificial oscillations that
-#              band-pass filters tend to impose on the data, regardless of
-#              whether such oscillations are present in the underlying series.
+#              Low-pass behaviour (in first differences) suppresses the 
+#              artificial oscillations that band-pass filters tend to impose 
+#              on the data, regardless of whether such oscillations are 
+#              present in the underlying series.
 #
-#        (b) Advantage over classic band-pass designs:
+#        (b) Advantage over classic band-pass designs (in first differences):
 #              Filters such as Baxter-King (BK), Christiano-Fitzgerald (CF),
 #              and the HP-gap are all band-pass in nature and therefore prone
 #              to spurious cycle generation. HF avoids this pathology by design.
@@ -46,7 +47,7 @@
 #      By increasing the AR lag order p in the regression specification, HF can
 #      accommodate series integrated to an arbitrary order. This makes it
 #      well-suited for macroeconomic indicators whose growth rates evolve slowly
-#      over long historical samples — a common feature of post-WWII data.
+#      over long historical samples (e.g, post-WWII data).
 #
 #
 # 3. HF IS SAMPLE-DEPENDENT:
@@ -86,7 +87,7 @@
 #      another. HF does not lie on this frontier:
 #        - SSA can strictly improve the smoothness (noise suppression) of HF
 #          without materially sacrificing accuracy or timeliness.
-#          See Example 2.9 for empirical confirmation.
+#          See Examples 2.9 and 2.10 for empirical confirmation.
 #        - An analogous result holds for HP-based filters; see Tutorial 2.1.
 #        - This inefficiency provides a clear and well-motivated rationale for
 #          applying SSA customization to HF.
