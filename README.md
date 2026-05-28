@@ -22,7 +22,7 @@ Repository: https://github.com/wiaidp/R-package-SSA-Predictor
 
 
 
-Background (references \& links): https://github.com/wiaidp/R-package-SSA-Predictor/blob/main/about
+Background (references \& links): https://github.com/wiaidp/R-package-SSA-Predictor/blob/main/about.md
 
 
 
