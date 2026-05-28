@@ -22,7 +22,7 @@ Repository: https://github.com/wiaidp/R-package-SSA-Predictor
 
 
 
-Background (references \& links): https://github.com/wiaidp/R-package-SSA-Predictor/about
+Background (references \& links): https://github.com/wiaidp/R-package-SSA-Predictor/blob/main/about
 
 
 
@@ -44,7 +44,7 @@ The project directory is organized into sub-folders:
 
 4.R (repository of SSA, I-SSA and M-SSA optimization)
 
-5.R utility functions 
+5.R utility functions
 
 6.Results
 
