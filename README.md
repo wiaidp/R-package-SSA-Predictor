@@ -54,7 +54,7 @@ The project directory is organized into sub-folders:
 
 
 
-Getting started: Open the R project by clicking the project icon located in the main repository. This will launch the project in RStudio. From there, load any tutorial file from the `M-SSA Tutorials' sub-folder and run the code. Tutorials are arranged in order of increasing complexity.
+Getting started: Open the R project by clicking the project icon (M-SSA\_package.Rproj) located in the main repository. This will launch the project in RStudio and automatically set paths to functions and data. From there, load any tutorial file from the `M-SSA Tutorials' sub-folder and run the code. Tutorials are arranged in order of increasing complexity.
 
 
 
