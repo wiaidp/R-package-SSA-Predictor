@@ -2890,7 +2890,7 @@ rownames(ROC_data)<-rownames(data_roc)
 colnames(ROC_data)<-c("Target","Direct forecast","Direct HP forecast","M-MSE","M-SSA")
 ROC_data<-as.data.frame(na.exclude(ROC_data))
 # Select plots that will be shown    
-showLegend<-F
+showLegend<-T
 AUC<-ROCplots(ROC_data, showROC , main = "One year ahead", lbls = lbls,
               smoothROC , colours =NULL, lwd = 2,
               showLegend , lg_cex = 1, lg_ncol = 1)

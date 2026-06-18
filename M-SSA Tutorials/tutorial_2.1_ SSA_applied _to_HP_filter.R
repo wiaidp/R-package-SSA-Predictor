@@ -653,6 +653,18 @@ mtext(paste("SSA(",ht,",",forecast_horizon,")",sep=""),col=colo[1],line=-1)
 mtext("HP-concurrent",col=colo[2],line=-2)
 abline(h=0)
 
+# Close-up with zero-crossings marked by vertical lines
+par(mfrow = c(1, 1))
+anf <- 1030
+enf <- 1130
+ts.plot(mplot[anf:enf,],col=colo)
+mtext(paste("SSA(",ht,",",forecast_horizon,")",sep=""),col=colo[1],line=-1)
+mtext("HP-concurrent",col=colo[2],line=-2)
+abline(h=0)
+abline(v=which(sign(mplot[anf:(enf-1),1]*mplot[(anf+1):(enf),1])<0)+1,col="blue")
+abline(v=which(sign(mplot[anf:(enf-1),2]*mplot[(anf+1):(enf),2])<0)+1,col="green",lty=2)
+
+
 #-----------------------------------------------------------------------------------
 # 2.4 Shift Analysis: Relative Timing of SSA vs. HP Concurrent
 #

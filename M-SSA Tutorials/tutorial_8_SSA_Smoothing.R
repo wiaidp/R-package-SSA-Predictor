@@ -96,7 +96,7 @@
 #
 #   b) Interpretability: the HT parameter is directly interpretable as the
 #                        mean duration between consecutive mean-crossings
-#                        of the smoothed output. 
+#                        of the smoothed output (in contrast to lambda in HP). 
 #
 # Under misspecification of ξ, both optimality and interpretability are
 # compromised.
@@ -1121,7 +1121,7 @@ SSA_obj$crit_rhoy_target
 # (TPs) than HP for an equal HT, since HP minimises curvature and thereby
 # suppresses TPs. 
 # 
-# Problem formulation in thsi exercise 2: design an SSA smoother that replicates 
+# Problem formulation in this exercise 2: design an SSA smoother that replicates 
 # not the HT of HP, but rather its rate of turning points (TPs) — a strictly 
 # stronger smoothness requirement, since matching the TP rate of HP demands a
 # substantially larger HT in SSA. Since HP evolves monotonically between TPs
