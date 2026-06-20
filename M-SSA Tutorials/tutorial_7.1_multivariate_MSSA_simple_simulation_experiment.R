@@ -69,6 +69,8 @@
 #   Journal of Time Series Analysis, http://doi.org/10.1111/jtsa.70058 
 #   arXiv: https://doi.org/10.48550/arXiv.2602.13722
 #
+# Note: the Arxiv version is technically more advanced.
+#
 # Heinisch, K., Van Norden, S., and Wildi, M. (2026).
 #   Smooth and Persistent Forecasts of German GDP:
 #   Balancing Accuracy and Stability.
@@ -110,10 +112,10 @@ source(paste(getwd(), "/R/MSSA.r", sep = ""))
 source(paste(getwd(), "/R utility functions/HP_JBCY_functions.r", sep = ""))
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# There are potential problems when loading SSA together with MSSA.
+# Warning: There are potential problems when loading SSA together with MSSA.
 # Some function names are the same but the underlying functions are different.
 # Advice: M-SSA generalizes SSA, therefore there is no need to load the SSA 
-# functions in addition to M-SSA. All relevant function for M-SSA are packed 
+# functions in addition to M-SSA. All relevant functions for M-SSA are packed 
 # in functions_MSSA.r. DO NOT SOURCE simple_sign_accuracy.r when working with 
 # M-SSA
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -225,8 +227,13 @@ par(mfrow = c(1, 1))
 ts.plot(x_mat[(len - 99):len, ])
 
 # ── Long simulation: T = 100,000 observations ────────────────────────────────
-# Used to verify that finite-sample estimates converge to their
-# theoretical (asymptotic) counterparts, validating the M-SSA formulas.
+# Verifies that finite-sample estimates converge to their theoretical
+# (asymptotic) counterparts, validating the M-SSA formulas.
+# Simulated series may differ from empirical equivalents, possibly
+# indicating model misspecification, but this is not our concern here.
+# Main question: does M-SSA conform to theory under the assumed
+# (true) data generating process?
+
 len <- 100000
 set.seed(871)
 x_mat <- VARMAsim(len, arlags = c(p), phi = Phi, sigma = Sigma)$series
@@ -358,6 +365,8 @@ for (i in 1:n) {
 #   - More generally, the plots reveal which series act as leading indicators
 #     for others within the VAR(1) system.
 
+# Note: these issues are unrelated to M-SSA — we remain strictly in VAR territory.
+ 
 
 # ------------------------------------------------------------
 # 1.4 Target Filter Specification for M-SSA
@@ -369,6 +378,7 @@ for (i in 1:n) {
 #     to that specific series (nowcast: unshifted).
 #   - Alternatively, the target could be shifted forward (forecast) or
 #     backward (backcast) to suit different prediction horizons.
+#   - Targets can be any combination of (filtered/shifted) series.
 #
 # Filter Matrix Structure:
 #   - The target filter matrix has dimension n x (n*L):
@@ -380,6 +390,8 @@ for (i in 1:n) {
 #     the length-L sub-filter applied to input series j.
 #   - In the present setup, the off-diagonal blocks are zero:
 #     each series is targeted by HP applied to itself only.
+#   - Populating off-diagonal blocks would allow arbitrary mixing of series in 
+#     the target specification.
 
 # ── Specify the target filter for series 1 (BIP / GDP) ──────────────────────
 # Row 1: HP coefficients for series 1, followed by zeros for series 2 to n.
