@@ -441,6 +441,8 @@ ts.plot(c(hp_one_sided[L:2], hp_one_sided[1:L]),
 
 # Note: an equivalent target specification — passing the full two-sided filter
 #       directly rather than relying on mirroring — is demonstrated further below.
+#       This is tricky because the symmetric filter is acausal, and acausal 
+#       filters (negative lags) cannot be represented in vectors and matrices. 
 
 
 # ------------------------------------------------------------
@@ -457,7 +459,8 @@ ts.plot(c(hp_one_sided[L:2], hp_one_sided[1:L]),
 # Caution for backcasts (delta < 0):
 #   - The holding-time (HT) constraint may be too restrictive relative to
 #     the backward shift, causing M-SSA to un-smooth the data.
-#   - The resulting filters may appear irregular or counterintuitive.
+#   - The resulting filters may appear irregular or counterintuitive (but 
+#     formally correct and optimal).
 
 # Select the desired prediction horizon:
 delta <- 0   # Nowcast
@@ -565,7 +568,9 @@ for (i in 1:n) {
 #   - The longitudinal and cross-sectional weight distributions
 #     directly reflect the dependency structure encoded in the VAR(1).
 #   - Larger HT constraints (smoother predictors) manifest as a
-#     slower decay of filter coefficients across lags.
+#     slower decay of filter coefficients across lags and a typical `noise shape' 
+#     at early lags (due to the zero boundary constraints of M-SSA, see Theorem 1 
+#     in Wildi 2026b).
 
 
 
@@ -665,7 +670,7 @@ abline(v = 1 + which(sign(mplot[2:nrow(mplot), 2] *
 #   - True Recession durations are shorter than expansions, a stylized fact that
 #     the symmetric VAR(1) cannot capture; a Hamilton regime-switching model
 #     would be required for asymmetric cycle modeling.
-#   - The two-sided target filter cannot be evaluated near the sample boundaries
+#   - The two-sided target filter (black) cannot be evaluated near the sample boundaries
 #     (values remain NA at both ends).
 #   - The vertical dashed lines mark zero-crossings of the M-SSA predictor,
 #     whose mean spacing is controlled by the HT constraint. Increasing HT (rho0)
@@ -678,7 +683,9 @@ abline(v = 1 + which(sign(mplot[2:nrow(mplot), 2] *
 compute_empirical_ht_func(mplot[, 2])
 # Compare with the imposed HT constraint for series m:
 ht_mssa_vec[m]
-# Pretty close given a relatively short sample length
+# Pretty close given a relatively short sample length (full length is computed below).
+
+
 
 # ── Performance Metric 2: Mean-Square Forecast Error (MSE) ───────────────────
 #
