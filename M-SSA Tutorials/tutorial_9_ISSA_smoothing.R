@@ -459,6 +459,43 @@ sq_se_dif
 # so that the square-root of the curvature (RMSD2) converges to sqrt(2), the 
 # first entry in sq_se_dif above.
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.4.4  Regularity: Distribution of TP's
+# ─────────────────────────────────────────────────────────────────────────────
+
+output_mat <- na.exclude(cbind(x, y_ssa, y_hp))
+output_mat_diff<-apply(output_mat,2,diff)
+tail(output_mat_diff)
+
+mean_ht<-var_ht<-NULL
+for (i in 1:ncol(output_mat_diff))#i<-1
+{
+  tp_location<-which(output_mat_diff[2:nrow(output_mat_diff),i]*output_mat_diff[1:(nrow(output_mat_diff)-1),i]<0)
+  mean_ht<-c(mean_ht,mean(diff(tp_location)))
+  var_ht<-c(var_ht,var(diff(tp_location)))
+}
+names(mean_ht)<-names(var_ht)<-c("Data","I-SSA","HP")
+# Empirical HT
+mean_ht
+# Variance of HT
+var_ht
+
+# Outcome:
+# In contrast to the white noise case in Tutorial 8, where HP's TPs were more 
+# regularly distributed (smaller variance), in the random-walk case it is I-SSA 
+# that yields more regular TP dating (smaller variance).
+#   - For white noise, HP's curvature constraint imposes a too regular pattern; 
+#     for the random walk, a too irregular one.
+#   - For white noise, SSA coefficients decay exponentially; for the random walk, 
+#     I-SSA coefficients decay faster and with a more pronounced cycle pattern.
+#   - This faster decay gives I-SSA higher adaptivity than HP, for given HT, 
+#     reflecting optimal level tracking (efficient frontier).
+# The regularity (variance) of TP distribution thus emerges from optimal level 
+# tracking in I-SSA, whereas in HP it is imposed by an extraneous, artificial 
+# curvature constraint.
+# A stronger discrepancy is observed for the real-time (one-sided) filters in 
+# exercise 3
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Take-Aways (in arbitrary ordering)
@@ -899,8 +936,10 @@ target <- x
 
 # Visual inspection: I-SSA is smoother than the one-sided HP but exhibits
 # less lag than the two-sided HP
+colo<-c("black", "blue", "red", "violet")
+mplot<-cbind(target, y_ssa, y_hp_one, y_hp_two)[5000:5500, ]
 par(mfrow = c(1, 1))
-ts.plot(cbind(target, y_ssa, y_hp_one, y_hp_two)[5000:5500, ],
+ts.plot(mplot,
         col = c("black", "blue", "red", "violet"))
 mtext("Data: RW",line=-1)
 mtext("I-SSA",col="blue",line=-2)
@@ -984,6 +1023,43 @@ sq_se_dif
 # The two-sided HP achieves the smallest curvature by construction (WH optimality).
 # I-SSA exhibits slightly larger curvature than the one-sided HP but remains
 # comparable (in contrast to bigger differences in tutorial 8).
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.3.4  Regularity: Distribution of TPs
+# ─────────────────────────────────────────────────────────────────────────────
+output_mat <- na.exclude(cbind(x, y_ssa, y_hp_one))
+output_mat_diff<-apply(output_mat,2,diff)
+tail(output_mat_diff)
+
+mean_ht<-var_ht<-NULL
+for (i in 1:ncol(output_mat_diff))#i<-1
+{
+  tp_location<-which(output_mat_diff[2:nrow(output_mat_diff),i]*output_mat_diff[1:(nrow(output_mat_diff)-1),i]<0)
+  mean_ht<-c(mean_ht,mean(diff(tp_location)))
+  var_ht<-c(var_ht,var(diff(tp_location)))
+}
+names(mean_ht)<-names(var_ht)<-c("Data","I-SSA","HP")
+# Empirical HT
+mean_ht
+# Variance of HT
+var_ht
+# Outcome:
+# In contrast to the white noise case in Tutorial 8, where HP's TPs were more 
+# regularly distributed (smaller variance), in the random-walk case it is I-SSA 
+# that yields more regular TP dating (smaller variance).
+#   - For white noise, HP's curvature constraint imposes a too regular pattern; 
+#     for the random walk, a too irregular one.
+#   - For white noise, SSA coefficients decay exponentially; for the random walk, 
+#     I-SSA coefficients decay faster and with a more pronounced cycle pattern.
+#   - This faster decay gives I-SSA higher adaptivity than HP, for given HT, 
+#     as well as a `faster' (left-shifted)  filter reflecting optimal level 
+#     tracking (efficient frontier).
+# The regularity (variance) of TP distribution thus emerges from optimal level 
+# tracking in I-SSA, whereas in HP it is imposed by an extraneous, artificial 
+# curvature constraint.
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Take-Aways
