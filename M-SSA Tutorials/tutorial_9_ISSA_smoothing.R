@@ -642,8 +642,8 @@ colo <- c("violet", "black", "blue", "red")
 # Trim the two-sided HP filter to length L
 hp_two <- hp_target[((L / 2) + 1):(length(hp_target) - (L / 2) + 1)]
 
-mplot <- cbind(hp_two, target_filter, b_x)
-colnames(mplot) <- c("HP-two", "Target", "I-SSA trend")
+mplot <- cbind(hp_trend, target_filter, b_x)
+colnames(mplot) <- c("HP-one", "Target", "I-SSA trend")
 
 # Full filter coefficient profiles
 plot(mplot[, 1], main = "Trend filters", axes = FALSE, type = "l",
