@@ -90,9 +90,10 @@ bk_int_func<-function(lambda,gamma_mse,Xi,Sigma,Xi_tilde,M,B,gamma_tilde,ht_cons
   # We use mse_yz because formula of cointegrated SSA is simpler when relying on MSE objective  
   # 1. target correlation based on synthetic stationary series
   rho_yz<-as.double(t(Sigma%*%b_eps)%*%gamma_tilde)/(sqrt(t(Sigma%*%b_eps)%*%(Sigma%*%b_eps))*sqrt(t(gamma_tilde)%*%gamma_tilde))
+  rho_yy<-as.double(sum(b_eps[1:(L-1)]*b_eps[2:L])/sum(b_eps*b_eps))
   # 2. MSE  
   mse_yz<-as.double(t(gamma_tilde-Sigma%*%b_eps)%*%(gamma_tilde-Sigma%*%b_eps))
-  return(list(b_x=b_x,b_eps=b_eps,ht_issa=ht_issa,rho_yz=rho_yz,mse_yz=mse_yz))
+  return(list(b_x=b_x,b_eps=b_eps,ht_issa=ht_issa,rho_yz=rho_yz,rho_yy=rho_yy,mse_yz=mse_yz))
 }
 
 
