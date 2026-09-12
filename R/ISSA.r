@@ -501,5 +501,101 @@ ISSA_Trend_func<-function(ht_constraint,L,delta,a1=0,b1=0,lambda_start=0)
   return(list(b_x=b_x,bk_obj=bk_obj,lambda_opt=lambda_opt,rho1=rho1,ht1=ht1,target_filter=target_filter))
 }
 
+######################################################################################################
+# New code Sept-2026 based on I-SSA paper: this function replicates ISSA_func above 
+# but it relies on a different solution (see I-SSA paper) and shorter code.
 
+# I-SSA function: assumes d=1
+# gamma_mse: MSE optimal filter in MA form. Note: this is Sigma%*%Xi%*%gamma_x, 
+#     where gamma_x is the optimal MSE applied to x. 
+#     Now g0=Gamma(0)=sum(gamma_x) \neq sum(gamma_mse), hence g0 must be provided
+#     as a separate entry.
+# xi: Ma inversion of differenced process
+# rho1: HT constraint
+# g0: Gamma(0) of symmetric target (should be the same as sum(gamma_mse))
 
+# The function returns
+# -The optimal lambda (Lagrange multiplier)
+# -b_tilde: the L-1 dimensional solution 
+# -b_eps: The cointegrated solution g0*Xi%*%e1 + Xi%*%B%*%b_tilde
+# -b_x: The cointegrated solution Xi^{-1}%*%b_eps as applied to the data
+i_ssa_func <- function(gamma_mse, xi, rho1,g0) {
+  
+  L<-max(length(gamma_mse),length(xi))
+  
+  if (length(xi)<length(gamma_mse))
+  {
+    xi<-c(xi,rep(0,L-length(xi)))
+    print("xi is shorther than gamma and has been padded with zeroes")
+  } else 
+  {
+    if (length(gamma_mse)<length(xi))
+    {
+      gamma_mse<-c(gamma_mse,rep(0,L-length(gamma_mse)))
+      print("xi is shorther than gamma and has been padded with zeroes")
+    } 
+  }
+  
+  Sigma <- matrix(0, L, L)
+  Sigma[lower.tri(Sigma, diag = TRUE)] <- 1
+  
+  Xi <- matrix(0, L, L)
+  for (i in 1:L) #i<-2
+  {
+    Xi[i, 1:i] <- rev(xi[1:i])
+  }
+  
+  M <- matrix(0, L, L)
+  for (i in 1:(L-1)) {
+    M[i, i+1] <- 0.5
+    M[i+1, i] <- 0.5
+  }
+  
+  W <- M - rho1 * diag(1, L)
+  B <- rbind(rep(-1, L-1), diag(1, L-1))
+  e1 <- c(1, rep(0, L-1))
+  
+  v <- as.numeric(g0 * (Xi %*% e1))
+  P <- Xi %*% B
+  
+  gamma_tilde <- gamma_mse - as.numeric(Sigma %*% v)
+  Sigma_tilde <- Sigma %*% P
+  
+  A_tilde <- t(Sigma_tilde) %*% Sigma_tilde
+  c_tilde <- as.numeric(t(Sigma_tilde) %*% gamma_tilde)
+  
+  W_tilde <- t(P) %*% W %*% P
+  u_tilde <- as.numeric(t(P) %*% W %*% v)
+  d <- as.numeric(t(v) %*% W %*% v)
+  
+  mu <- Re(eigen(solve(A_tilde) %*% W_tilde)$values)
+  lambda_min <- -1 / max(mu)
+  lambda_max <- -1 / min(mu)
+  region <- c(lambda_min, lambda_max)
+  
+  secular_function <- function(lam) {
+    H_lam <- A_tilde + lam * W_tilde
+    b_tilde_lam <- solve(H_lam, c_tilde - lam * u_tilde)
+    val <- as.numeric(t(b_tilde_lam) %*% W_tilde %*% b_tilde_lam) + 
+      2 * sum(u_tilde * b_tilde_lam) + d
+    return(val)
+  }
+  
+  tol <- 1e-5
+  root_res <- uniroot(secular_function, 
+                      lower = lambda_min + tol, 
+                      upper = lambda_max - tol, 
+                      extendInt = "no")
+  
+  lambda_star <- root_res$root
+  H_star <- A_tilde + lambda_star * W_tilde
+  b_tilde_star <- solve(H_star, c_tilde - lambda_star * u_tilde)
+  b_eps <- v + as.numeric(P %*% b_tilde_star)
+  b_x<-solve(Xi)%*%b_eps
+  list(
+    lambda_star = lambda_star, b_tilde = b_tilde_star, b_eps = b_eps, b_x=b_x,
+    pd_region = region, 
+    matrices = list(A = A_tilde, W = W_tilde, c = c_tilde, u = u_tilde, 
+                    v = v, P = P, M = M, L = L)
+  )
+}
