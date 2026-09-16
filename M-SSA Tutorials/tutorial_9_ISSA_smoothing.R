@@ -1163,8 +1163,17 @@ tail(INDPRO)
 # 4.2 Sample Selection and Transformations
 # ────────────────────────────────────────────────────────────────
 
+# Settings of I-SSA paper (for replication)
+if (F)
+{
+  start_year <- 1982
+  end_year   <- 2024
+  L<-101
+}
+# We use longer span as in paper and larger filter length
 start_year <- 1962
-end_year   <- 3000
+end_year   <- 2024
+
 
 # Log-transform to stabilize variance (avoid non-stationarity due to drifting 
 # scale)
@@ -1894,27 +1903,59 @@ target <- x
 # Visual inspection over the full sample:
 # I-SSA is smoother than the one-sided HP and shows less lag than the
 # two-sided HP.
-par(mfrow = c(1, 1))
+par(mfrow = c(2, 1))
+colo<-c("black", "blue", "red")
 mplot <- cbind(target, y_ssa, y_hpb_one)
-ts.plot(mplot, col = c("black", "blue", "red"))
+plot(mplot[,1],main="One-Sided HP-B and I-SSA Applied to Log-INDPRO ", 
+     col = colo[1],xlab="",ylab="",type="l")
 legend("topleft",
        legend = c("Target (log-INDPRO)", "I-SSA", "HP-B one-sided"),
-       col    = c("black", "blue", "red"), lty = 1)
+       col    = colo, lty = 1)
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i],col=colo[i])
+#  mtext(colnames(mplot)[i],line=-i,col=colo[i])
+}
+axis(1,at=1:nrow(mplot),labels=index(y_xts))
+axis(2)
+box()
 
 # Zoom into observations from 2000 onward (discard the remote past to
 # reduce non-stationarity in earlier data):
 year_2000 <- which(index(y_xts) > "2000-01-01")[1]
-  par(mfrow = c(1, 1))
 mplot <- cbind(x, y_ssa, y_hpb_one)[year_2000:length(target), ]
-ts.plot(mplot, col = c("black", "blue", "red"))
-mtext("INDPRO", line = -1)
-mtext("HP-B one sided", col = "red", line = -3)
-mtext("I-SSA", col = "blue", line = -4)
+plot(mplot[,1], 
+     col = colo[1],xlab="",ylab="",type="l",ylim=c(4.4,4.7))
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i],col=colo[i])
+  #  mtext(colnames(mplot)[i],line=-i,col=colo[i])
+}
+axis(1,at=1:nrow(mplot),labels=index(y_xts[ which(index(y_xts) > "2000-01-01")]))
+axis(2)
+box()
+#mtext("INDPRO", line = -1)
+#mtext("HP-B one sided", col = "red", line = -3)
+#mtext("I-SSA", col = "blue", line = -4)
 
 # The I-SSA trend tracks the index substantially more closely than the
 # one-sided HP, while maintaining a comparable degree of smoothness.
 # In particular, the I-SSA trend is faster (left-shifted) at cycle peaks
 # and dips.
+
+
+mplot<-cbind(x_tilde,y_target,y_mse,y_ssa,y_hp_concurrent)[anf:enf,]
+colnames(mplot)<-c("Data","Target: HP-two","MSE: HP-one","SSA","HP-C")
+plot(mplot[,1],main="Data and trends",axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=1)
+for (i in 1:ncol(mplot))
+{
+  lines(mplot[,i],col=colo[i])
+  mtext(colnames(mplot)[i],line=-i,col=colo[i])
+}
+axis(1,at=1:nrow(mplot),labels=index(y_xts)[(anf):length(y_xts)])
+axis(2)
+box()
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1941,6 +1982,8 @@ paste(round(100 * (mse_hpb_one_smooth - mse_ssa_smooth) / mse_hpb_one_smooth, 2)
 # theoretical values may differ slightly due to non-stationarity and the
 # fact that INDPRO does not strictly conform to a random walk.
 bk_obj$mse_yz * var(diff(target), na.rm = TRUE)
+
+table_hpb_indpro<-c(mse_ssa_smooth,mse_hpb_one_smooth)
 
 # -------------------------
 # Recompute MSE based on the trimmed sample (observations from 2000 onward):
@@ -1973,6 +2016,13 @@ compute_empirical_ht_func(diff(y_hpb_one))  # Empirical HT: one-sided HP
 ht1_conv                                                # Design target HT
 compute_empirical_ht_func(scale(diff(y_ssa)))           # HT: I-SSA (centred)
 compute_empirical_ht_func(scale(diff(y_hpb_one)))       # HT: one-sided HP (centred)
+ts.plot(scale(diff(y_hpb_one)))
+abline(h=0)
+
+
+
+table_hpb_indpro<-rbind(table_hpb_indpro,c(compute_empirical_ht_func(scale(diff(y_ssa))),compute_empirical_ht_func(scale(diff(y_hpb_one)))))
+
 
 # Centering reduces but does not fully resolve the discrepancy with ht1_conv.
 # Issue: INDPRO exhibits structural non-stationarity across the full sample —
@@ -2015,6 +2065,12 @@ sq_se_dif <- sqrt(apply(
   2, mean
 ))
 sq_se_dif  # RMSD2 for: raw series, I-SSA, one-sided HP
+
+table_hpb_indpro<-rbind(table_hpb_indpro,sq_se_dif[2:3])
+colnames(table_hpb_indpro)<-c("I-SSA","HP-B-one")
+rownames(table_hpb_indpro)<-c("MSE","HT","Curvature")
+table_hpb_indpro
+
 
 # Same computation restricted to post-2000 data: the non-stationarity that
 # affected the mean does not appear to impact or modify curvature.
