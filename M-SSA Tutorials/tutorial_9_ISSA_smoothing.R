@@ -1,7 +1,20 @@
+# Revisions
+# September 2026: 
+# 1. Exercise 4 has been revised.
+# We now impose a larger HT to I-SSA: comparisons with HP are more realistic.
+#
+# 2. New exercise 5: Comparison of I-SSA with Boosted-HP, see
+# Mei, Ziwei and Phillips, Peter C. B. and Shi, Zhentao, The Boosted HP Filter Is More General Than You Might Think 
+# (September 20, 2022). Available at SSRN: https://ssrn.com/abstract=4224809 or http://dx.doi.org/10.2139/ssrn.4224809
+
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Tutorial 9: I-SSA SMOOTHING
 # Introducing the I-SSA Trend in ISSA_Trend_func()
 # ══════════════════════════════════════════════════════════════════════════════
+
+
 
 # This tutorial extends the SSA smoothing framework of tutorial 8 to 
 # non-stationary processes (I-SSA). For a comprehensive discussion of the
@@ -75,6 +88,11 @@
 # REFERENCES
 # ──────────────────────
 #
+# Boosted-HP: 
+# Mei, Ziwei and Phillips, Peter C. B. and Shi, Zhentao, The Boosted HP Filter Is More General Than You Might Think 
+# (September 20, 2022). Available at SSRN: https://ssrn.com/abstract=4224809 or http://dx.doi.org/10.2139/ssrn.4224809
+#
+# I-SSA:
 # Wildi, M. (2024). Business Cycle Analysis and Zero-Crossings of Time Series:
 #    A Generalized Forecast Approach.  Journal of Business Cycle Research,
 #   https://doi.org/10.1007/s41549-024-00097-5
@@ -986,6 +1004,8 @@ paste(round(100*(mse_hp_one_smooth-mse_ssa_smooth)/mse_hp_one_smooth,2),
 "%  decrease in MSE by I-SSA",sep="")
 
 # The sample MSE of I-SSA should converge to the theoretical value below.
+# Note: this is not scaled to the data
+# i.e., it assumes standardized noise (as used in the simulation)
 bk_obj$mse_yz      # Theoretical MSE under the cointegration constraint
 
 # Convergence of the sample MSE to its theoretical (population) value 
@@ -1115,6 +1135,12 @@ var_ht
 # - We acknowledge this limitation without correction, noting that re-fitting
 #   I-SSA to the true dependence structure of INDPRO would likely yield further
 #   improvements in MSE performance beyond those already documented above.
+
+# ────────────────────────────────────────────────────────────────
+# This exercise has been revised on Sept 2026.
+# The main modification addresses the choice of the HT constraint in exercise 4.4:
+# Previously ht_constraint<-ht1; new: ht_constraint<-ht1_conv
+
 # ────────────────────────────────────────────────────────────────
 # 4.1 Load Data
 # ────────────────────────────────────────────────────────────────
@@ -1181,11 +1207,82 @@ x <- as.double(y_xts)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4.4 Apply I-SSA Smoother to INDPRO and Evaluate Performance
+# 4.4 Specifying the Holding-Time (HT) Constraint
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# This section shows how to specify the HT constraint imposed on I-SSA, and why
+# the naive choice (matching HP's HT under a white-noise assumption) is
+# generally inadequate for real data with autocorrelation.
+
+# --- Step 1: Naive HT constraint (white-noise assumption) -------------------
+# Old code: previous Sept-2026
+# The simplest choice is to set the HT constraint directly to the HT of the
+# one-sided HP filter, ht1:
+ht_constraint <- ht1
+
+# This choice implicitly assumes the underlying data are white noise.
+#
+# Problem: in general, this HT is too small, since real macroeconomic series
+# (here: INDPRO) 
+# are autocorrelated. As a result, I-SSA is not smooth enough, its MSE looks
+# unrealistically good, and the comparison with HP becomes unfair
+# (I-SSA is "too adaptive" relative to the true dynamics of the data).
+
+# --- Step 2: Corrected HT constraint (accounting for serial correlation) ----
+#
+# Solution: account for the autocorrelation function (ACF) of the data --
+# here, differenced INDPRO -- when computing the HT constraint. Otherwise,
+# I-SSA's apparent MSE gains over HP are overstated.
+#
+# Notes:
+# - I-SSA remains based on a fixed random-walk assumption throughout. We do
+#   NOT feed DGP information derived from the ACF directly into I-SSA; the
+#   ACF is used solely to correct (enlarge) the HT constraint.
+# - Consequently, I-SSA still relies on the fixed random-walk model; only the
+#   smoothness target (HT) is adjusted.
+#
+# Empirically, the ACF of differenced INDPRO is well approximated by an AR(1)
+# process with a1 = 0.3. We therefore specify the corresponding MA-inversion:
+# New code: Sept-2026
+xi <- 0.3^(0:(L-1))
+
+# Convolve the one-sided HP filter with this MA-inversion. This convolution
+# yields a larger HT than under the pure white-noise assumption:
+hp_trend_conv <- conv_two_filt_func(hp_trend, xi)$conv
+
+# Compute the corrected (larger) HT from the convolved filter:
+rho1_conv <- compute_holding_time_func(hp_trend_conv)$rho_ff1
+ht1_conv  <- compute_holding_time_func(hp_trend_conv)$ht
+
+# ht1_conv is larger than the naive ht1 above: I-SSA must therefore smooth
+# more strongly, which leads to a larger -- and more realistic -- MSE,
+# ensuring a fair comparison with HP.
+#
+# Note: regardless of the correction, the HT of the one-sided HP filter
+# (corrected or not) remains much smaller than that of the two-sided design.
+
+ht_constraint <- ht1_conv
+
+# --- Summary -----------------------------------------------------------------
+#
+# For a fair comparison, we recommend using ht1_conv rather than ht1. This
+# makes the smoothing constraint "harder" for I-SSA, so that its MSE gains
+# over HP reflect a more realistic and defensible comparison. 
+
+# --- Step 3: Compute the I-SSA trend filter under the chosen HT constraint --
+ISSA_obj <- ISSA_Trend_func(ht_constraint, L, delta)
+
+bk_obj <- ISSA_obj$bk_obj
+b_x    <- bk_obj$b_x
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.5 Apply I-SSA Smoother to INDPRO and Evaluate Performance
 # ─────────────────────────────────────────────────────────────────────────────
 # Note: exercise 3 above must be run to compute the I-SSA trend.
 # ─────────────────────────────────────────────────────────────────────────────
-# 4.4.1 Apply Filters to Data
+# 4.5.1 Apply Filters to Data
 # ─────────────────────────────────────────────────────────────────────────────
 # sides = 1: causal (one-sided) convolution — used for real-time nowcast filters.
 # sides = 2: acausal (two-sided) convolution — used for the benchmark HP smoother.
@@ -1225,7 +1322,7 @@ mtext("I-SSA",col="blue",line=-4)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4.4.2 Tracking Accuracy: Mean Squared Error (MSE)
+# 4.5.2 Tracking Accuracy: Mean Squared Error (MSE)
 # ─────────────────────────────────────────────────────────────────────────────
 # MSE measures how closely each filter tracks the target log-level on average.
 # Note: sign accuracy and target correlation are not meaningful for non-stationary
@@ -1247,7 +1344,7 @@ paste(round(100*(mse_hp_one_smooth-mse_ssa_smooth)/mse_hp_one_smooth,2),"% reduc
 # scales the normalised MSE from the I-SSA design by the empirical variance
 # of the first differences (since the series is non-stationary).
 # Empirical and expected values may differ slightly due to non-stationarity 
-# and the fact that INDPRO does not conform to a random-walk
+# and the fact that INDPRO does not conform to a random-walk.
 bk_obj$mse_yz * var(diff(target), na.rm = TRUE)
 
 #-------------------------
@@ -1264,7 +1361,7 @@ mse_ssa_smooth     # I-SSA MSE (trimmed sample)
 paste(round(100*(mse_hp_one_smooth-mse_ssa_smooth)/mse_hp_one_smooth,2),"% reduction of MSE by I-SSA")
 
 # After trimming, the sample MSE of I-SSA aligns more closely with the theoretical value.
-# Theoretical MSE over trimmed sample
+# Theoretical MSE over trimmed sample: 
 bk_obj$mse_yz * var(diff(target[year_2000:length(target)]), na.rm = TRUE)
 
 # Outcome: Restricting the sample to the post-2000 period reduces the
@@ -1272,10 +1369,10 @@ bk_obj$mse_yz * var(diff(target[year_2000:length(target)]), na.rm = TRUE)
 # measures align more closely with their theoretical (population) counterparts.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4.4.3 Smoothness Diagnostics
+# 4.5.3 Smoothness Diagnostics
 # ─────────────────────────────────────────────────────────────────────────────
 
-# 4.4.3.1 Holding Time (HT)
+# 4.5.3.1 Holding Time (HT)
 # ─────────────────────────────────────────────────────────────────────────────
 # HT counts the average number of periods between consecutive zero-crossings
 # of the first-differenced (mean-adjusted) filter output. A larger HT indicates 
@@ -1283,7 +1380,7 @@ bk_obj$mse_yz * var(diff(target[year_2000:length(target)]), na.rm = TRUE)
 
 # a. Full-sample HT on raw (non-centred) first differences
 # ─────────────────────────────────────────────────────────
-ht1                                        # Design target HT (= one-sided HP holding time)
+ht1_conv                                        # Design target HT (= one-sided HP holding time)
 compute_empirical_ht_func(diff(y_ssa))     # Empirical HT: I-SSA
 compute_empirical_ht_func(scale(diff(y_hp_two)))      # HT: two-sided HP (centred)
 compute_empirical_ht_func(diff(y_hp_one))  # Empirical HT: one-sided HP
@@ -1294,7 +1391,7 @@ compute_empirical_ht_func(diff(y_hp_one))  # Empirical HT: one-sided HP
 
 # b. Full-sample HT on centred first differences
 # ─────────────────────────────────────────────────────────
-ht1                                                   # Design target HT
+ht1_conv                                                  # Design target HT
 compute_empirical_ht_func(scale(diff(y_ssa)))         # HT: I-SSA (centred)
 compute_empirical_ht_func(scale(diff(y_hp_two)))      # HT: two-sided HP (centred)
 compute_empirical_ht_func(scale(diff(y_hp_one)))      # HT: one-sided HP (centred)
@@ -1311,20 +1408,17 @@ compute_empirical_ht_func(scale(diff(y_hp_one)))      # HT: one-sided HP (centre
 # ─────────────────────────────────────────────────────────
 # Over this sub-sample the drift is roughly stable, so demeaning aligns
 # the series with zero-crossing-based HT evaluation.
-ht1                                                                              # Design target HT
+ht1_conv                                                                              # Design target HT
 compute_empirical_ht_func(scale(diff(y_ssa)[year_2000:length(target)]))         # HT: I-SSA (centred, post-2000)
 compute_empirical_ht_func(scale(diff(y_hp_two)[year_2000:length(target)]))      # HT: two-sided HP (centred, post-2000)
 compute_empirical_ht_func(scale(diff(y_hp_one)[year_2000:length(target)]))      # HT: one-sided HP (centred, post-2000)
 
-# Now I-SSA and one-sided HP match closely (up to finite sample error).
-# Post-2000 sample HTs align more closely with the design target ht1.
-# The residual discrepancy is attributable to INDPRO being intrinsically
-# smoother than a random walk — its positive serial correlation and the
-# prolonged swings associated with major recessions naturally produce
-# longer intervals between zero-crossings than the random-walk assumption
-# underlying the I-SSA design would predict.
+# Now I-SSA appears smoother (partly due to finite sample error).
+# In any case, the comparison seems fair: depending on the sample 
+# either HP or I-SSA are smoother; the last data sample is more conform 
+# to implicit assumptions (fixed zero-mean line for the ZC count)
 
-# 4.4.3.2 Curvature: Root Mean Squared Second-Order Differences (RMSD2)
+# 4.5.3.2 Curvature: Root Mean Squared Second-Order Differences (RMSD2)
 # ─────────────────────────────────────────────────────────────────────────────
 # Second-order differences approximate the discrete second derivative;
 # smaller RMSD2 values indicate a less curved output.
@@ -1352,10 +1446,10 @@ sq_se_dif <- sqrt(apply(
   2, mean
 ))
 sq_se_dif  # RMSD2 for: raw series, I-SSA, one-sided HP, two-sided HP
-
+# HP outperforms in terms of curvature. The two-sided is much smoother.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4.5 NBER Recession Detection
+# 4.6 NBER Recession Detection
 # ─────────────────────────────────────────────────────────────────────────────
 # We evaluate the ability of each trend nowcast to detect NBER-dated recessions 
 # using Receiver Operating Characteristic (ROC) curves and the Area Under the 
@@ -1364,7 +1458,7 @@ sq_se_dif  # RMSD2 for: raw series, I-SSA, one-sided HP, two-sided HP
 # perfect discrimination; 0.5 indicates no skill beyond random guessing.
 #
 # ─────────────────────────────────────────────────────────────────────────────
-# 4.5.1 NBER dating
+# 4.6.1 NBER dating
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Retrieve official NBER business-cycle turning-point dates
@@ -1398,7 +1492,7 @@ axis(2); box()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4.5.2 Compare NBER Dating with Differenced Smoothers 
+# 4.6.2 Compare NBER Dating with Differenced Smoothers 
 # ─────────────────────────────────────────────────────────────────────────────
 
 # The recession indicator serves as the binary classification target
@@ -1427,7 +1521,7 @@ mtext("HP one-sided",col="red",line=-2)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4.5.3 ROC AnalysisC
+# 4.6.3 ROC AnalysisC
 # ─────────────────────────────────────────────────────────────────────────────
 smoothROC <- TRUE   # Apply smoothing to ROC curves for cleaner visualisation
 showROC   <- TRUE   # Display ROC plots
@@ -1456,6 +1550,8 @@ names(AUC_table) <- colnames(ROC_data[, c("I-SSA", "HP one-sided")])
 # AUC results: higher values indicate better recession discrimination
 AUC_table
 
+# Both designs perform equally well!
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Take-Aways
@@ -1469,14 +1565,14 @@ AUC_table
 #    conservative: re-fitting I-SSA to the observed dependence structure of the
 #    index would likely yield further performance improvements.
 #
-# 2. Despite this model mismatch, the I-SSA trend strongly outperforms the classical
-#    one-sided HP nowcast trend in terms of MSE tracking of the log-index, while
+# 2. Despite this model mismatch, the I-SSA trend outperforms the classical
+#    one-sided HP nowcast trend in terms of MSE tracking (gain ~50%) of the log-index, while
 #    maintaining comparable smoothness — as measured either by the HT of
 #    first differences or, equivalently, by an equal frequency of turning
 #    points (TPs) on levels. The MSE gain is driven by two complementary
 #    factors: improved timeliness (a left-shift of the filter output relative
 #    to the one-sided HP) and more accurate tracking of dynamic swings at
-#    business-cycle peaks and troughs.
+#    business-cycle peaks and troughs. 
 #
 # 3. The combination of reduced lag, superior MSE performance, and robust
 #    tracking of dynamic swings makes I-SSA (trend) a compelling, data-driven
@@ -1490,7 +1586,7 @@ AUC_table
 #    (random walk) is only an approximation of the true data-generating process.
 #
 # 4. A ROC analysis confirms that both nowcast smoothers track official NBER 
-#    datings fairly closely. 
+#    datings fairly closely: no clear winner, both do equally well. 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # A Note on Model Misspecification in I-SSA
@@ -1586,6 +1682,352 @@ AUC_table
 # It should be noted, however, that customisation is generally not a 
 # smoothing exercise but a prediction exercise, where I-SSA tracks an acausal 
 # target.
+
+
+# Addition: September 2026
+# New Exercise: as Exercise 4, but I-SSA is benchmarked against a newer design,
+# the Boosted HP filter. See:
+# Mei, Ziwei and Phillips, Peter C. B. and Shi, Zhentao, The Boosted HP Filter
+# Is More General Than You Might Think (September 20, 2022). Available at SSRN:
+# https://ssrn.com/abstract=4224809 or http://dx.doi.org/10.2139/ssrn.4224809
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Exercise 5: I-SSA Smoothing of a Macro Indicator
+# Target: US Industrial Production Index (INDPRO)
+# Comparison with Boosted HP (HP-B)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ────────────────────────────────────────────────────────────────
+# 5.1 - 5.3: Run Exercises 4.1-4.4
+# ────────────────────────────────────────────────────────────────
+# These steps set up the data. We now extend the comparison to HP-B.
+
+
+# ────────────────────────────────────────────────────────────────
+# 5.4 Boosted HP: HP-B
+# ────────────────────────────────────────────────────────────────
+
+# ────────────────────────────────────────────────────────────────
+# 5.4.1 The MacroFilters Package
+# ────────────────────────────────────────────────────────────────
+# HP-B is implemented in the MacroFilters package:
+library(MacroFilters)
+
+bhp_filter_obj <- bhp_filter(x, freq = 12)
+# The package selects lambda = 129600 (determined by freq = 12), 
+# iterations = 100 based on stopping_rule = "bic"
+print(bhp_filter_obj)
+
+# Retrieve lambda and the number of boosting iterations:
+lambda_bhp <- bhp_filter_obj$meta$lambda
+m          <- bhp_filter_obj$meta$iterations
+bHP        <- bhp_filter_obj$trend
+
+# Problem: the MacroFilters package returns the boosted trend but does not
+# expose the underlying filter coefficients. We therefore compute these
+# coefficients ourselves, using custom R code.
+
+# ────────────────────────────────────────────────────────────────
+# 5.4.2 Filter Coefficients of Boosted HP: Custom Implementation
+# ────────────────────────────────────────────────────────────────
+source(paste(getwd(), "/R utility functions/Boosted_HP.r", sep = ""))
+
+# We first verify replicability: apply our own filter coefficients to the
+# data and compare the output against the MacroFilters package.
+#
+# The custom procedure below:
+#   1. Replicates the HP-boost trend from the MacroFilters package
+#   2. Additionally returns the filter coefficients (not available in
+#      MacroFilters)
+bhp_coef_obj <- boosted_hp_filter_fast(lambda = lambda_bhp, m = m, L = L)
+
+bhp_two <- bhp_coef_obj$two_sided
+bhp_one <- bhp_coef_obj$one_sided
+
+# Sanity checks: filter weights should sum close to 1
+cat("Sum of two-sided coefficients (should be close to 1):",
+    sum(bhp_two), "\n")
+cat("Sum of one-sided coefficients (should be close to 1):",
+    sum(bhp_one), "\n")
+
+# ---- Plot filter coefficient profiles ----
+op <- par(mfrow = c(1, 2))
+plot(-L:L, bhp_two, type = "h", lwd = 2, col = "blue",
+     xlab = "Lag", ylab = "Coefficient",
+     main = paste0("Two-sided boosted HP\n(lambda=", lambda_bhp, ", m=", m, ")"))
+abline(h = 0, col = "gray")
+
+plot(0:L, bhp_one, type = "h", lwd = 2, col = "red",
+     xlab = "Lag (0 = current)", ylab = "Coefficient",
+     main = paste0("One-sided boosted HP\n(lambda=", lambda_bhp, ", m=", m, ")"))
+abline(h = 0, col = "gray")
+par(op)
+
+# ────────────────────────────────────────────────────────────────
+# 5.4.3 Verification: Custom Code Replicates the MacroFilters Package
+# ────────────────────────────────────────────────────────────────
+
+# Apply the custom two-sided HP-boost coefficients to the data:
+y_bhp <- filter(x, bhp_two, sides = 2)
+
+# Compare against the MacroFilters package output:
+par(mfrow = c(1, 1))
+ts.plot(cbind(bHP, y_bhp), col = c("blue", "red"))
+# The two series overlap closely, confirming that our filter coefficients
+# correctly replicate the package's boosted-HP trend.
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.5 Compute I-SSA
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.5.1 Replicate the HT of Boosted HP in I-SSA
+# ─────────────────────────────────────────────────────────────────────────────
+delta   <- 0
+bhp_one <- bhp_coef_obj$one_sided
+
+# As in Exercise 4.4, we match the ACF of the data when computing the HT
+# constraint. Without this correction, I-SSA would not be smooth enough,
+# inflating its apparent MSE gains (a bias in favor of I-SSA).
+xi <- 0.3^(0:(L-1))
+
+bhp_one_conv <- conv_two_filt_func(bhp_one, xi)$conv
+
+# Holding-Time (HT) constraint calibration:
+# White noise
+rho1      <- compute_holding_time_func(bhp_one)$rho_ff1
+# AR(1)
+rho1_conv <- compute_holding_time_func(bhp_one_conv)$rho_ff1
+# White noise
+ht1       <- compute_holding_time_func(bhp_one)$ht
+# AR(1)
+ht1_conv  <- compute_holding_time_func(bhp_one_conv)$ht
+
+# As before, the HT of the one-sided filter is much smaller than that of the
+# two-sided design:
+# White noise
+ht1
+# AR(1): the AR(1) HT is larger, making this a more challenging task for I-SSA.
+ht1_conv
+
+# We use the larger, AR(1)-corrected HT (based on differenced INDPRO).
+# I-SSA itself still relies on the fixed random-walk model throughout; the
+# ACF is used only to calibrate the HT constraint.
+ht_constraint <- ht1_conv
+
+ISSA_obj <- ISSA_Trend_func(ht_constraint, L, delta)
+
+bk_obj <- ISSA_obj$bk_obj
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.5.2 Checks
+# ─────────────────────────────────────────────────────────────────────────────
+# Verify convergence: bk_obj$rho_yy should match the imposed HT constraint.
+bk_obj$rho_yy     # Empirical lag-1 ACF of the filter output (should equal rho1_conv)
+rho1_conv         # Imposed HT constraint
+
+bk_obj$rho_yz     # Correlation with the target (finite-length approximation)
+
+# Theoretical MSE (smaller than under the naive HT of Exercise 4): this is not scaled to the data
+# i.e., it assumes standardized noise (see adjustment in exercise 5.6.2)
+bk_obj$mse_yz     # Theoretical MSE: tracking accuracy of I-SSA for x_{t+delta}
+
+# Extract the filter applied to the data and the target filter:
+b_x           <- bk_obj$b_x
+target_filter <- ISSA_obj$target_filter
+
+# Verify the cointegration constraint (should be close to zero):
+sum(b_x) - sum(target_filter)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.5.3 Plot Filters
+# ─────────────────────────────────────────────────────────────────────────────
+par(mfrow = c(1, 2))
+colo <- c("red", "black", "blue")
+
+mplot <- cbind(bhp_one, target_filter, b_x)
+colnames(mplot) <- c("Boosted-HP-one", "Target", "I-SSA trend")
+
+# Full filter coefficient profiles
+plot(mplot[, 1], main = "Trend filters", axes = FALSE, type = "l",
+     ylab = "", xlab = "Lags", col = colo[1], lwd = 1,
+     ylim = range(mplot))
+abline(h = 0)
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i])
+  mtext(colnames(mplot)[i], line = -i, col = colo[i])
+}
+axis(1, at = 1:nrow(mplot), labels = 0:(nrow(mplot) - 1))
+axis(2); box()
+
+# Zoom in on the first 100 lags (relevant for the nowcast filter)
+mplot <- mplot[1:100, ]
+
+plot(mplot[, 1], axes = FALSE, type = "l", col = colo[1], lwd = 1,
+     ylim = c(min(mplot), max(mplot[, "I-SSA trend"])), ylab = "", xlab = "Lags")
+abline(h = 0)
+for (i in 1:ncol(mplot)) {
+  lines(mplot[, i], col = colo[i])
+  mtext(colnames(mplot)[i], line = -i, col = colo[i])
+}
+axis(1, at = 1:101, labels = 0:100)
+axis(2); box()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.6 Apply the I-SSA Smoother to INDPRO and Evaluate Performance Against HP-B
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.6.1 Apply Filters to Data
+# ─────────────────────────────────────────────────────────────────────────────
+# sides = 1: causal (one-sided) convolution — used for real-time nowcast filters
+# sides = 2: acausal (two-sided) convolution — used for the benchmark HP smoother
+y_ssa     <- filter(x, b_x,      sides = 1)  # I-SSA nowcast smoother
+y_hpb_one <- filter(x, bhp_one,  sides = 1)  # One-sided boosted HP nowcast
+
+# The nowcast target is the contemporaneous log-level x_t (zero-lag, delta = 0)
+target <- x
+
+# Visual inspection over the full sample:
+# I-SSA is smoother than the one-sided HP and shows less lag than the
+# two-sided HP.
+par(mfrow = c(1, 1))
+mplot <- cbind(target, y_ssa, y_hpb_one)
+ts.plot(mplot, col = c("black", "blue", "red"))
+legend("topleft",
+       legend = c("Target (log-INDPRO)", "I-SSA", "HP-B one-sided"),
+       col    = c("black", "blue", "red"), lty = 1)
+
+# Zoom into observations from 2000 onward (discard the remote past to
+# reduce non-stationarity in earlier data):
+year_2000 <- which(index(y_xts) > "2000-01-01")[1]
+  par(mfrow = c(1, 1))
+mplot <- cbind(x, y_ssa, y_hpb_one)[year_2000:length(target), ]
+ts.plot(mplot, col = c("black", "blue", "red"))
+mtext("INDPRO", line = -1)
+mtext("HP-B one sided", col = "red", line = -3)
+mtext("I-SSA", col = "blue", line = -4)
+
+# The I-SSA trend tracks the index substantially more closely than the
+# one-sided HP, while maintaining a comparable degree of smoothness.
+# In particular, the I-SSA trend is faster (left-shifted) at cycle peaks
+# and dips.
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.6.2 Tracking Accuracy: Mean Squared Error (MSE)
+# ─────────────────────────────────────────────────────────────────────────────
+# MSE measures how closely each filter tracks the target log-level on average.
+# Note: sign accuracy and target correlation are not meaningful for
+# non-stationary series and are therefore omitted here.
+
+# Full-sample MSE:
+mse_ssa_smooth     <- mean((target - y_ssa)^2,     na.rm = TRUE)
+mse_hpb_one_smooth <- mean((target - y_hpb_one)^2, na.rm = TRUE)
+
+mse_hpb_one_smooth  # One-sided HP-B MSE (full sample)
+mse_ssa_smooth      # I-SSA MSE (full sample)
+
+paste(round(100 * (mse_hpb_one_smooth - mse_ssa_smooth) / mse_hpb_one_smooth, 2),
+      "% reduction of MSE by I-SSA")
+# I-SSA outperforms the boosted HP design.
+
+# Theoretical MSE benchmark under the cointegration constraint: scales the
+# normalized MSE from the I-SSA design by the empirical variance of the
+# first differences (since the series is non-stationary). Empirical and
+# theoretical values may differ slightly due to non-stationarity and the
+# fact that INDPRO does not strictly conform to a random walk.
+bk_obj$mse_yz * var(diff(target), na.rm = TRUE)
+
+# -------------------------
+# Recompute MSE based on the trimmed sample (observations from 2000 onward):
+# this removes the remote past, which introduces additional non-stationarity.
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.6.3 Smoothness Diagnostics
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.6.3.1 Holding Time (HT)
+# ─────────────────────────────────────────────────────────────────────────────
+# HT counts the average number of periods between consecutive zero-crossings
+# of the first-differenced (mean-adjusted) filter output. A larger HT indicates
+# a smoother, less oscillatory signal.
+
+# a. Full-sample HT on raw (non-centred) first differences
+# ─────────────────────────────────────────────────────────
+ht1_conv                                    # Design target HT (corrected for ACF)
+compute_empirical_ht_func(diff(y_ssa))      # Empirical HT: I-SSA
+compute_empirical_ht_func(diff(y_hpb_one))  # Empirical HT: one-sided HP
+
+# Issue: a non-zero mean in the first-differenced series (due to a trending
+# level) biases HT estimates. Centering the series before computing HT is
+# therefore necessary.
+
+# b. Full-sample HT on centred first differences
+# ─────────────────────────────────────────────────────────
+ht1_conv                                                # Design target HT
+compute_empirical_ht_func(scale(diff(y_ssa)))           # HT: I-SSA (centred)
+compute_empirical_ht_func(scale(diff(y_hpb_one)))       # HT: one-sided HP (centred)
+
+# Centering reduces but does not fully resolve the discrepancy with ht1_conv.
+# Issue: INDPRO exhibits structural non-stationarity across the full sample —
+# growth was steep pre-2000 and broadly flat post-2000. Removing a single
+# global mean does not adequately account for this regime shift, leaving
+# residual drift that continues to distort zero-crossing counts.
+# Remedy: restrict the analysis to post-2000 observations, where the trend
+# is approximately constant and a single mean adjustment is appropriate.
+
+# c. Post-2000 HT on centred first differences
+# ─────────────────────────────────────────────────────────
+# Over this sub-sample the drift is roughly stable, so demeaning aligns
+# the series with zero-crossing-based HT evaluation.
+ht1_conv                                                                    # Design target HT
+compute_empirical_ht_func(scale(diff(y_ssa)[year_2000:length(target)]))     # HT: I-SSA (centred, post-2000)
+compute_empirical_ht_func(scale(diff(y_hpb_one)[year_2000:length(target)])) # HT: one-sided HP (centred, post-2000)
+
+# Depending on the sample I-SSA is less or more smooth: in any case, the comparison based 
+# on the larger (corrected) HT seems fair. Deviations from the true ht1_conv 
+# are due in part to model misspecification and to random sample variation.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.6.3.2 Curvature: Root Mean Squared Second-Order Differences (RMSD2)
+# ─────────────────────────────────────────────────────────────────────────────
+# Second-order differences approximate the discrete second derivative;
+# smaller RMSD2 values indicate a less curved output.
+# The two-sided HP minimizes curvature by construction (Whittaker-Henderson
+# optimality). I-SSA is expected to exhibit larger curvature than the
+# two-sided HP, but remain broadly comparable to the one-sided HP.
+
+output_mat <- cbind(x, y_ssa, y_hpb_one)
+nrow(output_mat)
+dates <- as.character(index(y_xts))
+rownames(output_mat) <- dates
+colnames(output_mat) <- c("INDPRO", "I-SSA", "HP-B one-sided")
+tail(output_mat)
+
+sq_se_dif <- sqrt(apply(
+  apply(apply(na.exclude(output_mat), 2, diff), 2, diff)^2,
+  2, mean
+))
+sq_se_dif  # RMSD2 for: raw series, I-SSA, one-sided HP
+
+# Same computation restricted to post-2000 data: the non-stationarity that
+# affected the mean does not appear to impact or modify curvature.
+sq_se_dif <- sqrt(apply(
+  apply(apply(na.exclude(output_mat[year_2000:length(target), ]), 2, diff), 2, diff)^2,
+  2, mean
+))
+sq_se_dif  # RMSD2 for: raw series, I-SSA, one-sided HP
+
+# Interestingly, I-SSA outperforms HP-B in terms of curvature. Conjecture: the 
+# multi-step `boosting' of HP-B does not minimize curvature anymore.
+
+
 
 
 
