@@ -1001,7 +1001,7 @@ mse_ssa_smooth     # I-SSA MSE (sample)
 # HP, achieves a substantially lower MSE than in Exercise 2, now outperforming 
 # the one-sided HP by a reduction of more than 50%.
 paste(round(100*(mse_hp_one_smooth-mse_ssa_smooth)/mse_hp_one_smooth,2),
-"%  decrease in MSE by I-SSA",sep="")
+      "%  decrease in MSE by I-SSA",sep="")
 
 # The sample MSE of I-SSA should converge to the theoretical value below.
 # Note: this is not scaled to the data
@@ -1914,7 +1914,7 @@ legend("topleft",
 for (i in 1:ncol(mplot))
 {
   lines(mplot[,i],col=colo[i])
-#  mtext(colnames(mplot)[i],line=-i,col=colo[i])
+  #  mtext(colnames(mplot)[i],line=-i,col=colo[i])
 }
 axis(1,at=1:nrow(mplot),labels=index(y_xts))
 axis(2)
@@ -1944,17 +1944,6 @@ box()
 # and dips.
 
 
-mplot<-cbind(x_tilde,y_target,y_mse,y_ssa,y_hp_concurrent)[anf:enf,]
-colnames(mplot)<-c("Data","Target: HP-two","MSE: HP-one","SSA","HP-C")
-plot(mplot[,1],main="Data and trends",axes=F,type="l",xlab="",ylab="",col=colo[1],lwd=1)
-for (i in 1:ncol(mplot))
-{
-  lines(mplot[,i],col=colo[i])
-  mtext(colnames(mplot)[i],line=-i,col=colo[i])
-}
-axis(1,at=1:nrow(mplot),labels=index(y_xts)[(anf):length(y_xts)])
-axis(2)
-box()
 
 
 
