@@ -1800,7 +1800,6 @@ bhp_one <- bhp_coef_obj$one_sided
 # constraint. Without this correction, I-SSA would not be smooth enough,
 # inflating its apparent MSE gains (a bias in favor of I-SSA).
 xi <- 0.3^(0:(L-1))
-
 bhp_one_conv <- conv_two_filt_func(bhp_one, xi)$conv
 
 # Holding-Time (HT) constraint calibration:
@@ -1815,12 +1814,12 @@ ht1_conv  <- compute_holding_time_func(bhp_one_conv)$ht
 
 # As before, the HT of the one-sided filter is much smaller than that of the
 # two-sided design:
-# White noise
+# Assuming white noise
 ht1
 # AR(1): the AR(1) HT is larger, making this a more challenging task for I-SSA.
 ht1_conv
 
-# We use the larger, AR(1)-corrected HT (based on differenced INDPRO).
+# We use the larger, AR(1)-corrected HT.
 # I-SSA itself still relies on the fixed random-walk model throughout; the
 # ACF is used only to calibrate the HT constraint.
 ht_constraint <- ht1_conv
@@ -2005,8 +2004,6 @@ compute_empirical_ht_func(diff(y_hpb_one))  # Empirical HT: one-sided HP
 ht1_conv                                                # Design target HT
 compute_empirical_ht_func(scale(diff(y_ssa)))           # HT: I-SSA (centred)
 compute_empirical_ht_func(scale(diff(y_hpb_one)))       # HT: one-sided HP (centred)
-ts.plot(scale(diff(y_hpb_one)))
-abline(h=0)
 
 
 
